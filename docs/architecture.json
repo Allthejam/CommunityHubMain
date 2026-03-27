@@ -1,0 +1,44 @@
+{
+  "appName": "Community Hub Platform",
+  "description": "A multi-faceted platform designed to connect local communities. It consists of a primary user-facing application, a separate administrative dashboard, and a portal for national advertisers, all powered by a single, shared Firebase backend.",
+  "backend": {
+    "provider": "Firebase",
+    "services": [
+      {
+        "name": "Firestore",
+        "description": "Primary NoSQL database for all application data, including users, communities, businesses, posts, and more. Data structure is defined in 'docs/backend.json'."
+      },
+      {
+        "name": "Firebase Authentication",
+        "description": "Manages user identity across all applications using email/password and social providers. Custom claims are used for role-based access control."
+      },
+      {
+        "name": "Cloud Storage for Firebase",
+        "description": "Used for storing user-uploaded assets like profile pictures, post images, and business logos."
+      }
+    ]
+  },
+  "applications": [
+    {
+      "name": "Main Community Hub App",
+      "description": "The primary user-facing Progressive Web App (PWA) where community members, business owners, and leaders interact. Contains all core features like feeds, shopping, chat, and dashboards.",
+      "url": "https://my-community-hub.co.uk",
+      "techStack": ["Next.js", "React", "TypeScript", "Tailwind CSS", "ShadCN UI", "Firebase SDK"],
+      "notes": "This is the core application that the majority of users interact with."
+    },
+    {
+      "name": "Admin Dashboard",
+      "description": "A separate, secure application for platform administrators to manage users, communities, content, and system-wide settings. It has elevated permissions to perform backend operations.",
+      "url": "https://admin.my-community-hub.co.uk",
+      "techStack": ["Next.js", "React", "TypeScript", "Firebase Admin SDK"],
+      "notes": "This application interfaces directly with the Firebase Admin SDK for privileged operations and is not intended for public access."
+    },
+    {
+      "name": "National Advertiser Dashboard",
+      "description": "A dedicated portal for national advertisers to create and manage their platform-wide advertising campaigns, view analytics, and manage billing.",
+      "url": "https://advertiser.my-community-hub.co.uk",
+      "techStack": ["Next.js", "React", "TypeScript", "Firebase SDK"],
+      "notes": "Provides a focused experience for advertisers, separate from the main community application features."
+    }
+  ]
+}

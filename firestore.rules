@@ -1,0 +1,205 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.isAdmin == true;
+    }
+    
+    function isCommunityCreator() {
+      return isSignedIn() && request.auth.token.isCommunityCreator == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isBusinessOwner(businessId) {
+      // Safe check: return false if the document or data doesn't exist.
+      let businessDoc = get(/databases/$(database)/documents/businesses/$(businessId));
+      return isSignedIn() && businessDoc != null && businessDoc.data.ownerId == request.auth.uid;
+    }
+
+    function communityHasNoLeader(communityId) {
+      // Safe check: return false if document doesn't exist.
+      let communityDoc = get(/databases/$(database)/documents/communities/$(communityId));
+      return communityDoc != null && communityDoc.data.leaderCount == 0;
+    }
+
+    function isLeaderOf(communityId) {
+        let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+        if (!isSignedIn() || userDoc == null) {
+          return false;
+        }
+        let userData = userDoc.data;
+        // Check primary role for the given community
+        let isPrimaryLeader = userData.communityId == communityId && (userData.role == 'president' || userData.role == 'leader');
+        // Check secondary roles in the communityRoles map
+        let isSecondaryLeader = userData.communityRoles != null && communityId in userData.communityRoles && userData.communityRoles[communityId].role in ['president', 'leader'];
+        
+        return isPrimaryLeader || isSecondaryLeader;
+    }
+
+    function isPoliceLiaisonOf(communityId) {
+        let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+        if (!isSignedIn() || userDoc == null) {
+          return false;
+        }
+        let userData = userDoc.data;
+        // Check primary role for the given community
+        let isPrimaryLiaison = userData.communityId == communityId && userData.role == 'police-liaison-officer';
+        // Check secondary roles in the communityRoles map
+        let isSecondaryLiaison = userData.communityRoles != null && communityId in userData.communityRoles && userData.communityRoles[communityId].role == 'police-liaison-officer';
+        
+        return isPrimaryLiaison || isSecondaryLiaison;
+    }
+    
+    function getUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    function getUserPermissions(communityId) {
+      let user = getUser();
+      if (user == null || user.data == null) {
+        return {};
+      }
+      
+      let userData = user.data;
+      if (userData.communityId == communityId) {
+          // It's the primary/active community, use root permissions
+          return userData.permissions != null ? userData.permissions : {};
+      }
+      if (userData.communityRoles != null && communityId in userData.communityRoles) {
+          // It's a secondary community, use the specific roles for it
+          return userData.communityRoles[communityId].permissions != null ? userData.communityRoles[communityId].permissions : {};
+      }
+      return {};
+    }
+
+    function canViewReportCategory(communityId, category) {
+      let permissions = getUserPermissions(communityId);
+      if (permissions.canViewAllCommunityReports == true) {
+          return true;
+      }
+      if (permissions.viewableReportCategories != null && category in permissions.viewableReportCategories) {
+          return true;
+      }
+      return false;
+    }
+    
+    function isCommunityMember(communityId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      // Ensure memberOf exists and is a list before using 'in'
+      return isSignedIn() && userDoc != null && 'memberOf' in userDoc.data && userDoc.data.memberOf is list && communityId in userDoc.data.memberOf;
+    }
+
+    match /communities/{communityId} {
+      allow create: if isCommunityCreator() || isAdmin();
+      allow read: if true;
+      allow update: if isLeaderOf(communityId) || isAdmin();
+    }
+    
+    match /whatson/{itemId} {
+      allow create, update: if (isCommunityCreator() && communityHasNoLeader(request.resource.data.communityId)) || isLeaderOf(request.resource.data.communityId) || isAdmin();
+      allow read: if true;
+    }
+
+    match /events/{eventId} {
+      allow create, update: if (isCommunityCreator() && communityHasNoLeader(request.resource.data.communityId)) || isLeaderOf(request.resource.data.communityId) || isAdmin();
+      allow read: if true;
+    }
+    
+    match /liaison_applications/{applicationId} {
+        allow create: if isSignedIn();
+        allow read, update: if isLeaderOf(resource.data.communityId) || isAdmin();
+    }
+
+    match /businesses/{businessId} {
+        allow update: if (isCommunityCreator() && communityHasNoLeader(resource.data.primaryCommunityId)) || isLeaderOf(resource.data.primaryCommunityId) || isAdmin() || isBusinessOwner(businessId);
+        allow read: if true;
+        allow create: if isBusinessOwner(businessId); // Should be on create
+    }
+
+    match /user_accounts/{accountId} {
+      allow read, write: if isOwner(accountId) || isAdmin();
+    }
+
+    match /user_profiles/{profileId} {
+      allow read, write: if isOwner(profileId) || isAdmin();
+    }
+    
+    match /audit_log/{logId} {
+        allow read, write: if isAdmin();
+    }
+    
+    match /access_requests/{requestId} {
+        allow read, write: if isAdmin();
+    }
+    
+    match /communities/{communityId}/posts/{postId} {
+      allow read: if true;
+      allow create, update, delete: if isOwner(request.resource.data.authorId) || isLeaderOf(communityId);
+    }
+    
+    match /communities/{communityId}/posts/{postId}/comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+    }
+    
+    match /communities/{communityId}/marketplace/{itemId} {
+        allow read: if isSignedIn();
+        allow create: if request.auth.uid == request.resource.data.ownerId;
+        allow update, delete: if request.auth.uid == resource.data.ownerId;
+    }
+    
+    match /communities/{communityId}/polls/{pollId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /orders/{orderId} {
+      allow read, update: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.businessOwnerId == request.auth.uid);
+      allow create: if isSignedIn();
+    }
+
+    match /users/{userId}/recent_orders/{orderId} {
+        allow read, write: if isOwner(userId);
+    }
+    
+    match /businesses/{businessId}/products/{productId}/product_data/variations {
+        allow read: if true;
+        allow write: if isBusinessOwner(businessId);
+    }
+
+    match /jobs/{jobId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /jobSeekers/{seekerId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+    
+    match /community_reports/{reportId} {
+        allow create: if isSignedIn();
+        allow read: if isLeaderOf(resource.data.communityId) || 
+                      (isPoliceLiaisonOf(resource.data.communityId) && 
+                       (resource.data.category.lower() == 'report a crime' || canViewReportCategory(resource.data.communityId, resource.data.category)));
+        allow update: if isLeaderOf(resource.data.communityId);
+    }
+    
+    match /platform_reports/{reportId} {
+        allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+  }
+}
