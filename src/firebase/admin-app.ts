@@ -13,25 +13,32 @@ let adminApp: App;
  * idempotent, meaning it will only initialize the app once.
  */
 function createAdminApp(): App {
-  if (getApps().some((app) => app.name === 'firebase-admin-app')) {
-    return getApps().find((app) => app.name === 'firebase-admin-app')!;
+  const existingApp = getApps().find((app) => app.name === 'firebase-admin-app');
+  if (existingApp) {
+    return existingApp;
   }
 
-  // Explicitly load the service account key.
-  // This is a more robust method than relying on default credentials.
+  // 1. Attempt initialization with Application Default Credentials (ADC)
+  // This is the preferred method for Firebase App Hosting and other Google Cloud environments.
   try {
-    const serviceAccount = require('../../service-account.json');
-    const credential = cert(serviceAccount);
-    
     return initializeApp({
-      credential,
+      // When credential is not provided, it defaults to Application Default Credentials
     }, 'firebase-admin-app');
-  } catch (e: any) {
-    console.error(
-      'Firebase Admin initialization failed. Ensure service-account.json is present and valid. Original error: ' + e.message
-    );
-    // This re-throw is important to see the failure clearly during development.
-    throw e;
+  } catch (adcError: any) {
+    // 2. Fallback to service-account.json for local development
+    try {
+      const serviceAccount = require('../../service-account.json');
+      const credential = cert(serviceAccount);
+      
+      return initializeApp({
+        credential,
+      }, 'firebase-admin-app');
+    } catch (localError: any) {
+      console.error(
+        'Firebase Admin initialization failed. Ensure you are either in a Google Cloud environment or service-account.json is present locally. Original error: ' + localError.message
+      );
+      throw localError;
+    }
   }
 }
 
