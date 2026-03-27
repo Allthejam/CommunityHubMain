@@ -149,6 +149,11 @@ function HighstreetContent() {
     const db = useFirestore();
     
     const [showBackToTop, setShowBackToTop] = React.useState(false);
+    const [hasMounted, setHasMounted] = React.useState(false);
+
+    React.useEffect(() => {
+        setHasMounted(true);
+    }, []);
 
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
@@ -250,6 +255,14 @@ function HighstreetContent() {
     const leftSideBusinesses = businesses?.filter((_, index) => index % 2 === 0) || [];
     const rightSideBusinesses = businesses?.filter((_, index) => index % 2 !== 0) || [];
 
+    if (!hasMounted) {
+        return (
+            <div className="flex justify-center items-center h-screen bg-gray-100">
+                <Loader2 className="animate-spin h-12 w-12 text-primary" />
+            </div>
+        );
+    }
+
     return (
         <>
             <style jsx global>{`
@@ -262,7 +275,7 @@ function HighstreetContent() {
                     z-index: 1;
                 }
 
-                .fx-container {
+                .highstreet-page-wrapper .fx-container {
                     position: fixed;
                     top: 0;
                     left: 0;
@@ -272,7 +285,7 @@ function HighstreetContent() {
                     z-index: 10;
                 }
 
-                .fx-particle {
+                .highstreet-page-wrapper .fx-particle {
                     position: absolute;
                     top: -20px;
                     animation: fall linear infinite;
@@ -284,7 +297,7 @@ function HighstreetContent() {
                     100% { transform: translateY(100vh) rotate(360deg); }
                 }
 
-                .highstreet-container {
+                .highstreet-page-wrapper .highstreet-container {
                     position: relative;
                     width: 100%;
                     min-height: 100vh; 
@@ -293,7 +306,7 @@ function HighstreetContent() {
                 }
 
                 @media (min-width: 768px) {
-                    .highstreet-container.theme-day {
+                    .highstreet-page-wrapper .highstreet-container.theme-day {
                         background-color: #9ca3af; 
                         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='800' viewBox='0 0 340 800'%3E%3Crect x='70' y='0' width='200' height='800' fill='%232d3748'/%3E%3Cline x1='170' y1='20' x2='170' y2='780' stroke='%23fde047' stroke-width='4' stroke-dasharray='40,60'/%3E%3Ctext x='185' y='180' fill='%23fde047' font-family='Arial, sans-serif' font-weight='bold' font-size='16' transform='rotate(90, 185, 180)' opacity='0.7'%3EBUS STOP%3C/text%3E%3Crect x='172' y='50' width='90' height='300' fill='none' stroke='%23fde047' stroke-width='2' opacity='0.5'/%3E%3Crect x='0' y='0' width='70' height='798' fill='%23edf2f7'/%3E%3Crect x='270' y='0' width='70' height='798' fill='%23edf2f7'/%3E%3Cline x1='70' y1='0' x2='70' y2='800' stroke='%23a0aec0' stroke-width='2'/%3E%3Cline x1='270' y1='0' x2='270' y2='800' stroke='%23a0aec0' stroke-width='2'/%3E%3C/svg%3E");
                         background-repeat: repeat-y;
@@ -301,7 +314,7 @@ function HighstreetContent() {
                         transition: background-color 1s ease;
                     }
 
-                    .highstreet-container.theme-night {
+                    .highstreet-page-wrapper .highstreet-container.theme-night {
                         background-color: #1a202c; /* darker background color for night */
                         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='800' viewBox='0 0 340 800'%3E%3Crect x='70' y='0' width='200' height='800' fill='%231f2937'/%3E%3Cline x1='170' y1='20' x2='170' y2='780' stroke='%23d97706' stroke-width='4' stroke-dasharray='40,60'/%3E%3Ctext x='185' y='180' fill='%23d97706' font-family='Arial, sans-serif' font-weight='bold' font-size='16' transform='rotate(90, 185, 180)' opacity='0.3'%3EBUS STOP%3C/text%3E%3Crect x='172' y='50' width='90' height='300' fill='none' stroke='%23d97706' stroke-width='2' opacity='0.2'/%3E%3Crect x='0' y='0' width='70' height='798' fill='%23374151'/%3E%3Crect x='270' y='0' width='70' height='798' fill='%23374151'/%3E%3Cline x1='70' y1='0' x2='70' y2='800' stroke='%234b5563' stroke-width='2'/%3E%3Cline x1='270' y1='0' x2='270' y2='800' stroke='%234b5563' stroke-width='2'/%3E%3C/svg%3E");
                         background-repeat: repeat-y;
@@ -311,20 +324,14 @@ function HighstreetContent() {
                 }
 
                 @media (max-width: 767px) {
-                    .highstreet-container { background-color: #f3f4f6; background-image: none; }
-                    .highstreet-container.theme-night { background-color: #1f2937; }
-                    .street-asset { display: none !important; }
+                    .highstreet-page-wrapper .highstreet-container { background-color: #f3f4f6; background-image: none; }
+                    .highstreet-page-wrapper .highstreet-container.theme-night { background-color: #1f2937; }
+                    .highstreet-page-wrapper .street-asset { display: none !important; }
                 }
 
-                .highstreet-container {
-                    position: relative;
-                    min-height: 100vh;
-                    overflow: hidden;
-                }
+                .highstreet-page-wrapper .street-asset { position: absolute; z-index: 7; pointer-events: none; }
 
-                .street-asset { position: absolute; z-index: 7; pointer-events: none; }
-
-                .shops-grid {
+                .highstreet-page-wrapper .shops-grid {
                     display: grid;
                     width: 100%;
                     max-width: 1100px; 
@@ -334,19 +341,19 @@ function HighstreetContent() {
                 }
 
                 @media (min-width: 768px) {
-                    .shops-grid { grid-template-columns: 1fr 340px 1fr; }
-                    .side-left { align-items: flex-end; padding-top: 50px; }
-                    .side-right { align-items: flex-start; padding-top: 50px; }
+                    .highstreet-page-wrapper .shops-grid { grid-template-columns: 1fr 340px 1fr; }
+                    .highstreet-page-wrapper .side-left { align-items: flex-end; padding-top: 50px; }
+                    .highstreet-page-wrapper .side-right { align-items: flex-start; padding-top: 50px; }
                 }
 
-                .shop-side { display: flex; flex-direction: column; position: relative; gap: 60px; }
+                .highstreet-page-wrapper .shop-side { display: flex; flex-direction: column; position: relative; gap: 60px; }
 
                 @media (max-width: 767px) {
-                    .shop-side { align-items: center; gap: 40px; }
-                    .central-road-gap { display: none; }
+                    .highstreet-page-wrapper .shop-side { align-items: center; gap: 40px; }
+                    .highstreet-page-wrapper .central-road-gap { display: none; }
                 }
 
-                .shop-card {
+                .highstreet-page-wrapper .shop-card {
                     background: white;
                     border-radius: 8px; 
                     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
@@ -359,25 +366,25 @@ function HighstreetContent() {
                     overflow: hidden;
                 }
 
-                .theme-night .shop-card {
+                .highstreet-page-wrapper.wrapper-night .shop-card {
                     background: #111827;
                     border-color: #374151;
                     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
                     color: #fff;
                 }
 
-                .theme-night .streetlight .glow-pool { opacity: 1; }
+                .highstreet-page-wrapper.wrapper-night .streetlight .glow-pool { opacity: 1; }
 
                 /* Animated Traffic */
-                .traffic-lane {
+                .highstreet-page-wrapper .traffic-lane {
                     position: absolute;
                     top: 0; left: 0; width: 100%; height: 100%;
                     overflow: hidden; pointer-events: none; z-index: 2;
                 }
-                .vehicle { position: absolute; left: calc(50% - 12px); top: -100px; }
-                .car-1 { animation: drive-down 12s linear infinite; animation-delay: 2s; }
-                .car-2 { animation: drive-down 18s linear infinite; animation-delay: 8s; margin-left: -40px; }
-                .car-3 { animation: drive-down 15s linear infinite; animation-delay: 15s; margin-left: 40px; }
+                .highstreet-page-wrapper .vehicle { position: absolute; left: calc(50% - 12px); top: -100px; }
+                .highstreet-page-wrapper .car-1 { animation: drive-down 12s linear infinite; animation-delay: 2s; }
+                .highstreet-page-wrapper .car-2 { animation: drive-down 18s linear infinite; animation-delay: 8s; margin-left: -40px; }
+                .highstreet-page-wrapper .car-3 { animation: drive-down 15s linear infinite; animation-delay: 15s; margin-left: 40px; }
                 
                 @keyframes drive-down {
                     0% { top: -100px; }
@@ -385,21 +392,21 @@ function HighstreetContent() {
                 }
 
                 /* Animated Pedestrians */
-                .pedestrian-lane {
+                .highstreet-page-wrapper .pedestrian-lane {
                     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
                     overflow: hidden; pointer-events: none; z-index: 4;
                 }
-                .pedestrian { position: absolute; }
-                .pedestrian .head { width: 8px; height: 8px; background: #4a5568; border-radius: 50%; margin: 0 auto; }
-                .pedestrian .body { width: 14px; height: 10px; background: #2d3748; border-radius: 4px; margin-top: 2px; }
+                .highstreet-page-wrapper .pedestrian { position: absolute; }
+                .highstreet-page-wrapper .pedestrian .head { width: 8px; height: 8px; background: #4a5568; border-radius: 50%; margin: 0 auto; }
+                .highstreet-page-wrapper .pedestrian .body { width: 14px; height: 10px; background: #2d3748; border-radius: 4px; margin-top: 2px; }
                 
-                .theme-night .pedestrian .head, .theme-night .pedestrian .body { background: #1a202c; opacity: 0.5; }
+                .highstreet-page-wrapper.wrapper-night .pedestrian .head, .highstreet-page-wrapper.wrapper-night .pedestrian .body { background: #1a202c; opacity: 0.5; }
 
-                .p-1 { left: calc(50% - 90px); animation: walk-down 30s linear infinite; animation-delay: 0s; }
-                .p-2 { left: calc(50% + 75px); animation: walk-up 40s linear infinite; animation-delay: 5s; }
-                .p-3 { left: calc(50% - 110px); animation: walk-down 35s linear infinite; animation-delay: 15s; }
-                .p-4 { left: calc(50% + 95px); animation: walk-up 45s linear infinite; animation-delay: 12s; }
-                .p-5 { left: calc(50% - 80px); animation: walk-down 25s linear infinite; animation-delay: 22s; }
+                .highstreet-page-wrapper .p-1 { left: calc(50% - 90px); animation: walk-down 30s linear infinite; animation-delay: 0s; }
+                .highstreet-page-wrapper .p-2 { left: calc(50% + 75px); animation: walk-up 40s linear infinite; animation-delay: 5s; }
+                .highstreet-page-wrapper .p-3 { left: calc(50% - 110px); animation: walk-down 35s linear infinite; animation-delay: 15s; }
+                .highstreet-page-wrapper .p-4 { left: calc(50% + 95px); animation: walk-up 45s linear infinite; animation-delay: 12s; }
+                .highstreet-page-wrapper .p-5 { left: calc(50% - 80px); animation: walk-down 25s linear infinite; animation-delay: 22s; }
 
                 @keyframes walk-down {
                     0% { top: -50px; }
@@ -410,24 +417,24 @@ function HighstreetContent() {
                     100% { top: -50px; }
                 }
 
-                .shop-card:hover { transform: translateY(-8px); }
-                .shop-header { padding: 20px 20px 10px 20px; display: flex; align-items: center; gap: 15px; }
-                .shop-logo { width: 50px; height: 50px; background: #f7fafc; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; font-size: 24px; position: relative; z-index: 16;}
-                .shop-content { padding: 0 20px 20px 20px; }
-                .enter-btn { display: block; width: 100%; background: #2d3748; color: white; text-align: center; padding: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 15px; }
-                .enter-btn:hover { background: #1a202c; }
-                .enter-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+                .highstreet-page-wrapper .shop-card:hover { transform: translateY(-8px); }
+                .highstreet-page-wrapper .shop-header { padding: 20px 20px 10px 20px; display: flex; align-items: center; gap: 15px; }
+                .highstreet-page-wrapper .shop-logo { width: 50px; height: 50px; background: #f7fafc; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; font-size: 24px; position: relative; z-index: 16;}
+                .highstreet-page-wrapper .shop-content { padding: 0 20px 20px 20px; }
+                .highstreet-page-wrapper .enter-btn { display: block; width: 100%; background: #2d3748; color: white; text-align: center; padding: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 15px; }
+                .highstreet-page-wrapper .enter-btn:hover { background: #1a202c; }
+                .highstreet-page-wrapper .enter-btn:disabled { background: #9ca3af; cursor: not-allowed; }
 
-                .divider-line {
+                .highstreet-page-wrapper .divider-line {
                     border: none; 
                     height: 1px; 
                     background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(150, 150, 150, 0.75), rgba(0, 0, 0, 0));
                     margin: 10px 0;
                 }
 
-                .streetlight { position: absolute; width: 40px; height: 120px; z-index: 12; top: -40px; }
-                .lamp-left { right: -25px; }
-                .lamp-right { left: -25px; }
+                .highstreet-page-wrapper .streetlight { position: absolute; width: 40px; height: 120px; z-index: 12; top: -40px; }
+                .highstreet-page-wrapper .lamp-left { right: -25px; }
+                .highstreet-page-wrapper .lamp-right { left: -25px; }
             `}</style>
             <div className={`highstreet-page-wrapper ${isNight ? 'wrapper-night' : ''}`}>
                 <div className="fx-container" id="highstreet-fx"></div>
