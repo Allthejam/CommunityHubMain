@@ -267,7 +267,7 @@ function HighstreetContent() {
                     width: 100%;
                     height: 100%;
                     pointer-events: none;
-                    z-index: 50;
+                    z-index: 10;
                 }
 
                 .fx-particle {
@@ -319,13 +319,13 @@ function HighstreetContent() {
                     overflow: hidden;
                 }
 
-                .street-asset { position: absolute; z-index: 22; pointer-events: none; }
+                .street-asset { position: absolute; z-index: 7; pointer-events: none; }
 
                 .shops-grid {
                     display: grid;
                     width: 100%;
                     max-width: 1100px; 
-                    z-index: 20;
+                    z-index: 5;
                     padding: 50px 20px 150px 20px;
                     grid-template-columns: 1fr; 
                 }
@@ -351,7 +351,7 @@ function HighstreetContent() {
                     width: 100%;
                     max-width: 320px;
                     position: relative;
-                    z-index: 30;
+                    z-index: 15;
                     transition: transform 0.3s ease, background-color 0.5s ease;
                     overflow: hidden;
                 }
@@ -369,7 +369,7 @@ function HighstreetContent() {
                 .traffic-lane {
                     position: absolute;
                     top: 0; left: 0; width: 100%; height: 100%;
-                    overflow: hidden; pointer-events: none; z-index: 5;
+                    overflow: hidden; pointer-events: none; z-index: 2;
                 }
                 .vehicle { position: absolute; left: calc(50% - 12px); top: -100px; }
                 .car-1 { animation: drive-down 12s linear infinite; animation-delay: 2s; }
@@ -384,7 +384,7 @@ function HighstreetContent() {
                 /* Animated Pedestrians */
                 .pedestrian-lane {
                     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                    overflow: hidden; pointer-events: none; z-index: 15;
+                    overflow: hidden; pointer-events: none; z-index: 4;
                 }
                 .pedestrian { position: absolute; }
                 .pedestrian .head { width: 8px; height: 8px; background: #4a5568; border-radius: 50%; margin: 0 auto; }
@@ -409,7 +409,7 @@ function HighstreetContent() {
 
                 .shop-card:hover { transform: translateY(-8px); }
                 .shop-header { padding: 20px 20px 10px 20px; display: flex; align-items: center; gap: 15px; }
-                .shop-logo { width: 50px; height: 50px; background: #f7fafc; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; font-size: 24px; position: relative; z-index: 31;}
+                .shop-logo { width: 50px; height: 50px; background: #f7fafc; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; font-size: 24px; position: relative; z-index: 16;}
                 .shop-content { padding: 0 20px 20px 20px; }
                 .enter-btn { display: block; width: 100%; background: #2d3748; color: white; text-align: center; padding: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 15px; }
                 .enter-btn:hover { background: #1a202c; }
@@ -422,7 +422,7 @@ function HighstreetContent() {
                     margin: 10px 0;
                 }
 
-                .streetlight { position: absolute; width: 40px; height: 120px; z-index: 25; top: -40px; }
+                .streetlight { position: absolute; width: 40px; height: 120px; z-index: 12; top: -40px; }
                 .lamp-left { right: -25px; }
                 .lamp-right { left: -25px; }
             `}</style>
