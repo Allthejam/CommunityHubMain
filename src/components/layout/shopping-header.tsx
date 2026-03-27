@@ -155,7 +155,7 @@ export default function ShoppingHeader() {
   const isVisiting = userProfile && userProfile.communityId !== userProfile.homeCommunityId;
 
   return (
-    <header className="sticky top-0 z-30 flex h-auto min-h-16 flex-col justify-center border-b bg-background px-4 sm:px-6">
+    <header className="sticky top-0 z-[100] flex h-auto min-h-16 flex-col justify-center border-b bg-background px-4 sm:px-6">
        <div className="flex w-full items-center gap-4 py-2">
         <MobileNav menuItems={menuItems} />
         <Link href="/shopping" className="flex items-center gap-2 font-bold text-lg mr-4">
