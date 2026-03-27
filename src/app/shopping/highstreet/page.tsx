@@ -274,6 +274,7 @@ function HighstreetContent() {
                     position: absolute;
                     top: -20px;
                     animation: fall linear infinite;
+                    pointer-events: none;
                 }
 
                 @keyframes fall {
