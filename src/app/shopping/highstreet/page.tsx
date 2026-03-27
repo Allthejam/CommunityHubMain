@@ -258,6 +258,8 @@ function HighstreetContent() {
                     margin: 0;
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                     overflow-x: hidden;
+                    position: relative;
+                    z-index: 1;
                 }
 
                 .fx-container {
