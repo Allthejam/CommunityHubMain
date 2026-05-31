@@ -17,20 +17,23 @@ function createAdminApp(): App {
     return getApps().find((app) => app.name === 'firebase-admin-app')!;
   }
 
-  // Explicitly load the service account key.
-  // This is a more robust method than relying on default credentials.
   try {
-    const serviceAccount = require('../../service-account.json');
-    const credential = cert(serviceAccount);
+    let credential;
+    try {
+      // Explicitly load the service account key for local development.
+      const serviceAccount = require('../../service-account.json');
+      credential = cert(serviceAccount);
+    } catch (err) {
+      // In production (Firebase App Hosting), the file won't exist.
+      // Firebase will automatically use Application Default Credentials.
+      console.log('service-account.json not found, falling back to Application Default Credentials.');
+    }
     
-    return initializeApp({
-      credential,
-    }, 'firebase-admin-app');
+    return initializeApp(credential ? { credential } : undefined, 'firebase-admin-app');
   } catch (e: any) {
     console.error(
-      'Firebase Admin initialization failed. Ensure service-account.json is present and valid. Original error: ' + e.message
+      'Firebase Admin initialization failed. ' + e.message
     );
-    // This re-throw is important to see the failure clearly during development.
     throw e;
   }
 }
