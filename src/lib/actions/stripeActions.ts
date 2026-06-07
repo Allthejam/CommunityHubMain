@@ -104,7 +104,10 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<Act
                 sessionPayload.line_items.push({
                     price_data: {
                         currency: 'gbp',
-                        product_data: { name: 'Local Delivery Fee' },
+                        product_data: { 
+                            name: 'Local Delivery Fee',
+                            metadata: { isDeliveryFee: 'true' }
+                        },
                         unit_amount: Math.round(totalDeliveryFee * 100),
                     },
                     quantity: 1,

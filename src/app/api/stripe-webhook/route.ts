@@ -49,8 +49,16 @@ async function handleCartCheckout(session: Stripe.Checkout.Session) {
         const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { expand: ['data.price.product'] });
         const groups: Record<string, { items: any[], subtotal: number }> = {};
 
+        let deliveryFeeAmount = 0;
+
         for (const item of lineItems.data) {
             const product = item.price?.product as Stripe.Product;
+            
+            if (product?.metadata?.isDeliveryFee === 'true') {
+                deliveryFeeAmount += item.amount_total || 0;
+                continue;
+            }
+
             const productId = product?.metadata?.productId || item.metadata?.productId || 'unknown';
             // Use cartMapping as the primary blueprint for routing
             const bizId = cartMapping[productId] || product?.metadata?.businessId || item.metadata?.businessId;
@@ -160,24 +168,63 @@ async function handleCartCheckout(session: Stripe.Checkout.Session) {
                 const netTransfer = calculateTransferNet(data.subtotal, totalAmount, totalFee);
                 if (netTransfer > 0) {
                     try {
-                        await stripe.transfers.create({
+                        const transferData: any = {
                             amount: netTransfer,
                             currency: 'gbp',
                             destination: stripeAccountId,
                             transfer_group: orderId,
                             metadata: { orderId, businessId: bizId }
-                        });
+                        };
+                        // Use source_transaction if payment_intent exists to avoid balance errors
+                        if (session.payment_intent) {
+                            transferData.source_transaction = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id;
+                        }
+                        await stripe.transfers.create(transferData);
                     } catch (e: any) {
                         console.error(`[TRANSFER ERROR] Biz: ${bizId}`, e.message);
                     }
                 }
+            } else {
+                console.error(`[WEBHOOK WARNING] Business ${bizId} has no stripeAccountId. Funds remain with Admin.`);
             }
         }
 
-        // Courier Alert
+        // Courier Alert and Payment
         const commDoc = await firestore.doc(`communities/${communityId}`).get();
         const courierId = commDoc.data()?.courierId;
         if (courierId && meta.deliveryType === 'local_courier') {
+            // Transfer delivery fee to Courier
+            let courierStripeAccountId = null;
+            const courierBizQuery = await firestore.collection('businesses').where('ownerId', '==', courierId).limit(1).get();
+            if (!courierBizQuery.empty) {
+                courierStripeAccountId = courierBizQuery.docs[0].data()?.stripeAccountId;
+            }
+
+            if (deliveryFeeAmount > 0) {
+                if (courierStripeAccountId) {
+                    const netTransfer = calculateTransferNet(deliveryFeeAmount, totalAmount, totalFee);
+                    if (netTransfer > 0) {
+                        try {
+                            const transferData: any = {
+                                amount: netTransfer,
+                                currency: 'gbp',
+                                destination: courierStripeAccountId,
+                                transfer_group: orderId,
+                                metadata: { orderId, type: 'delivery_fee' }
+                            };
+                            if (session.payment_intent) {
+                                transferData.source_transaction = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id;
+                            }
+                            await stripe.transfers.create(transferData);
+                        } catch (e: any) {
+                            console.error(`[TRANSFER ERROR] Courier Delivery Fee:`, e.message);
+                        }
+                    }
+                } else {
+                    console.error(`[WEBHOOK WARNING] Courier ${courierId} has no stripeAccountId. Delivery fee remains with Admin.`);
+                }
+            }
+
             await firestore.collection('notifications').add({
                 recipientId: courierId,
                 type: 'New Order',
@@ -236,6 +283,77 @@ async function handleSubscriptionLifecycle(firestore: any, subscription: Stripe.
     await firestore.collection('businesses').doc(businessId).update(updateData);
 }
 
+async function handleInvoicePaymentSucceeded(firestore: any, invoice: Stripe.Invoice) {
+    if (!invoice.subscription) return;
+    
+    const subId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription.id;
+    
+    // We only split Storefront Subscriptions.
+    const storefrontMatch = await firestore.collection('businesses').where('storefrontStripeSubscriptionId', '==', subId).limit(1).get();
+    if (storefrontMatch.empty) return;
+
+    const subscription = await stripe.subscriptions.retrieve(subId);
+    const communityId = subscription.metadata?.cid;
+    if (!communityId) return;
+
+    const totalAmount = invoice.amount_paid;
+    if (totalAmount <= 0) return;
+
+    const commDoc = await firestore.doc(`communities/${communityId}`).get();
+    const commData = commDoc.data();
+    if (!commData) return;
+
+    const chargeId = typeof invoice.charge === 'string' ? invoice.charge : invoice.charge?.id;
+
+    // 10% to Community Leader
+    const leaderStripeId = commData.stripeAccountId;
+    if (leaderStripeId) {
+        const leaderAmount = Math.floor(totalAmount * 0.10);
+        if (leaderAmount > 0 && chargeId) {
+            try {
+                await stripe.transfers.create({
+                    amount: leaderAmount,
+                    currency: invoice.currency,
+                    destination: leaderStripeId,
+                    source_transaction: chargeId,
+                    metadata: { reason: 'storefront_subscription_split_leader', invoiceId: invoice.id }
+                });
+                console.log(`[SUBSCRIPTION SPLIT] Sent ${leaderAmount} to Leader ${leaderStripeId}`);
+            } catch (e: any) {
+                console.error('[TRANSFER ERROR] Leader Split:', e.message);
+            }
+        }
+    }
+
+    // 40% to Community Courier
+    const courierId = commData.courierId;
+    if (courierId) {
+        const courierBizQuery = await firestore.collection('businesses').where('ownerId', '==', courierId).limit(1).get();
+        if (!courierBizQuery.empty) {
+            const courierStripeId = courierBizQuery.docs[0].data()?.stripeAccountId;
+            if (courierStripeId) {
+                const courierAmount = Math.floor(totalAmount * 0.40);
+                if (courierAmount > 0 && chargeId) {
+                    try {
+                        await stripe.transfers.create({
+                            amount: courierAmount,
+                            currency: invoice.currency,
+                            destination: courierStripeId,
+                            source_transaction: chargeId,
+                            metadata: { reason: 'storefront_subscription_split_courier', invoiceId: invoice.id }
+                        });
+                        console.log(`[SUBSCRIPTION SPLIT] Sent ${courierAmount} to Courier ${courierStripeId}`);
+                    } catch (e: any) {
+                        console.error('[TRANSFER ERROR] Courier Split:', e.message);
+                    }
+                }
+            } else {
+                console.error(`[SUBSCRIPTION SPLIT WARNING] Courier ${courierId} has no stripeAccountId. 40% split remains with Admin.`);
+            }
+        }
+    }
+}
+
 export async function POST(req: Request) {
     if (!stripeSecret) return new NextResponse("Missing secret", { status: 500 });
     const body = await req.text();
@@ -262,6 +380,8 @@ export async function POST(req: Request) {
         }
     } else if (['customer.subscription.updated', 'customer.subscription.deleted'].includes(event.type)) {
         handleSubscriptionLifecycle(firestore, event.data.object as Stripe.Subscription, event.type);
+    } else if (event.type === 'invoice.payment_succeeded') {
+        handleInvoicePaymentSucceeded(firestore, event.data.object as Stripe.Invoice).catch(e => console.error("Async Invoice Error:", e));
     }
     
     return NextResponse.json({ received: true });
