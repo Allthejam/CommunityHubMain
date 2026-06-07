@@ -54,7 +54,11 @@ const BusinessRow = ({ business }: { business: Business }) => {
     const creationDate = toDate(business.createdAt);
     const expiryDate = toDate(business.listingSubscriptionExpiresAt);
 
-    const isLive = (business.status === 'Subscribed' && (!expiryDate || now <= expiryDate)) ||
+    const freeExpiry = toDate((business as any).freeListingExpiresAt);
+    const isFreeLive = (business as any).isFreeListing && (!freeExpiry || now <= freeExpiry);
+
+    const isLive = isFreeLive || 
+                   (business.status === 'Subscribed' && (!expiryDate || now <= expiryDate)) ||
                    (business.status === 'Approved' && creationDate && differenceInDays(now, creationDate) <= 14);
 
     const handleCardClick = () => {
@@ -174,7 +178,11 @@ function BusinessDirectoryContent() {
             return false;
         }
 
-        return (business.status === 'Subscribed' && (!expiryDate || now <= expiryDate)) ||
+        const freeExpiry = toDate((business as any).freeListingExpiresAt);
+        const isFreeLive = (business as any).isFreeListing && (!freeExpiry || now <= freeExpiry);
+
+        return isFreeLive ||
+               (business.status === 'Subscribed' && (!expiryDate || now <= expiryDate)) ||
                (business.status === 'Approved' && creationDate && differenceInDays(now, creationDate) <= 14);
     };
 

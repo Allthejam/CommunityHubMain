@@ -116,7 +116,10 @@ const getListingEffectiveStatus = (business: BusinessListing, now: Date): string
     if (listingSubscriptionStatus === 'pending_cancellation') return "Pending Cancellation";
 
     const freeExpiry = toDateHelper(freeListingExpiresAt);
-    if (isFreeListing && freeExpiry && now > freeExpiry) return "Subscription Expired";
+    if (isFreeListing) {
+        if (freeExpiry && now > freeExpiry) return "Subscription Expired";
+        return "Subscribed";
+    }
 
     const subExpiry = toDateHelper(listingSubscriptionExpiresAt);
     if (status === 'Subscribed' && subExpiry && now > subExpiry) return "Subscription Expired";
