@@ -24,6 +24,7 @@ import { HighstreetFeed } from '@/components/highstreet-feed';
 import { AnnouncementBanners } from '@/components/announcement-banners';
 import { AccommodationFeed } from '@/components/accommodation-feed';
 import { BuySwapSellFeed } from '@/components/buy-swap-sell-feed';
+import { GuestBook } from '@/components/guest-book';
 
 export default function HomePage() {
   const { user, isUserLoading: authLoading } = useUser();
@@ -165,6 +166,7 @@ export default function HomePage() {
           </div>
           <HighstreetFeed communityId={activeCommunityId} />
           <ValuedPartners layout="carousel" />
+          <GuestBook communityId={activeCommunityId} />
       </div>
     </div>
   );

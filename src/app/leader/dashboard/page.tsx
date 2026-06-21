@@ -26,8 +26,9 @@ export default function LeaderDashboardPage() {
     const permissions = communityRoleData?.permissions || userProfile?.permissions || {};
     const activeRole = communityRoleData?.role || userProfile?.role;
     
-    // President/admin should see all by default.
-    const isAdminOrPresident = ['president', 'owner', 'admin'].includes(activeRole);
+    // President/admin should see all by default. Platform owner/admin account types get full access too.
+    const isAdminOrPresident = ['president', 'owner', 'admin'].includes(activeRole) ||
+        ['owner', 'admin', 'administrator'].includes((userProfile as any)?.accountType);
 
     const hasAccess = (permissionKey: keyof typeof permissions) => {
         if (isAdminOrPresident) return true;

@@ -32,7 +32,8 @@ import {
   Heart,
   Calendar as CalendarIcon,
   Tv,
-  X
+  X,
+  BookOpen,
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -108,6 +109,7 @@ const engageSubItems = [
     { href: '/lost-and-found', label: 'Lost & Found', icon: HeartHandshake },
     { href: '/charities', label: 'Charities', icon: Heart },
     { href: '/polls', label: 'Polls', icon: BadgeHelp },
+    { href: '/guestbook', label: 'Guest Book', icon: BookOpen },
 ];
 
 const getInitials = (name: string | undefined) => {

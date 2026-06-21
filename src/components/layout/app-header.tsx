@@ -38,6 +38,7 @@ import ShoppingCart from 'lucide-react/dist/esm/icons/shopping-cart';
 import HeartHandshake from 'lucide-react/dist/esm/icons/heart-handshake';
 import BadgeHelp from 'lucide-react/dist/esm/icons/badge-help';
 import Siren from 'lucide-react/dist/esm/icons/siren';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open';
 
 import { signOut } from 'firebase/auth';
 import { doc, collection, query, where, onSnapshot, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
@@ -102,6 +103,7 @@ const engageSubItems = [
     { href: '/lost-and-found', label: 'Lost & Found', icon: HeartHandshake, permission: 'viewLostAndFound' },
     { href: '/charities', label: 'Charities', icon: Heart, permission: 'viewCharities' },
     { href: '/polls', label: 'Polls', icon: BadgeHelp, permission: 'viewPolls' },
+    { href: '/guestbook', label: 'Guest Book', icon: BookOpen, permission: 'viewGuestBook' },
 ];
 
 const accountTypeIcons = {

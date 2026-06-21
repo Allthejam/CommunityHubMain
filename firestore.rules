@@ -188,6 +188,11 @@ service cloud.firestore {
         allow read: if true;
         allow write: if isLeaderOf(communityId);
     }
+    match /communities/{communityId}/guestbook/{entryId} {
+        allow read: if (resource == null) || (resource.data.status == 'Live') || isLeaderOf(communityId) || isAdmin();
+        allow create: if isSignedIn();
+        allow update, delete: if isLeaderOf(communityId) || isAdmin();
+    }
 
     match /liaison_applications/{applicationId} {
         allow create: if isSignedIn();

@@ -24,7 +24,10 @@ export default function LeaderLayout({
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
   const hasAccess = (permissions: any, activeRole: string, permissionKey: string) => {
-    if (['president', 'owner', 'admin', 'administrator'].includes(activeRole)) {
+    if (
+      ['president', 'owner', 'admin', 'administrator'].includes(activeRole) ||
+      ['owner', 'admin', 'administrator'].includes(userProfile?.accountType)
+    ) {
         return true;
     }
     return !!permissions[permissionKey];
@@ -60,9 +63,8 @@ export default function LeaderLayout({
         'reporter',
         'broadcaster'
       ];
-      
-      // Check if user has ANY leader-like role, primary or secondary.
-      let hasAnyLeaderRole = leaderRoles.includes(userProfile.role);
+      // Check if user has ANY leader-like role, primary or secondary, OR is platform owner/admin.
+      let hasAnyLeaderRole = leaderRoles.includes(userProfile.role) || ['owner', 'admin', 'administrator'].includes(userProfile.accountType);
       if (!hasAnyLeaderRole && userProfile.communityRoles) {
         hasAnyLeaderRole = Object.values(userProfile.communityRoles).some((roleData: any) => leaderRoles.includes(roleData.role));
       }

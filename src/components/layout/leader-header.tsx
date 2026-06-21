@@ -71,6 +71,7 @@ const mainLeaderNavItems = [
 const reviewSubItems = [
     { href: '/leader/reports', label: 'Reports', icon: FileText, permission: 'viewReports' },
     { href: '/leader/applications', label: 'Applications', icon: Shield, permission: 'viewApplications' },
+    { href: '/leader/reviews', label: 'Guest Book Reviews', icon: Star, permission: 'actionApproveGuestBook' },
 ];
 
 const contentSubItems = [
@@ -191,7 +192,8 @@ export default function LeaderHeader() {
 
     const isAnyLeader = (userProfile.role && ['president', 'leader', 'vice-president'].includes(userProfile.role)) ||
       (userProfile.communityRoles && Object.values(userProfile.communityRoles).some((r: any) => ['president', 'leader', 'vice-president'].includes(r.role))) ||
-      userProfile.permissions?.hasBackOfficeAccess;
+      userProfile.permissions?.hasBackOfficeAccess ||
+      ['owner', 'admin', 'administrator'].includes(userProfile.accountType);
     
     if (isAnyLeader) {
       availableDashboards.push({ href: '/leader/dashboard', label: 'Leader', icon: Crown });
@@ -236,7 +238,9 @@ export default function LeaderHeader() {
     const permissions = communityRoleData?.permissions || userProfile.permissions || {};
     const activeRole = communityRoleData?.role || userProfile.role;
 
+    const isPlatformAdmin = ['owner', 'admin', 'administrator'].includes(userProfile.accountType);
     const hasAccess = (permissionKey: string) => {
+        if (isPlatformAdmin) return true;
         if (activeRole === 'president' || activeRole === 'admin' || activeRole === 'owner') return true;
         return !!permissions[permissionKey];
     };
