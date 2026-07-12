@@ -30,6 +30,7 @@ type LeaderProfileData = {
     homeCommunityId?: string;
     firstName?: string;
     lastName?: string;
+    onboardingCompleted?: boolean;
 };
 
 export async function saveLeaderProfile(params: {
@@ -58,7 +59,7 @@ export async function saveLeaderProfile(params: {
         return { success: false, error: "User is not associated with a community." };
     }
 
-    const { leaderName, firstName, lastName, gender, ageRange, ...restOfProfileData } = profileData;
+    const { leaderName, firstName, lastName, gender, ageRange, onboardingCompleted, ...restOfProfileData } = profileData;
     const isUpdatingPersonalInfo = leaderName || firstName || lastName || gender || ageRange;
 
     if (isUpdatingPersonalInfo) {
@@ -93,6 +94,7 @@ export async function saveLeaderProfile(params: {
     if (profileData.gender !== undefined) userUpdateData.gender = profileData.gender;
     if (profileData.ageRange !== undefined) userUpdateData.ageRange = profileData.ageRange;
     if (profileData.homeCommunityId) userUpdateData.homeCommunityId = profileData.homeCommunityId;
+    if (onboardingCompleted !== undefined) userUpdateData.onboardingCompleted = onboardingCompleted;
 
     if (isUpdatingPersonalInfo) {
         userUpdateData.personalInfoLastUpdated = Timestamp.now();

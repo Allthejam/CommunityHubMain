@@ -17,3 +17,8 @@ scheduledTasks:
     timeZone: "Etc/UTC"
     uri: /api/cron/check-expired-announcements
     httpMethod: get
+  - id: cleanup-lost-and-found
+    schedule: "0 2 * * *"
+    timeZone: "Etc/UTC"
+    uri: /api/cron/cleanup-lost-and-found
+    httpMethod: get

@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import PostCard from '@/components/post-card'
-import { Plus } from 'lucide-react'
+import { Plus, Info } from 'lucide-react'
 import type { Post } from '@/components/post-card';
 import MainAppLayout from '../(main)/layout'
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from '@
 import { collection, query, where, Timestamp, doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { type Item as LeaderItem } from '../leader/lost-and-found/page';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type Item = Omit<LeaderItem, 'date'> & {
     date: Timestamp;
@@ -83,7 +84,22 @@ function LostAndFoundContent() {
       });
     }
     
-    return combined;
+    const twentyEightDaysAgo = new Date();
+    twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
+    
+    return combined.filter(item => {
+        try {
+            // Try the 'date' field first, then fall back to 'createdAt'
+            const rawDate = item.date || (item as any).createdAt;
+            if (!rawDate) return false; // No date at all — hide it
+            const itemDate = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate);
+            if (isNaN(itemDate.getTime())) return false; // Invalid date — hide it
+            return itemDate >= twentyEightDaysAgo;
+        } catch (e) {
+            console.error("Error parsing date for item:", item, e);
+            return false; // If we can't parse the date, assume it's expired
+        }
+    });
   }, [activeItems, pendingItems]);
 
 
@@ -103,6 +119,14 @@ function LostAndFoundContent() {
         </div>
         <ReportItemForm />
       </div>
+
+      <Alert className="bg-amber-50/50 border-amber-200/60 dark:bg-amber-950/20 dark:border-amber-900/50">
+        <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        <AlertTitle className="text-amber-800 dark:text-amber-300 font-semibold">Post Auto-Removal Notice</AlertTitle>
+        <AlertDescription className="text-amber-700/90 dark:text-amber-400/90 text-sm">
+          To keep the board clean, all reports are automatically removed 28 days (4 weeks) after the reported date unless they are manually resolved or deleted sooner by the poster.
+        </AlertDescription>
+      </Alert>
 
       <Tabs defaultValue="lost" className="w-full">
         <TabsList className="grid w-full grid-cols-2">

@@ -80,6 +80,18 @@ export default function LeaderLayout({
         router.replace('/home');
         return;
       }
+
+      // Enforce Onboarding for primary leaders
+      const isPrimaryLeader = userProfile.role === 'president' || userProfile.role === 'leader';
+      if (isPrimaryLeader) {
+          const isOnboardingComplete = userProfile.onboardingCompleted === true;
+          const hasSkipped = typeof window !== 'undefined' && sessionStorage.getItem('hasSkippedOnboarding') === 'true';
+          
+          if (!isOnboardingComplete && !hasSkipped && pathname !== '/leader/onboarding') {
+              router.replace('/leader/onboarding');
+              return;
+          }
+      }
       
       if (pathname === '/leader/dashboard' && !hasAccess(permissions, activeRole, 'viewDashboard')) {
           const fallbackRoutes = [

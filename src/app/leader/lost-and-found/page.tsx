@@ -330,12 +330,31 @@ export default function LeaderLostAndFoundPage() {
     }
   };
 
+  const twentyEightDaysAgo = new Date();
+  twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
+
   const pendingItems = items.filter((item) => item.status === 'new');
   const activeLostItems = items.filter(
-    (item) => item.status === 'active' && item.type === 'lost'
+    (item) => {
+      if (item.status !== 'active' || item.type !== 'lost') return false;
+      try {
+        const itemDate = item.date?.toDate ? item.date.toDate() : new Date(item.date as any);
+        return itemDate >= twentyEightDaysAgo;
+      } catch {
+        return true;
+      }
+    }
   );
   const activeFoundItems = items.filter(
-    (item) => item.status === 'active' && item.type === 'found'
+    (item) => {
+      if (item.status !== 'active' || item.type !== 'found') return false;
+      try {
+        const itemDate = item.date?.toDate ? item.date.toDate() : new Date(item.date as any);
+        return itemDate >= twentyEightDaysAgo;
+      } catch {
+        return true;
+      }
+    }
   );
   const resolvedItems = items.filter((item) => item.status === 'resolved');
 

@@ -24,12 +24,39 @@ export function LostAndFoundFeed({ communityId }: { communityId: string | null }
   
   const { data: liveItems, isLoading: itemsLoading } = useCollection<LostFoundItem>(itemsQuery);
 
-  const lostItems = (liveItems && liveItems.length > 0)
-    ? liveItems.filter(item => item.type === 'lost')
+  const twentyEightDaysAgo = new Date();
+  twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
+
+  const hasLiveData = liveItems && liveItems.length > 0;
+
+  const lostItems = hasLiveData
+    ? liveItems.filter(item => {
+        if (item.type !== 'lost') return false;
+        try {
+          const rawDate = item.date || (item as any).createdAt;
+          if (!rawDate) return false;
+          const itemDate = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate);
+          if (isNaN(itemDate.getTime())) return false;
+          return itemDate >= twentyEightDaysAgo;
+        } catch {
+          return false;
+        }
+      })
     : mockLostItems.map(item => ({...item, name: item.description}));
 
-  const foundItems = (liveItems && liveItems.length > 0)
-    ? liveItems.filter(item => item.type === 'found')
+  const foundItems = hasLiveData
+    ? liveItems.filter(item => {
+        if (item.type !== 'found') return false;
+        try {
+          const rawDate = item.date || (item as any).createdAt;
+          if (!rawDate) return false;
+          const itemDate = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate);
+          if (isNaN(itemDate.getTime())) return false;
+          return itemDate >= twentyEightDaysAgo;
+        } catch {
+          return false;
+        }
+      })
     : mockFoundItems.map(item => ({...item, name: item.description}));
     
   if (itemsLoading) {
