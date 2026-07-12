@@ -10,8 +10,10 @@ import {
     Loader2,
     Send,
     HelpCircle,
+    Lock,
 } from "lucide-react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -82,6 +84,7 @@ export default function LeaderProfilePage() {
         }
     }, [leaderProfile]);
 
+    const isLocked = userProfile?.onboardingCompleted === true;
     const isLoading = isUserLoading || profileLoading || leaderProfileLoading;
     
     const handleSave = async (status: 'draft' | 'pending') => {
@@ -140,6 +143,16 @@ export default function LeaderProfilePage() {
                 <p className="text-muted-foreground">This information is used for administrative and verification purposes and is not displayed publicly.</p>
             </div>
             
+            {isLocked && (
+                <Alert className="border-blue-500 bg-blue-50/50 text-blue-900">
+                    <Lock className="h-4 w-4" color="#3b82f6" />
+                    <AlertTitle>Profile Locked</AlertTitle>
+                    <AlertDescription>
+                        Your profile has been submitted and is now locked to guarantee platform integrity. It cannot be edited unless community leadership is officially vacated or transferred.
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <Card>
                 <CardHeader>
                     <CardTitle>Your Information</CardTitle>
@@ -159,11 +172,11 @@ export default function LeaderProfilePage() {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                          <div className="space-y-2">
                             <Label htmlFor="contact-phone">Contact Phone Number</Label>
-                            <Input id="contact-phone" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+                            <Input id="contact-phone" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} disabled={isLocked} />
                          </div>
                          <div className="space-y-2">
                             <Label htmlFor="contact-method">Preferred Contact Method</Label>
-                             <Select onValueChange={setPreferredContactMethod} value={preferredContactMethod}>
+                             <Select onValueChange={setPreferredContactMethod} value={preferredContactMethod} disabled={isLocked}>
                                 <SelectTrigger id="contact-method">
                                     <SelectValue placeholder="Select a method..." />
                                 </SelectTrigger>
@@ -187,11 +200,11 @@ export default function LeaderProfilePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <Label>How many communities do you intend to run?</Label>
-                            <Input type="number" min="1" max="10" value={intendedCommunityCount} onChange={e => setIntendedCommunityCount(Number(e.target.value))} />
+                            <Input type="number" min="1" max="10" value={intendedCommunityCount} onChange={e => setIntendedCommunityCount(Number(e.target.value))} disabled={isLocked} />
                         </div>
                         <div className="space-y-2">
                             <Label>Primary goal for your revenue share?</Label>
-                             <Select onValueChange={setCommunityIntent} value={communityIntent}>
+                             <Select onValueChange={setCommunityIntent} value={communityIntent} disabled={isLocked}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a goal..." />
                                 </SelectTrigger>
@@ -204,7 +217,7 @@ export default function LeaderProfilePage() {
                     </div>
                      <div className="space-y-2">
                         <Label>Please briefly describe your plans for the community hub.</Label>
-                        <Textarea value={communityIntentDescription} onChange={e => setCommunityIntentDescription(e.target.value)} placeholder="e.g., I plan to use the funds to install new playground equipment at the park..."/>
+                        <Textarea value={communityIntentDescription} onChange={e => setCommunityIntentDescription(e.target.value)} placeholder="e.g., I plan to use the funds to install new playground equipment at the park..." disabled={isLocked} />
                     </div>
                 </CardContent>
             </Card>
@@ -217,62 +230,64 @@ export default function LeaderProfilePage() {
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      <div className="space-y-2">
                         <Label htmlFor="ref-name">Reference's Full Name</Label>
-                        <Input id="ref-name" value={refName} onChange={e => setRefName(e.target.value)} />
+                        <Input id="ref-name" value={refName} onChange={e => setRefName(e.target.value)} disabled={isLocked} />
                      </div>
                      <div className="space-y-2">
                         <Label htmlFor="ref-relationship">Relationship to You</Label>
-                        <Input id="ref-relationship" placeholder="e.g., Former Manager, Colleague" value={refRelationship} onChange={e => setRefRelationship(e.target.value)} />
+                        <Input id="ref-relationship" placeholder="e.g., Former Manager, Colleague" value={refRelationship} onChange={e => setRefRelationship(e.target.value)} disabled={isLocked} />
                      </div>
                      <div className="space-y-2">
                         <Label htmlFor="ref-email">Reference's Email</Label>
-                        <Input id="ref-email" type="email" value={refEmail} onChange={e => setRefEmail(e.target.value)} />
+                        <Input id="ref-email" type="email" value={refEmail} onChange={e => setRefEmail(e.target.value)} disabled={isLocked} />
                      </div>
                      <div className="space-y-2">
                         <Label htmlFor="ref-phone">Reference's Phone Number</Label>
-                        <Input id="ref-phone" type="tel" value={refPhone} onChange={e => setRefPhone(e.target.value)} />
+                        <Input id="ref-phone" type="tel" value={refPhone} onChange={e => setRefPhone(e.target.value)} disabled={isLocked} />
                      </div>
                 </CardContent>
             </Card>
 
-            <CardFooter className="flex-col items-start gap-4 px-0">
-                <div className="flex items-center space-x-2">
-                    <Checkbox id="terms" checked={agreedToTerms} onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)} />
-                    <Label htmlFor="terms" className="text-sm font-normal">
-                        I have read and agree to the{' '}
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <span className="underline text-primary cursor-pointer">Leader Terms & Conditions</span>
-                            </DialogTrigger>
-                             <DialogContent className="max-w-2xl grid-rows-[auto,1fr,auto] p-0 max-h-[85vh]">
-                                <DialogHeader className="p-6 pb-2 border-b">
-                                    <DialogTitle>Leader Terms & Conditions</DialogTitle>
-                                </DialogHeader>
-                                <ScrollArea className="h-full">
-                                    <div className="p-6">
-                                        <LegalDocumentDisplay documentId="leader-terms-doc-id" />
-                                    </div>
-                                </ScrollArea>
-                                <DialogFooter className="p-6 pt-4 border-t">
-                                    <DialogClose asChild><Button type="button">Close</Button></DialogClose>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                        .
-                    </Label>
-                </div>
-                 <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => handleSave('pending')} disabled={isSaving || !agreedToTerms}>
-                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                        <Send className="mr-2 h-4 w-4" />
-                        Save & Submit for Verification
-                    </Button>
-                     <Button variant="outline" onClick={() => handleSave('draft')} disabled={isSaving}>
-                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                        <Save className="mr-2 h-4 w-4" />
-                        Save as Draft
-                    </Button>
-                </div>
-            </CardFooter>
+            {!isLocked && (
+                <CardFooter className="flex-col items-start gap-4 px-0">
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="terms" checked={agreedToTerms} onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)} />
+                        <Label htmlFor="terms" className="text-sm font-normal">
+                            I have read and agree to the{' '}
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <span className="underline text-primary cursor-pointer">Leader Terms & Conditions</span>
+                                </DialogTrigger>
+                                 <DialogContent className="max-w-2xl grid-rows-[auto,1fr,auto] p-0 max-h-[85vh]">
+                                    <DialogHeader className="p-6 pb-2 border-b">
+                                        <DialogTitle>Leader Terms & Conditions</DialogTitle>
+                                    </DialogHeader>
+                                    <ScrollArea className="h-full">
+                                        <div className="p-6">
+                                            <LegalDocumentDisplay documentId="leader-terms-doc-id" />
+                                        </div>
+                                    </ScrollArea>
+                                    <DialogFooter className="p-6 pt-4 border-t">
+                                        <DialogClose asChild><Button type="button">Close</Button></DialogClose>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                            .
+                        </Label>
+                    </div>
+                     <div className="flex flex-wrap gap-2">
+                        <Button onClick={() => handleSave('pending')} disabled={isSaving || !agreedToTerms}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            <Send className="mr-2 h-4 w-4" />
+                            Save & Submit for Verification
+                        </Button>
+                         <Button variant="outline" onClick={() => handleSave('draft')} disabled={isSaving}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            <Save className="mr-2 h-4 w-4" />
+                            Save as Draft
+                        </Button>
+                    </div>
+                </CardFooter>
+            )}
         </div>
     );
 }
