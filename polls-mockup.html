@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greenwood Community Hub - Interactive Polls</title>
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 6 Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        community: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        accent: {
+                            50: '#f4f4f5',
+                            500: '#06b6d4',
+                            600: '#0891b2',
+                            700: '#0e7490',
+                        }
+                    },
+                    boxShadow: {
+                        'premium': '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 8px -1px rgba(0, 0, 0, 0.03)',
+                        'premium-hover': '0 10px 30px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar to look sleek and match modern standard designs */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Soft pulsing animation for live badges */
+        @keyframes customPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .7; transform: scale(1.05); }
+        }
+        .pulse-badge {
+            animation: customPulse 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-full flex flex-col antialiased">
+
+    <!-- TOP ROLE CONTROLLERS (STICKY BAR) -->
+    <div class="bg-slate-900 text-white py-2 px-4 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div class="flex items-center gap-2 text-sm text-slate-300 font-medium">
+                <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-badge"></span>
+                <span>Demo Workspace: Try Switching Roles to test both ends!</span>
+            </div>
+            <div class="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                <span class="text-xs uppercase tracking-wide px-2 text-slate-400 font-semibold hidden md:inline">Current View:</span>
+                <button id="role-resident-btn" onclick="switchRole('resident')" class="px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-300 flex items-center gap-1.5 bg-emerald-600 text-white shadow-sm">
+                    <i class="fa-solid fa-users"></i> Local Resident
+                </button>
+                <button id="role-admin-btn" onclick="switchRole('admin')" class="px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-300 flex items-center gap-1.5 text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-user-shield"></i> Community Admin
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- APP BRAND HEADER -->
+    <header class="bg-white border-b border-slate-100 py-6 px-4 shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="bg-emerald-100 text-emerald-800 w-9 h-9 rounded-xl flex items-center justify-center font-bold text-lg shadow-sm">
+                        🏡
+                    </div>
+                    <span class="text-xs uppercase tracking-wider text-emerald-700 font-bold">Greenwood Ward Portal</span>
+                </div>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Neighborhood Consultation Center</h1>
+                <p class="text-slate-500 text-sm mt-0.5">Democratizing funding allocation, event planning, and neighborhood policies.</p>
+            </div>
+            
+            <!-- Quick System Stats Header Badge -->
+            <div class="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-xl w-full md:w-auto self-stretch md:self-auto justify-around md:justify-start">
+                <div class="text-center md:text-left">
+                    <p class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Total Voters</p>
+                    <p id="header-stat-voters" class="text-xl font-black text-emerald-700">238</p>
+                </div>
+                <div class="h-8 w-px bg-slate-200"></div>
+                <div class="text-center md:text-left">
+                    <p class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Active Polls</p>
+                    <p id="header-stat-active" class="text-xl font-black text-indigo-700">3</p>
+                </div>
+                <div class="h-8 w-px bg-slate-200"></div>
+                <div class="text-center md:text-left">
+                    <p class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Finalized Consultation</p>
+                    <p id="header-stat-closed" class="text-xl font-black text-slate-600">14</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN APP WRAPPER -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 py-8 w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        <!-- LEFT CONTROL/GUIDE COLUMN (4 cols) -->
+        <section class="lg:col-span-4 flex flex-col gap-6">
+            
+            <!-- WELCOME & INTERACTIVE CARD BASED ON ROLE -->
+            <div id="role-welcome-card" class="bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-2xl p-6 shadow-premium relative overflow-hidden transition-all duration-300">
+                <div class="absolute -right-10 -bottom-10 opacity-10 text-9xl">🗳️</div>
+                <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+                    <span id="welcome-role-icon"><i class="fa-solid fa-users"></i></span>
+                    <span id="welcome-role-title">Resident Mode Active</span>
+                </h3>
+                <p id="welcome-role-desc" class="text-emerald-50 text-xs leading-relaxed mb-4">
+                    Welcome, neighbor! Review local proposals, cast your anonymous votes, and engage in constructive discussions with fellow Greenwood residents. Your feedback drives council funding and schedules.
+                </p>
+                <div id="role-indicator-badge" class="inline-block bg-white/20 backdrop-blur-sm text-[11px] font-bold py-1 px-3 rounded-full border border-white/20 uppercase tracking-wider">
+                    Greenwood Citizen #8,142
+                </div>
+            </div>
+
+            <!-- ADMIN POLL CREATOR WIZARD (HIDDEN BY DEFAULT IN MEMBER MODE) -->
+            <div id="admin-creator-panel" class="bg-white rounded-2xl p-6 shadow-premium border border-slate-100 hidden">
+                <div class="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+                    <span class="bg-indigo-100 text-indigo-700 p-2 rounded-lg text-sm font-semibold"><i class="fa-solid fa-plus"></i></span>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm">Create New Consultation</h3>
+                        <p class="text-slate-400 text-[11px]">Publish a poll instantly to residents</p>
+                    </div>
+                </div>
+
+                <form id="poll-create-form" onsubmit="handlePollCreation(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Consultation Title</label>
+                        <input id="poll-title" type="text" placeholder="e.g. Funding for Greenwood Playpark" required
+                            class="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Description / Rationale</label>
+                        <textarea id="poll-desc" rows="3" placeholder="Context or goal. Explain how this decision impacts the community..." required
+                            class="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Category</label>
+                            <select id="poll-category" class="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+                                <option value="budget">💰 Budget Spend</option>
+                                <option value="events">📅 Events / Recaps</option>
+                                <option value="feedback">💬 Community Feedback</option>
+                                <option value="regulations">📜 Local Rules</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Initial Status</label>
+                            <select id="poll-status" class="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+                                <option value="active">Active (Live Voting)</option>
+                                <option value="draft">Draft (Admin eyes only)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Options Area -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Voting Options (2-6)</label>
+                            <button type="button" onclick="addOptionField()" class="text-emerald-600 hover:text-emerald-700 font-bold text-xs flex items-center gap-1 transition-colors">
+                                <i class="fa-solid fa-circle-plus"></i> Add Choice
+                            </button>
+                        </div>
+                        <div id="dynamic-options-container" class="space-y-2">
+                            <!-- JS will inject dynamic options here. Starting with 2 fields -->
+                            <div class="flex items-center gap-2">
+                                <input type="text" placeholder="Option 1" required class="poll-option-input w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+                                <span class="w-6 text-center text-slate-300 text-xs"><i class="fa-solid fa-grip-lines"></i></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="text" placeholder="Option 2" required class="poll-option-input w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+                                <span class="w-6 text-center text-slate-300 text-xs"><i class="fa-solid fa-grip-lines"></i></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-extrabold shadow-md transition-all uppercase tracking-wider mt-2 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-paper-plane"></i> Publish Consultation
+                    </button>
+                </form>
+            </div>
+
+            <!-- STATISTICAL INSIGHTS / ANALYTICS WIDGET -->
+            <div class="bg-white rounded-2xl p-6 shadow-premium border border-slate-100 flex flex-col gap-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-emerald-100 text-emerald-800 p-2 rounded-lg text-sm font-semibold"><i class="fa-solid fa-chart-line"></i></span>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm">Ward Analytics</h3>
+                            <p class="text-slate-400 text-[11px]">Real-time engagement breakdown</p>
+                        </div>
+                    </div>
+                    <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded">Live</span>
+                </div>
+
+                <!-- Dynamic SVG Donut and Bar representations of simulated voting activity -->
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-1 text-xs font-semibold text-slate-600">
+                            <span>Voter Engagement by Category</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-xl flex items-center justify-center">
+                            <!-- SVG Donut Chart representing Category distribution -->
+                            <svg class="w-40 h-40 transform -rotate-90" viewBox="0 0 100 100">
+                                <!-- Background Circle -->
+                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" stroke-width="12"/>
+                                <!-- Segment 1 (Budget: 45%) -->
+                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#10b981" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="113.0" class="transition-all duration-1000"/>
+                                <!-- Segment 2 (Events: 30%) -->
+                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#6366f1" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="188.4" class="transition-all duration-1000" transform="rotate(162 50 50)"/>
+                                <!-- Segment 3 (Feedback & Rules: 25%) -->
+                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#eab308" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="200.9" class="transition-all duration-1000" transform="rotate(270 50 50)"/>
+                                <text x="50" y="55" font-family="Inter" font-weight="bold" font-size="12" fill="#1e293b" text-anchor="middle" class="transform rotate-90 origin-center">Active</text>
+                            </svg>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1 mt-3 text-[10px] font-bold text-center">
+                            <span class="text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-100">💰 Budget (45%)</span>
+                            <span class="text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100">📅 Events (30%)</span>
+                            <span class="text-yellow-600 bg-yellow-50 px-1 py-0.5 rounded border border-yellow-100">📜 Other (25%)</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100">
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-500 mb-2">
+                            <span>Resident Turnout by Demographics</span>
+                        </div>
+                        <div class="space-y-1.5 text-[11px]">
+                            <div>
+                                <div class="flex justify-between mb-0.5 font-medium text-slate-600">
+                                    <span>Age 18 - 34</span>
+                                    <span>58% response rate</span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-indigo-500 h-full rounded-full" style="width: 58%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-0.5 font-medium text-slate-600">
+                                    <span>Age 35 - 54</span>
+                                    <span>84% response rate</span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-emerald-500 h-full rounded-full" style="width: 84%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-0.5 font-medium text-slate-600">
+                                    <span>Age 55+</span>
+                                    <span>72% response rate</span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-yellow-500 h-full rounded-full" style="width: 72%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </section>
+
+        <!-- RIGHT MAIN CONTENT WORKSPACE (8 cols) -->
+        <section class="lg:col-span-8 flex flex-col gap-6">
+
+            <!-- POLLS NAVIGATION & FILTER TABS -->
+            <div class="bg-white p-3 rounded-2xl shadow-premium border border-slate-100 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+                
+                <!-- Category Filters (Scrollable on small screens) -->
+                <div class="flex gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none whitespace-nowrap">
+                    <button id="filter-all" onclick="setCategoryFilter('all')" class="category-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        ✨ All Topics
+                    </button>
+                    <button id="filter-budget" onclick="setCategoryFilter('budget')" class="category-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all text-slate-500 hover:bg-slate-100 border border-transparent">
+                        💰 Budget
+                    </button>
+                    <button id="filter-events" onclick="setCategoryFilter('events')" class="category-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all text-slate-500 hover:bg-slate-100 border border-transparent">
+                        📅 Events
+                    </button>
+                    <button id="filter-feedback" onclick="setCategoryFilter('feedback')" class="category-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all text-slate-500 hover:bg-slate-100 border border-transparent">
+                        💬 Feedback
+                    </button>
+                    <button id="filter-regulations" onclick="setCategoryFilter('regulations')" class="category-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all text-slate-500 hover:bg-slate-100 border border-transparent">
+                        📜 Rules
+                    </button>
+                </div>
+
+                <!-- Status Select Toggle -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Status:</span>
+                    <select id="status-filter-select" onchange="setStatusFilter(this.value)" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="all">Show All Statuses</option>
+                        <option value="active" selected>Active Consultations</option>
+                        <option value="closed">Closed Consultations</option>
+                        <option value="draft" id="admin-status-option" class="hidden">My Drafts (Admin)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- PRIMARY POLLS RENDER CONTAINER -->
+            <div id="polls-display-container" class="space-y-6">
+                <!-- JavaScript dynamically fills this container with beautiful, interactive poll elements -->
+            </div>
+
+            <!-- EMPTY POLLS PLACEHOLDER (FALLBACK) -->
+            <div id="polls-empty-placeholder" class="hidden bg-white rounded-2xl p-12 text-center shadow-premium border border-slate-100">
+                <div class="text-5xl mb-4">🔍</div>
+                <h3 class="text-lg font-bold text-slate-700 mb-1">No Consultations Found</h3>
+                <p class="text-slate-400 text-sm max-w-sm mx-auto">Try changing your filters, choosing another category, or launching a new poll in Community Admin view.</p>
+                <button onclick="resetFilters()" class="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all">
+                    Reset Filter Search
+                </button>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 py-6 px-4 mt-auto">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-400 font-medium">
+            <p>© 2026 Greenwood Local Council Ward consultation platform. Designed to encourage neighborhood cohesion.</p>
+            <div class="flex gap-4">
+                <a href="#" class="hover:text-emerald-600 transition-colors">Privacy Policy</a>
+                <a href="#" class="hover:text-emerald-600 transition-colors">Resident Guidelines</a>
+                <a href="#" class="hover:text-emerald-600 transition-colors">Council Feedback</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- DYNAMIC SYSTEM POPUPS & CUSTOM TOAST notifications -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full"></div>
+
+    <!-- JAVASCRIPT STATE CONTROLLER & RENDERING LOGIC -->
+    <script>
+        // Preset mock community poll state (stored in localstorage later)
+        const defaultPolls = [
+            {
+                id: "poll-1",
+                title: "How should we spend the £5,000 ward Green Space Grant?",
+                description: "Our community has secured a green infrastructure micro-grant. We must choose which primary project should receive these funds. Voting is open to all registered ward members.",
+                category: "budget",
+                status: "active",
+                creator: "Sarah Jenkins (Ward Council Liaison)",
+                createdOn: "July 12, 2026",
+                options: [
+                    { id: "opt-1-1", text: "Brand new children's park playground accessories", votes: 42 },
+                    { id: "opt-1-2", text: "Establish community organic greenhouse & composting station", votes: 89 },
+                    { id: "opt-1-3", text: "Afforesting local greenways with native cherry tree lines", votes: 56 },
+                    { id: "opt-1-4", text: "Installing pedestrian benches and well-lit walkways", votes: 23 }
+                ],
+                comments: [
+                    { id: "com-1-1", author: "Dr. Alistair Finch", role: "Resident", text: "Establishing a green house allows multiple generations to gather and learn sustainable horticulture. A wonderful prospect for children!", time: "2 hours ago" },
+                    { id: "com-1-2", author: "Evelyn Sterling", role: "Resident", text: "We urgently need better lighting on pathways. Many of our older neighbors feel isolated during darker winter evenings.", time: "4 hours ago" }
+                ]
+            },
+            {
+                id: "poll-2",
+                title: "Which recurring Summer Event should we drop or bring back?",
+                description: "We are organizing next quarter's municipal activities budget. Please rate which event was your family's favorite, helping us decide which to drop or repeat with more space.",
+                category: "events",
+                status: "active",
+                creator: "Dave Miller (Events Lead)",
+                createdOn: "July 10, 2026",
+                options: [
+                    { id: "opt-2-1", text: "Open-Air Cinema Night on the Common (Repeat!)", votes: 114 },
+                    { id: "opt-2-2", text: "Neighborhood Craft & Food Trucks Festival", votes: 98 },
+                    { id: "opt-2-3", text: "The Greenwood Annual Pet & Dog Show", votes: 34 },
+                    { id: "opt-2-4", text: "Youth Craft & Creative Makers Workshop (Drop/Swap)", votes: 12 }
+                ],
+                comments: [
+                    { id: "com-2-1", author: "Michael O'Connor", role: "Resident", text: "The Food Truck night brought so many local businesses together. Let's make that a biannual event if possible!", time: "1 day ago" },
+                    { id: "com-2-2", author: "Dave Miller", role: "Admin", text: "We hear you, Michael! We're talking to the street trading division about expansion permits.", time: "18 hours ago" }
+                ]
+            },
+            {
+                id: "poll-3",
+                title: "Trialing designated 'dogs on-leash' buffer at North-East Wildlife Pond",
+                description: "Proposed regulatory update: To safeguard bird nests and native waterfowl, keep dogs on short leads within 50 meters of the central conservation wetlands.",
+                category: "regulations",
+                status: "active",
+                creator: "Local Parks Commission",
+                createdOn: "July 14, 2026",
+                options: [
+                    { id: "opt-3-1", text: "Yes, enforce protection zones strictly", votes: 82 },
+                    { id: "opt-3-2", text: "No, keep it an all-access off-leash parkway", votes: 31 },
+                    { id: "opt-3-3", text: "Compromise: Only during nesting season (April-August)", votes: 109 }
+                ],
+                comments: [
+                    { id: "com-3-1", author: "Clara Zhang", role: "Resident", text: "The compromise option is the most logical. Gives birds peace to hatch, and gives dogs run space in the fall.", time: "12 mins ago" }
+                ]
+            },
+            {
+                id: "poll-4",
+                title: "Draft Proposal: Local Christmas Crafts Square Layout Plan",
+                description: "This is a draft consultation setup. The goal is to decide whether to house the upcoming Winter Fair in wooden outdoor chalets in the central street market or inside our heated parish gymnasium.",
+                category: "events",
+                status: "draft",
+                creator: "Sarah Jenkins (Ward Council Liaison)",
+                createdOn: "July 15, 2026",
+                options: [
+                    { id: "opt-4-1", text: "Heated Parish Gymnasium (Warm & Cozy)", votes: 0 },
+                    { id: "opt-4-2", text: "Outdoor Chalets & Market Booths (Festive & Ambient)", votes: 0 }
+                ],
+                comments: []
+            },
+            {
+                id: "poll-5",
+                title: "Completed: Community Recycling Facility Hours consultation",
+                description: "The results from this consultation have been forwarded to Council Operations. Overwhelming majorities opted to support extending Saturday hours by cutting Wednesday mornings.",
+                category: "feedback",
+                status: "closed",
+                creator: "Waste Management Admin",
+                createdOn: "June 20, 2026",
+                options: [
+                    { id: "opt-5-1", text: "Option A: Maintain standard schedule", votes: 24 },
+                    { id: "opt-5-2", text: "Option B: Extend Saturday, shorten Wednesday", votes: 188 }
+                ],
+                comments: [
+                    { id: "com-5-1", author: "Gary Davies", role: "Resident", text: "Excellent outcome. Dropping off cardboard on Saturday afternoons was previously a nightmare.", time: "2 weeks ago" }
+                ]
+            }
+        ];
+
+        // Global application state object
+        const state = {
+            currentRole: 'resident', // 'resident' or 'admin'
+            polls: [],
+            votedPollIDs: [], // Records poll IDs that the user has voted on
+            currentCategoryFilter: 'all',
+            currentStatusFilter: 'active',
+            adminCreatedPolls: []
+        };
+
+        // INITIALIZE SYSTEM
+        window.onload = function() {
+            loadInitialState();
+            renderApp();
+            showToast("Welcome to Greenwood konsult!", "info");
+        };
+
+        // LOAD DATA FROM LOCAL STORAGE OR REVERT TO DEFAULT
+        function loadInitialState() {
+            const savedPolls = localStorage.getItem('greenwood_polls');
+            if (savedPolls) {
+                try {
+                    state.polls = JSON.parse(savedPolls);
+                } catch (e) {
+                    state.polls = [...defaultPolls];
+                }
+            } else {
+                state.polls = [...defaultPolls];
+                saveToLocalStorage();
+            }
+
+            const savedVotes = localStorage.getItem('greenwood_user_votes');
+            if (savedVotes) {
+                try {
+                    state.votedPollIDs = JSON.parse(savedVotes);
+                } catch (e) {
+                    state.votedPollIDs = [];
+                }
+            } else {
+                state.votedPollIDs = [];
+            }
+        }
+
+        // SAVE DATA STATE
+        function saveToLocalStorage() {
+            localStorage.setItem('greenwood_polls', JSON.stringify(state.polls));
+            localStorage.setItem('greenwood_user_votes', JSON.stringify(state.votedPollIDs));
+        }
+
+        // VIEW & ROLE TOGGLE DISPATCHER
+        function switchRole(role) {
+            state.currentRole = role;
+
+            // Update header styling selectors
+            const resBtn = document.getElementById('role-resident-btn');
+            const admBtn = document.getElementById('role-admin-btn');
+            const adminPanel = document.getElementById('admin-creator-panel');
+            const adminStatusOption = document.getElementById('admin-status-option');
+            const welcomeCard = document.getElementById('role-welcome-card');
+
+            const welcomeIcon = document.getElementById('welcome-role-icon');
+            const welcomeTitle = document.getElementById('welcome-role-title');
+            const welcomeDesc = document.getElementById('welcome-role-desc');
+            const roleBadge = document.getElementById('role-indicator-badge');
+
+            if (role === 'admin') {
+                // Style Active Buttons
+                admBtn.className = "px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-300 flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm";
+                resBtn.className = "px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-300 flex items-center gap-1.5 text-slate-300 hover:text-white";
+                
+                // Show admin components
+                adminPanel.classList.remove('hidden');
+                adminStatusOption.classList.remove('hidden');
+
+                // Adjust welcome message details
+                welcomeCard.className = "bg-gradient-to-br from-indigo-700 to-slate-900 text-white rounded-2xl p-6 shadow-premium relative overflow-hidden transition-all duration-300";
+                welcomeIcon.innerHTML = `<i class="fa-solid fa-user-shield"></i>`;
+                welcomeTitle.innerText = "Admin Workspace Active";
+                welcomeDesc.innerText = "Administrator Mode. You have permissions to draft proposals, modify status attributes, delete entries, close active registrations, and review resident stats.";
+                roleBadge.innerText = "System Officer Mode";
+
+                // Show drafts automatically
+                document.getElementById('status-filter-select').value = 'all';
+                state.currentStatusFilter = 'all';
+
+                showToast("Administrator Mode enabled. Creation and Management menus unlocked.", "success");
+            } else {
+                // Style Active Buttons
+                resBtn.className = "px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-300 flex items-center gap-1.5 bg-emerald-600 text-white shadow-sm";
+                admBtn.className = "px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-300 flex items-center gap-1.5 text-slate-300 hover:text-white";
+
+                // Hide admin components
+                adminPanel.classList.add('hidden');
+                adminStatusOption.classList.add('hidden');
+
+                // Adjust welcome message details
+                welcomeCard.className = "bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-2xl p-6 shadow-premium relative overflow-hidden transition-all duration-300";
+                welcomeIcon.innerHTML = `<i class="fa-solid fa-users"></i>`;
+                welcomeTitle.innerText = "Resident Mode Active";
+                welcomeDesc.innerText = "Welcome, neighbor! Review local proposals, cast your anonymous votes, and engage in constructive discussions with fellow Greenwood residents.";
+                roleBadge.innerText = "Greenwood Citizen #8,142";
+
+                // Return to active polls filter
+                document.getElementById('status-filter-select').value = 'active';
+                state.currentStatusFilter = 'active';
+
+                showToast("Switched back to Resident View.", "info");
+            }
+
+            renderApp();
+        }
+
+        // DYNAMICALLY ADD MULTIPLE CHOICE FORM FIELD
+        let optionCounter = 2;
+        function addOptionField() {
+            const container = document.getElementById('dynamic-options-container');
+            const totalInputs = container.querySelectorAll('.poll-option-input').length;
+            
+            if (totalInputs >= 6) {
+                showToast("You can specify a maximum of 6 voting choices per consultation.", "error");
+                return;
+            }
+
+            optionCounter++;
+            const div = document.createElement('div');
+            div.className = "flex items-center gap-2 animate-fadeIn";
+            div.innerHTML = `
+                <input type="text" placeholder="Option ${optionCounter}" required class="poll-option-input w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+                <button type="button" onclick="removeOptionField(this)" class="w-6 h-6 flex items-center justify-center text-rose-500 hover:bg-rose-50 rounded-full transition-colors text-xs">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </button>
+            `;
+            container.appendChild(div);
+        }
+
+        function removeOptionField(button) {
+            button.closest('div').remove();
+        }
+
+        // HANDLE SUBMISSION OF NEW POLL (ADMIN ONLY)
+        function handlePollCreation(e) {
+            e.preventDefault();
+            if (state.currentRole !== 'admin') {
+                showToast("Action restricted to authorized community representatives.", "error");
+                return;
+            }
+
+            const title = document.getElementById('poll-title').value.trim();
+            const desc = document.getElementById('poll-desc').value.trim();
+            const category = document.getElementById('poll-category').value;
+            const status = document.getElementById('poll-status').value;
+
+            // Get dynamic choices
+            const optionInputs = document.querySelectorAll('.poll-option-input');
+            const options = [];
+            let optIdCounter = 1;
+
+            optionInputs.forEach(input => {
+                const text = input.value.trim();
+                if (text) {
+                    options.push({
+                        id: `opt-${Date.now()}-${optIdCounter++}`,
+                        text: text,
+                        votes: 0
+                    });
+                }
+            });
+
+            if (options.length < 2) {
+                showToast("At least 2 choices are necessary to run a consultation.", "error");
+                return;
+            }
+
+            const newPoll = {
+                id: `poll-${Date.now()}`,
+                title: title,
+                description: desc,
+                category: category,
+                status: status,
+                creator: "Greenwood Admin Team",
+                createdOn: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+                options: options,
+                comments: []
+            };
+
+            state.polls.unshift(newPoll);
+            saveToLocalStorage();
+
+            // Reset form fields
+            document.getElementById('poll-create-form').reset();
+            // Revert dynamic option elements to initial state (only keep 2)
+            const container = document.getElementById('dynamic-options-container');
+            container.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <input type="text" placeholder="Option 1" required class="poll-option-input w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+                    <span class="w-6 text-center text-slate-300 text-xs"><i class="fa-solid fa-grip-lines"></i></span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="text" placeholder="Option 2" required class="poll-option-input w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+                    <span class="w-6 text-center text-slate-300 text-xs"><i class="fa-solid fa-grip-lines"></i></span>
+                </div>
+            `;
+            optionCounter = 2;
+
+            showToast("New Consultation published successfully!", "success");
+            renderApp();
+        }
+
+        // CATEGORY FILTER TOGGLER
+        function setCategoryFilter(category) {
+            state.currentCategoryFilter = category;
+            
+            // Adjust styling of tabs
+            const buttons = document.querySelectorAll('.category-filter-btn');
+            buttons.forEach(btn => {
+                btn.className = "category-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all text-slate-500 hover:bg-slate-100 border border-transparent";
+            });
+
+            const activeBtn = document.getElementById(`filter-${category}`);
+            if (activeBtn) {
+                activeBtn.className = "category-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-xs";
+            }
+
+            renderApp();
+        }
+
+        function setStatusFilter(status) {
+            state.currentStatusFilter = status;
+            renderApp();
+        }
+
+        function resetFilters() {
+            setCategoryFilter('all');
+            document.getElementById('status-filter-select').value = 'active';
+            state.currentStatusFilter = 'active';
+            renderApp();
+        }
+
+        // CAST VOTE CONTROL (USER INTERACTION)
+        function registerVote(pollId, optionId) {
+            if (state.votedPollIDs.includes(pollId)) {
+                showToast("You've already cast your vote on this community decision.", "error");
+                return;
+            }
+
+            const poll = state.polls.find(p => p.id === pollId);
+            if (!poll) return;
+
+            if (poll.status !== 'active') {
+                showToast("This consultation is already closed for new responses.", "error");
+                return;
+            }
+
+            const option = poll.options.find(o => o.id === optionId);
+            if (!option) return;
+
+            // Increment votes
+            option.votes++;
+            // Record poll as voted by current user
+            state.votedPollIDs.push(pollId);
+            
+            saveToLocalStorage();
+            showToast("Your response has been logged anonymously.", "success");
+            renderApp();
+        }
+
+        // COMMENTING PIPELINE
+        function submitComment(e, pollId) {
+            e.preventDefault();
+            const input = document.getElementById(`comment-input-${pollId}`);
+            const text = input.value.trim();
+            if (!text) return;
+
+            const poll = state.polls.find(p => p.id === pollId);
+            if (!poll) return;
+
+            const authorName = state.currentRole === 'admin' ? 'Sarah Jenkins (Admin)' : 'Neighbor';
+            const roleBadge = state.currentRole === 'admin' ? 'Admin' : 'Resident';
+
+            poll.comments.push({
+                id: `com-${Date.now()}`,
+                author: authorName,
+                role: roleBadge,
+                text: text,
+                time: "Just now"
+            });
+
+            saveToLocalStorage();
+            input.value = '';
+            showToast("Comment published onto public thread.", "success");
+            renderApp();
+        }
+
+        // ADMIN CONTROLS: CLOSE POLL
+        function togglePollStatus(pollId) {
+            const poll = state.polls.find(p => p.id === pollId);
+            if (!poll) return;
+
+            if (poll.status === 'active') {
+                poll.status = 'closed';
+                showToast("Consultation has been closed. Final percentages frozen.", "info");
+            } else if (poll.status === 'closed') {
+                poll.status = 'active';
+                showToast("Consultation re-opened to residents.", "success");
+            } else if (poll.status === 'draft') {
+                poll.status = 'active';
+                showToast("Draft published successfully to community feed!", "success");
+            }
+
+            saveToLocalStorage();
+            renderApp();
+        }
+
+        // ADMIN CONTROLS: DELETE POLL
+        function deletePoll(pollId) {
+            const index = state.polls.findIndex(p => p.id === pollId);
+            if (index === -1) return;
+
+            // Display a custom in-app confirmation modal (No alert/confirm permitted)
+            createConfirmationModal("Are you sure you want to delete this consultation?", () => {
+                state.polls.splice(index, 1);
+                saveToLocalStorage();
+                showToast("Consultation deleted forever.", "success");
+                renderApp();
+            });
+        }
+
+        // MODAL/CONFIRM POPUP UTILITY (No native dialogs used)
+        function createConfirmationModal(message, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn";
+            overlay.innerHTML = `
+                <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-premium flex flex-col gap-4">
+                    <div class="text-rose-500 text-3xl text-center"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div class="text-center">
+                        <h4 class="font-extrabold text-slate-800">Confirm Action</h4>
+                        <p class="text-xs text-slate-500 mt-1">${message}</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mt-2">
+                        <button id="modal-cancel-btn" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors">Cancel</button>
+                        <button id="modal-confirm-btn" class="py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors">Delete</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            document.getElementById('modal-cancel-btn').onclick = () => overlay.remove();
+            document.getElementById('modal-confirm-btn').onclick = () => {
+                onConfirm();
+                overlay.remove();
+            };
+        }
+
+        // CUSTOM NOTIFICATIONS (TOASTS)
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let colorClasses = "bg-white border-emerald-500 text-slate-800";
+            let icon = '<i class="fa-solid fa-circle-check text-emerald-500"></i>';
+
+            if (type === "error") {
+                colorClasses = "bg-white border-rose-500 text-slate-800";
+                icon = '<i class="fa-solid fa-circle-exclamation text-rose-500"></i>';
+            } else if (type === "info") {
+                colorClasses = "bg-white border-indigo-500 text-slate-800";
+                icon = '<i class="fa-solid fa-circle-info text-indigo-500"></i>';
+            }
+
+            toast.className = `flex items-center gap-3 p-4 rounded-xl border-l-4 shadow-lg transition-all duration-300 transform translate-y-2 opacity-0 ${colorClasses}`;
+            toast.innerHTML = `
+                <span class="text-lg">${icon}</span>
+                <p class="text-xs font-semibold">${message}</p>
+            `;
+
+            container.appendChild(toast);
+            
+            // Animate In
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            // Dismiss Timer
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // CORE HTML RENDERING LOGIC FOR POLL CARDS
+        function renderApp() {
+            const container = document.getElementById('polls-display-container');
+            const emptyPlaceholder = document.getElementById('polls-empty-placeholder');
+            container.innerHTML = '';
+
+            // Update Statistics
+            const activeCount = state.polls.filter(p => p.status === 'active').length;
+            const closedCount = state.polls.filter(p => p.status === 'closed').length;
+            const totalVotesCount = state.polls.reduce((total, p) => total + p.options.reduce((sum, o) => sum + o.votes, 0), 0);
+            
+            document.getElementById('header-stat-voters').innerText = totalVotesCount;
+            document.getElementById('header-stat-active').innerText = activeCount;
+            document.getElementById('header-stat-closed').innerText = closedCount;
+
+            // Apply active filters to list
+            let filteredPolls = state.polls;
+
+            // 1. Category Filter
+            if (state.currentCategoryFilter !== 'all') {
+                filteredPolls = filteredPolls.filter(p => p.category === state.currentCategoryFilter);
+            }
+
+            // 2. Status Filter
+            if (state.currentStatusFilter !== 'all') {
+                filteredPolls = filteredPolls.filter(p => p.status === state.currentStatusFilter);
+            }
+
+            // If resident is viewing, absolutely hide draft elements
+            if (state.currentRole !== 'admin') {
+                filteredPolls = filteredPolls.filter(p => p.status !== 'draft');
+            }
+
+            if (filteredPolls.length === 0) {
+                emptyPlaceholder.classList.remove('hidden');
+                return;
+            } else {
+                emptyPlaceholder.classList.add('hidden');
+            }
+
+            // Render matching list
+            filteredPolls.forEach(poll => {
+                const totalVotes = poll.options.reduce((sum, opt) => sum + opt.votes, 0);
+                const hasVoted = state.votedPollIDs.includes(poll.id);
+                const isClosed = poll.status === 'closed';
+                const isDraft = poll.status === 'draft';
+                const showResults = hasVoted || isClosed || isDraft || state.currentRole === 'admin';
+
+                // Find highest voted choice to highlight as leader
+                let winningOptionId = null;
+                if (totalVotes > 0) {
+                    const sorted = [...poll.options].sort((a,b) => b.votes - a.votes);
+                    winningOptionId = sorted[0].id;
+                }
+
+                // Render Poll Header
+                let categoryLabel = "📝 General";
+                let categoryColor = "bg-slate-100 text-slate-800 border-slate-200";
+                if (poll.category === 'budget') { categoryLabel = "💰 Ward Budget"; categoryColor = "bg-emerald-50 text-emerald-800 border-emerald-100"; }
+                else if (poll.category === 'events') { categoryLabel = "📅 Events Consult"; categoryColor = "bg-indigo-50 text-indigo-800 border-indigo-100"; }
+                else if (poll.category === 'feedback') { categoryLabel = "💬 Feedback Cycle"; categoryColor = "bg-yellow-50 text-yellow-800 border-yellow-100"; }
+                else if (poll.category === 'regulations') { categoryLabel = "📜 Parks & Rules"; categoryColor = "bg-rose-50 text-rose-800 border-rose-100"; }
+
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl p-6 shadow-premium hover:shadow-premium-hover border border-slate-100 transition-all duration-300";
+
+                let headerBadgesHTML = `
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full border ${categoryColor}">${categoryLabel}</span>
+                            ${isClosed ? '<span class="text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full uppercase tracking-wider">Consultation Finished</span>' : ''}
+                            ${isDraft ? '<span class="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">Unpublished Draft</span>' : ''}
+                            ${(!isClosed && !isDraft) ? '<span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block pulse-badge"></span> Open Consult</span>' : ''}
+                        </div>
+                        <span class="text-[11px] text-slate-400 font-medium">Published: ${poll.createdOn}</span>
+                    </div>
+                `;
+
+                let adminManagementControls = '';
+                if (state.currentRole === 'admin') {
+                    adminManagementControls = `
+                        <div class="flex gap-2 mb-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center mr-auto">Admin Controls:</span>
+                            <button onclick="togglePollStatus('${poll.id}')" class="px-3 py-1 bg-white hover:bg-indigo-50 border border-slate-200 text-[11px] text-indigo-700 font-bold rounded-lg transition-colors shadow-xs">
+                                <i class="fa-solid ${isClosed ? 'fa-play' : 'fa-stop'} mr-1"></i> ${isClosed ? 'Reopen' : isDraft ? 'Publish' : 'Freeze & Close'}
+                            </button>
+                            <button onclick="deletePoll('${poll.id}')" class="px-3 py-1 bg-white hover:bg-rose-50 border border-slate-200 text-[11px] text-rose-600 font-bold rounded-lg transition-colors shadow-xs">
+                                <i class="fa-solid fa-trash-can mr-1"></i> Delete
+                            </button>
+                        </div>
+                    `;
+                }
+
+                // Render Options & Bars Block
+                let optionsContainerHTML = '<div class="space-y-3 mt-4">';
+                poll.options.forEach(opt => {
+                    const percentage = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                    const isWinning = opt.id === winningOptionId;
+
+                    if (showResults) {
+                        // RENDER RESULTS VIEW (Percentages, colored progress bars, leading badges)
+                        optionsContainerHTML += `
+                            <div class="relative group">
+                                <div class="flex justify-between items-center text-xs font-bold mb-1 px-1">
+                                    <span class="text-slate-700 max-w-[80%] flex items-center gap-1.5">
+                                        ${isWinning && totalVotes > 0 ? '🏆' : ''} ${opt.text}
+                                        ${isWinning && totalVotes > 0 ? '<span class="text-[9px] bg-indigo-100 text-indigo-800 px-1.5 py-0.2 rounded-md">Consensus Leader</span>' : ''}
+                                    </span>
+                                    <span class="text-slate-800 font-extrabold bg-slate-100 rounded-md px-1.5 py-0.5 text-[10px]">${percentage}% (${opt.votes} votes)</span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-8 rounded-xl overflow-hidden relative border border-slate-200/50">
+                                    <div class="h-full rounded-xl transition-all duration-1000 ease-out ${isWinning && totalVotes > 0 ? 'bg-indigo-500/20 border-r-2 border-indigo-500' : 'bg-emerald-500/10 border-r-2 border-emerald-500'}" style="width: ${percentage}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // RENDER VOTABLE BUTTONS VIEW (For resident who hasn't voted yet)
+                        optionsContainerHTML += `
+                            <button onclick="registerVote('${poll.id}', '${opt.id}')" 
+                                class="w-full p-4 text-left border border-slate-200 rounded-xl hover:border-emerald-500 hover:bg-emerald-50/30 text-xs font-semibold text-slate-700 flex justify-between items-center transition-all duration-200 group active:scale-[0.99] shadow-xs">
+                                <span>${opt.text}</span>
+                                <span class="h-6 w-6 rounded-full border border-slate-300 group-hover:border-emerald-500 group-hover:bg-emerald-500 group-hover:text-white flex items-center justify-center text-transparent text-[10px] transition-all">
+                                    <i class="fa-solid fa-check"></i>
+                                </span>
+                            </button>
+                        `;
+                    }
+                });
+                optionsContainerHTML += '</div>';
+
+                // Render Footer of Poll Card (Status description + Vote counts)
+                let pollFooterHTML = `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-t border-slate-100 mt-5 pt-4 gap-2 text-xs">
+                        <div class="flex items-center gap-2 text-slate-400">
+                            <span>Organizer: <strong class="text-slate-500">${poll.creator}</strong></span>
+                        </div>
+                        <div class="text-slate-500 font-semibold">
+                            <i class="fa-solid fa-envelope-open text-emerald-500 mr-1"></i> ${totalVotes} Total community participants
+                        </div>
+                    </div>
+                `;
+
+                // Render Community Comments Subsection (only available once voted, closed, or for admins)
+                let commentsHTML = '';
+                if (showResults) {
+                    let commentThreads = '';
+                    poll.comments.forEach(com => {
+                        const badgeColor = com.role === 'Admin' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-600 border-slate-200';
+                        commentThreads += `
+                            <div class="bg-slate-50 border border-slate-100/80 p-3 rounded-xl flex flex-col gap-1 text-xs">
+                                <div class="flex justify-between items-center">
+                                    <div class="flex items-center gap-1.5">
+                                        <strong class="text-slate-800 font-bold">${com.author}</strong>
+                                        <span class="text-[9px] px-1.5 py-0.1 border rounded-md font-semibold ${badgeColor}">${com.role}</span>
+                                    </div>
+                                    <span class="text-[10px] text-slate-400 font-medium">${com.time}</span>
+                                </div>
+                                <p class="text-slate-600 leading-relaxed font-normal">${com.text}</p>
+                            </div>
+                        `;
+                    });
+
+                    commentsHTML = `
+                        <div class="mt-6 border-t border-slate-100 pt-4">
+                            <h4 class="text-xs uppercase font-extrabold tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+                                <i class="fa-solid fa-comments text-indigo-500"></i> Local Comments (${poll.comments.length})
+                            </h4>
+                            
+                            <!-- Comment Stream List -->
+                            <div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                                ${poll.comments.length === 0 ? '<p class="text-xs text-slate-400 italic text-center py-4">No comments posted yet. Start the neighborhood discussion below!</p>' : commentThreads}
+                            </div>
+
+                            <!-- Comment Input Form -->
+                            <form onsubmit="submitComment(event, '${poll.id}')" class="flex gap-2 mt-4">
+                                <input id="comment-input-${poll.id}" type="text" placeholder="Write a constructive neighbor response..." required
+                                    class="flex-grow text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-slate-50">
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-sm">
+                                    <i class="fa-solid fa-paper-plane"></i> Send
+                                </button>
+                            </form>
+                        </div>
+                    `;
+                } else {
+                    commentsHTML = `
+                        <div class="mt-4 bg-slate-50 border border-slate-100 p-3 rounded-xl text-center">
+                            <p class="text-xs text-slate-500 italic"><i class="fa-solid fa-lock mr-1 text-slate-400"></i> Please vote to reveal voting analytics & neighbor discussion boards.</p>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    ${headerBadgesHTML}
+                    <h3 class="text-lg font-bold text-slate-800 leading-snug tracking-tight mb-2">${poll.title}</h3>
+                    <p class="text-slate-500 text-xs leading-relaxed mb-4">${poll.description}</p>
+                    ${adminManagementControls}
+                    ${optionsContainerHTML}
+                    ${pollFooterHTML}
+                    ${commentsHTML}
+                `;
+
+                container.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
