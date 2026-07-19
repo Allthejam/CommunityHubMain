@@ -259,7 +259,7 @@ async function syncBusinessStatus(firestore: any, businessId: string, subscripti
 async function handleSubscriptionLifecycle(firestore: any, subscription: Stripe.Subscription, eventType: string) {
     const subId = subscription.id;
     const meta = subscription.metadata || {};
-    let businessId = meta.businessId;
+    let businessId = meta.businessId || meta.bid;
     let track: 'listing' | 'storefront' | null = null;
 
     const listingMatch = await firestore.collection('businesses').where('listingStripeSubscriptionId', '==', subId).limit(1).get();
@@ -372,11 +372,16 @@ export async function POST(req: Request) {
     // ASYNC PROCESSING: Respond immediately to Stripe, then process
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object as Stripe.Checkout.Session;
-        if (session.metadata?.purchaseType === 'cart_checkout') {
+        const meta = session.metadata || {};
+        const purchaseType = meta.purchaseType || meta.pt;
+        const businessId = meta.businessId || meta.bid;
+        const subscriptionType = meta.subscriptionType || meta.st;
+
+        if (purchaseType === 'cart_checkout') {
             // Background processing
             handleCartCheckout(session).catch(e => console.error("Async Order Error:", e));
-        } else if (session.metadata?.businessId) {
-            syncBusinessStatus(firestore, session.metadata.businessId, session.subscription as string, session.metadata.subscriptionType || 'listing');
+        } else if (businessId) {
+            syncBusinessStatus(firestore, businessId, session.subscription as string, subscriptionType || 'listing');
         }
     } else if (['customer.subscription.updated', 'customer.subscription.deleted'].includes(event.type)) {
         handleSubscriptionLifecycle(firestore, event.data.object as Stripe.Subscription, event.type);
