@@ -243,27 +243,47 @@ function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel:
   );
 }
 
-// ─── Edit Category modal ──────────────────────────────────────────────────────
-function EditCategoryModal({
+// Helper to convert Firestore timestamp/Date to string for datetime-local input value
+function formatForDateTimeInput(endDate: any): string {
+  if (!endDate) return '';
+  const date = endDate.toDate ? endDate.toDate() : new Date(endDate);
+  if (isNaN(date.getTime())) return '';
+  
+  const pad = (num: number) => String(num).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const MM = pad(date.getMonth() + 1);
+  const dd = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  
+  return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
+}
+
+// ─── Edit Poll Settings modal ──────────────────────────────────────────────────
+function EditPollModal({
   currentCategory,
+  currentEndDate,
   onConfirm,
   onCancel,
 }: {
   currentCategory: PollCategory;
-  onConfirm: (cat: PollCategory) => void;
+  currentEndDate: any;
+  onConfirm: (cat: PollCategory, end: Date | null) => void;
   onCancel: () => void;
 }) {
   const [selected, setSelected] = React.useState<PollCategory>(currentCategory);
+  const [endDateTime, setEndDateTime] = React.useState<string>(formatForDateTimeInput(currentEndDate));
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl flex flex-col gap-4">
         <div>
-          <h4 className="font-extrabold text-slate-800 text-center">Edit Category</h4>
+          <h4 className="font-extrabold text-slate-800 text-center">Edit Consultation Settings</h4>
           <p className="text-xs text-slate-500 mt-1 text-center">
-            Modify the category classification for this consultation.
+            Adjust the classification category or set/change the closing time.
           </p>
         </div>
+        
         <div>
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category</label>
           <select
@@ -277,12 +297,27 @@ function EditCategoryModal({
             <option value="regulations">📜 Local Rules</option>
           </select>
         </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select End Date & Time</label>
+          <input
+            type="datetime-local"
+            value={endDateTime}
+            onChange={(e) => setEndDateTime(e.target.value)}
+            className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 text-slate-700 font-medium"
+          />
+          <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-wider font-bold">Optional — leave blank to keep open indefinitely</p>
+        </div>
+
         <div className="grid grid-cols-2 gap-3 mt-2">
           <button onClick={onCancel} className="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg">
             Cancel
           </button>
-          <button onClick={() => onConfirm(selected)} className="py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg">
-            Save
+          <button
+            onClick={() => onConfirm(selected, endDateTime ? new Date(endDateTime) : null)}
+            className="py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+          >
+            Save Changes
           </button>
         </div>
       </div>
@@ -402,11 +437,12 @@ export default function LeaderPollsPage() {
     });
   }
 
-  // ── Update Category ──────────────────────────────────────────────────────────
-  async function handleUpdateCategory(newCategory: PollCategory) {
+  // ── Update Poll Settings ──────────────────────────────────────────────────────
+  async function handleUpdatePollSettings(newCategory: PollCategory, newEndDate: Date | null) {
     if (!communityId || !editingCategoryPollId) return;
     await updateDoc(doc(db, 'communities', communityId, 'polls', editingCategoryPollId), {
       category: newCategory,
+      endDate: newEndDate,
     });
     setEditingCategoryPollId(null);
   }
@@ -423,9 +459,10 @@ export default function LeaderPollsPage() {
       {deleteTarget && <DeleteModal onConfirm={handleDeleteConfirmed} onCancel={() => setDeleteTarget(null)} />}
       
       {editingCategoryPollId && (
-        <EditCategoryModal
+        <EditPollModal
           currentCategory={polls.find((p) => p.id === editingCategoryPollId)?.category || 'feedback'}
-          onConfirm={handleUpdateCategory}
+          currentEndDate={polls.find((p) => p.id === editingCategoryPollId)?.endDate || null}
+          onConfirm={handleUpdatePollSettings}
           onCancel={() => setEditingCategoryPollId(null)}
         />
       )}
