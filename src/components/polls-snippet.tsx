@@ -80,9 +80,50 @@ export function PollsSnippet({ communityId }: PollsSnippetProps) {
   const { data: activePolls, isLoading: loadingActive } = useCollection<Poll>(activeQuery);
   const { data: closedPolls, isLoading: loadingClosed } = useCollection<Poll>(closedQuery);
 
+  const sanitizePoll = (p: any): Poll => {
+    const title = p.title || p.question || 'Untitled Consultation';
+    const description = p.description || p.question || 'No description provided.';
+    const category = p.category || 'feedback';
+    let status = p.status || 'closed';
+    if (status === 'archived') {
+      status = 'closed';
+    }
+    const creator = p.creator || 'Community Leader';
+    let createdOn = p.createdOn;
+    if (!createdOn && p.createdAt) {
+      try {
+        const date = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+        createdOn = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      } catch (e) {
+        createdOn = 'Unknown Date';
+      }
+    }
+    createdOn = createdOn || 'Unknown Date';
+
+    const options = (p.options || []).map((opt: any, index: number) => ({
+      id: opt.id || `opt-${index}`,
+      text: opt.text || 'Option',
+      votes: typeof opt.votes === 'number' ? opt.votes : 0
+    }));
+
+    const comments = p.comments || [];
+
+    return {
+      ...p,
+      title,
+      description,
+      category,
+      status,
+      creator,
+      createdOn,
+      options,
+      comments
+    };
+  };
+
   const isLoading = loadingActive || loadingClosed;
-  const active = (activePolls ?? []) as Poll[];
-  const closed = (closedPolls ?? []) as Poll[];
+  const active = (activePolls ?? []).map(sanitizePoll) as Poll[];
+  const closed = (closedPolls ?? []).map(sanitizePoll) as Poll[];
 
   // Don't render the card at all if there's nothing to show
   if (!isLoading && active.length === 0 && closed.length === 0) return null;
