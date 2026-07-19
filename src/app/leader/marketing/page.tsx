@@ -54,6 +54,8 @@ const CopyToClipboardButton = ({ textToCopy, isHtml = false }: { textToCopy: str
     )
 }
 
+import { getMarketingStorageImagesAction } from '@/lib/actions/marketingActions';
+
 const MarketingImageGallery = () => {
     const db = useFirestore();
     const { toast } = useToast();
@@ -70,9 +72,31 @@ const MarketingImageGallery = () => {
     const galleryQuery = useMemoFirebase(() => 
         (db && adminId) ? query(collection(db, `users/${adminId}/gallery`)) : null
     , [db, adminId]);
-    const { data: images, isLoading: imagesLoading } = useCollection(galleryQuery);
+    const { data: firestoreImages, isLoading: imagesLoading } = useCollection(galleryQuery);
     
-    const isLoading = adminLoading || imagesLoading;
+    const [storageImages, setStorageImages] = React.useState<any[]>([]);
+    const [storageLoading, setStorageLoading] = React.useState(false);
+
+    React.useEffect(() => {
+        // If firestoreImages loaded but is empty, fetch from Storage action
+        if (!imagesLoading && (!firestoreImages || firestoreImages.length === 0)) {
+            setStorageLoading(true);
+            getMarketingStorageImagesAction().then(res => {
+                if (res.success && res.images) {
+                    setStorageImages(res.images);
+                }
+            }).catch(err => {
+                console.error("Error loading storage images:", err);
+            }).finally(() => {
+                setStorageLoading(false);
+            });
+        } else {
+            setStorageImages([]);
+        }
+    }, [firestoreImages, imagesLoading]);
+
+    const isLoading = adminLoading || imagesLoading || storageLoading;
+    const images = (firestoreImages && firestoreImages.length > 0) ? firestoreImages : storageImages;
 
     const handleCopyUrl = (url: string) => {
         navigator.clipboard.writeText(url);
