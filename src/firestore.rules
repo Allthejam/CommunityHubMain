@@ -15,7 +15,7 @@ service cloud.firestore {
                  (
                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['admin', 'owner'] ||
                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountType', '') in ['admin', 'owner'] ||
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('permissions', {}).get('isAdmin', false) == true
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get(['permissions', 'isAdmin'], false) == true
                  )
                )
              );
