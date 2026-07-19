@@ -28,4 +28,5 @@ export interface Poll {
   comments: PollComment[];
   /** Stores the UIDs of users who have already voted — prevents double-voting */
   votedBy?: string[];
+  endDate?: any;
 }

@@ -89,6 +89,7 @@ function CreatePollForm({ onCreate }: CreatePollFormProps) {
   const [category, setCategory] = React.useState<PollCategory>('budget');
   const [status, setStatus]     = React.useState<'active' | 'draft'>('active');
   const [options, setOptions]   = React.useState(['', '']);
+  const [endDateTime, setEndDateTime] = React.useState('');
   const [saving, setSaving]     = React.useState(false);
 
   function addOption() { if (options.length < 6) setOptions([...options, '']); }
@@ -99,7 +100,15 @@ function CreatePollForm({ onCreate }: CreatePollFormProps) {
     e.preventDefault();
     const validOptions = options.filter((o) => o.trim());
     if (validOptions.length < 2) return;
+
+    const confirmPublish = window.confirm(
+      "⚠️ IMPORTANT: Once published, the consultation name and voting options are permanently locked and cannot be edited. If there is a spelling mistake, you will have to delete this poll and create a new one.\n\nAre you sure you want to publish this consultation?"
+    );
+    if (!confirmPublish) return;
+
     setSaving(true);
+    const endDate = endDateTime ? new Date(endDateTime) : null;
+
     await onCreate({
       communityId: '',           // filled in by parent
       title: title.trim(),
@@ -111,8 +120,9 @@ function CreatePollForm({ onCreate }: CreatePollFormProps) {
       options: validOptions.map((text, i) => ({ id: `opt-${Date.now()}-${i}`, text, votes: 0 })),
       comments: [],
       votedBy: [],
+      endDate: endDate,
     });
-    setTitle(''); setDesc(''); setOptions(['', '']); setSaving(false);
+    setTitle(''); setDesc(''); setOptions(['', '']); setEndDateTime(''); setSaving(false);
   }
 
   return (
@@ -163,6 +173,17 @@ function CreatePollForm({ onCreate }: CreatePollFormProps) {
               <option value="draft">Draft (Admin eyes only)</option>
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Select End Date & Time</label>
+          <input
+            type="datetime-local"
+            value={endDateTime}
+            onChange={(e) => setEndDateTime(e.target.value)}
+            className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all bg-slate-50 text-slate-700 font-medium"
+          />
+          <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-wider font-bold">Optional — leave blank to keep open indefinitely</p>
         </div>
 
         <div>
@@ -222,6 +243,53 @@ function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel:
   );
 }
 
+// ─── Edit Category modal ──────────────────────────────────────────────────────
+function EditCategoryModal({
+  currentCategory,
+  onConfirm,
+  onCancel,
+}: {
+  currentCategory: PollCategory;
+  onConfirm: (cat: PollCategory) => void;
+  onCancel: () => void;
+}) {
+  const [selected, setSelected] = React.useState<PollCategory>(currentCategory);
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl flex flex-col gap-4">
+        <div>
+          <h4 className="font-extrabold text-slate-800 text-center">Edit Category</h4>
+          <p className="text-xs text-slate-500 mt-1 text-center">
+            Modify the category classification for this consultation.
+          </p>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category</label>
+          <select
+            value={selected}
+            onChange={(e) => setSelected(e.target.value as PollCategory)}
+            className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="budget">💰 Budget Spend</option>
+            <option value="events">📅 Events / Recaps</option>
+            <option value="feedback">💬 Community Feedback</option>
+            <option value="regulations">📜 Local Rules</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <button onClick={onCancel} className="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg">
+            Cancel
+          </button>
+          <button onClick={() => onConfirm(selected)} className="py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg">
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Filter categories ────────────────────────────────────────────────────────
 const CATEGORIES: { value: PollCategory | 'all'; label: string }[] = [
   { value: 'all',         label: '✨ All Topics' },
@@ -238,6 +306,7 @@ export default function LeaderPollsPage() {
   const [catFilter, setCatFilter]       = React.useState<PollCategory | 'all'>('all');
   const [statusFilter, setStatusFilter] = React.useState<PollStatus | 'all'>('all');
   const [deleteTarget, setDeleteTarget] = React.useState<string | null>(null);
+  const [editingCategoryPollId, setEditingCategoryPollId] = React.useState<string | null>(null);
 
   // Read user's communityId
   const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
@@ -333,6 +402,15 @@ export default function LeaderPollsPage() {
     });
   }
 
+  // ── Update Category ──────────────────────────────────────────────────────────
+  async function handleUpdateCategory(newCategory: PollCategory) {
+    if (!communityId || !editingCategoryPollId) return;
+    await updateDoc(doc(db, 'communities', communityId, 'polls', editingCategoryPollId), {
+      category: newCategory,
+    });
+    setEditingCategoryPollId(null);
+  }
+
   // ── Filter ───────────────────────────────────────────────────────────────────
   const visible = polls.filter((p) => {
     if (catFilter !== 'all' && p.category !== catFilter) return false;
@@ -343,6 +421,14 @@ export default function LeaderPollsPage() {
   return (
     <div className="min-h-screen bg-slate-50 -m-4 sm:-m-6 lg:-m-8">
       {deleteTarget && <DeleteModal onConfirm={handleDeleteConfirmed} onCancel={() => setDeleteTarget(null)} />}
+      
+      {editingCategoryPollId && (
+        <EditCategoryModal
+          currentCategory={polls.find((p) => p.id === editingCategoryPollId)?.category || 'feedback'}
+          onConfirm={handleUpdateCategory}
+          onCancel={() => setEditingCategoryPollId(null)}
+        />
+      )}
 
       {/* Page header */}
       <div className="bg-white border-b border-slate-100 px-4 py-8 shadow-sm">
@@ -443,6 +529,7 @@ export default function LeaderPollsPage() {
                     onComment={handleComment}
                     onToggleStatus={handleToggleStatus}
                     onDelete={setDeleteTarget}
+                    onEditCategory={setEditingCategoryPollId}
                   />
                 ))}
               </div>

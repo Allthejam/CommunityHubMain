@@ -23,6 +23,58 @@ function PulseDot() {
   );
 }
 
+function PollCountdown({ endDate }: { endDate: any }) {
+  const [timeLeft, setTimeLeft] = React.useState<string>('');
+
+  React.useEffect(() => {
+    if (!endDate) return;
+    const targetDate = endDate.toDate ? endDate.toDate() : new Date(endDate);
+
+    const updateTimer = () => {
+      const now = new Date();
+      const diff = targetDate.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setTimeLeft('Finished');
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      let parts = [];
+      if (days > 0) parts.push(`${days}d`);
+      if (hours > 0 || days > 0) parts.push(`${hours}h`);
+      parts.push(`${minutes}m`);
+      parts.push(`${seconds}s`);
+
+      setTimeLeft(parts.join(' '));
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [endDate]);
+
+  if (!timeLeft) return null;
+
+  if (timeLeft === 'Finished') {
+    return (
+      <span className="text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+        Ended
+      </span>
+    );
+  }
+
+  return (
+    <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 uppercase tracking-wider">
+      ⏳ {timeLeft} left
+    </span>
+  );
+}
+
 function StatusBadge({ status }: { status: Poll['status'] }) {
   if (status === 'active')
     return (
@@ -122,10 +174,12 @@ function AdminControls({
   poll,
   onToggleStatus,
   onDelete,
+  onEditCategory,
 }: {
   poll: Poll;
   onToggleStatus: (id: string) => void;
   onDelete: (id: string) => void;
+  onEditCategory?: (id: string) => void;
 }) {
   const toggleLabel =
     poll.status === 'active'
@@ -138,10 +192,18 @@ function AdminControls({
     poll.status === 'active' ? StopCircle : poll.status === 'closed' ? Play : CheckCircle2;
 
   return (
-    <div className="flex gap-2 mb-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+    <div className="flex gap-2 mb-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex-wrap items-center">
       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center mr-auto">
         Admin Controls:
       </span>
+      {onEditCategory && (
+        <button
+          onClick={() => onEditCategory(poll.id)}
+          className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-[11px] text-slate-700 font-bold rounded-lg transition-colors shadow-sm"
+        >
+          ⚙️ Edit Category
+        </button>
+      )}
       <button
         onClick={() => onToggleStatus(poll.id)}
         className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-indigo-50 border border-slate-200 text-[11px] text-indigo-700 font-bold rounded-lg transition-colors shadow-sm"
@@ -169,6 +231,7 @@ export interface PollCardProps {
   onComment: (pollId: string, text: string) => void;
   onToggleStatus?: (pollId: string) => void;
   onDelete?: (pollId: string) => void;
+  onEditCategory?: (pollId: string) => void;
 }
 
 export function PollCard({
@@ -179,10 +242,18 @@ export function PollCard({
   onComment,
   onToggleStatus,
   onDelete,
+  onEditCategory,
 }: PollCardProps) {
   const [commentText, setCommentText] = React.useState('');
   const totalVotes = poll.options.reduce((s, o) => s + o.votes, 0);
-  const isClosed = poll.status === 'closed';
+
+  const isExpired = React.useMemo(() => {
+    if (!poll.endDate) return false;
+    const targetDate = poll.endDate.toDate ? poll.endDate.toDate() : new Date(poll.endDate);
+    return new Date() > targetDate;
+  }, [poll.endDate]);
+
+  const isClosed = poll.status === 'closed' || isExpired;
   const isDraft = poll.status === 'draft';
   const showResults = hasVoted || isClosed || isDraft || isAdmin;
 
@@ -209,7 +280,8 @@ export function PollCard({
           <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${catMeta.color}`}>
             {catMeta.label}
           </span>
-          <StatusBadge status={poll.status} />
+          <StatusBadge status={isExpired ? 'closed' : poll.status} />
+          {poll.endDate && !isClosed && <PollCountdown endDate={poll.endDate} />}
         </div>
         <span className="text-[11px] text-slate-400 font-medium">Published: {poll.createdOn}</span>
       </div>
@@ -220,7 +292,7 @@ export function PollCard({
 
       {/* Admin controls (leader view only) */}
       {isAdmin && onToggleStatus && onDelete && (
-        <AdminControls poll={poll} onToggleStatus={onToggleStatus} onDelete={onDelete} />
+        <AdminControls poll={poll} onToggleStatus={onToggleStatus} onDelete={onDelete} onEditCategory={onEditCategory} />
       )}
 
       {/* Voting options / results */}
