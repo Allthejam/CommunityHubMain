@@ -15,6 +15,7 @@ import { ValuedPartners } from '@/components/valued-partners';
 import { LocalCharitiesFeed } from '@/components/local-charities-feed';
 import { LostAndFoundFeed } from '@/components/lost-and-found-feed';
 import { NewsFeed } from '@/components/news-feed';
+import { PollsSnippet } from '@/components/polls-snippet';
 import { Loader2 } from 'lucide-react';
 import { NoLeaderAlert } from '@/components/no-leader-alert';
 import { LocalBusinessesFeed } from '@/components/local-businesses-feed';
@@ -159,6 +160,7 @@ export default function HomePage() {
           <JobsFeed communityId={activeCommunityId} />
           <EnterpriseGroupsFeed communityId={activeCommunityId} />
           <NewsFeed communityId={activeCommunityId} />
+          <PollsSnippet communityId={activeCommunityId} />
           <LocalCharitiesFeed communityId={activeCommunityId} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             <LostAndFoundFeed communityId={activeCommunityId} />
