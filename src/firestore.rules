@@ -255,5 +255,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isBusinessOwner(businessId);
     }
+
+    match /lostAndFound/{itemId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
   }
 }
