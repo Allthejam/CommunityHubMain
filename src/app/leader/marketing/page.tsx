@@ -54,53 +54,35 @@ const CopyToClipboardButton = ({ textToCopy, isHtml = false }: { textToCopy: str
     )
 }
 
-import { getMarketingStorageImagesAction } from '@/lib/actions/marketingActions';
-
 const MarketingImageGallery = () => {
     const db = useFirestore();
     const { toast } = useToast();
 
-    // Query for the admin/owner user
-    const adminQuery = useMemoFirebase(() => 
-        db ? query(collection(db, "users"), where("role", "in", ["admin", "owner"]), limit(1)) : null
-    , [db]);
-    const { data: adminUsers, isLoading: adminLoading } = useCollection(adminQuery);
-    
-    const adminId = adminUsers?.[0]?.id;
-
-    // Query for the gallery once adminId is found
+    // Query for the platform_marketing_gallery directly
     const galleryQuery = useMemoFirebase(() => 
-        (db && adminId) ? query(collection(db, `users/${adminId}/gallery`)) : null
-    , [db, adminId]);
-    const { data: firestoreImages, isLoading: imagesLoading } = useCollection(galleryQuery);
-    
-    const [storageImages, setStorageImages] = React.useState<any[]>([]);
-    const [storageLoading, setStorageLoading] = React.useState(false);
-
-    React.useEffect(() => {
-        // If firestoreImages loaded but is empty, fetch from Storage action
-        if (!imagesLoading && (!firestoreImages || firestoreImages.length === 0)) {
-            setStorageLoading(true);
-            getMarketingStorageImagesAction().then(res => {
-                if (res.success && res.images) {
-                    setStorageImages(res.images);
-                }
-            }).catch(err => {
-                console.error("Error loading storage images:", err);
-            }).finally(() => {
-                setStorageLoading(false);
-            });
-        } else {
-            setStorageImages([]);
-        }
-    }, [firestoreImages, imagesLoading]);
-
-    const isLoading = adminLoading || imagesLoading || storageLoading;
-    const images = (firestoreImages && firestoreImages.length > 0) ? firestoreImages : storageImages;
+        db ? query(collection(db, "platform_marketing_gallery")) : null
+    , [db]);
+    const { data: images, isLoading } = useCollection(galleryQuery);
 
     const handleCopyUrl = (url: string) => {
         navigator.clipboard.writeText(url);
         toast({ title: "Image URL Copied!" });
+    };
+
+    const formatImageDescription = (image: any) => {
+        if (image.description && image.description !== 'Auto-indexed from Storage') {
+            return image.description;
+        }
+        const path = image.path || image.url || '';
+        const filename = path.split('/').pop() || '';
+        let cleanName = decodeURIComponent(filename);
+        // Strip timestamp prefix if any (e.g., 1777118925899-Name)
+        cleanName = cleanName.replace(/^\d+-/, '');
+        // Strip file extension
+        cleanName = cleanName.replace(/\.[^/.]+$/, "");
+        // Replace hyphens and underscores with spaces
+        cleanName = cleanName.replace(/[-_]/g, ' ');
+        return cleanName || 'Marketing Image';
     };
 
     return (
@@ -116,31 +98,34 @@ const MarketingImageGallery = () => {
                     </div>
                 ) : images && images.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {images.map((image: any) => (
-                            <div key={image.id} className="group relative aspect-square">
-                                <Image
-                                    src={image.url}
-                                    alt={image.description || 'Marketing Image'}
-                                    fill
-                                    className="object-cover rounded-md border"
-                                />
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md p-2">
-                                    <div className="text-center">
-                                        <p className="text-white text-xs mb-2 line-clamp-2">{image.description}</p>
-                                        <div className="flex flex-col gap-2">
-                                            <Button size="sm" variant="secondary" onClick={() => handleCopyUrl(image.url)}>
-                                                <Clipboard className="mr-2 h-4 w-4" /> Copy URL
-                                            </Button>
-                                            <Button asChild size="sm" variant="outline" className="text-black">
-                                                <a href={image.url} download={`marketing-image-${image.id}.jpg`}>
-                                                    <Download className="mr-2 h-4 w-4" /> Download
-                                                </a>
-                                            </Button>
+                        {images.map((image: any) => {
+                            const description = formatImageDescription(image);
+                            return (
+                                <div key={image.id} className="group relative aspect-square">
+                                    <Image
+                                        src={image.url}
+                                        alt={description}
+                                        fill
+                                        className="object-cover rounded-md border"
+                                    />
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md p-2">
+                                        <div className="text-center">
+                                            <p className="text-white text-xs mb-2 line-clamp-2">{description}</p>
+                                            <div className="flex flex-col gap-2">
+                                                <Button size="sm" variant="secondary" onClick={() => handleCopyUrl(image.url)}>
+                                                    <Clipboard className="mr-2 h-4 w-4" /> Copy URL
+                                                </Button>
+                                                <Button asChild size="sm" variant="outline" className="text-black">
+                                                    <a href={image.url} download={`marketing-image-${image.id}.jpg`}>
+                                                        <Download className="mr-2 h-4 w-4" /> Download
+                                                    </a>
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 ) : (
                     <p className="text-center text-muted-foreground py-10">The marketing gallery is currently empty.</p>

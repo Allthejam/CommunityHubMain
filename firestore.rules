@@ -236,6 +236,10 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
+    match /platform_marketing_gallery/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
 
     match /community_reports/{reportId} {
         allow create: if isSignedIn();
