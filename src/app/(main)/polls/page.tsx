@@ -11,15 +11,8 @@ import {
   useCollection,
   useDoc,
 } from '@/firebase';
-import {
-  collection,
-  doc,
-  updateDoc,
-  arrayUnion,
-  query,
-  orderBy,
-  serverTimestamp,
-} from 'firebase/firestore';
+import { collection, doc, updateDoc, arrayUnion, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { voteOnPollAction } from '@/lib/actions/pollActions';
 
 // ─── Analytics sidebar ────────────────────────────────────────────────────────
 function AnalyticsWidget({ polls }: { polls: Poll[] }) {
@@ -167,15 +160,19 @@ export default function PollsPage() {
     const poll = polls.find((p) => p.id === pollId);
     if (!poll || poll.votedBy?.includes(user.uid)) return;
 
-    const updatedOptions = poll.options.map((o) =>
-      o.id === optId ? { ...o, votes: o.votes + 1 } : o
-    );
+    const optionIndex = poll.options.findIndex((o) => o.id === optId);
+    if (optionIndex === -1) return;
 
-    const pollRef = doc(db, 'communities', communityId, 'polls', pollId);
-    await updateDoc(pollRef, {
-      options: updatedOptions,
-      votedBy: arrayUnion(user.uid),
-    });
+    try {
+      await voteOnPollAction({
+        communityId,
+        pollId,
+        userId: user.uid,
+        optionIndex
+      });
+    } catch (err) {
+      console.error("Error voting:", err);
+    }
   }
 
   // ── Commenting ──────────────────────────────────────────────────────────────
