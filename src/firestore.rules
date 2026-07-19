@@ -8,8 +8,13 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && 
-             (request.auth.token.get('isAdmin', false) == true || 
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['admin', 'owner']);
+             (
+               request.auth.token.get('isAdmin', false) == true || 
+               (
+                 exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+                 get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['admin', 'owner']
+               )
+             );
     }
     
     function isCommunityCreator() {
@@ -22,103 +27,64 @@ service cloud.firestore {
     }
     
     function isBusinessOwner(businessId) {
-      let businessDoc = get(/databases/$(database)/documents/businesses/$(businessId));
-      return isSignedIn() && businessDoc != null && businessDoc.data.ownerId == request.auth.uid;
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/businesses/$(businessId)) && 
+             get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
     }
 
     function communityHasNoLeader(communityId) {
-      let communityDoc = get(/databases/$(database)/documents/communities/$(communityId));
-      return communityDoc != null && communityDoc.data.leaderCount == 0;
+      return exists(/databases/$(database)/documents/communities/$(communityId)) && 
+             get(/databases/$(database)/documents/communities/$(communityId)).data.get('leaderCount', 0) == 0;
     }
 
     function isLeaderOf(communityId) {
-        if (!isSignedIn()) return false;
-        if (isAdmin()) return true;
-        
-        let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-        if (!exists(userPath)) {
-          return false;
-        }
-        let userData = get(userPath).data;
-        let role = userData.get('role', '');
-        
-        let isPrimaryLeader = userData.get('communityId', '') == communityId && (role == 'president' || role == 'leader');
-        let commRoles = userData.get('communityRoles', {});
-        let isSecondaryLeader = commRoles != null && communityId in commRoles && commRoles[communityId].get('role', '') in ['president', 'leader'];
-        
-        return isPrimaryLeader || isSecondaryLeader;
+        return isSignedIn() && (
+          isAdmin() || 
+          (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+            (
+              (
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('communityId', '') == communityId && 
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['president', 'leader', 'owner', 'admin', 'administrator', 'vice-president', 'moderator', 'editor', 'reporter', 'broadcaster']
+              ) || (
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('communityRoles', null) != null && 
+                communityId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityRoles && 
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityRoles[communityId].get('role', '') in ['president', 'leader', 'owner', 'admin', 'administrator', 'vice-president', 'moderator', 'editor', 'reporter', 'broadcaster']
+              )
+            )
+          )
+        );
     }
 
     function isCourierFor(communityId) {
-      if (!isSignedIn()) return false;
-      if (isAdmin()) return true;
-      
-      let communityDoc = get(/databases/$(database)/documents/communities/$(communityId));
-      return communityDoc != null && communityDoc.data.courierId == request.auth.uid;
+      return isSignedIn() && (
+        isAdmin() || 
+        (
+          exists(/databases/$(database)/documents/communities/$(communityId)) && 
+          get(/databases/$(database)/documents/communities/$(communityId)).data.get('courierId', '') == request.auth.uid
+        )
+      );
     }
 
     function isPoliceLiaisonOf(communityId) {
-        if (!isSignedIn()) return false;
-        if (isAdmin()) return true;
-
-        let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-        if (!exists(userPath)) {
-          return false;
-        }
-        let userData = get(userPath).data;
-        let role = userData.get('role', '');
-
-        let isPrimaryLiaison = userData.get('communityId', '') == communityId && role == 'police-liaison-officer';
-        let commRoles = userData.get('communityRoles', {});
-        let isSecondaryLiaison = commRoles != null && communityId in commRoles && commRoles[communityId].get('role', '') == 'police-liaison-officer';
-        
-        return isPrimaryLiaison || isSecondaryLiaison;
+      return isSignedIn() && (
+        isAdmin() || 
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          (
+            (
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('communityId', '') == communityId && 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'police-liaison-officer'
+            ) || (
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('communityRoles', null) != null && 
+              communityId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityRoles && 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityRoles[communityId].get('role', '') == 'police-liaison-officer'
+            )
+          )
+        )
+      );
     }
     
-    function getUser() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid));
-    }
-    
-    function getUserPermissions(communityId) {
-      if (!isSignedIn()) return {};
-      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userPath)) {
-        return {};
-      }
-      
-      let userData = get(userPath).data;
-      if (userData.get('communityId', '') == communityId) {
-          return userData.get('permissions', {});
-      }
-      let commRoles = userData.get('communityRoles', {});
-      if (communityId in commRoles) {
-          return commRoles[communityId].get('permissions', {});
-      }
-      return {};
-    }
-
-    function canViewReportCategory(communityId, category) {
-      if (isAdmin()) return true;
-      let permissions = getUserPermissions(communityId);
-      if (permissions.get('canViewAllCommunityReports', false) == true) {
-          return true;
-      }
-      let categories = permissions.get('viewableReportCategories', []);
-      if (category in categories || category == 'report a crime') {
-          return true;
-      }
-      return false;
-    }
-    
-    function isCommunityMember(communityId) {
-      if (!isSignedIn()) return false;
-      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userPath)) {
-        return false;
-      }
-      let userData = get(userPath).data;
-      return 'memberOf' in userData && userData.memberOf is list && communityId in userData.memberOf;
-    }
 
     match /careers/{document=**} {
       allow read: if true;
@@ -197,6 +163,11 @@ service cloud.firestore {
         allow read: if true;
         allow write: if isLeaderOf(communityId);
     }
+    match /communities/{communityId}/guestbook/{entryId} {
+        allow read: if (resource == null) || (resource.data.status == 'Live') || isLeaderOf(communityId) || isAdmin();
+        allow create: if isSignedIn();
+        allow update, delete: if isLeaderOf(communityId) || isAdmin();
+    }
 
     match /liaison_applications/{applicationId} {
         allow create: if isSignedIn();
@@ -212,13 +183,15 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow list: if isAdmin() || isCourierFor(resource.data.communityId);
+      allow list: if isAdmin();
+      
       allow get: if isSignedIn() && (
         resource.data.userId == request.auth.uid || 
         resource.data.businessOwnerId == request.auth.uid || 
         isAdmin() ||
         isCourierFor(resource.data.communityId)
       );
+      
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (
         resource.data.businessOwnerId == request.auth.uid || 
@@ -241,9 +214,10 @@ service cloud.firestore {
     match /marketing_campaigns/{docId} { allow read, write: if isAdmin(); }
 
     match /community_reports/{reportId} {
-        allow list: if isAdmin() || isLeaderOf(resource.data.communityId) || (isPoliceLiaisonOf(resource.data.communityId) && canViewReportCategory(resource.data.communityId, resource.data.category));
         allow create: if isSignedIn();
-        allow read: if isLeaderOf(resource.data.communityId) || (isPoliceLiaisonOf(resource.data.communityId) && canViewReportCategory(resource.data.communityId, resource.data.category));
+        allow read: if isLeaderOf(resource.data.communityId) || 
+                      (isPoliceLiaisonOf(resource.data.communityId) && 
+                       resource.data.category == 'report a crime');
         allow update: if isLeaderOf(resource.data.communityId);
     }
   }

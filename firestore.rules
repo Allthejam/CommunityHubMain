@@ -8,13 +8,17 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && 
-             request.auth.token != null && 
-             request.auth.token.get('isAdmin', false) == true;
+             (
+               request.auth.token.get('isAdmin', false) == true || 
+               (
+                 exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+                 get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['admin', 'owner']
+               )
+             );
     }
     
     function isCommunityCreator() {
       return isSignedIn() && 
-             request.auth.token != null && 
              request.auth.token.get('isCommunityCreator', false) == true;
     }
 
@@ -23,93 +27,64 @@ service cloud.firestore {
     }
     
     function isBusinessOwner(businessId) {
-      let businessDoc = get(/databases/$(database)/documents/businesses/$(businessId));
-      return isSignedIn() && businessDoc != null && businessDoc.data.ownerId == request.auth.uid;
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/businesses/$(businessId)) && 
+             get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
     }
 
     function communityHasNoLeader(communityId) {
-      let communityDoc = get(/databases/$(database)/documents/communities/$(communityId));
-      return communityDoc != null && communityDoc.data.leaderCount == 0;
+      return exists(/databases/$(database)/documents/communities/$(communityId)) && 
+             get(/databases/$(database)/documents/communities/$(communityId)).data.get('leaderCount', 0) == 0;
     }
 
     function isLeaderOf(communityId) {
-        if (!isSignedIn()) return false;
-        let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-        if (!exists(userPath)) {
-          return false;
-        }
-        let userData = get(userPath).data;
-        let isPrimaryLeader = userData.communityId == communityId && (userData.role == 'president' || userData.role == 'leader');
-        let isSecondaryLeader = userData.communityRoles != null && communityId in userData.communityRoles && userData.communityRoles[communityId].role in ['president', 'leader'];
-        
-        return isPrimaryLeader || isSecondaryLeader;
+        return isSignedIn() && (
+          isAdmin() || 
+          (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+            (
+              (
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('communityId', '') == communityId && 
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['president', 'leader', 'owner', 'admin', 'administrator', 'vice-president', 'moderator', 'editor', 'reporter', 'broadcaster']
+              ) || (
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('communityRoles', null) != null && 
+                communityId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityRoles && 
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityRoles[communityId].get('role', '') in ['president', 'leader', 'owner', 'admin', 'administrator', 'vice-president', 'moderator', 'editor', 'reporter', 'broadcaster']
+              )
+            )
+          )
+        );
     }
 
     function isCourierFor(communityId) {
-      if (!isSignedIn()) return false;
-      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userPath)) {
-        return false;
-      }
-      let userData = get(userPath).data;
-      return userData.get(['permissions', 'isCourier'], false) == true && 
-             userData.get('communityId', '') == communityId;
+      return isSignedIn() && (
+        isAdmin() || 
+        (
+          exists(/databases/$(database)/documents/communities/$(communityId)) && 
+          get(/databases/$(database)/documents/communities/$(communityId)).data.get('courierId', '') == request.auth.uid
+        )
+      );
     }
 
     function isPoliceLiaisonOf(communityId) {
-        if (!isSignedIn()) return false;
-        let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-        if (!exists(userPath)) {
-          return false;
-        }
-        let userData = get(userPath).data;
-        let isPrimaryLiaison = userData.communityId == communityId && userData.role == 'police-liaison-officer';
-        let isSecondaryLiaison = userData.communityRoles != null && communityId in userData.communityRoles && userData.communityRoles[communityId].role == 'police-liaison-officer';
-        
-        return isPrimaryLiaison || isSecondaryLiaison;
+      return isSignedIn() && (
+        isAdmin() || 
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          (
+            (
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('communityId', '') == communityId && 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'police-liaison-officer'
+            ) || (
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('communityRoles', null) != null && 
+              communityId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityRoles && 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityRoles[communityId].get('role', '') == 'police-liaison-officer'
+            )
+          )
+        )
+      );
     }
     
-    function getUser() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid));
-    }
-    
-    function getUserPermissions(communityId) {
-      if (!isSignedIn()) return {};
-      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userPath)) {
-        return {};
-      }
-      
-      let userData = get(userPath).data;
-      if (userData.communityId == communityId) {
-          return userData.permissions != null ? userData.permissions : {};
-      }
-      if (userData.communityRoles != null && communityId in userData.communityRoles) {
-          return userData.communityRoles[communityId].permissions != null ? userData.communityRoles[communityId].permissions : {};
-      }
-      return {};
-    }
-
-    function canViewReportCategory(communityId, category) {
-      let permissions = getUserPermissions(communityId);
-      if (permissions.canViewAllCommunityReports == true) {
-          return true;
-      }
-      if (permissions.viewableReportCategories != null && category in permissions.viewableReportCategories) {
-          return true;
-      }
-      return false;
-    }
-    
-    function isCommunityMember(communityId) {
-      if (!isSignedIn()) return false;
-      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userPath)) {
-        return false;
-      }
-      let userData = get(userPath).data;
-      return 'memberOf' in userData && userData.memberOf is list && communityId in userData.memberOf;
-    }
 
     match /careers/{document=**} {
       allow read: if true;
@@ -208,9 +183,6 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      // Bypassing problematic list queries by using Server Actions on the client.
-      // Rules here remain for single document fetches (get) and admin oversight.
-      
       allow list: if isAdmin();
       
       allow get: if isSignedIn() && (
