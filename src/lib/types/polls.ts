@@ -12,7 +12,7 @@ export interface PollOption {
   votes: number;
 }
 
-export type PollStatus = 'active' | 'closed' | 'draft';
+export type PollStatus = 'active' | 'closed' | 'draft' | 'paused';
 export type PollCategory = 'budget' | 'events' | 'feedback' | 'regulations';
 
 export interface Poll {

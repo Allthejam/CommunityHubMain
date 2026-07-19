@@ -405,14 +405,10 @@ export default function LeaderPollsPage() {
     });
   }
 
-  // ── Toggle status ────────────────────────────────────────────────────────────
-  async function handleToggleStatus(pollId: string) {
+  // ── Update status ────────────────────────────────────────────────────────────
+  async function handleUpdateStatus(pollId: string, nextStatus: PollStatus) {
     if (!communityId) return;
-    const poll = polls.find((p) => p.id === pollId);
-    if (!poll) return;
-    const next: PollStatus =
-      poll.status === 'active' ? 'closed' : poll.status === 'closed' ? 'active' : 'active';
-    await updateDoc(doc(db, 'communities', communityId, 'polls', pollId), { status: next });
+    await updateDoc(doc(db, 'communities', communityId, 'polls', pollId), { status: nextStatus });
   }
 
   // ── Delete ───────────────────────────────────────────────────────────────────
@@ -527,6 +523,7 @@ export default function LeaderPollsPage() {
                 className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="all">Show All</option>
                 <option value="active">Active Consultations</option>
+                <option value="paused">Paused Consultations</option>
                 <option value="closed">Closed Consultations</option>
                 <option value="draft">My Drafts</option>
               </select>
@@ -564,7 +561,7 @@ export default function LeaderPollsPage() {
                     isAdmin={true}
                     onVote={() => {}}
                     onComment={handleComment}
-                    onToggleStatus={handleToggleStatus}
+                    onUpdateStatus={handleUpdateStatus}
                     onDelete={setDeleteTarget}
                     onEditCategory={setEditingCategoryPollId}
                   />

@@ -269,6 +269,7 @@ export default function PollsPage() {
               >
                 <option value="all">Show All</option>
                 <option value="active">Active Consultations</option>
+                <option value="paused">Paused Consultations</option>
                 <option value="closed">Closed Consultations</option>
               </select>
             </div>

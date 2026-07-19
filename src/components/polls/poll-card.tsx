@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Poll, PollOption, PollComment } from '@/lib/types/polls';
-import { Trophy, Lock, Send, Trash2, Play, StopCircle, CheckCircle2, MessageSquare } from 'lucide-react';
+import { Trophy, Lock, Send, Trash2, Play, StopCircle, CheckCircle2, MessageSquare, Pause } from 'lucide-react';
 
 // ─── Category helpers ────────────────────────────────────────────────────────
 const CATEGORY_META: Record<string, { label: string; color: string }> = {
@@ -80,6 +80,12 @@ function StatusBadge({ status }: { status: Poll['status'] }) {
     return (
       <span className="flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
         <PulseDot /> Open Consult
+      </span>
+    );
+  if (status === 'paused')
+    return (
+      <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+        ⏸️ Paused
       </span>
     );
   if (status === 'draft')
@@ -172,24 +178,19 @@ function CommentThread({ comments }: { comments: PollComment[] }) {
 // ─── Admin control bar ───────────────────────────────────────────────────────
 function AdminControls({
   poll,
-  onToggleStatus,
+  onUpdateStatus,
   onDelete,
   onEditCategory,
 }: {
   poll: Poll;
-  onToggleStatus: (id: string) => void;
+  onUpdateStatus?: (id: string, next: Poll['status']) => void;
   onDelete: (id: string) => void;
   onEditCategory?: (id: string) => void;
 }) {
-  const toggleLabel =
-    poll.status === 'active'
-      ? 'Freeze & Close'
-      : poll.status === 'closed'
-      ? 'Reopen'
-      : 'Publish Now';
-
-  const ToggleIcon =
-    poll.status === 'active' ? StopCircle : poll.status === 'closed' ? Play : CheckCircle2;
+  const isDraft = poll.status === 'draft';
+  const isActive = poll.status === 'active';
+  const isPaused = poll.status === 'paused';
+  const isClosed = poll.status === 'closed';
 
   return (
     <div className="flex gap-2 mb-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex-wrap items-center">
@@ -201,16 +202,66 @@ function AdminControls({
           onClick={() => onEditCategory(poll.id)}
           className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-[11px] text-slate-700 font-bold rounded-lg transition-colors shadow-sm"
         >
-          ⚙️ Edit Category
+          ⚙️ Edit Settings
         </button>
       )}
-      <button
-        onClick={() => onToggleStatus(poll.id)}
-        className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-indigo-50 border border-slate-200 text-[11px] text-indigo-700 font-bold rounded-lg transition-colors shadow-sm"
-      >
-        <ToggleIcon className="h-3 w-3" />
-        {toggleLabel}
-      </button>
+
+      {isDraft && onUpdateStatus && (
+        <button
+          onClick={() => onUpdateStatus(poll.id, 'active')}
+          className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg transition-colors shadow-sm"
+        >
+          <Play className="h-3 w-3" />
+          Publish Now
+        </button>
+      )}
+
+      {isActive && onUpdateStatus && (
+        <>
+          <button
+            onClick={() => onUpdateStatus(poll.id, 'paused')}
+            className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-amber-50 border border-slate-200 text-[11px] text-amber-700 font-bold rounded-lg transition-colors shadow-sm"
+          >
+            <Pause className="h-3 w-3" />
+            Pause/Freeze
+          </button>
+          <button
+            onClick={() => {
+              if (window.confirm("⚠️ Are you sure you want to PERMANENTLY close this consultation? Once closed, it cannot be reopened.")) {
+                onUpdateStatus(poll.id, 'closed');
+              }
+            }}
+            className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-rose-50 border border-slate-200 text-[11px] text-rose-700 font-bold rounded-lg transition-colors shadow-sm"
+          >
+            <StopCircle className="h-3 w-3" />
+            Close Permanently
+          </button>
+        </>
+      )}
+
+      {isPaused && onUpdateStatus && (
+        <>
+          <button
+            onClick={() => onUpdateStatus(poll.id, 'active')}
+            className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-emerald-50 border border-slate-200 text-[11px] text-emerald-700 font-bold rounded-lg transition-colors shadow-sm"
+          >
+            <Play className="h-3 w-3" />
+            Resume/Unpause
+          </button>
+          <button
+            onClick={() => {
+              if (window.confirm("⚠️ Are you sure you want to PERMANENTLY close this consultation? Once closed, it cannot be reopened.")) {
+                onUpdateStatus(poll.id, 'closed');
+              }
+            }}
+            className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-rose-50 border border-slate-200 text-[11px] text-rose-700 font-bold rounded-lg transition-colors shadow-sm"
+          >
+            <StopCircle className="h-3 w-3" />
+            Close Permanently
+          </button>
+        </>
+      )}
+
       <button
         onClick={() => onDelete(poll.id)}
         className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-rose-50 border border-slate-200 text-[11px] text-rose-600 font-bold rounded-lg transition-colors shadow-sm"
@@ -229,7 +280,7 @@ export interface PollCardProps {
   isAdmin?: boolean;
   onVote: (pollId: string, optId: string) => void;
   onComment: (pollId: string, text: string) => void;
-  onToggleStatus?: (pollId: string) => void;
+  onUpdateStatus?: (pollId: string, nextStatus: Poll['status']) => void;
   onDelete?: (pollId: string) => void;
   onEditCategory?: (pollId: string) => void;
 }
@@ -240,7 +291,7 @@ export function PollCard({
   isAdmin = false,
   onVote,
   onComment,
-  onToggleStatus,
+  onUpdateStatus,
   onDelete,
   onEditCategory,
 }: PollCardProps) {
@@ -253,7 +304,7 @@ export function PollCard({
     return new Date() > targetDate;
   }, [poll.endDate]);
 
-  const isClosed = poll.status === 'closed' || isExpired;
+  const isClosed = poll.status === 'closed' || poll.status === 'paused' || isExpired;
   const isDraft = poll.status === 'draft';
   const showResults = hasVoted || isClosed || isDraft || isAdmin;
 
@@ -291,8 +342,8 @@ export function PollCard({
       <p className="text-slate-500 text-xs leading-relaxed mb-4">{poll.description}</p>
 
       {/* Admin controls (leader view only) */}
-      {isAdmin && onToggleStatus && onDelete && (
-        <AdminControls poll={poll} onToggleStatus={onToggleStatus} onDelete={onDelete} onEditCategory={onEditCategory} />
+      {isAdmin && onUpdateStatus && onDelete && (
+        <AdminControls poll={poll} onUpdateStatus={onUpdateStatus} onDelete={onDelete} onEditCategory={onEditCategory} />
       )}
 
       {/* Voting options / results */}
