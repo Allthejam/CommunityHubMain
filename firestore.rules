@@ -162,8 +162,7 @@ service cloud.firestore {
         allow update, delete: if isOwner(resource.data.ownerId);
     }
     match /communities/{communityId}/polls/{pollId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, write: if true;
     }
     match /jobSeekers/{seekerId} {
       allow read: if isSignedIn();
