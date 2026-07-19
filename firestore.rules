@@ -220,5 +220,40 @@ service cloud.firestore {
                        resource.data.category == 'report a crime');
         allow update: if isLeaderOf(resource.data.communityId);
     }
+
+    match /adverts/{advertId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /locations/{locationId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /forum-categories/{categoryId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /forum-topics/{topicId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /forum-topics/{topicId}/posts/{postId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow write: if isSignedIn();
+    }
+
+    match /businesses/{businessId}/gallery/{itemId} {
+      allow read: if true;
+      allow write: if isBusinessOwner(businessId);
+    }
   }
 }
