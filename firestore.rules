@@ -12,7 +12,11 @@ service cloud.firestore {
                request.auth.token.get('isAdmin', false) == true || 
                (
                  exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-                 get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['admin', 'owner']
+                 (
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['admin', 'owner'] ||
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accountType', '') in ['admin', 'owner'] ||
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('permissions', {}).get('isAdmin', false) == true
+                 )
                )
              );
     }
