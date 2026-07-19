@@ -210,7 +210,14 @@ service cloud.firestore {
     }
     
     match /audit_log/{logId} { allow read, write: if isAdmin(); }
-    match /access_requests/{requestId} { allow read, write: if isAdmin(); }
+    match /access_requests/{requestId} {
+      allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && (
+        (resource == null && request.resource.data.userId == request.auth.uid) ||
+        (resource != null && resource.data.userId == request.auth.uid) ||
+        isAdmin()
+      );
+    }
     match /platform_reports/{reportId} { allow read, write: if isAdmin(); }
     match /pricing_plans/{planId} { allow read, write: if isAdmin(); }
     match /platform_overview/{docId} { allow read, write: if isAdmin(); }
