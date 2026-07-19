@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { initializeAdminApp } from '@/firebase/admin-app';
-import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue, FieldPath } from 'firebase-admin/firestore';
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const stripe = new Stripe(stripeSecret!, { apiVersion: '2025-07-30.basil' as any });
@@ -33,6 +33,7 @@ async function handleCartCheckout(session: Stripe.Checkout.Session) {
     const shippingAddress = meta.sa || meta.shippingAddress;
     const cartMapping = meta.cm ? JSON.parse(meta.cm) : {}; 
     const orderId = session.id;
+    const transferGroup = meta.tg || session.id;
 
     if (!userId || !communityId) {
         console.error("❌ [WEBHOOK] Missing critical metadata (uid/cid)");
@@ -44,6 +45,24 @@ async function handleCartCheckout(session: Stripe.Checkout.Session) {
         const totalAmount = session.amount_total || 0;
         // Conservative estimate for fee if balance transaction isn't immediately available
         const totalFee = Math.round(totalAmount * 0.029 + 30); 
+
+        // Retrieve charge ID from payment intent
+        let chargeId: string | null = null;
+        if (session.payment_intent) {
+            const piId = typeof session.payment_intent === 'string' 
+                ? session.payment_intent 
+                : session.payment_intent.id;
+            try {
+                const pi = await stripe.paymentIntents.retrieve(piId);
+                if (pi.latest_charge) {
+                    chargeId = typeof pi.latest_charge === 'string' 
+                        ? pi.latest_charge 
+                        : pi.latest_charge.id;
+                }
+            } catch (err: any) {
+                console.error("❌ [WEBHOOK] Error retrieving charge from payment intent:", err.message);
+            }
+        }
 
         // Retrieve line items
         const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { expand: ['data.price.product'] });
@@ -110,8 +129,19 @@ async function handleCartCheckout(session: Stripe.Checkout.Session) {
                 // Update Stock Levels
                 for (const item of data.items) {
                     if (item.id && item.id !== 'unknown') {
-                        const productRef = firestore.doc(`businesses/${bizId}/products/${item.id}`);
-                        transaction.update(productRef, { stock: FieldValue.increment(-(item.qty || 1)) });
+                        const idParts = item.id.split('::');
+                        const baseProductId = idParts[0];
+                        const productRef = firestore.doc(`businesses/${bizId}/products/${baseProductId}`);
+                        
+                        if (idParts.length > 1) {
+                            // Variation product: update nested stock map in sub-collection
+                            const variantKey = idParts.slice(1).join(' / ');
+                            const variationsRef = productRef.collection('product_data').doc('variations');
+                            transaction.update(variationsRef, new FieldPath('stock', variantKey, 'stock'), FieldValue.increment(-(item.qty || 1)));
+                        } else {
+                            // Standard product: update base stock field
+                            transaction.update(productRef, { stock: FieldValue.increment(-(item.qty || 1)) });
+                        }
                     }
                 }
             }
@@ -172,14 +202,14 @@ async function handleCartCheckout(session: Stripe.Checkout.Session) {
                             amount: netTransfer,
                             currency: 'gbp',
                             destination: stripeAccountId,
-                            transfer_group: orderId,
+                            transfer_group: transferGroup,
                             metadata: { orderId, businessId: bizId }
                         };
-                        // Use source_transaction if payment_intent exists to avoid balance errors
-                        if (session.payment_intent) {
-                            transferData.source_transaction = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id;
+                        if (chargeId) {
+                            transferData.source_transaction = chargeId;
                         }
                         await stripe.transfers.create(transferData);
+                        console.log(`[PAYOUT SUCCESS] Sent ${netTransfer} cents to Connected Merchant ${stripeAccountId} for ${bizId}`);
                     } catch (e: any) {
                         console.error(`[TRANSFER ERROR] Biz: ${bizId}`, e.message);
                     }
@@ -209,13 +239,14 @@ async function handleCartCheckout(session: Stripe.Checkout.Session) {
                                 amount: netTransfer,
                                 currency: 'gbp',
                                 destination: courierStripeAccountId,
-                                transfer_group: orderId,
+                                transfer_group: transferGroup,
                                 metadata: { orderId, type: 'delivery_fee' }
                             };
-                            if (session.payment_intent) {
-                                transferData.source_transaction = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id;
+                            if (chargeId) {
+                                transferData.source_transaction = chargeId;
                             }
                             await stripe.transfers.create(transferData);
+                            console.log(`[PAYOUT SUCCESS] Sent ${netTransfer} cents to Connected Courier ${courierStripeAccountId}`);
                         } catch (e: any) {
                             console.error(`[TRANSFER ERROR] Courier Delivery Fee:`, e.message);
                         }

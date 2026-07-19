@@ -65,12 +65,16 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<Act
             });
         }
 
+        // Generate a unique transfer group for grouping split payouts on Connect
+        const transferGroup = `tg_${Date.now()}_${uid.substring(0, 8)}`;
+
         // COMPACT METADATA: Keys and values must be concise to stay within limits
         const metadata: Record<string, string> = {
             uid: String(uid),
             pt: String(purchaseType),
             cid: String(communityId || ''),
             bid: String(businessId || ''),
+            tg: transferGroup,
             cm: JSON.stringify(cartMap).substring(0, 500), // Enforce limit
             ...extraMetadata
         };
@@ -83,6 +87,12 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<Act
             cancel_url: `${baseUrl}${cancelUrlPath || '/home'}`,
             metadata,
         };
+
+        if (mode === 'payment') {
+            sessionPayload.payment_intent_data = {
+                transfer_group: transferGroup
+            };
+        }
 
         if (purchaseType === 'cart_checkout' && cartItems) {
             sessionPayload.line_items = cartItems.map(item => ({

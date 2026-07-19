@@ -99,6 +99,11 @@ export default function CheckoutPage() {
             return;
         }
 
+        // Fetch community to check if a courier exists
+        const commDocRef = doc(db, 'communities', communityId);
+        const commDocSnap = await getDoc(commDocRef);
+        const hasCourier = !!commDocSnap.data()?.courierId;
+
         const bizQuery = query(collection(db, 'businesses'), where(documentId(), 'in', businessIds));
         const bizSnapshot = await getDocs(bizQuery);
         
@@ -115,7 +120,11 @@ export default function CheckoutPage() {
                 ? (biz?.storeSettings?.deliveryType || 'click_and_collect')
                 : 'click_and_collect';
 
-            if (deliveryType === 'local_courier') {
+            const finalDeliveryType = (deliveryType === 'local_courier' && !hasCourier)
+                ? 'click_and_collect'
+                : deliveryType;
+
+            if (finalDeliveryType === 'local_courier') {
                 usesCourier = true;
             }
 
@@ -123,7 +132,7 @@ export default function CheckoutPage() {
                 groups[item.businessId] = {
                     businessId: item.businessId,
                     businessName: biz?.businessName || 'Local Store',
-                    deliveryType,
+                    deliveryType: finalDeliveryType,
                     items: []
                 };
             }
