@@ -58,6 +58,7 @@ import {
 import { Logo } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { MobileNav } from './mobile-nav';
+import { NotificationBell } from './notification-bell';
 import { Badge } from '../ui/badge';
 import { Sheet, SheetTrigger } from '../ui/sheet';
 import { Cart } from '../cart';
@@ -374,22 +375,7 @@ export default function AppHeader() {
         const CurrentAccountIcon = userProfile?.role ? accountTypeIcons[userProfile.role as keyof typeof accountTypeIcons] || UserIcon : UserIcon;
         return (
             <>
-              <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
-                          <Bell className="h-5 w-5" />
-                          {!loadingNotifications && notifications.length > 0 && <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 w-4 justify-center p-0 text-xs">{notifications.length}</Badge>}
-                          <span className="sr-only">View notifications</span>
-                      </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-80" align="end">
-                      <DropdownMenuItem asChild>
-                          <Link href="/notifications" className="cursor-pointer w-full">
-                              <DropdownMenuLabel>See All Notifications</DropdownMenuLabel>
-                          </Link>
-                      </DropdownMenuItem>
-                  </DropdownMenuContent>
-              </DropdownMenu>
+              <NotificationBell />
               
               <Sheet>
                   <SheetTrigger asChild>
