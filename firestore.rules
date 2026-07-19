@@ -108,6 +108,11 @@ service cloud.firestore {
     match /businesses/{businessId}/products/{productId} {
         allow read: if true;
         allow write: if isBusinessOwner(businessId);
+
+        match /product_data/{docId} {
+            allow read: if true;
+            allow write: if isBusinessOwner(businessId);
+        }
     }
     match /whatson/{itemId} {
       allow create, update: if (isCommunityCreator() && communityHasNoLeader(request.resource.data.communityId)) || isLeaderOf(request.resource.data.communityId) || isAdmin();
