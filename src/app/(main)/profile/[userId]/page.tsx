@@ -285,7 +285,7 @@ export default function UserProfilePage() {
 
             const isLeaderAccount = userProfile.accountType === 'leader' || ['president', 'leader', 'vice-president'].includes(userProfile.role || '');
             
-            if (isLeaderAccount && db) {
+            if (isLeaderAccount && db && userId) {
                 const fetchHubs = async () => {
                     setLoadingHubs(true);
                     try {
@@ -294,21 +294,34 @@ export default function UserProfilePage() {
                         const homeHubId = userProfile.homeCommunityId;
                         const currentHubId = userProfile.communityId;
                         
-                        const allHubIds = Array.from(new Set([
+                        const candidateIds = Array.from(new Set([
                             ...roleHubIds,
                             ...memberHubIds,
                             homeHubId,
                             currentHubId
                         ].filter(Boolean) as string[]));
                         
-                        if (allHubIds.length > 0) {
-                            const hubsQuery = query(collection(db, 'communities'), where(documentId(), 'in', allHubIds.slice(0, 10)));
+                        const hubsMap = new Map<string, CommunityDetails>();
+
+                        if (candidateIds.length > 0) {
+                            const hubsQuery = query(collection(db, 'communities'), where(documentId(), 'in', candidateIds.slice(0, 10)));
                             const snapshot = await getDocs(hubsQuery);
-                            const hubsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunityDetails));
-                            setLeadershipHubs(hubsData);
-                        } else {
-                            setLeadershipHubs([]);
+                            snapshot.docs.forEach(doc => {
+                                hubsMap.set(doc.id, { id: doc.id, ...doc.data() } as CommunityDetails);
+                            });
                         }
+
+                        try {
+                            const ownerQuery = query(collection(db, 'communities'), where('stripeAccountOwnerId', '==', userId as string));
+                            const ownerSnap = await getDocs(ownerQuery);
+                            ownerSnap.docs.forEach(doc => {
+                                hubsMap.set(doc.id, { id: doc.id, ...doc.data() } as CommunityDetails);
+                            });
+                        } catch (e) {
+                            // Ignore if index missing
+                        }
+
+                        setLeadershipHubs(Array.from(hubsMap.values()));
                     } catch (error) {
                         console.error("Error fetching leadership hubs:", error);
                     } finally {
@@ -916,8 +929,11 @@ export default function UserProfilePage() {
                                             {/* 1. Main Home Community Section */}
                                             {(() => {
                                                 const mainHomeId = userProfile.homeCommunityId || userProfile.communityId;
-                                                const mainHomeHub = leadershipHubs.find(h => h.id === mainHomeId);
-                                                const additionalHubs = leadershipHubs.filter(h => h.id !== mainHomeId);
+                                                const mainHomeHub = leadershipHubs.find(h => h.id === mainHomeId) || (leadershipHubs.length > 0 ? leadershipHubs[0] : null);
+                                                const effectiveMainHomeId = mainHomeHub?.id || mainHomeId;
+                                                const effectiveMainHomeName = mainHomeHub?.name || userProfile.homeCommunityName || userProfile.communityName;
+
+                                                const additionalHubs = leadershipHubs.filter(h => h.id !== effectiveMainHomeId && h.name !== effectiveMainHomeName);
 
                                                 return (
                                                     <div className="space-y-6">
@@ -931,7 +947,7 @@ export default function UserProfilePage() {
                                                             </div>
                                                             <div>
                                                                 <h4 className="font-bold text-base text-slate-900 dark:text-slate-100">
-                                                                    {userProfile.homeCommunityName || userProfile.communityName || mainHomeHub?.name || "Main Registered Hub"}
+                                                                    {effectiveMainHomeName || "Main Registered Hub"}
                                                                 </h4>
                                                                 {mainHomeHub && (
                                                                     <p className="text-xs text-muted-foreground mt-0.5">
