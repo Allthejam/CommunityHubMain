@@ -221,7 +221,7 @@ export default function CommunitiesDiscoveryPage() {
         );
     };
 
-    // Handle Manual Location Search (e.g. "Grantown on Spey", "Aviemore", "Blackpool", "Edinburgh")
+    // Handle Manual Location Search (e.g. "London", "Edinburgh", "Manchester")
     const handleManualLocationSearch = async (queryText?: string) => {
         const term = (queryText || customLocationQuery).trim();
         if (!term) return;
@@ -564,7 +564,7 @@ export default function CommunitiesDiscoveryPage() {
                             <div className="relative flex-1">
                                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                 <Input
-                                    placeholder="Search by address, UK postcode, or town (e.g. PH26 3HG, Grantown-on-Spey)..."
+                                    placeholder="Search by address, postcode, or town (e.g. London, Edinburgh)..."
                                     value={customLocationQuery}
                                     onChange={(e) => setCustomLocationQuery(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleManualLocationSearch()}
