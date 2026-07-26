@@ -20,6 +20,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { returnToHomeCommunityAction } from '@/lib/actions/userActions';
+import { NoLeaderAlert } from '@/components/no-leader-alert';
 import { LocalBusinessesFeed } from '@/components/local-businesses-feed';
 import { ProductsFeed } from '@/components/products-feed';
 import { CommunityAdverts } from '@/components/community-adverts';
