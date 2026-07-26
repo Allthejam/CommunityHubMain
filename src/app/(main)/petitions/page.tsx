@@ -7,19 +7,54 @@ import { Sparkles, Users, Layers, Award, Loader2, HelpCircle } from 'lucide-reac
 import { useFirestore, useUser, useMemoFirebase, useCollection, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 
-const CATEGORIES: { value: PetitionCategory | 'all'; label: string }[] = [
-  { value: 'all',       label: '✨ All Causes' },
-  { value: 'council',   label: '🏛️ Council' },
-  { value: 'amenities', label: '🌳 Amenities' },
-  { value: 'safety',    label: '🛡️ Safety' },
-  { value: 'other',     label: '💬 Other' },
-];
+// Helper to display category names nicely
+const getPetitionCategoryLabel = (cat: any) => {
+  if (!cat) return '✨ Other Cause';
+  let catId = '';
+  let catName = '';
+  if (typeof cat === 'string') {
+    catId = cat;
+    catName = cat;
+  } else if (typeof cat === 'object') {
+    catId = cat.id || JSON.stringify(cat);
+    catName = cat.name || cat.label || cat.title || catId;
+  } else {
+    catId = String(cat);
+    catName = String(cat);
+  }
+
+  const normalized = catId.toLowerCase();
+  if (normalized === 'council') return '🏛️ Council Decision';
+  if (normalized === 'amenities') return '🌳 Public Amenities';
+  if (normalized === 'safety') return '🛡️ Road & Safety';
+  if (normalized === 'other') return '💬 Other Cause';
+  return `✨ ${catName.charAt(0).toUpperCase() + catName.slice(1)}`;
+};
 
 export default function PublicPetitionsPage() {
   const db = useFirestore();
   const { user } = useUser();
   const [catFilter, setCatFilter] = React.useState<PetitionCategory | 'all'>('all');
   const [searchTerm, setSearchTerm] = React.useState('');
+
+  const categoriesQuery = useMemoFirebase(() => (db ? collection(db, 'Petitions_Categories') : null), [db]);
+  const { data: rawCategories } = useCollection<any>(categoriesQuery);
+
+  const petitionCategories = React.useMemo(() => {
+    if (!rawCategories || rawCategories.length === 0) {
+      return ['council', 'amenities', 'safety', 'other'];
+    }
+    return rawCategories;
+  }, [rawCategories]);
+
+  const filterCategories = React.useMemo(() => {
+    const list = [{ value: 'all', label: '✨ All Causes' }];
+    petitionCategories.forEach((cat) => {
+      const valStr = typeof cat === 'string' ? cat : (cat.id || cat.name || JSON.stringify(cat));
+      list.push({ value: valStr, label: getPetitionCategoryLabel(cat) });
+    });
+    return list;
+  }, [petitionCategories]);
 
   const userDocRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userDocRef);
@@ -136,7 +171,7 @@ export default function PublicPetitionsPage() {
 
         {/* Categories */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-          {CATEGORIES.map((cat) => (
+          {filterCategories.map((cat) => (
             <button
               key={cat.value}
               onClick={() => setCatFilter(cat.value)}

@@ -7,7 +7,7 @@ export interface PetitionComment {
 }
 
 export type PetitionStatus = 'active' | 'closed' | 'draft' | 'paused';
-export type PetitionCategory = 'council' | 'amenities' | 'safety' | 'other';
+export type PetitionCategory = string;
 
 export interface Petition {
   id: string;

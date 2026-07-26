@@ -59,19 +59,52 @@ function AdminAnalyticsWidget({ petitions }: { petitions: Petition[] }) {
   );
 }
 
+// Helper to display category names nicely
+const getPetitionCategoryLabel = (cat: any) => {
+  if (!cat) return '✨ Other Cause';
+  let catId = '';
+  let catName = '';
+  if (typeof cat === 'string') {
+    catId = cat;
+    catName = cat;
+  } else if (typeof cat === 'object') {
+    catId = cat.id || JSON.stringify(cat);
+    catName = cat.name || cat.label || cat.title || catId;
+  } else {
+    catId = String(cat);
+    catName = String(cat);
+  }
+
+  const normalized = catId.toLowerCase();
+  if (normalized === 'council') return '🏛️ Council Decision';
+  if (normalized === 'amenities') return '🌳 Public Amenities';
+  if (normalized === 'safety') return '🛡️ Road & Safety';
+  if (normalized === 'other') return '💬 Other Cause';
+  return `✨ ${catName.charAt(0).toUpperCase() + catName.slice(1)}`;
+};
+
 // ─── Create petition form ───────────────────────────────────────────────────────
 interface CreatePetitionFormProps {
   onCreate: (data: Omit<Petition, 'id'>) => Promise<void>;
+  categories: any[];
 }
 
-function CreatePetitionForm({ onCreate }: CreatePetitionFormProps) {
+function CreatePetitionForm({ onCreate, categories }: CreatePetitionFormProps) {
   const [title, setTitle]       = React.useState('');
   const [desc, setDesc]         = React.useState('');
-  const [category, setCategory] = React.useState<PetitionCategory>('council');
+  const [category, setCategory] = React.useState<PetitionCategory>('other');
   const [status, setStatus]     = React.useState<'active' | 'draft'>('active');
   const [targetSignatures, setTargetSignatures] = React.useState<number>(100);
   const [endDateTime, setEndDateTime] = React.useState('');
   const [saving, setSaving]     = React.useState(false);
+
+  React.useEffect(() => {
+    if (categories && categories.length > 0) {
+      const firstCat = categories[0];
+      const val = typeof firstCat === 'string' ? firstCat : (firstCat.id || firstCat.name || JSON.stringify(firstCat));
+      setCategory(val);
+    }
+  }, [categories]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -139,12 +172,16 @@ function CreatePetitionForm({ onCreate }: CreatePetitionFormProps) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Category</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value as PetitionCategory)}
+            <select value={category} onChange={(e) => setCategory(e.target.value)}
               className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="council">🏛️ Council Decision</option>
-              <option value="amenities">🌳 Public Amenities</option>
-              <option value="safety">🛡️ Road & Safety</option>
-              <option value="other">💬 Other Cause</option>
+              {categories.map((cat) => {
+                const val = typeof cat === 'string' ? cat : (cat.id || cat.name || JSON.stringify(cat));
+                return (
+                  <option key={val} value={val}>
+                    {getPetitionCategoryLabel(cat)}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div>
@@ -230,12 +267,14 @@ function EditPetitionModal({
   currentCategory,
   currentEndDate,
   currentTarget,
+  categories,
   onConfirm,
   onCancel,
 }: {
   currentCategory: PetitionCategory;
   currentEndDate: any;
   currentTarget: number;
+  categories: any[];
   onConfirm: (cat: PetitionCategory, target: number, end: Date | null) => void;
   onCancel: () => void;
 }) {
@@ -257,13 +296,17 @@ function EditPetitionModal({
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category</label>
           <select
             value={selected}
-            onChange={(e) => setSelected(e.target.value as PetitionCategory)}
+            onChange={(e) => setSelected(e.target.value)}
             className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="council">🏛️ Council Decision</option>
-            <option value="amenities">🌳 Public Amenities</option>
-            <option value="safety">🛡️ Road & Safety</option>
-            <option value="other">💬 Other Cause</option>
+            {categories.map((cat) => {
+              const val = typeof cat === 'string' ? cat : (cat.id || cat.name || JSON.stringify(cat));
+              return (
+                <option key={val} value={val}>
+                  {getPetitionCategoryLabel(cat)}
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -498,6 +541,25 @@ export default function LeaderPetitionsPage() {
   const [editingPetitionId, setEditingPetitionId] = React.useState<string | null>(null);
   const [signaturesPreviewPetition, setSignaturesPreviewPetition] = React.useState<Petition | null>(null);
 
+  const categoriesQuery = useMemoFirebase(() => (db ? collection(db, 'Petitions_Categories') : null), [db]);
+  const { data: rawCategories } = useCollection<any>(categoriesQuery);
+
+  const petitionCategories = React.useMemo(() => {
+    if (!rawCategories || rawCategories.length === 0) {
+      return ['council', 'amenities', 'safety', 'other'];
+    }
+    return rawCategories;
+  }, [rawCategories]);
+
+  const filterCategories = React.useMemo(() => {
+    const list = [{ value: 'all', label: '✨ All Topics' }];
+    petitionCategories.forEach((cat) => {
+      const valStr = typeof cat === 'string' ? cat : (cat.id || cat.name || JSON.stringify(cat));
+      list.push({ value: valStr, label: getPetitionCategoryLabel(cat) });
+    });
+    return list;
+  }, [petitionCategories]);
+
   const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userDocRef);
   const communityId = userProfile?.communityId;
@@ -615,7 +677,7 @@ export default function LeaderPetitionsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Side: Create Form & Analytics */}
         <div className="lg:col-span-1 space-y-6">
-          <CreatePetitionForm onCreate={handleCreate} />
+          <CreatePetitionForm onCreate={handleCreate} categories={petitionCategories} />
           <AdminAnalyticsWidget petitions={petitions} />
         </div>
 
@@ -627,14 +689,14 @@ export default function LeaderPetitionsPage() {
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Category:</span>
               <select
                 value={catFilter}
-                onChange={(e) => setCatFilter(e.target.value as PetitionCategory | 'all')}
+                onChange={(e) => setCatFilter(e.target.value)}
                 className="text-xs px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-slate-50 font-bold"
               >
-                <option value="all">✨ All Topics</option>
-                <option value="council">🏛️ Council</option>
-                <option value="amenities">🌳 Amenities</option>
-                <option value="safety">🛡️ Safety</option>
-                <option value="other">💬 Other</option>
+                {filterCategories.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -695,6 +757,7 @@ export default function LeaderPetitionsPage() {
           currentCategory={editingPetition.category}
           currentEndDate={editingPetition.endDate}
           currentTarget={editingPetition.targetSignatures}
+          categories={petitionCategories}
           onConfirm={handleUpdatePetitionSettings}
           onCancel={() => setEditingPetitionId(null)}
         />
