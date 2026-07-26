@@ -185,7 +185,14 @@ export default function NationalHeader() {
     router.push('/');
   };
 
-  const isVisiting = useMemo(() => !!(userProfile && userProfile.communityId !== userProfile.homeCommunityId), [userProfile]);
+  const isVisiting = useMemo(() => {
+    if (!userProfile) return false;
+    const activeCommunityId = userProfile.communityId;
+    if (!activeCommunityId || activeCommunityId === userProfile.homeCommunityId) return false;
+    const roleData = userProfile.communityRoles?.[activeCommunityId];
+    const isLeaderOfActive = roleData && ['president', 'leader', 'vice-president'].includes(roleData.role);
+    return !isLeaderOfActive;
+  }, [userProfile]);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-card px-4 sm:px-6">

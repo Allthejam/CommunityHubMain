@@ -328,7 +328,14 @@ export default function AppHeader() {
   }, [userProfile]);
 
   const CurrentAccountIcon = userProfile?.role ? accountTypeIcons[userProfile.role as keyof typeof accountTypeIcons] || UserIcon : UserIcon;
-  const isVisiting = userProfile && userProfile.communityId !== userProfile.homeCommunityId;
+  const isVisiting = useMemo(() => {
+    if (!userProfile) return false;
+    const activeCommunityId = userProfile.communityId;
+    if (!activeCommunityId || activeCommunityId === userProfile.homeCommunityId) return false;
+    const roleData = userProfile.communityRoles?.[activeCommunityId];
+    const isLeaderOfActive = roleData && ['president', 'leader', 'vice-president'].includes(roleData.role);
+    return !isLeaderOfActive;
+  }, [userProfile]);
   const visitedCommunityHasNoLeader = isVisiting && visitedCommunityData?.leaderCount === 0;
 
   const handleCommunitySwitch = async () => {

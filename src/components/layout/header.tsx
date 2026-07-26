@@ -149,7 +149,14 @@ export default function AppHeader() {
   }, [user, firestore]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const isVisiting = useMemo(() => !!(userProfile && userProfile.communityId !== userProfile.homeCommunityId), [userProfile]);
+  const isVisiting = useMemo(() => {
+    if (!userProfile) return false;
+    const activeCommunityId = userProfile.communityId;
+    if (!activeCommunityId || activeCommunityId === userProfile.homeCommunityId) return false;
+    const roleData = userProfile.communityRoles?.[activeCommunityId];
+    const isLeaderOfActive = roleData && ['president', 'leader', 'vice-president'].includes(roleData.role);
+    return !isLeaderOfActive;
+  }, [userProfile]);
 
   const visitedCommunityIdEffective = useMemo(() => {
     if (typeof window !== 'undefined') {
