@@ -929,7 +929,7 @@ export default function UserProfilePage() {
                                             {/* 1. Main Home Community Section */}
                                             {(() => {
                                                 const mainHomeId = userProfile.homeCommunityId || userProfile.communityId;
-                                                const mainHomeHub = leadershipHubs.find(h => h.id === mainHomeId) || (leadershipHubs.length > 0 ? leadershipHubs[0] : null);
+                                                const mainHomeHub = leadershipHubs.find(h => h.id === mainHomeId);
                                                 const effectiveMainHomeId = mainHomeHub?.id || mainHomeId;
                                                 const effectiveMainHomeName = mainHomeHub?.name || userProfile.homeCommunityName || userProfile.communityName;
 
