@@ -284,6 +284,9 @@ export default function SignInPage() {
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign In
                 </Button>
+                <Button variant="outline" asChild className="w-full">
+                    <Link href="/home">Enter Public Hub / Explore Home</Link>
+                </Button>
                 <div className="text-center text-sm text-muted-foreground">
                     Don't have an account?{' '}
                     <Link href="/signup/account-type" className="font-medium text-primary hover:underline">
