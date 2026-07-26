@@ -144,18 +144,29 @@ export default function HomePage() {
     
   const standardAnnouncements = allAnnouncements.filter(a => a.type === "Standard");
 
-  const isVisiting = !!(userProfile?.homeCommunityId && userProfile?.communityId && userProfile.homeCommunityId !== userProfile.communityId);
+  const homeCommId = userProfile?.homeCommunityId || '9ayHMyZf4SRw2gof1AM9';
   const homeCommName = userProfile?.homeCommunityName || 'Show Home Community, "Display Only"';
+  const currentCommId = activeCommunityId || userProfile?.communityId;
+  const currentCommName = (activeCommunity as any)?.name || userProfile?.communityName || 'Community';
+
+  const isVisiting = !!(currentCommId && homeCommId && currentCommId !== homeCommId);
 
   const handleReturnHome = async () => {
     if (!user) return;
     setIsReturning(true);
-    const res = await returnToHomeCommunityAction({ userId: user.uid });
-    setIsReturning(false);
-    if (res.success) {
-        toast({ title: "Returned Home", description: `You are now back at your home community (${res.communityName}).` });
-    } else {
-        toast({ title: "Error", description: res.error, variant: "destructive" });
+    try {
+      sessionStorage.removeItem('visitedCommunityId');
+      const res = await returnToHomeCommunityAction({ userId: user.uid });
+      if (res.success) {
+          setActiveCommunityId(homeCommId);
+          toast({ title: "Returned Home", description: `You are now back at your home community (${homeCommName}).` });
+      } else {
+          toast({ title: "Error", description: res.error, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to return home", variant: "destructive" });
+    } finally {
+      setIsReturning(false);
     }
   };
 
@@ -167,7 +178,7 @@ export default function HomePage() {
             <span className="text-xl">📍</span>
             <div>
               <p className="font-bold text-base">
-                You are currently visiting the <span className="underline decoration-amber-400 font-extrabold">{userProfile?.communityName || (activeCommunity as any)?.name}</span> hub.
+                You are currently visiting the <span className="underline decoration-amber-400 font-extrabold">{currentCommName}</span> hub.
               </p>
               <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
                 Your Home Community is: <strong className="font-semibold">{homeCommName}</strong>
@@ -181,8 +192,9 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className='px-4 md:px-0'>
+      <div className='px-4 md:px-0 space-y-4'>
           <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
+          {userProfile?.accountType !== 'national' && <NoLeaderAlert communityId={activeCommunityId} userProfile={userProfile} />}
       </div>
       <WelcomeCards />
       
