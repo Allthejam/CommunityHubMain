@@ -208,6 +208,13 @@ export function WelcomeCards() {
                 </div>
             </CardFooter>
         )}
+        {!isLoading && unvotedPolls.length === 0 && unsignedPetitions.length === 0 && (
+            <CardFooter className="p-3 bg-slate-50/30 border-t flex items-center justify-center gap-2 text-[11px] font-semibold text-slate-400 select-none">
+              <span className="flex items-center gap-1">📊 {activePolls?.length || 0} Poll{(activePolls?.length !== 1) ? 's' : ''} running</span>
+              <span className="text-slate-200">|</span>
+              <span className="flex items-center gap-1">📝 {activePetitions?.length || 0} Petition{(activePetitions?.length !== 1) ? 's' : ''} running</span>
+            </CardFooter>
+        )}
       </Card>
       <Card className='border-0 md:border rounded-none md:rounded-lg'>
          <CardHeader className="p-4 md:p-6 pb-2 flex-row items-center justify-between">
