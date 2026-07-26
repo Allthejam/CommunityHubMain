@@ -10,7 +10,7 @@ import {
 import { calculateDistanceMiles, getCentroidFromGeoJson } from '@/components/communities-map-view';
 import { updateUserCommunityAction } from '@/lib/actions/userActions';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -134,18 +134,29 @@ export default function CommunitiesDiscoveryPage() {
         fetchCommunities();
     }, []);
 
+    const [fetchedUserProfile, setFetchedUserProfile] = useState<any>(null);
+
+    // Fetch logged-in user profile document directly from Firestore
+    useEffect(() => {
+        if (!db || !user?.uid) return;
+        const unsub = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
+            if (snapshot.exists()) {
+                setFetchedUserProfile(snapshot.data());
+            }
+        });
+        return () => unsub();
+    }, [db, user?.uid]);
+
     // Center Map on User's Registered Home Community
-    const setRegisteredCommunityAsCenter = (commList: PublicCommunityData[] = communities): boolean => {
-        const homeCommId = (userProfile as any)?.homeCommunityId || (userProfile as any)?.communityId || (user as any)?.homeCommunityId;
+    const setRegisteredCommunityAsCenter = (
+        commList: PublicCommunityData[] = communities,
+        profileData: any = fetchedUserProfile
+    ): boolean => {
+        const homeCommId = profileData?.communityId || profileData?.homeCommunityId || (user as any)?.communityId;
         
         let homeComm: PublicCommunityData | undefined = undefined;
         if (homeCommId) {
             homeComm = commList.find(c => c.id === homeCommId);
-        }
-        
-        // Fallback to Grantown on Spey or Carrbridge if home community is not found by ID
-        if (!homeComm) {
-            homeComm = commList.find(c => c.name.toLowerCase().includes('grantown') || c.name.toLowerCase().includes('carrbridge'));
         }
 
         if (homeComm) {
@@ -160,16 +171,29 @@ export default function CommunitiesDiscoveryPage() {
                 toast({ title: "Registered Community Set", description: `Map centered on your registered home community: ${homeComm.name}` });
                 return true;
             }
+        } else if (commList.length > 0) {
+            // If user has no registered community or not logged in, default to first available community in list
+            const defaultComm = commList[0];
+            let coords = defaultComm.centroid;
+            if (!coords && defaultComm.boundary) {
+                coords = getCentroidFromGeoJson(defaultComm.boundary) || undefined;
+            }
+            if (coords) {
+                setUserLocation(coords);
+                setLocationLabel(`Overview (${defaultComm.name})`);
+                setSelectedCommunityId(defaultComm.id);
+                return true;
+            }
         }
         return false;
     };
 
-    // Default to user's registered community when communities or userProfile load
+    // Default to user's registered community when communities or user profile loads
     useEffect(() => {
         if (communities.length > 0) {
-            setRegisteredCommunityAsCenter(communities);
+            setRegisteredCommunityAsCenter(communities, fetchedUserProfile);
         }
-    }, [communities, userProfile]);
+    }, [communities, fetchedUserProfile]);
 
     // Get Live Device GPS / Wi-Fi Geolocation
     const requestGpsLocation = () => {
