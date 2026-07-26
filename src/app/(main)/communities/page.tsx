@@ -64,10 +64,12 @@ export default function CommunitiesDiscoveryPage() {
     const [isSearchingLocation, setIsSearchingLocation] = useState(false);
     const [locationDenied, setLocationDenied] = useState(false);
 
-    // Filters
+    // Filters: Country -> Constituent/State -> Region -> Target Community
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCountry, setSelectedCountry] = useState<string>('United Kingdom');
+    const [selectedState, setSelectedState] = useState<string>('all');
     const [selectedRegion, setSelectedRegion] = useState<string>('all');
+    const [selectedTargetCommunityId, setSelectedTargetCommunityId] = useState<string>('all');
     const [enableRadiusFilter, setEnableRadiusFilter] = useState<boolean>(true); // Default true for precise location filtering
     const [maxDistanceMiles, setMaxDistanceMiles] = useState<number>(25);
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'no-leader'>('all');
@@ -75,6 +77,43 @@ export default function CommunitiesDiscoveryPage() {
     // Selection
     const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
     const [switchingId, setSwitchingId] = useState<string | null>(null);
+
+    // Cascading Handlers
+    const handleCountryChange = (country: string) => {
+        setSelectedCountry(country);
+        setSelectedState('all');
+        setSelectedRegion('all');
+        setSelectedTargetCommunityId('all');
+    };
+
+    const handleStateChange = (state: string) => {
+        setSelectedState(state);
+        setSelectedRegion('all');
+        setSelectedTargetCommunityId('all');
+    };
+
+    const handleRegionChange = (region: string) => {
+        setSelectedRegion(region);
+        setSelectedTargetCommunityId('all');
+    };
+
+    const handleTargetCommunityChange = (commId: string) => {
+        setSelectedTargetCommunityId(commId);
+        if (commId !== 'all') {
+            const comm = communities.find(c => c.id === commId);
+            if (comm) {
+                let coords = comm.centroid;
+                if (!coords && comm.boundary) {
+                    coords = getCentroidFromGeoJson(comm.boundary) || undefined;
+                }
+                if (coords) {
+                    setUserLocation(coords);
+                    setLocationLabel(`${comm.name} (${[comm.region, comm.state].filter(Boolean).join(', ')})`);
+                    setSelectedCommunityId(comm.id);
+                }
+            }
+        }
+    };
 
     // Fetch Communities
     useEffect(() => {
@@ -206,14 +245,46 @@ export default function CommunitiesDiscoveryPage() {
         }
     };
 
-    // Unique Regions List
-    const availableRegions = useMemo(() => {
-        const regions = new Set<string>();
+    // Dynamic Cascading Location Lists
+    const availableCountries = useMemo(() => {
+        const set = new Set<string>(['United Kingdom', 'United States']);
         communities.forEach(c => {
-            if (c.region) regions.add(c.region);
+            if (c.country) set.add(c.country);
         });
-        return Array.from(regions).sort();
+        return Array.from(set).sort();
     }, [communities]);
+
+    const availableStates = useMemo(() => {
+        const set = new Set<string>();
+        communities.forEach(c => {
+            const matchCountry = selectedCountry === 'all' || (c.country && c.country.toLowerCase() === selectedCountry.toLowerCase());
+            if (matchCountry && c.state) {
+                set.add(c.state);
+            }
+        });
+        return Array.from(set).sort();
+    }, [communities, selectedCountry]);
+
+    const availableRegions = useMemo(() => {
+        const set = new Set<string>();
+        communities.forEach(c => {
+            const matchCountry = selectedCountry === 'all' || (c.country && c.country.toLowerCase() === selectedCountry.toLowerCase());
+            const matchState = selectedState === 'all' || (c.state && c.state.toLowerCase() === selectedState.toLowerCase());
+            if (matchCountry && matchState && c.region) {
+                set.add(c.region);
+            }
+        });
+        return Array.from(set).sort();
+    }, [communities, selectedCountry, selectedState]);
+
+    const availableTargetCommunities = useMemo(() => {
+        return communities.filter(c => {
+            const matchCountry = selectedCountry === 'all' || (c.country && c.country.toLowerCase() === selectedCountry.toLowerCase());
+            const matchState = selectedState === 'all' || (c.state && c.state.toLowerCase() === selectedState.toLowerCase());
+            const matchRegion = selectedRegion === 'all' || (c.region && c.region.toLowerCase() === selectedRegion.toLowerCase());
+            return matchCountry && matchState && matchRegion;
+        }).sort((a, b) => a.name.localeCompare(b.name));
+    }, [communities, selectedCountry, selectedState, selectedRegion]);
 
     // Enhanced Communities with Distance & Centroids
     const processedCommunities = useMemo(() => {
@@ -241,7 +312,28 @@ export default function CommunitiesDiscoveryPage() {
         return processedCommunities.filter(c => {
             // Country Filter
             if (selectedCountry !== 'all') {
-                if (c.country && c.country.toLowerCase() !== selectedCountry.toLowerCase()) {
+                if (!c.country || c.country.toLowerCase() !== selectedCountry.toLowerCase()) {
+                    return false;
+                }
+            }
+
+            // State / Constituent Filter
+            if (selectedState !== 'all') {
+                if (!c.state || c.state.toLowerCase() !== selectedState.toLowerCase()) {
+                    return false;
+                }
+            }
+
+            // Region Filter
+            if (selectedRegion !== 'all') {
+                if (!c.region || c.region.toLowerCase() !== selectedRegion.toLowerCase()) {
+                    return false;
+                }
+            }
+
+            // Target Community Filter
+            if (selectedTargetCommunityId !== 'all') {
+                if (c.id !== selectedTargetCommunityId) {
                     return false;
                 }
             }
@@ -255,18 +347,12 @@ export default function CommunitiesDiscoveryPage() {
                 if (!matchName && !matchRegion && !matchState) return false;
             }
 
-            // Region Filter
-            if (selectedRegion !== 'all' && c.region !== selectedRegion) {
-                return false;
-            }
-
             // Status Filter
             if (statusFilter === 'active' && (c.leaderCount || 0) === 0 && c.status !== 'active') return false;
             if (statusFilter === 'no-leader' && (c.leaderCount || 0) > 0) return false;
 
             // Distance Radius Filter
             if (enableRadiusFilter && userLocation) {
-                // If community has no position or exceeds max distance, exclude it from radius search
                 if (c.distance === undefined || c.distance > maxDistanceMiles) {
                     return false;
                 }
@@ -279,7 +365,7 @@ export default function CommunitiesDiscoveryPage() {
             }
             return a.name.localeCompare(b.name);
         });
-    }, [processedCommunities, searchQuery, selectedCountry, selectedRegion, statusFilter, enableRadiusFilter, maxDistanceMiles, userLocation]);
+    }, [processedCommunities, searchQuery, selectedCountry, selectedState, selectedRegion, selectedTargetCommunityId, statusFilter, enableRadiusFilter, maxDistanceMiles, userLocation]);
 
     // Switch Community Handler
     const handleSwitchCommunity = async (commId: string, commName: string) => {
@@ -399,36 +485,47 @@ export default function CommunitiesDiscoveryPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Text Search */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search by community name or region..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-
-                        {/* Country Select */}
+                    {/* Cascading Location Filter Toolbar (Country -> Constituent -> Region -> Community) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                        {/* 1. Country Select */}
                         <div>
-                            <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Country" />
+                            <Label className="text-[11px] font-medium text-muted-foreground mb-1 block">Country</Label>
+                            <Select value={selectedCountry} onValueChange={handleCountryChange}>
+                                <SelectTrigger className="h-9 text-xs">
+                                    <SelectValue placeholder="All Countries" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                                    <SelectItem value="United States">United States</SelectItem>
                                     <SelectItem value="all">All Countries</SelectItem>
+                                    {availableCountries.map(c => (
+                                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
 
-                        {/* Region Select */}
+                        {/* 2. Constituent / State Select */}
                         <div>
-                            <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-                                <SelectTrigger>
+                            <Label className="text-[11px] font-medium text-muted-foreground mb-1 block">
+                                {selectedCountry === 'United Kingdom' ? 'Constituent' : selectedCountry === 'United States' ? 'State' : 'State / Constituent'}
+                            </Label>
+                            <Select value={selectedState} onValueChange={handleStateChange}>
+                                <SelectTrigger className="h-9 text-xs">
+                                    <SelectValue placeholder="All Constituents" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All {selectedCountry === 'United Kingdom' ? 'Constituents' : 'States'}</SelectItem>
+                                    {availableStates.map(st => (
+                                        <SelectItem key={st} value={st}>{st}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* 3. Region Select */}
+                        <div>
+                            <Label className="text-[11px] font-medium text-muted-foreground mb-1 block">Region</Label>
+                            <Select value={selectedRegion} onValueChange={handleRegionChange}>
+                                <SelectTrigger className="h-9 text-xs">
                                     <SelectValue placeholder="All Regions" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -440,10 +537,27 @@ export default function CommunitiesDiscoveryPage() {
                             </Select>
                         </div>
 
-                        {/* Status Filter */}
+                        {/* 4. Specific Community Select */}
                         <div>
+                            <Label className="text-[11px] font-medium text-muted-foreground mb-1 block">Community</Label>
+                            <Select value={selectedTargetCommunityId} onValueChange={handleTargetCommunityChange}>
+                                <SelectTrigger className="h-9 text-xs">
+                                    <SelectValue placeholder="All Communities" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Communities</SelectItem>
+                                    {availableTargetCommunities.map(comm => (
+                                        <SelectItem key={comm.id} value={comm.id}>{comm.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* 5. Status Filter */}
+                        <div>
+                            <Label className="text-[11px] font-medium text-muted-foreground mb-1 block">Leader Status</Label>
                             <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-9 text-xs">
                                     <SelectValue placeholder="All Statuses" />
                                 </SelectTrigger>
                                 <SelectContent>
