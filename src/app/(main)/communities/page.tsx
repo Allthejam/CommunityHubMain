@@ -33,7 +33,8 @@ import {
     Building2, 
     ExternalLink,
     LocateFixed,
-    Navigation
+    Navigation,
+    Home
 } from 'lucide-react';
 
 // Dynamic import for Leaflet map to prevent SSR issues
@@ -93,6 +94,43 @@ export default function CommunitiesDiscoveryPage() {
         fetchCommunities();
     }, []);
 
+    // Center Map on User's Registered Home Community
+    const setRegisteredCommunityAsCenter = (commList: PublicCommunityData[] = communities): boolean => {
+        const homeCommId = (userProfile as any)?.homeCommunityId || (userProfile as any)?.communityId || (user as any)?.homeCommunityId;
+        
+        let homeComm: PublicCommunityData | undefined = undefined;
+        if (homeCommId) {
+            homeComm = commList.find(c => c.id === homeCommId);
+        }
+        
+        // Fallback to Grantown on Spey or Carrbridge if home community is not found by ID
+        if (!homeComm) {
+            homeComm = commList.find(c => c.name.toLowerCase().includes('grantown') || c.name.toLowerCase().includes('carrbridge'));
+        }
+
+        if (homeComm) {
+            let coords = homeComm.centroid;
+            if (!coords && homeComm.boundary) {
+                coords = getCentroidFromGeoJson(homeComm.boundary) || undefined;
+            }
+            if (coords) {
+                setUserLocation(coords);
+                setLocationLabel(`Registered Community (${homeComm.name})`);
+                setSelectedCommunityId(homeComm.id);
+                toast({ title: "Registered Community Set", description: `Map centered on your registered home community: ${homeComm.name}` });
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Default to user's registered community when communities or userProfile load
+    useEffect(() => {
+        if (communities.length > 0) {
+            setRegisteredCommunityAsCenter(communities);
+        }
+    }, [communities, userProfile]);
+
     // Get Live Device GPS / Wi-Fi Geolocation
     const requestGpsLocation = () => {
         if (!navigator.geolocation) {
@@ -112,29 +150,11 @@ export default function CommunitiesDiscoveryPage() {
                 console.warn("Geolocation denied or unavailable:", err);
                 setIsLocating(false);
                 setLocationDenied(true);
-
-                // Fallback to User's Home Community if set
-                const homeCommId = (userProfile as any)?.homeCommunityId || (userProfile as any)?.communityId;
-                if (homeCommId) {
-                    const homeComm = communities.find(c => c.id === homeCommId);
-                    if (homeComm?.centroid) {
-                        setUserLocation(homeComm.centroid);
-                        setLocationLabel(`Your Home Hub (${homeComm.name})`);
-                        toast({ title: "Using Home Community", description: `Map centered on your home hub ${homeComm.name}.` });
-                        return;
-                    }
-                }
-
-                toast({ title: "Location Access Denied", description: "Showing national overview. Search any town or postcode above.", variant: "default" });
+                setRegisteredCommunityAsCenter(communities);
             },
             { enableHighAccuracy: true, timeout: 10000 }
         );
     };
-
-    // Auto-request live location on initial load
-    useEffect(() => {
-        requestGpsLocation();
-    }, []);
 
     // Handle Manual Location Search (e.g. "Grantown on Spey", "Aviemore", "Blackpool", "Edinburgh")
     const handleManualLocationSearch = async (queryText?: string) => {
@@ -317,20 +337,54 @@ export default function CommunitiesDiscoveryPage() {
             {/* Filter Toolbar */}
             <Card className="border shadow-sm bg-card/60 backdrop-blur-md">
                 <CardContent className="p-4 sm:p-6 space-y-4">
-                    {/* Location Bar & Manual Location Search */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-blue-50/60 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 rounded-xl text-xs">
-                        <div className="flex items-center gap-2">
-                            <Navigation className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                            <span>Map Centered On: <strong className="text-blue-900 dark:text-blue-200 text-sm">{locationLabel}</strong></span>
+                    {/* Location Control Bar & Search Options */}
+                    <div className="p-4 bg-gradient-to-r from-blue-50/80 to-indigo-50/50 dark:from-blue-950/40 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900/50 rounded-2xl space-y-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                            <div className="flex items-center gap-2">
+                                <Navigation className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                                <div>
+                                    <span className="text-muted-foreground block text-[11px]">Active Map Center:</span>
+                                    <strong className="text-blue-950 dark:text-blue-200 text-sm font-bold">{locationLabel}</strong>
+                                </div>
+                            </div>
+
+                            {/* Location Source Quick Buttons */}
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={() => setRegisteredCommunityAsCenter()}
+                                    className="h-8 text-xs font-semibold gap-1.5 bg-background shadow-xs hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/50 border-emerald-200"
+                                    title="Center map on your registered home community"
+                                >
+                                    <Home className="h-3.5 w-3.5 text-emerald-600" />
+                                    <span>Registered Community</span>
+                                </Button>
+
+                                <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={requestGpsLocation} 
+                                    disabled={isLocating}
+                                    className="h-8 text-xs font-semibold gap-1.5 bg-background shadow-xs hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/50"
+                                    title="Use live device GPS or Wi-Fi triangulation"
+                                >
+                                    {isLocating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5 text-blue-600" />}
+                                    <span>Live GPS / Wi-Fi</span>
+                                </Button>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="relative flex-1 sm:w-64">
+
+                        {/* Address / Postcode / Town Input Search */}
+                        <div className="flex items-center gap-2 pt-1 border-t border-blue-100/80 dark:border-blue-900/40">
+                            <div className="relative flex-1">
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                 <Input
-                                    placeholder="Set town/postcode (e.g. Grantown on Spey)..."
+                                    placeholder="Search by address, UK postcode, or town (e.g. PH26 3HG, Grantown-on-Spey)..."
                                     value={customLocationQuery}
                                     onChange={(e) => setCustomLocationQuery(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleManualLocationSearch()}
-                                    className="h-8 text-xs bg-background"
+                                    className="h-8 text-xs pl-8 bg-background"
                                 />
                             </div>
                             <Button 
@@ -338,20 +392,9 @@ export default function CommunitiesDiscoveryPage() {
                                 variant="default"
                                 onClick={() => handleManualLocationSearch()}
                                 disabled={isSearchingLocation || !customLocationQuery.trim()}
-                                className="h-8 text-xs shrink-0"
+                                className="h-8 text-xs font-semibold shrink-0"
                             >
-                                {isSearchingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Set Location"}
-                            </Button>
-                            <Button 
-                                size="sm" 
-                                variant="outline" 
-                                onClick={requestGpsLocation} 
-                                disabled={isLocating}
-                                className="h-8 text-xs shrink-0 gap-1 bg-background"
-                                title="Use GPS location"
-                            >
-                                {isLocating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5 text-blue-600" />}
-                                <span className="hidden md:inline">Use GPS</span>
+                                {isSearchingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Search Address / Postcode"}
                             </Button>
                         </div>
                     </div>
