@@ -48,7 +48,7 @@ const CommunitiesMapView = dynamic(() => import('@/components/communities-map-vi
 });
 
 export default function CommunitiesDiscoveryPage() {
-    const { user } = useUser();
+    const { user, userProfile } = useUser();
     const { toast } = useToast();
     const router = useRouter();
 
@@ -56,8 +56,8 @@ export default function CommunitiesDiscoveryPage() {
     const [loading, setLoading] = useState(true);
 
     // GPS & Manual Location State
-    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>({ lat: 57.3303, lng: -3.6131 }); // Default to Grantown on Spey / Highlands
-    const [locationLabel, setLocationLabel] = useState<string>('Grantown on Spey, Scotland');
+    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [locationLabel, setLocationLabel] = useState<string>('United Kingdom (National Overview)');
     const [customLocationQuery, setCustomLocationQuery] = useState('');
     const [isLocating, setIsLocating] = useState(false);
     const [isSearchingLocation, setIsSearchingLocation] = useState(false);
@@ -92,7 +92,7 @@ export default function CommunitiesDiscoveryPage() {
         fetchCommunities();
     }, []);
 
-    // Get User GPS Location
+    // Get Live Device GPS / Wi-Fi Geolocation
     const requestGpsLocation = () => {
         if (!navigator.geolocation) {
             toast({ title: "Not Supported", description: "Geolocation is not supported by your browser." });
@@ -102,20 +102,38 @@ export default function CommunitiesDiscoveryPage() {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-                setLocationLabel('Your Current Location');
+                setLocationLabel('Your Live GPS / Wi-Fi Location');
                 setIsLocating(false);
                 setLocationDenied(false);
-                toast({ title: "GPS Location Found", description: "Map centered on your current position." });
+                toast({ title: "Live Location Found", description: "Map centered on your live device location." });
             },
             (err) => {
-                console.warn("Geolocation denied or error:", err);
+                console.warn("Geolocation denied or unavailable:", err);
                 setIsLocating(false);
                 setLocationDenied(true);
-                toast({ title: "Using Highlands View", description: "Showing Grantown on Spey as default center. You can search any town above.", variant: "default" });
+
+                // Fallback to User's Home Community if set
+                const homeCommId = (userProfile as any)?.homeCommunityId || (userProfile as any)?.communityId;
+                if (homeCommId) {
+                    const homeComm = communities.find(c => c.id === homeCommId);
+                    if (homeComm?.centroid) {
+                        setUserLocation(homeComm.centroid);
+                        setLocationLabel(`Your Home Hub (${homeComm.name})`);
+                        toast({ title: "Using Home Community", description: `Map centered on your home hub ${homeComm.name}.` });
+                        return;
+                    }
+                }
+
+                toast({ title: "Location Access Denied", description: "Showing national overview. Search any town or postcode above.", variant: "default" });
             },
             { enableHighAccuracy: true, timeout: 10000 }
         );
     };
+
+    // Auto-request live location on initial load
+    useEffect(() => {
+        requestGpsLocation();
+    }, []);
 
     // Handle Manual Location Search (e.g. "Grantown on Spey", "Aviemore", "Blackpool", "Edinburgh")
     const handleManualLocationSearch = async (queryText?: string) => {
