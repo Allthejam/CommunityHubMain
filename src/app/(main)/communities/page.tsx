@@ -65,10 +65,11 @@ export default function CommunitiesDiscoveryPage() {
 
     // Filters
     const [searchQuery, setSearchQuery] = useState('');
-    const [enableRadiusFilter, setEnableRadiusFilter] = useState<boolean>(false); // Default false so no communities/boundaries are hidden
-    const [maxDistanceMiles, setMaxDistanceMiles] = useState<number>(60);
-    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'no-leader'>('all');
+    const [selectedCountry, setSelectedCountry] = useState<string>('United Kingdom');
     const [selectedRegion, setSelectedRegion] = useState<string>('all');
+    const [enableRadiusFilter, setEnableRadiusFilter] = useState<boolean>(true); // Default true for precise location filtering
+    const [maxDistanceMiles, setMaxDistanceMiles] = useState<number>(25);
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'no-leader'>('all');
 
     // Selection
     const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
@@ -218,6 +219,13 @@ export default function CommunitiesDiscoveryPage() {
     // Filtered & Sorted Communities
     const filteredCommunities = useMemo(() => {
         return processedCommunities.filter(c => {
+            // Country Filter
+            if (selectedCountry !== 'all') {
+                if (c.country && c.country.toLowerCase() !== selectedCountry.toLowerCase()) {
+                    return false;
+                }
+            }
+
             // Text Search
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
@@ -236,9 +244,12 @@ export default function CommunitiesDiscoveryPage() {
             if (statusFilter === 'active' && (c.leaderCount || 0) === 0 && c.status !== 'active') return false;
             if (statusFilter === 'no-leader' && (c.leaderCount || 0) > 0) return false;
 
-            // Distance Radius Filter (only applied if explicitly enabled)
-            if (enableRadiusFilter && userLocation && c.distance !== undefined) {
-                if (c.distance > maxDistanceMiles) return false;
+            // Distance Radius Filter
+            if (enableRadiusFilter && userLocation) {
+                // If community has no position or exceeds max distance, exclude it from radius search
+                if (c.distance === undefined || c.distance > maxDistanceMiles) {
+                    return false;
+                }
             }
 
             return true;
@@ -248,7 +259,7 @@ export default function CommunitiesDiscoveryPage() {
             }
             return a.name.localeCompare(b.name);
         });
-    }, [processedCommunities, searchQuery, selectedRegion, statusFilter, enableRadiusFilter, maxDistanceMiles, userLocation]);
+    }, [processedCommunities, searchQuery, selectedCountry, selectedRegion, statusFilter, enableRadiusFilter, maxDistanceMiles, userLocation]);
 
     // Switch Community Handler
     const handleSwitchCommunity = async (commId: string, commName: string) => {
@@ -345,7 +356,7 @@ export default function CommunitiesDiscoveryPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {/* Text Search */}
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -355,6 +366,20 @@ export default function CommunitiesDiscoveryPage() {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="pl-9"
                             />
+                        </div>
+
+                        {/* Country Select */}
+                        <div>
+                            <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Country" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                                    <SelectItem value="United States">United States</SelectItem>
+                                    <SelectItem value="all">All Countries</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         {/* Region Select */}
