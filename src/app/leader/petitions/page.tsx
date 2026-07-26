@@ -541,15 +541,12 @@ export default function LeaderPetitionsPage() {
   const [editingPetitionId, setEditingPetitionId] = React.useState<string | null>(null);
   const [signaturesPreviewPetition, setSignaturesPreviewPetition] = React.useState<Petition | null>(null);
 
-  const categoriesQuery = useMemoFirebase(() => (db ? collection(db, 'Petitions_Categories') : null), [db]);
-  const { data: rawCategories } = useCollection<any>(categoriesQuery);
+  const dropdownRef = useMemoFirebase(() => (db ? doc(db, 'platform_settings', 'dropdowns') : null), [db]);
+  const { data: dropdowns } = useDoc(dropdownRef);
 
   const petitionCategories = React.useMemo(() => {
-    if (!rawCategories || rawCategories.length === 0) {
-      return ['council', 'amenities', 'safety', 'other'];
-    }
-    return rawCategories;
-  }, [rawCategories]);
+    return dropdowns?.Petitions_Categories || ['council', 'amenities', 'safety', 'other'];
+  }, [dropdowns]);
 
   const filterCategories = React.useMemo(() => {
     const list = [{ value: 'all', label: '✨ All Topics' }];
