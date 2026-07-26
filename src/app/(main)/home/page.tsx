@@ -34,7 +34,7 @@ export default function HomePage() {
   const { user, isUserLoading: authLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
-  const [activeCommunityId, setActiveCommunityId] = useState<string | null>(null);
+  const [activeCommunityId, setActiveCommunityId] = useState<string | null>('9ayHMyZf4SRw2gof1AM9');
   const [isReturning, setIsReturning] = useState(false);
 
   const userProfileRef = useMemoFirebase(() => {
@@ -45,27 +45,24 @@ export default function HomePage() {
 
   // This single effect now reliably determines the active community ID
   useEffect(() => {
-    // Wait until the user profile has been loaded
     if (profileLoading) return;
 
-    // First, check session storage for a "visiting" community ID
-    const visitedId = sessionStorage.getItem('visitedCommunityId');
+    const visitedId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
     if (visitedId) {
       setActiveCommunityId(visitedId);
     } 
-    // If not visiting, use the community ID from the user's profile
     else if (userProfile?.communityId) {
       setActiveCommunityId(userProfile.communityId);
     } 
-    // Otherwise, there's no community to show
     else {
-      setActiveCommunityId(null);
+      setActiveCommunityId(userProfile?.homeCommunityId || '9ayHMyZf4SRw2gof1AM9');
     }
   }, [userProfile, profileLoading]);
   
   const activeCommunityRef = useMemoFirebase(() => {
-    if (!activeCommunityId || !db) return null;
-    return doc(db, 'communities', activeCommunityId);
+    const commId = activeCommunityId || '9ayHMyZf4SRw2gof1AM9';
+    if (!db) return null;
+    return doc(db, 'communities', commId);
   }, [activeCommunityId, db]);
   const { data: activeCommunity, isLoading: communityLoading } = useDoc(activeCommunityRef);
   
@@ -80,11 +77,12 @@ export default function HomePage() {
   const { data: platformAnnouncementsData, isLoading: platformLoading } = useCollection<Announcement>(platformAnnouncementsQuery);
 
   const communityAnnouncementsQuery = useMemoFirebase(() => {
-      if (!db || !activeCommunityId) return null;
+      const commId = activeCommunityId || '9ayHMyZf4SRw2gof1AM9';
+      if (!db) return null;
       return query(
           collection(db, "announcements"), 
           where("scope", "==", "community"),
-          where("communityId", "==", activeCommunityId),
+          where("communityId", "==", commId),
           where("status", "==", "Live")
       );
   }, [db, activeCommunityId]);
@@ -124,17 +122,6 @@ export default function HomePage() {
   }, [platformAnnouncementsData, activeCommunity]);
 
   const allAnnouncements = [...(filteredPlatformAnnouncements || []), ...(communityAnnouncementsData || [])];
-  
-  // The main loading condition now depends on having the essential user/profile data AND a community ID.
-  const isLoading = authLoading || profileLoading || communityLoading || !activeCommunityId;
-
-  if (isLoading) {
-      return (
-          <div className="flex justify-center items-center h-96">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-      );
-  }
 
   const mailingLists = (userProfile as any)?.mailingLists || {};
   const showEmergency = mailingLists.emergency !== false;
