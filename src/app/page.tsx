@@ -85,8 +85,8 @@ export default function SignInPage() {
   }, []);
 
   useEffect(() => {
-    // Redirect verified users to home
-    if (!isUserLoading && user && user.emailVerified) {
+    // Redirect authenticated users to home
+    if (!isUserLoading && user) {
       router.push('/home');
     }
   }, [user, isUserLoading, router]);
@@ -155,13 +155,7 @@ export default function SignInPage() {
       setLoginAttempts(newAttempts);
       localStorage.setItem('loginAttempts', JSON.stringify(newAttempts));
 
-      if (!userCredential.user.emailVerified) {
-        setError("Please verify your email before logging in. Check your inbox for a verification link.");
-        setShowResend(true);
-        await auth.signOut();
-        setLoading(false);
-        return;
-      }
+      router.push('/home');
       
     } catch (e: any) {
       let errorMessage = 'An unknown error occurred.';
