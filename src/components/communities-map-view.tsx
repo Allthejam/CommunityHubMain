@@ -6,7 +6,7 @@ import type { Map as LeafletMap, Marker as LeafletMarker, LayerGroup } from 'lea
 import { PublicCommunityData, runSaveCommunityCentroid } from '@/lib/actions/communityActions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Crown, Users, MapPin, ExternalLink, Compass } from 'lucide-react';
+import { Crown, Users, MapPin, ExternalLink, Compass, LocateFixed, Loader2 } from 'lucide-react';
 import { updateUserCommunityAction } from '@/lib/actions/userActions';
 import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,8 @@ interface CommunitiesMapViewProps {
     userLocation: { lat: number; lng: number } | null;
     selectedCommunityId: string | null;
     onSelectCommunity: (id: string) => void;
+    onRequestGpsLocation?: () => void;
+    isLocating?: boolean;
 }
 
 export function calculateDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -62,7 +64,9 @@ export default function CommunitiesMapView({
     communities,
     userLocation,
     selectedCommunityId,
-    onSelectCommunity
+    onSelectCommunity,
+    onRequestGpsLocation,
+    isLocating = false
 }: CommunitiesMapViewProps) {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<LeafletMap | null>(null);
@@ -72,6 +76,14 @@ export default function CommunitiesMapView({
     const { user } = useUser();
     const { toast } = useToast();
     const router = useRouter();
+
+    const handleLocateMe = () => {
+        if (userLocation && mapInstanceRef.current) {
+            mapInstanceRef.current.flyTo([userLocation.lat, userLocation.lng], 11, { duration: 1.2 });
+        } else if (onRequestGpsLocation) {
+            onRequestGpsLocation();
+        }
+    };
 
     const [isMapReady, setIsMapReady] = useState(false);
 
@@ -130,12 +142,19 @@ export default function CommunitiesMapView({
             if (userLocation) {
                 const userIcon = L.divIcon({
                     className: 'custom-user-marker',
-                    html: `<div style="background-color: #3b82f6; width: 18px; height: 18px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(59, 130, 246, 0.8);"></div>`,
-                    iconSize: [18, 18],
-                    iconAnchor: [9, 9]
+                    html: `
+                        <div style="position: relative; display: flex; items-center: center; justify-content: center; width: 36px; height: 36px;">
+                            <div style="position: absolute; width: 36px; height: 36px; background-color: rgba(59, 130, 246, 0.35); border-radius: 50%; border: 1px solid rgba(59, 130, 246, 0.6); top: 0; left: 0;"></div>
+                            <div style="position: absolute; top: 7px; left: 7px; background-color: #2563eb; width: 22px; height: 22px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.8); z-index: 2;"></div>
+                        </div>
+                    `,
+                    iconSize: [36, 36],
+                    iconAnchor: [18, 18]
                 });
                 const userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon, zIndexOffset: 1000 })
-                    .bindPopup('<b>Your Current Location</b>');
+                    .bindPopup('<div style="font-weight: 700; color: #1e3a8a;">📍 You Are Here</div><div style="font-size: 11px; color: #475569;">Your current GPS location</div>');
+                
+                userMarker.bindTooltip("📍 You Are Here", { permanent: false, direction: "top" });
                 markersLayerRef.current?.addLayer(userMarker);
             }
 
@@ -243,6 +262,21 @@ export default function CommunitiesMapView({
         <div className="relative w-full h-[550px] md:h-[650px] rounded-2xl overflow-hidden border shadow-sm">
             <div ref={mapContainerRef} className="w-full h-full z-0" />
             
+            {/* Floating Locate Me Button Overlay */}
+            <Button
+                size="sm"
+                onClick={handleLocateMe}
+                disabled={isLocating}
+                className="absolute top-4 right-4 z-[500] shadow-lg bg-background/95 backdrop-blur-md text-foreground hover:bg-accent border font-semibold text-xs gap-2 transition-all duration-200"
+            >
+                {isLocating ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                ) : (
+                    <LocateFixed className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                )}
+                <span>Locate Me</span>
+            </Button>
+            
             {/* Map Legend Floating Card */}
             <div className="absolute bottom-4 left-4 z-10 bg-background/95 backdrop-blur-md p-3 rounded-xl border shadow-md text-xs space-y-1.5 hidden sm:block">
                 <div className="font-semibold text-slate-700 dark:text-slate-200 mb-1">Map Legend</div>
@@ -257,7 +291,7 @@ export default function CommunitiesMapView({
                 {userLocation && (
                     <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
-                        <span>Your Location</span>
+                        <span>Your Location (📍 You Are Here)</span>
                     </div>
                 )}
             </div>

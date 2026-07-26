@@ -343,6 +343,8 @@ export default function CommunitiesDiscoveryPage() {
                         userLocation={userLocation}
                         selectedCommunityId={selectedCommunityId}
                         onSelectCommunity={(id) => setSelectedCommunityId(id)}
+                        onRequestGpsLocation={requestGpsLocation}
+                        isLocating={isLocating}
                     />
                 </div>
 
