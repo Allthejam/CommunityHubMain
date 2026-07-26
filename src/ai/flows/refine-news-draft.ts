@@ -3,8 +3,7 @@
  * @fileOverview Refines news drafts for volunteer reporters.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { z } from 'genkit';
 
 const RefineNewsDraftInputSchema = z.object({
   draftText: z.string().describe('The rough draft text of the article.'),
@@ -20,43 +19,39 @@ const RefineNewsDraftOutputSchema = z.object({
 
 export type RefineNewsDraftOutput = z.infer<typeof RefineNewsDraftOutputSchema>;
 
-const prompt = ai.definePrompt({
-  name: 'refineNewsDraftPrompt',
-  input: {schema: RefineNewsDraftInputSchema},
-  output: {schema: RefineNewsDraftOutputSchema},
-  prompt: `You are an expert editor for a community newspaper/hub.
-  
-  Your job is to take a rough draft written by a volunteer community reporter and refine it to make it read professionally and clearly, while preserving all the key details, names, locations, and facts.
-  
-  Volunteer Draft:
-  """
-  {{{draftText}}}
-  """
-  
-  Provide the following:
-  1. A polished, refined version of the body. Improve the flow, grammar, and professionalism, but keep it authentic to a local community news tone.
-  2. Exactly 3 suggested catchy headlines.
-  3. A concise, single-sentence summary of the article suitable for a preview.`,
-});
-
-const refineNewsDraftFlow = ai.defineFlow(
-  {
-    name: 'refineNewsDraftFlow',
-    inputSchema: RefineNewsDraftInputSchema,
-    outputSchema: RefineNewsDraftOutputSchema,
-  },
-  async input => {
-    const { output, error } = await prompt(input);
-    if (error) {
-        throw new Error(`AI model failed to refine draft: ${error.message}`);
-    }
-    if (!output) {
-        throw new Error("The AI model did not return any output. Please try again.");
-    }
-    return output;
-  }
-);
-
 export async function refineNewsDraft(input: RefineNewsDraftInput): Promise<RefineNewsDraftOutput> {
-    return refineNewsDraftFlow(input);
+  const { genkit } = await import('genkit');
+  const { googleAI } = await import('@genkit-ai/google-genai');
+  
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const ai = genkit({
+    plugins: [
+      googleAI({ apiKey: geminiApiKey }),
+    ],
+    model: 'googleai/gemini-1.5-flash-latest',
+  });
+
+  const response = await ai.generate({
+    prompt: `You are an expert editor for a community newspaper/hub.
+    
+    Your job is to take a rough draft written by a volunteer community reporter and refine it to make it read professionally and clearly, while preserving all the key details, names, locations, and facts.
+    
+    Volunteer Draft:
+    """
+    ${input.draftText}
+    """
+    
+    Provide the following:
+    1. A polished, refined version of the body. Improve the flow, grammar, and professionalism, but keep it authentic to a local community news tone.
+    2. Exactly 3 suggested catchy headlines.
+    3. A concise, single-sentence summary of the article suitable for a preview.`,
+    output: {
+      schema: RefineNewsDraftOutputSchema,
+    },
+  });
+
+  if (!response.output) {
+    throw new Error("The AI model did not return any output. Please try again.");
+  }
+  return response.output;
 }
