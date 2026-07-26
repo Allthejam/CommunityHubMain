@@ -89,6 +89,7 @@ const mainNavItems = [
 ];
 
 const discoverSubItems = [
+    { href: '/communities', label: 'Communities Map', icon: MapIcon, permission: 'viewHome' },
     { href: '/events', label: 'Events', icon: Calendar, permission: 'viewEvents' },
     { href: '/whatson', label: "What's On", icon: Tv, permission: 'viewWhatson' },
     { href: '/news', label: 'News', icon: Newspaper, permission: 'viewNews' },

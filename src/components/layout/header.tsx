@@ -96,6 +96,7 @@ const mainNavItems = [
 ];
 
 const discoverSubItems = [
+    { href: '/communities', label: 'Communities Map', icon: MapIcon },
     { href: '/events', label: 'Events', icon: CalendarIcon },
     { href: '/whatson', label: "What's On", icon: Tv },
     { href: '/news', label: 'News', icon: Newspaper },

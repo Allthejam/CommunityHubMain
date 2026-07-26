@@ -611,3 +611,58 @@ export async function getCourierDeliveryFeeAction(communityId: string): Promise<
         return { fee: 0 };
     }
 }
+
+export interface PublicCommunityData {
+    id: string;
+    name: string;
+    country?: string;
+    state?: string;
+    region?: string;
+    status?: string;
+    leaderCount?: number;
+    memberCount?: number;
+    boundary?: string;
+    centroid?: { lat: number; lng: number };
+}
+
+export async function runGetAllPublicCommunities(): Promise<{ success: boolean; communities?: PublicCommunityData[]; error?: string }> {
+    try {
+        const { firestore } = initializeAdminApp();
+        const snapshot = await firestore.collection('communities')
+            .where('visibility', '==', 'public')
+            .get();
+
+        const communities: PublicCommunityData[] = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                name: data.name || '',
+                country: data.country || '',
+                state: data.state || '',
+                region: data.region || '',
+                status: data.status || 'inactive',
+                leaderCount: data.leaderCount || 0,
+                memberCount: data.memberCount || 0,
+                boundary: data.boundary || undefined,
+                centroid: data.centroid || undefined,
+            };
+        });
+
+        return { success: true, communities };
+    } catch (error: any) {
+        console.error("Error fetching public communities:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function runSaveCommunityCentroid(communityId: string, centroid: { lat: number; lng: number }): Promise<ActionResponse> {
+    try {
+        const { firestore } = initializeAdminApp();
+        await firestore.collection('communities').doc(communityId).update({ centroid });
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving community centroid:", error);
+        return { success: false, error: error.message };
+    }
+}
+
