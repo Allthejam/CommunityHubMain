@@ -21,6 +21,8 @@ type Business = {
   createdAt?: { toDate: () => Date };
   listingSubscriptionExpiresAt?: { toDate: () => Date };
   leaderCount?: number;
+  storefrontSubscription?: boolean;
+  storefrontStripeSubscriptionId?: string;
 };
 
 export default function BusinessCard({ business }: { business: Business }) {
@@ -45,6 +47,9 @@ export default function BusinessCard({ business }: { business: Business }) {
     const categoryLabel = business.businessCategory
     ? business.businessCategory.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' & ')
     : null;
+
+    const isPremiumPartner = business.storefrontSubscription === true || !!(business as any).storefrontStripeSubscriptionId;
+    const isStandardMerchant = business.status === 'Subscribed' && !isPremiumPartner;
     
   const isMockCourier = business.id === 'mock-courier-99';
   const communityHasNoLeader = isMockCourier && business.leaderCount === 0;
@@ -76,7 +81,22 @@ export default function BusinessCard({ business }: { business: Business }) {
         </CardHeader>
         <CardHeader className="p-4 pt-2">
           <CardTitle className="text-base truncate">{business.businessName}</CardTitle>
-          {categoryLabel && <Badge variant="outline" className="w-fit">{categoryLabel}</Badge>}
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {categoryLabel && <Badge variant="outline" className="text-[10px] w-fit">{categoryLabel}</Badge>}
+            {isPremiumPartner ? (
+              <Badge className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-[9px] uppercase tracking-wider border-0 shadow-sm px-2 py-0.5">
+                Premium Partner
+              </Badge>
+            ) : isStandardMerchant ? (
+              <Badge className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] uppercase tracking-wider border-0 px-2 py-0.5">
+                Local Merchant
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-emerald-50/50 text-emerald-700 border-emerald-200 font-medium text-[9px] px-2 py-0.5">
+                Approved
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="flex-grow p-4 pt-0">
           <p className="text-xs text-muted-foreground line-clamp-2">

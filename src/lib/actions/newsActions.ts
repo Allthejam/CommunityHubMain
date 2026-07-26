@@ -120,6 +120,8 @@ export async function runCreateNewsStory(params: {
     }
 }
 
+import { refineNewsDraft, type RefineNewsDraftOutput } from '@/ai/flows/refine-news-draft';
+
 export async function deleteNewsStoryAction(params: {
   storyId: string;
 }): Promise<ActionResponse> {
@@ -135,6 +137,21 @@ export async function deleteNewsStoryAction(params: {
   } catch (error: any) {
     console.error(`Error deleting story ${storyId}:`, error);
     return { success: false, error: error.message || 'Failed to delete story.' };
+  }
+}
+
+export async function aiRefineNewsAction({ draftText }: { draftText: string }): Promise<{
+  success: boolean;
+  error?: string;
+  data?: RefineNewsDraftOutput;
+}> {
+  console.log('AI refining news draft...');
+  try {
+    const data = await refineNewsDraft({ draftText });
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Error in aiRefineNewsAction:', error);
+    return { success: false, error: error.message };
   }
 }
 

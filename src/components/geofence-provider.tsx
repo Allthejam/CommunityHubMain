@@ -1,0 +1,155 @@
+'use client';
+
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { useGeofence } from '@/hooks/use-geofence';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { Sparkles, BellOff, X } from 'lucide-react';
+import { muteCommunityGeofenceAction } from '@/lib/actions/geofenceActions';
+
+export function GeofenceProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useUser();
+  const db = useFirestore();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!user || !db) return null;
+    return doc(db, 'users', user.uid);
+  }, [user, db]);
+
+  const { data: userProfile } = useDoc(userProfileRef);
+
+  const [currentCommunityId, setCurrentCommunityId] = React.useState<string | null>(null);
+  const [localMutedGeofences, setLocalMutedGeofences] = React.useState<string[]>([]);
+
+  // Synchronize active community ID from session storage or profile
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedId = sessionStorage.getItem('visitedCommunityId');
+      setCurrentCommunityId(storedId || userProfile?.communityId || null);
+
+      // Load local muted geofences from LocalStorage
+      const localMuted = localStorage.getItem('mutedGeofences');
+      if (localMuted) {
+        try {
+          setLocalMutedGeofences(JSON.parse(localMuted));
+        } catch (e) {
+          console.error('Error parsing local muted geofences:', e);
+        }
+      }
+    }
+  }, [userProfile]);
+
+  const isGeofenceEnabled = userProfile?.settings?.geofenceEnabled !== false;
+  const { enteredCommunity, setEnteredCommunity } = useGeofence(currentCommunityId, isGeofenceEnabled);
+
+  // Determine if the detected entry community has been muted
+  const isMuted = React.useMemo(() => {
+    if (!enteredCommunity) return false;
+    const profileMuted = userProfile?.mutedGeofences || [];
+    return profileMuted.includes(enteredCommunity.id) || localMutedGeofences.includes(enteredCommunity.id);
+  }, [enteredCommunity, userProfile, localMutedGeofences]);
+
+  const handleSwitchCommunity = () => {
+    if (!enteredCommunity) return;
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('visitedCommunityId', enteredCommunity.id);
+      setEnteredCommunity(null);
+      
+      toast({
+        title: 'Community Switched',
+        description: `Welcome to the ${enteredCommunity.name} community page!`,
+      });
+
+      // Redirect to home and trigger a refresh to reload context
+      router.push('/home');
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    }
+  };
+
+  const handleMuteCommunity = async () => {
+    if (!enteredCommunity) return;
+
+    const targetId = enteredCommunity.id;
+    const targetName = enteredCommunity.name;
+
+    // Save to LocalStorage immediately
+    const updatedLocal = [...localMutedGeofences, targetId];
+    setLocalMutedGeofences(updatedLocal);
+    localStorage.setItem('mutedGeofences', JSON.stringify(updatedLocal));
+
+    // Save to Firestore if logged in
+    if (user) {
+      try {
+        await muteCommunityGeofenceAction({ userId: user.uid, communityId: targetId });
+      } catch (err) {
+        console.error('Failed to sync geofence mute to database:', err);
+      }
+    }
+
+    toast({
+      title: 'Notifications Muted',
+      description: `You will no longer receive entry alerts for ${targetName}.`,
+    });
+
+    setEnteredCommunity(null);
+  };
+
+  const handleDismiss = () => {
+    setEnteredCommunity(null);
+  };
+
+  // Only open the dialog if we have a detected community and it's not muted
+  const isOpen = !!enteredCommunity && !isMuted;
+
+  return (
+    <>
+      {children}
+
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleDismiss(); }}>
+        <DialogContent className="max-w-md p-6">
+          <DialogHeader className="space-y-3">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+              <Sparkles className="h-6 w-6 animate-pulse" />
+            </div>
+            <DialogTitle className="text-center text-xl font-bold tracking-tight">
+              Welcome to {enteredCommunity?.name}!
+            </DialogTitle>
+            <DialogDescription className="text-center text-sm leading-relaxed text-muted-foreground">
+              You've entered the mapped boundary of the <strong>{enteredCommunity?.name}</strong> community. Would you like to switch to this community to see what's happening here today?
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
+            <Button onClick={handleSwitchCommunity} className="w-full sm:flex-1 bg-indigo-600 hover:bg-indigo-700 text-white">
+              Yes, Show Me
+            </Button>
+            <Button variant="outline" onClick={handleDismiss} className="w-full sm:flex-1">
+              No, Thanks
+            </Button>
+          </DialogFooter>
+
+          <div className="mt-4 pt-3 border-t text-center">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleMuteCommunity}
+              className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1.5 mx-auto"
+            >
+              <BellOff className="h-3.5 w-3.5" />
+              Don't show this again for {enteredCommunity?.name}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

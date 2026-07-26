@@ -15,8 +15,10 @@ import {
     HelpCircle,
     Trash2,
     Pencil,
+    Sparkles,
 } from "lucide-react"
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { collection, query, where } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
@@ -135,6 +137,62 @@ export default function JobsPage() {
   const jobs = React.useMemo(() => rawJobs?.filter(filterExpired) || [], [rawJobs, filterExpired]);
   const seekers = React.useMemo(() => rawSeekers?.filter(filterExpired) || [], [rawSeekers, filterExpired]);
 
+  const getMatchScore = React.useCallback((textA: string, textB: string): number => {
+    const clean = (t: string) => t.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+    const wordsA = new Set(clean(textA));
+    const wordsB = clean(textB);
+    let intersection = 0;
+    for (const w of wordsB) {
+        if (wordsA.has(w)) {
+            intersection++;
+        }
+    }
+    return intersection;
+  }, []);
+
+  const mySeekerProfile = React.useMemo(() => {
+    if (!user || !seekers) return null;
+    return seekers.find(s => s.ownerId === user.uid);
+  }, [user, seekers]);
+
+  const recommendedJobs = React.useMemo(() => {
+    if (!user || !jobs) return [];
+    const seekerProfileText = (mySeekerProfile as any)?.profile || '';
+    const userTargetText = `${mySeekerProfile?.summary || ''} ${seekerProfileText} ${userProfile?.bio || ''}`;
+    if (!userTargetText.trim()) return [];
+
+    return jobs
+      .map(job => {
+        const jobText = `${job.title} ${job.shortDescription} ${job.company}`;
+        const score = getMatchScore(userTargetText, jobText);
+        return { job, score };
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.job);
+  }, [user, jobs, mySeekerProfile, userProfile, getMatchScore]);
+
+  const myVacancies = React.useMemo(() => {
+    if (!user || !jobs) return [];
+    return jobs.filter(j => j.ownerId === user.uid);
+  }, [user, jobs]);
+
+  const recommendedSeekers = React.useMemo(() => {
+    if (!user || !seekers || myVacancies.length === 0) return [];
+    const vacancyText = myVacancies.map(v => `${v.title} ${v.shortDescription}`).join(' ');
+    
+    return seekers
+      .map(seeker => {
+        const seekerProfileText = (seeker as any).profile || '';
+        const seekerText = `${seeker.name} ${seeker.summary} ${seekerProfileText}`;
+        const score = getMatchScore(vacancyText, seekerText);
+        return { seeker, score };
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.seeker);
+  }, [user, seekers, myVacancies, getMatchScore]);
+
   const handleDeleteJob = async (id: string) => {
     setIsDeleting(id);
     const result = await deleteJobVacancyAction(id);
@@ -235,7 +293,7 @@ export default function JobsPage() {
       </Alert>
 
       <Tabs defaultValue="vacancies" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className={cn("grid w-full", user ? "grid-cols-3" : "grid-cols-2")}>
           <TabsTrigger value="vacancies">
             <Building2 className="mr-2 h-4 w-4" />
             Job Vacancies
@@ -244,6 +302,12 @@ export default function JobsPage() {
             <UserSearch className="mr-2 h-4 w-4" />
             Job Seekers
           </TabsTrigger>
+          {user && (
+            <TabsTrigger value="matches">
+              <Sparkles className="mr-2 h-4 w-4 text-indigo-500 fill-indigo-500 animate-pulse" />
+              Matches for You
+            </TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="vacancies">
           <Card className="mt-6">
@@ -462,6 +526,132 @@ export default function JobsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {user && (
+          <TabsContent value="matches">
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-indigo-500 fill-indigo-500" />
+                  Intelligent Matchmaking
+                </CardTitle>
+                <CardDescription>
+                  AI-assisted matchmaking connecting local opportunities and talent based on skills overlap.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                {/* Resident Matches */}
+                <div>
+                  <h3 className="font-bold text-sm mb-4 text-indigo-600 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" /> Recommended Jobs for You
+                  </h3>
+                  {recommendedJobs.length > 0 ? (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[60px]"></TableHead>
+                            <TableHead>Job Title</TableHead>
+                            <TableHead>Company</TableHead>
+                            <TableHead>Salary / Pay</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {recommendedJobs.map((job) => {
+                            return (
+                              <TableRow key={job.id}>
+                                <TableCell>
+                                  <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted border flex items-center justify-center">
+                                    {job.companyLogo ? (
+                                      <Image src={job.companyLogo} alt={job.company} fill className="object-contain p-1" />
+                                    ) : (
+                                      <Building2 className="h-5 w-5 text-muted-foreground" />
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-semibold">{job.title}</TableCell>
+                                <TableCell>{job.company}</TableCell>
+                                <TableCell>
+                                  {job.salary ? (
+                                    <span className="flex items-center gap-1.5 text-xs font-semibold text-green-600">
+                                      <Banknote className="h-3.5 w-3.5" />
+                                      {job.salary}
+                                    </span>
+                                  ) : 'Not specified'}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground truncate max-w-[200px]">{job.shortDescription}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button asChild variant="outline" size="sm">
+                                    <Link href={`/jobs/${job.id}`}>View & Apply</Link>
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground bg-slate-50 border border-dashed rounded-lg p-6 text-center">
+                      <p className="font-medium text-slate-700 mb-1">No Recommended Jobs Yet</p>
+                      <p className="text-xs">Create a Job Seeker Profile or add detail to your bio to see matching vacancies.</p>
+                      <Button asChild variant="link" size="sm" className="mt-2 text-indigo-600">
+                        <Link href="/jobs/create-seeker">Create Profile Now →</Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Business Matches */}
+                <div className="border-t pt-8">
+                  <h3 className="font-bold text-sm mb-4 text-indigo-600 flex items-center gap-2">
+                    <UserSearch className="h-4 w-4" /> Recommended Candidates for Your Vacancies
+                  </h3>
+                  {myVacancies.length === 0 ? (
+                    <div className="text-sm text-muted-foreground bg-slate-50 border border-dashed rounded-lg p-6 text-center">
+                      <p className="font-medium text-slate-700 mb-1">Post a Vacancy to Find Talent</p>
+                      <p className="text-xs">Once you post a job vacancy, local candidates matching your job requirements will appear here.</p>
+                      <Button asChild variant="link" size="sm" className="mt-2 text-indigo-600">
+                        <Link href="/jobs/create-vacancy">Post a Job Vacancy →</Link>
+                      </Button>
+                    </div>
+                  ) : recommendedSeekers.length > 0 ? (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Candidate Name</TableHead>
+                            <TableHead>Profile Summary</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {recommendedSeekers.map((seeker) => (
+                            <TableRow key={seeker.id}>
+                              <TableCell className="font-semibold">{seeker.name}</TableCell>
+                              <TableCell className="text-muted-foreground">{seeker.summary}</TableCell>
+                              <TableCell className="text-right">
+                                <Button asChild variant="outline" size="sm">
+                                  <Link href={`/jobs/seeker/${seeker.id}`}>View Profile</Link>
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground bg-slate-50 border border-dashed rounded-lg p-6 text-center">
+                      <p className="text-xs">No matching local candidates found for your posted vacancies yet.</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

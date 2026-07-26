@@ -35,10 +35,15 @@ export function WelcomeCards() {
     return query(
         collection(firestore, `communities/${communityId}/polls`),
         where('status', '==', 'active'),
-        limit(1)
+        limit(5)
     );
   }, [communityId, firestore]);
   const { data: activePolls, isLoading: pollsLoading } = useCollection(pollsQuery);
+
+  const unvotedPolls = React.useMemo(() => {
+    if (!activePolls || !user) return [];
+    return activePolls.filter((poll: any) => !poll.votedBy?.includes(user.uid));
+  }, [activePolls, user]);
 
   const notificationsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -144,14 +149,18 @@ export function WelcomeCards() {
             )}
           </div>
         </CardContent>
-         {!isLoading && activePolls && activePolls.length > 0 && (
+         {!isLoading && unvotedPolls.length > 0 && (
             <CardFooter className="p-4 md:p-6 pt-0 border-t mt-4">
                 <div className="w-full">
                     <div className="flex items-center gap-2 mb-2">
                         <BadgeHelp className="h-5 w-5 text-primary"/>
                         <h4 className="font-semibold">Have Your Say!</h4>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-4">There's a new community poll waiting for your vote.</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                        {unvotedPolls.length === 1 
+                          ? "There's a new community poll waiting for your vote." 
+                          : `You have ${unvotedPolls.length} community polls waiting for your vote.`}
+                    </p>
                     <Button asChild className="w-full">
                         <Link href="/polls">View & Vote</Link>
                     </Button>

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { collection, query, orderBy, limit, where } from 'firebase/firestore';
-import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useFirestore, useUser, useMemoFirebase, useCollection } from '@/firebase';
 import { Poll } from '@/lib/types/polls';
 import { BarChart3, ArrowRight, CheckCircle2, Trophy, Loader2 } from 'lucide-react';
 
@@ -48,6 +48,7 @@ function MiniResultBar({ poll }: { poll: Poll }) {
 
 export function PollsSnippet({ communityId }: PollsSnippetProps) {
   const db = useFirestore();
+  const { user } = useUser();
 
   // Active polls — grab up to 2
   const activeQuery = useMemoFirebase(
@@ -166,6 +167,7 @@ export function PollsSnippet({ communityId }: PollsSnippetProps) {
             <div className="space-y-2">
               {active.map((poll) => {
                 const totalVotes = poll.options.reduce((s, o) => s + o.votes, 0);
+                const hasVoted = user && poll.votedBy?.includes(user.uid);
                 return (
                   <Link
                     key={poll.id}
@@ -176,9 +178,15 @@ export function PollsSnippet({ communityId }: PollsSnippetProps) {
                       <p className="text-xs font-bold text-slate-800 truncate">{poll.title}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5">{totalVotes} vote{totalVotes !== 1 ? 's' : ''} cast so far</p>
                     </div>
-                    <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                      Vote Now →
-                    </span>
+                    {hasVoted ? (
+                      <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
+                        Voted ✓
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                        Vote Now →
+                      </span>
+                    )}
                   </Link>
                 );
               })}
