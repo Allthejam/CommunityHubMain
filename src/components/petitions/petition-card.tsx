@@ -110,6 +110,7 @@ interface PetitionCardProps {
   onUpdateStatus?: (id: string, next: Petition['status']) => void;
   onDelete?: (id: string) => void;
   onEditSettings?: (id: string) => void;
+  onViewSignatures?: (petition: Petition) => void;
 }
 
 export function PetitionCard({
@@ -118,6 +119,7 @@ export function PetitionCard({
   onUpdateStatus,
   onDelete,
   onEditSettings,
+  onViewSignatures,
 }: PetitionCardProps) {
   const { user } = useUser();
   const db = useFirestore();
@@ -245,6 +247,14 @@ export function PetitionCard({
               className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-bold rounded-md flex items-center gap-1 border border-rose-200"
             >
               <Trash2 className="h-3 w-3" /> Delete
+            </button>
+          )}
+          {onViewSignatures && (
+            <button
+              onClick={() => onViewSignatures(petition)}
+              className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-md flex items-center gap-1 border border-indigo-200 shadow-sm"
+            >
+              <Users className="h-3 w-3" /> Signatures
             </button>
           )}
         </div>

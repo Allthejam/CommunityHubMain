@@ -15,6 +15,9 @@ import {
   query,
   orderBy,
   serverTimestamp,
+  where,
+  getDocs,
+  documentId,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
@@ -301,6 +304,188 @@ function EditPetitionModal({
   );
 }
 
+// ─── Signatures modal ─────────────────────────────────────────────────────────
+interface SignerInfo {
+  uid: string;
+  name: string;
+  community: string;
+}
+
+function SignaturesModal({
+  petition,
+  db,
+  onCancel,
+}: {
+  petition: Petition;
+  db: any;
+  onCancel: () => void;
+}) {
+  const [signers, setSigners] = React.useState<SignerInfo[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function loadSigners() {
+      if (!db || !petition.signedBy || petition.signedBy.length === 0) {
+        setSigners([]);
+        setLoading(false);
+        return;
+      }
+      try {
+        const uids = petition.signedBy;
+        const chunks: string[][] = [];
+        for (let i = 0; i < uids.length; i += 30) {
+          chunks.push(uids.slice(i, i + 30));
+        }
+
+        const results: SignerInfo[] = [];
+        for (const chunk of chunks) {
+          const q = query(collection(db, 'users'), where(documentId(), 'in', chunk));
+          const snapshot = await getDocs(q);
+          snapshot.docs.forEach((doc) => {
+            const data = doc.data();
+            results.push({
+              uid: doc.id,
+              name: data.displayName || data.name || 'Anonymous Resident',
+              community: data.communityName || 'Unknown Community',
+            });
+          });
+        }
+        setSigners(results);
+      } catch (err) {
+        console.error('Failed to load signers:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSigners();
+  }, [petition.signedBy, db]);
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const html = `
+      <html>
+        <head>
+          <title>Petition Signatures - ${petition.title}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #1e293b; }
+            h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+            p { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+            th { background-color: #f8fafc; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; }
+            td { font-size: 12px; font-weight: 500; }
+            .total { font-weight: 700; margin-top: 30px; font-size: 14px; text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h1>Petition Support List</h1>
+          <h2 style="margin-top: 0; font-size: 16px; color: #334155;">Campaign: ${petition.title}</h2>
+          <p>Generated on ${new Date().toLocaleDateString('en-GB')}</p>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 60px;">#</th>
+                <th>Full Name</th>
+                <th>Community</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${signers.length > 0 ? signers.map((s, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${s.name}</td>
+                  <td>${s.community}</td>
+                </tr>
+              `).join('') : `
+                <tr>
+                  <td colspan="3" style="text-align: center; color: #94a3b8;">No signatures found.</td>
+                </tr>
+              `}
+            </tbody>
+          </table>
+          
+          <div class="total">Total Signatures: ${signers.length}</div>
+          
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl flex flex-col gap-4 max-h-[85vh]">
+        <div className="flex justify-between items-center pb-3 border-b">
+          <div>
+            <h4 className="font-extrabold text-slate-800">Support Roster</h4>
+            <p className="text-[11px] text-slate-400">View and export signees for this campaign</p>
+          </div>
+          <button onClick={onCancel} className="p-1 text-slate-400 hover:text-slate-600 rounded">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-grow space-y-2 py-2 min-h-[250px] max-h-[400px]">
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+            </div>
+          ) : signers.length === 0 ? (
+            <div className="text-center py-20 text-slate-400 text-xs">
+              No signatures recorded yet.
+            </div>
+          ) : (
+            <div className="border border-slate-100 rounded-xl overflow-hidden">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 text-slate-400 uppercase text-[9px] font-bold tracking-wider border-b">
+                  <tr>
+                    <th className="p-3 w-12 text-center">#</th>
+                    <th className="p-3">Name</th>
+                    <th className="p-3">Community</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {signers.map((s, index) => (
+                    <tr key={s.uid} className="hover:bg-slate-50/50">
+                      <td className="p-3 text-slate-400 text-center font-bold">{index + 1}</td>
+                      <td className="p-3 font-extrabold text-slate-700">{s.name}</td>
+                      <td className="p-3 text-slate-500 font-medium">🏡 {s.community}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-3 border-t">
+          <button onClick={onCancel} className="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg">
+            Close
+          </button>
+          <button
+            onClick={handlePrint}
+            disabled={loading || signers.length === 0}
+            className="py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5"
+          >
+            🖨️ Print signatures
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ──────────────────────────────────────────────────────────────────
 export default function LeaderPetitionsPage() {
   const db = useFirestore();
@@ -311,6 +496,7 @@ export default function LeaderPetitionsPage() {
   const [statusFilter, setStatusFilter] = React.useState<PetitionStatus | 'all'>('all');
   const [deleteTarget, setDeleteTarget] = React.useState<string | null>(null);
   const [editingPetitionId, setEditingPetitionId] = React.useState<string | null>(null);
+  const [signaturesPreviewPetition, setSignaturesPreviewPetition] = React.useState<Petition | null>(null);
 
   const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userDocRef);
@@ -487,6 +673,7 @@ export default function LeaderPetitionsPage() {
                   onUpdateStatus={handleUpdateStatus}
                   onDelete={setDeleteTarget}
                   onEditSettings={setEditingPetitionId}
+                  onViewSignatures={setSignaturesPreviewPetition}
                 />
               ))}
             </div>
@@ -510,6 +697,15 @@ export default function LeaderPetitionsPage() {
           currentTarget={editingPetition.targetSignatures}
           onConfirm={handleUpdatePetitionSettings}
           onCancel={() => setEditingPetitionId(null)}
+        />
+      )}
+
+      {/* Signatures List & Export Modal */}
+      {signaturesPreviewPetition && (
+        <SignaturesModal
+          petition={signaturesPreviewPetition}
+          db={db}
+          onCancel={() => setSignaturesPreviewPetition(null)}
         />
       )}
     </div>
