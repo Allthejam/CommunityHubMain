@@ -32,7 +32,9 @@ import { GuestBook } from '@/components/guest-book';
 export default function HomePage() {
   const { user, isUserLoading: authLoading } = useUser();
   const db = useFirestore();
+  const { toast } = useToast();
   const [activeCommunityId, setActiveCommunityId] = useState<string | null>(null);
+  const [isReturning, setIsReturning] = useState(false);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!user || !db) return null;
@@ -141,9 +143,6 @@ export default function HomePage() {
     : [];
     
   const standardAnnouncements = allAnnouncements.filter(a => a.type === "Standard");
-
-  const { toast } = useToast();
-  const [isReturning, setIsReturning] = useState(false);
 
   const isVisiting = !!(userProfile?.homeCommunityId && userProfile?.communityId && userProfile.homeCommunityId !== userProfile.communityId);
   const homeCommName = userProfile?.homeCommunityName || 'Show Home Community, "Display Only"';
