@@ -243,10 +243,11 @@ export default function CommunitiesMapView({
                         const poly = L.geoJSON(geojson, {
                             style: {
                                 color: polyColor,
-                                weight: 2.5,
-                                opacity: 0.85,
+                                weight: 2,
+                                opacity: 0.8,
                                 fillColor: polyColor,
-                                fillOpacity: 0.2
+                                fillOpacity: 0.15,
+                                dashArray: '5, 5'
                             }
                         }).bindTooltip(`<b>${c.name}</b><br/>${c.region || ''}`, { permanent: false, direction: 'center' });
                         markersLayerRef.current?.addLayer(poly);
@@ -273,6 +274,18 @@ export default function CommunitiesMapView({
 
     return (
         <div className="relative w-full h-[550px] md:h-[650px] rounded-2xl overflow-hidden border shadow-sm">
+            {/* Global CSS Override to eliminate Leaflet's default div-icon black border square */}
+            <style jsx global>{`
+                .leaflet-div-icon {
+                    background: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                }
+                .leaflet-popup-content-wrapper {
+                    border-radius: 12px;
+                }
+            `}</style>
+
             <div ref={mapContainerRef} className="w-full h-full z-0" />
             
             {/* Floating Locate Me Button Overlay */}
