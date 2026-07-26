@@ -19,6 +19,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { 
     Search, 
     MapPin, 
@@ -30,7 +32,8 @@ import {
     Sparkles, 
     Building2, 
     ExternalLink,
-    LocateFixed
+    LocateFixed,
+    Navigation
 } from 'lucide-react';
 
 // Dynamic import for Leaflet map to prevent SSR issues
@@ -52,13 +55,17 @@ export default function CommunitiesDiscoveryPage() {
     const [communities, setCommunities] = useState<PublicCommunityData[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // GPS Location State
-    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+    // GPS & Manual Location State
+    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>({ lat: 57.3303, lng: -3.6131 }); // Default to Grantown on Spey / Highlands
+    const [locationLabel, setLocationLabel] = useState<string>('Grantown on Spey, Scotland');
+    const [customLocationQuery, setCustomLocationQuery] = useState('');
     const [isLocating, setIsLocating] = useState(false);
+    const [isSearchingLocation, setIsSearchingLocation] = useState(false);
     const [locationDenied, setLocationDenied] = useState(false);
 
     // Filters
     const [searchQuery, setSearchQuery] = useState('');
+    const [enableRadiusFilter, setEnableRadiusFilter] = useState<boolean>(false); // Default false so no communities/boundaries are hidden
     const [maxDistanceMiles, setMaxDistanceMiles] = useState<number>(60);
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'no-leader'>('all');
     const [selectedRegion, setSelectedRegion] = useState<string>('all');
@@ -95,24 +102,47 @@ export default function CommunitiesDiscoveryPage() {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                setLocationLabel('Your Current Location');
                 setIsLocating(false);
                 setLocationDenied(false);
-                toast({ title: "Location Found", description: "Map centered on your current location." });
+                toast({ title: "GPS Location Found", description: "Map centered on your current position." });
             },
             (err) => {
                 console.warn("Geolocation denied or error:", err);
                 setIsLocating(false);
                 setLocationDenied(true);
-                toast({ title: "Location Access Denied", description: "Showing all communities without radius filtering.", variant: "default" });
+                toast({ title: "Using Highlands View", description: "Showing Grantown on Spey as default center. You can search any town above.", variant: "default" });
             },
             { enableHighAccuracy: true, timeout: 10000 }
         );
     };
 
-    // Auto-request GPS location on initial load
-    useEffect(() => {
-        requestGpsLocation();
-    }, []);
+    // Handle Manual Location Search (e.g. "Grantown on Spey", "Aviemore", "Blackpool", "Edinburgh")
+    const handleManualLocationSearch = async (queryText?: string) => {
+        const term = (queryText || customLocationQuery).trim();
+        if (!term) return;
+
+        setIsSearchingLocation(true);
+        try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(term + ', UK')}`);
+            const data = await response.json();
+
+            if (data && data.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lng = parseFloat(data[0].lon);
+                setUserLocation({ lat, lng });
+                setLocationLabel(data[0].display_name.split(',')[0] || term);
+                setCustomLocationQuery('');
+                toast({ title: "Location Set", description: `Map centered on ${data[0].display_name.split(',')[0] || term}` });
+            } else {
+                toast({ title: "Location Not Found", description: `Could not find "${term}". Please try a town name or postcode.`, variant: "destructive" });
+            }
+        } catch (error) {
+            toast({ title: "Search Error", description: "Failed to search location. Please try again.", variant: "destructive" });
+        } finally {
+            setIsSearchingLocation(false);
+        }
+    };
 
     // Nominatim Lazy Geocoding Background Helper
     const geocodeUnmappedCommunities = async (commList: PublicCommunityData[]) => {
@@ -188,8 +218,8 @@ export default function CommunitiesDiscoveryPage() {
             if (statusFilter === 'active' && (c.leaderCount || 0) === 0 && c.status !== 'active') return false;
             if (statusFilter === 'no-leader' && (c.leaderCount || 0) > 0) return false;
 
-            // Distance Radius Filter
-            if (userLocation && c.distance !== undefined && maxDistanceMiles < 60) {
+            // Distance Radius Filter (only applied if explicitly enabled)
+            if (enableRadiusFilter && userLocation && c.distance !== undefined) {
                 if (c.distance > maxDistanceMiles) return false;
             }
 
@@ -200,7 +230,7 @@ export default function CommunitiesDiscoveryPage() {
             }
             return a.name.localeCompare(b.name);
         });
-    }, [processedCommunities, searchQuery, selectedRegion, statusFilter, maxDistanceMiles, userLocation]);
+    }, [processedCommunities, searchQuery, selectedRegion, statusFilter, enableRadiusFilter, maxDistanceMiles, userLocation]);
 
     // Switch Community Handler
     const handleSwitchCommunity = async (commId: string, commName: string) => {
@@ -258,7 +288,46 @@ export default function CommunitiesDiscoveryPage() {
             {/* Filter Toolbar */}
             <Card className="border shadow-sm bg-card/60 backdrop-blur-md">
                 <CardContent className="p-4 sm:p-6 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Location Bar & Manual Location Search */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-blue-50/60 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 rounded-xl text-xs">
+                        <div className="flex items-center gap-2">
+                            <Navigation className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                            <span>Map Centered On: <strong className="text-blue-900 dark:text-blue-200 text-sm">{locationLabel}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="relative flex-1 sm:w-64">
+                                <Input
+                                    placeholder="Set town/postcode (e.g. Grantown on Spey)..."
+                                    value={customLocationQuery}
+                                    onChange={(e) => setCustomLocationQuery(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleManualLocationSearch()}
+                                    className="h-8 text-xs bg-background"
+                                />
+                            </div>
+                            <Button 
+                                size="sm" 
+                                variant="default"
+                                onClick={() => handleManualLocationSearch()}
+                                disabled={isSearchingLocation || !customLocationQuery.trim()}
+                                className="h-8 text-xs shrink-0"
+                            >
+                                {isSearchingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Set Location"}
+                            </Button>
+                            <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={requestGpsLocation} 
+                                disabled={isLocating}
+                                className="h-8 text-xs shrink-0 gap-1 bg-background"
+                                title="Use GPS location"
+                            >
+                                {isLocating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5 text-blue-600" />}
+                                <span className="hidden md:inline">Use GPS</span>
+                            </Button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {/* Text Search */}
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -298,39 +367,38 @@ export default function CommunitiesDiscoveryPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-
-                        {/* GPS Location Button */}
-                        <div>
-                            <Button 
-                                variant={userLocation ? "secondary" : "outline"} 
-                                onClick={requestGpsLocation} 
-                                disabled={isLocating}
-                                className="w-full gap-2"
-                            >
-                                {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4 text-primary" />}
-                                {userLocation ? "Location Updated" : "Use My Location"}
-                            </Button>
-                        </div>
                     </div>
 
-                    {/* Radius Slider (Only shown if user location is available) */}
-                    {userLocation && (
-                        <div className="pt-2 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm">
-                            <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-blue-500" />
-                                <span>Search Radius: <strong>{maxDistanceMiles >= 60 ? 'Any distance (UK wide)' : `${maxDistanceMiles} miles`}</strong></span>
-                            </div>
-                            <div className="w-full sm:w-64">
-                                <Slider
-                                    value={[maxDistanceMiles]}
-                                    min={10}
-                                    max={60}
-                                    step={5}
-                                    onValueChange={(val) => setMaxDistanceMiles(val[0])}
-                                />
-                            </div>
+                    {/* Optional Radius Slider Toggle */}
+                    <div className="pt-2 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox 
+                                id="radius-filter" 
+                                checked={enableRadiusFilter} 
+                                onCheckedChange={(checked) => setEnableRadiusFilter(!!checked)} 
+                            />
+                            <Label htmlFor="radius-filter" className="text-xs cursor-pointer font-medium">
+                                Filter list by distance radius from {locationLabel.split(',')[0]}
+                            </Label>
                         </div>
-                    )}
+
+                        {enableRadiusFilter && (
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                    Radius: <strong>{maxDistanceMiles} miles</strong>
+                                </span>
+                                <div className="w-full sm:w-48">
+                                    <Slider
+                                        value={[maxDistanceMiles]}
+                                        min={5}
+                                        max={60}
+                                        step={5}
+                                        onValueChange={(val) => setMaxDistanceMiles(val[0])}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </CardContent>
             </Card>
 
@@ -340,6 +408,7 @@ export default function CommunitiesDiscoveryPage() {
                 <div className="lg:col-span-7 xl:col-span-8">
                     <CommunitiesMapView
                         communities={filteredCommunities}
+                        allCommunities={processedCommunities}
                         userLocation={userLocation}
                         selectedCommunityId={selectedCommunityId}
                         onSelectCommunity={(id) => setSelectedCommunityId(id)}

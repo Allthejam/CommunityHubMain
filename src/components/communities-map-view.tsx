@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 
 interface CommunitiesMapViewProps {
     communities: (PublicCommunityData & { distance?: number })[];
+    allCommunities?: PublicCommunityData[];
     userLocation: { lat: number; lng: number } | null;
     selectedCommunityId: string | null;
     onSelectCommunity: (id: string) => void;
@@ -37,15 +38,20 @@ export function getCentroidFromGeoJson(geoJsonStr: string): { lat: number; lng: 
     try {
         const geojson = JSON.parse(geoJsonStr);
         let coords: [number, number][] = [];
-        if (geojson.type === 'Feature' && geojson.geometry) {
-            if (geojson.geometry.type === 'Polygon') {
-                coords = geojson.geometry.coordinates[0];
-            } else if (geojson.geometry.type === 'MultiPolygon') {
-                coords = geojson.geometry.coordinates[0][0];
-            }
+
+        if (geojson.type === 'FeatureCollection' && geojson.features && geojson.features.length > 0) {
+            const geom = geojson.features[0].geometry;
+            if (geom.type === 'Polygon') coords = geom.coordinates[0];
+            else if (geom.type === 'MultiPolygon') coords = geom.coordinates[0][0];
+        } else if (geojson.type === 'Feature' && geojson.geometry) {
+            if (geojson.geometry.type === 'Polygon') coords = geojson.geometry.coordinates[0];
+            else if (geojson.geometry.type === 'MultiPolygon') coords = geojson.geometry.coordinates[0][0];
         } else if (geojson.type === 'Polygon') {
             coords = geojson.coordinates[0];
+        } else if (geojson.type === 'MultiPolygon') {
+            coords = geojson.coordinates[0][0];
         }
+
         if (!coords || coords.length === 0) return null;
         
         let sumLat = 0;
@@ -62,6 +68,7 @@ export function getCentroidFromGeoJson(geoJsonStr: string): { lat: number; lng: 
 
 export default function CommunitiesMapView({
     communities,
+    allCommunities,
     userLocation,
     selectedCommunityId,
     onSelectCommunity,
@@ -223,20 +230,26 @@ export default function CommunitiesMapView({
 
                 markersLayerRef.current?.addLayer(marker);
                 markersMapRef.current.set(community.id, marker);
+            });
 
-                // Draw GeoJSON boundary polygon if available
-                if (community.boundary) {
+            // Render ALL GeoJSON boundary polygons across all communities so no borders are lost
+            const boundarySource = (allCommunities && allCommunities.length > 0) ? allCommunities : communities;
+            boundarySource.forEach(c => {
+                if (c.boundary) {
                     try {
-                        const geojson = JSON.parse(community.boundary);
-                        L.geoJSON(geojson, {
+                        const geojson = JSON.parse(c.boundary);
+                        const isActive = c.status === 'active' || (c.leaderCount || 0) > 0;
+                        const polyColor = isActive ? '#10b981' : '#f59e0b';
+                        const poly = L.geoJSON(geojson, {
                             style: {
-                                color: pinColor,
-                                weight: 2,
-                                opacity: 0.7,
-                                fillColor: pinColor,
-                                fillOpacity: 0.15
+                                color: polyColor,
+                                weight: 2.5,
+                                opacity: 0.85,
+                                fillColor: polyColor,
+                                fillOpacity: 0.2
                             }
-                        }).addTo(markersLayerRef.current!);
+                        }).bindTooltip(`<b>${c.name}</b><br/>${c.region || ''}`, { permanent: false, direction: 'center' });
+                        markersLayerRef.current?.addLayer(poly);
                     } catch (e) {
                         // ignore malformed geojson
                     }
@@ -245,7 +258,7 @@ export default function CommunitiesMapView({
         };
 
         updateMarkers();
-    }, [isMapReady, communities, userLocation]);
+    }, [isMapReady, communities, allCommunities, userLocation]);
 
     // Handle selection from list
     useEffect(() => {
