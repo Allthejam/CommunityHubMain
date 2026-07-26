@@ -283,13 +283,46 @@ export default function UserProfilePage() {
                 setLoadingFavourites(false);
             }
 
-            if (userProfile.communityRoles && Object.keys(userProfile.communityRoles).length > 0 && db) {
+            const isLeaderAccount = userProfile.accountType === 'leader' || ['president', 'leader', 'vice-president'].includes(userProfile.role || '');
+            
+            if (isLeaderAccount && db) {
+                const fetchHubs = async () => {
+                    setLoadingHubs(true);
+                    try {
+                        const roleHubIds = Object.keys(userProfile.communityRoles || {});
+                        const memberHubIds = userProfile.memberOf || [];
+                        const homeHubId = userProfile.homeCommunityId;
+                        const currentHubId = userProfile.communityId;
+                        
+                        const allHubIds = Array.from(new Set([
+                            ...roleHubIds,
+                            ...memberHubIds,
+                            homeHubId,
+                            currentHubId
+                        ].filter(Boolean) as string[]));
+                        
+                        if (allHubIds.length > 0) {
+                            const hubsQuery = query(collection(db, 'communities'), where(documentId(), 'in', allHubIds.slice(0, 10)));
+                            const snapshot = await getDocs(hubsQuery);
+                            const hubsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunityDetails));
+                            setLeadershipHubs(hubsData);
+                        } else {
+                            setLeadershipHubs([]);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching leadership hubs:", error);
+                    } finally {
+                        setLoadingHubs(false);
+                    }
+                };
+                fetchHubs();
+            } else if (userProfile.communityRoles && Object.keys(userProfile.communityRoles).length > 0 && db) {
                 const fetchHubs = async () => {
                     setLoadingHubs(true);
                     try {
                         const hubIds = Object.keys(userProfile.communityRoles!);
                         if (hubIds.length > 0) {
-                            const hubsQuery = query(collection(db, 'communities'), where(documentId(), 'in', hubIds));
+                            const hubsQuery = query(collection(db, 'communities'), where(documentId(), 'in', hubIds.slice(0, 10)));
                             const snapshot = await getDocs(hubsQuery);
                             const hubsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunityDetails));
                             setLeadershipHubs(hubsData);
