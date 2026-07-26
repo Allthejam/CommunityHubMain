@@ -11,8 +11,9 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { updateUserFavouriteCommunitiesAction } from '@/lib/actions/userActions';
+import { updateUserFavouriteCommunitiesAction, returnToHomeCommunityAction } from '@/lib/actions/userActions';
 import { type Notification } from '@/lib/types/notifications';
+import { Loader2 } from 'lucide-react';
 
 export function WelcomeCards() {
   const { user, isUserLoading } = useUser();
@@ -108,6 +109,22 @@ export function WelcomeCards() {
     // and then update user settings. For this component, we'll link to the settings page.
     console.log("Redirecting to settings to enable notifications...");
   }
+
+  const [isReturning, setIsReturning] = useState(false);
+  const isVisiting = !!(userProfile?.homeCommunityId && userProfile?.communityId && userProfile.homeCommunityId !== userProfile.communityId);
+  const homeCommName = userProfile?.homeCommunityName || 'Home Community';
+
+  const handleReturnHome = async () => {
+    if (!user) return;
+    setIsReturning(true);
+    const res = await returnToHomeCommunityAction({ userId: user.uid });
+    setIsReturning(false);
+    if (res.success) {
+        toast({ title: "Returned Home", description: `You are now back at your home community (${res.communityName}).` });
+    } else {
+        toast({ title: "Error", description: res.error, variant: "destructive" });
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -219,7 +236,11 @@ export function WelcomeCards() {
       <Card className='border-0 md:border rounded-none md:rounded-lg'>
          <CardHeader className="p-4 md:p-6 pb-2 flex-row items-center justify-between">
             <CardTitle className="text-xl">
-                {isNationalAdvertiser ? "National Advertiser View" : "Your Home Community"}
+                {isNationalAdvertiser
+                  ? "National Advertiser View"
+                  : isVisiting
+                  ? "📍 Visiting Community Hub"
+                  : "Your Home Community"}
             </CardTitle>
             {!isNationalAdvertiser && (
                 <Button variant="ghost" size="icon" onClick={handleToggleFavourite}>
@@ -239,11 +260,32 @@ export function WelcomeCards() {
                     <p>Use the user menu to visit other communities.</p>
                 </div>
             ) : (
-                <div className="flex flex-col items-start gap-2">
-                    <p className="text-muted-foreground">
-                        You are viewing the <span className="font-semibold text-foreground">{userProfile?.communityName || 'Community'}</span> hub.
+                <div className="flex flex-col items-start gap-3">
+                    <p className="text-muted-foreground text-sm">
+                        {isVisiting ? (
+                            <>
+                                You are currently visiting the <span className="font-bold text-foreground">{userProfile?.communityName || 'Community'}</span> hub.
+                            </>
+                        ) : (
+                            <>
+                                You are viewing your home community: <span className="font-bold text-foreground">{userProfile?.communityName || 'Community'}</span>.
+                            </>
+                        )}
                     </p>
-                    <Button variant="outline" asChild>
+
+                    {isVisiting && (
+                        <div className="w-full p-3 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 flex flex-col sm:flex-row items-center justify-between gap-2">
+                            <span className="text-xs text-amber-900 dark:text-amber-200 font-medium">
+                                Home Hub: <strong>{homeCommName}</strong>
+                            </span>
+                            <Button size="sm" variant="default" className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-8 whitespace-nowrap" onClick={handleReturnHome} disabled={isReturning}>
+                                {isReturning && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                                Return to {homeCommName}
+                            </Button>
+                        </div>
+                    )}
+
+                    <Button variant="outline" size="sm" asChild>
                       <Link href={`/community/${userProfile?.communityId}/about`}>Want to know about this community</Link>
                     </Button>
                 </div>
