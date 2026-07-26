@@ -260,29 +260,26 @@ export function WelcomeCards() {
                     <p>Use the user menu to visit other communities.</p>
                 </div>
             ) : (
-                <div className="flex flex-col items-start gap-3">
-                    <p className="text-muted-foreground text-sm">
-                        {isVisiting ? (
-                            <>
-                                You are currently visiting the <span className="font-bold text-foreground">{userProfile?.communityName || 'Community'}</span> hub.
-                            </>
-                        ) : (
-                            <>
-                                You are viewing your home community: <span className="font-bold text-foreground">{userProfile?.communityName || 'Community'}</span>.
-                            </>
-                        )}
-                    </p>
-
-                    {isVisiting && (
-                        <div className="w-full p-3 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 flex flex-col sm:flex-row items-center justify-between gap-2">
-                            <span className="text-xs text-amber-900 dark:text-amber-200 font-medium">
-                                Home Hub: <strong>{homeCommName}</strong>
-                            </span>
-                            <Button size="sm" variant="default" className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-8 whitespace-nowrap" onClick={handleReturnHome} disabled={isReturning}>
-                                {isReturning && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                                Return to {homeCommName}
-                            </Button>
+                <div className="flex flex-col items-start gap-3 w-full">
+                    {isVisiting ? (
+                        <div className="space-y-2 text-sm w-full">
+                            <p className="text-muted-foreground">
+                                You are viewing the community of <strong className="text-foreground font-bold">"{userProfile?.communityName || 'Community'}"</strong>
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Your Home Community: <strong className="text-emerald-700 dark:text-emerald-400 font-bold">{homeCommName}</strong>
+                            </p>
+                            <div className="pt-1">
+                                <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs shadow-sm h-8" onClick={handleReturnHome} disabled={isReturning}>
+                                    {isReturning && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                                    Return to Home Community
+                                </Button>
+                            </div>
                         </div>
+                    ) : (
+                        <p className="text-muted-foreground text-sm">
+                            You are viewing your home community: <span className="font-bold text-foreground">{userProfile?.communityName || 'Community'}</span>.
+                        </p>
                     )}
 
                     <Button variant="outline" size="sm" asChild>

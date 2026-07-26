@@ -17,7 +17,9 @@ import { LostAndFoundFeed } from '@/components/lost-and-found-feed';
 import { NewsFeed } from '@/components/news-feed';
 import { PollsSnippet } from '@/components/polls-snippet';
 import { Loader2 } from 'lucide-react';
-import { NoLeaderAlert } from '@/components/no-leader-alert';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { returnToHomeCommunityAction } from '@/lib/actions/userActions';
 import { LocalBusinessesFeed } from '@/components/local-businesses-feed';
 import { ProductsFeed } from '@/components/products-feed';
 import { CommunityAdverts } from '@/components/community-adverts';
@@ -140,11 +142,48 @@ export default function HomePage() {
     
   const standardAnnouncements = allAnnouncements.filter(a => a.type === "Standard");
 
+  const { toast } = useToast();
+  const [isReturning, setIsReturning] = useState(false);
+
+  const isVisiting = !!(userProfile?.homeCommunityId && userProfile?.communityId && userProfile.homeCommunityId !== userProfile.communityId);
+  const homeCommName = userProfile?.homeCommunityName || 'Show Home Community, "Display Only"';
+
+  const handleReturnHome = async () => {
+    if (!user) return;
+    setIsReturning(true);
+    const res = await returnToHomeCommunityAction({ userId: user.uid });
+    setIsReturning(false);
+    if (res.success) {
+        toast({ title: "Returned Home", description: `You are now back at your home community (${res.communityName}).` });
+    } else {
+        toast({ title: "Error", description: res.error, variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-6 md:space-y-8">
+      {isVisiting && (
+        <div className="mx-4 md:mx-0 p-4 rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-xl">📍</span>
+            <div>
+              <p className="font-bold text-base">
+                You are currently visiting the <span className="underline decoration-amber-400 font-extrabold">{userProfile?.communityName || (activeCommunity as any)?.name}</span> hub.
+              </p>
+              <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
+                Your Home Community is: <strong className="font-semibold">{homeCommName}</strong>
+              </p>
+            </div>
+          </div>
+          <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs px-4 h-9 shadow-sm whitespace-nowrap" onClick={handleReturnHome} disabled={isReturning}>
+            {isReturning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Return to Home Community
+          </Button>
+        </div>
+      )}
+
       <div className='px-4 md:px-0'>
           <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
-          {userProfile?.accountType !== 'national' && <NoLeaderAlert communityId={activeCommunityId} userProfile={userProfile} />}
       </div>
       <WelcomeCards />
       
