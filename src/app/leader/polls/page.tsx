@@ -381,7 +381,8 @@ export default function LeaderPollsPage() {
   const filterCategories = React.useMemo(() => {
     const list = [{ value: 'all', label: '✨ All Topics' }];
     pCategories.forEach((cat) => {
-      list.push({ value: cat, label: getCategoryLabel(cat) });
+      const valStr = typeof cat === 'string' ? cat : (cat.id || cat.name || JSON.stringify(cat));
+      list.push({ value: valStr, label: getCategoryLabel(cat) });
     });
     return list;
   }, [pCategories]);
