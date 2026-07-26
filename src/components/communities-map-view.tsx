@@ -288,21 +288,6 @@ export default function CommunitiesMapView({
 
             <div ref={mapContainerRef} className="w-full h-full z-0" />
             
-            {/* Floating Locate Me Button Overlay */}
-            <Button
-                size="sm"
-                onClick={handleLocateMe}
-                disabled={isLocating}
-                className="absolute top-4 right-4 z-[500] shadow-lg bg-background/95 backdrop-blur-md text-foreground hover:bg-accent border font-semibold text-xs gap-2 transition-all duration-200"
-            >
-                {isLocating ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                ) : (
-                    <LocateFixed className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                )}
-                <span>Locate Me</span>
-            </Button>
-            
             {/* Map Legend Floating Card */}
             <div className="absolute bottom-4 left-4 z-10 bg-background/95 backdrop-blur-md p-3 rounded-xl border shadow-md text-xs space-y-1.5 hidden sm:block">
                 <div className="font-semibold text-slate-700 dark:text-slate-200 mb-1">Map Legend</div>

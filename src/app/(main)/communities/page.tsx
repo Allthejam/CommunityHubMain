@@ -9,7 +9,8 @@ import {
 } from '@/lib/actions/communityActions';
 import { calculateDistanceMiles, getCentroidFromGeoJson } from '@/components/communities-map-view';
 import { updateUserCommunityAction } from '@/lib/actions/userActions';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -245,16 +246,86 @@ export default function CommunitiesDiscoveryPage() {
         }
     };
 
+    const db = useFirestore();
+    const [dbCountries, setDbCountries] = useState<{ id: string; name: string }[]>([]);
+    const [dbStates, setDbStates] = useState<{ id: string; name: string; parent?: string }[]>([]);
+    const [dbRegions, setDbRegions] = useState<{ id: string; name: string; parent?: string }[]>([]);
+
+    // 1. Fetch 250+ Countries from locations collection
+    useEffect(() => {
+        if (!db) return;
+        const q = query(collection(db, "locations"), where("type", "==", "country"));
+        const unsub = onSnapshot(q, (snapshot) => {
+            const countryList = snapshot.docs.map(doc => ({ id: doc.id, name: (doc.data().name || '').trim() })).sort((a, b) => {
+                const popular = ['United Kingdom', 'United States'];
+                const aIsPopular = popular.indexOf(a.name);
+                const bIsPopular = popular.indexOf(b.name);
+                if (aIsPopular > -1 && bIsPopular > -1) return aIsPopular - bIsPopular;
+                if (aIsPopular > -1) return -1;
+                if (bIsPopular > -1) return 1;
+                return a.name.localeCompare(b.name);
+            });
+            setDbCountries(countryList);
+        });
+        return () => unsub();
+    }, [db]);
+
+    // Selected Country Location Doc
+    const selectedCountryDoc = useMemo(() => {
+        if (selectedCountry === 'all') return null;
+        return dbCountries.find(c => c.name.toLowerCase() === selectedCountry.toLowerCase() || c.id === selectedCountry);
+    }, [dbCountries, selectedCountry]);
+
+    // 2. Fetch States/Constituents based on selected Country ID
+    useEffect(() => {
+        if (!db || !selectedCountryDoc) {
+            setDbStates([]);
+            return;
+        }
+        const q = query(collection(db, "locations"), where("type", "==", "state"), where("parent", "==", selectedCountryDoc.id));
+        const unsub = onSnapshot(q, (snapshot) => {
+            const stateList = snapshot.docs.map(doc => ({ id: doc.id, name: (doc.data().name || '').trim(), parent: doc.data().parent })).sort((a, b) => a.name.localeCompare(b.name));
+            setDbStates(stateList);
+        });
+        return () => unsub();
+    }, [db, selectedCountryDoc]);
+
+    // Selected State Location Doc
+    const selectedStateDoc = useMemo(() => {
+        if (selectedState === 'all') return null;
+        return dbStates.find(s => s.name.toLowerCase() === selectedState.toLowerCase() || s.id === selectedState);
+    }, [dbStates, selectedState]);
+
+    // 3. Fetch Regions based on selected State ID
+    useEffect(() => {
+        if (!db || !selectedStateDoc) {
+            setDbRegions([]);
+            return;
+        }
+        const q = query(collection(db, "locations"), where("type", "==", "region"), where("parent", "==", selectedStateDoc.id));
+        const unsub = onSnapshot(q, (snapshot) => {
+            const regionList = snapshot.docs.map(doc => ({ id: doc.id, name: (doc.data().name || '').trim(), parent: doc.data().parent })).sort((a, b) => a.name.localeCompare(b.name));
+            setDbRegions(regionList);
+        });
+        return () => unsub();
+    }, [db, selectedStateDoc]);
+
     // Dynamic Cascading Location Lists
     const availableCountries = useMemo(() => {
+        if (dbCountries.length > 0) {
+            return dbCountries.map(c => c.name);
+        }
         const set = new Set<string>(['United Kingdom', 'United States']);
         communities.forEach(c => {
             if (c.country) set.add(c.country);
         });
         return Array.from(set).sort();
-    }, [communities]);
+    }, [dbCountries, communities]);
 
     const availableStates = useMemo(() => {
+        if (dbStates.length > 0) {
+            return dbStates.map(s => s.name);
+        }
         const set = new Set<string>();
         communities.forEach(c => {
             const matchCountry = selectedCountry === 'all' || (c.country && c.country.toLowerCase() === selectedCountry.toLowerCase());
@@ -263,9 +334,12 @@ export default function CommunitiesDiscoveryPage() {
             }
         });
         return Array.from(set).sort();
-    }, [communities, selectedCountry]);
+    }, [dbStates, communities, selectedCountry]);
 
     const availableRegions = useMemo(() => {
+        if (dbRegions.length > 0) {
+            return dbRegions.map(r => r.name);
+        }
         const set = new Set<string>();
         communities.forEach(c => {
             const matchCountry = selectedCountry === 'all' || (c.country && c.country.toLowerCase() === selectedCountry.toLowerCase());
@@ -275,7 +349,7 @@ export default function CommunitiesDiscoveryPage() {
             }
         });
         return Array.from(set).sort();
-    }, [communities, selectedCountry, selectedState]);
+    }, [dbRegions, communities, selectedCountry, selectedState]);
 
     const availableTargetCommunities = useMemo(() => {
         return communities.filter(c => {
