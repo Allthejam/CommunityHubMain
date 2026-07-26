@@ -165,40 +165,47 @@ export function WelcomeCards() {
           </div>
         </CardContent>
          {!isLoading && (unvotedPolls.length > 0 || unsignedPetitions.length > 0) && (
-            <CardFooter className="p-4 md:p-6 pt-0 border-t mt-4 flex flex-col gap-4">
-                {unvotedPolls.length > 0 && (
-                    <div className="w-full">
-                        <div className="flex items-center gap-2 mb-2">
-                            <BadgeHelp className="h-5 w-5 text-indigo-500"/>
-                            <h4 className="font-semibold text-sm">Have Your Say!</h4>
+            <CardFooter className="p-4 md:p-6 pt-0 border-t mt-4 w-full">
+                <div className={cn(
+                    "grid grid-cols-1 gap-6 w-full",
+                    unvotedPolls.length > 0 && unsignedPetitions.length > 0 ? "md:grid-cols-2 md:divide-x md:divide-slate-100" : ""
+                )}>
+                    {unvotedPolls.length > 0 && (
+                        <div className="w-full">
+                            <div className="flex items-center gap-2 mb-2">
+                                <BadgeHelp className="h-5 w-5 text-indigo-500"/>
+                                <h4 className="font-semibold text-sm">Have Your Say!</h4>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                                {unvotedPolls.length === 1 
+                                  ? "There's a new community poll waiting for your vote." 
+                                  : `You have ${unvotedPolls.length} community polls waiting for your vote.`}
+                            </p>
+                            <Button asChild className="w-full h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
+                                <Link href="/polls">View & Vote</Link>
+                            </Button>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-3">
-                            {unvotedPolls.length === 1 
-                              ? "There's a new community poll waiting for your vote." 
-                              : `You have ${unvotedPolls.length} community polls waiting for your vote.`}
-                        </p>
-                        <Button asChild className="w-full h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
-                            <Link href="/polls">View & Vote</Link>
-                        </Button>
-                    </div>
-                )}
-                {unvotedPolls.length > 0 && unsignedPetitions.length > 0 && <hr className="w-full border-slate-100" />}
-                {unsignedPetitions.length > 0 && (
-                    <div className="w-full">
-                        <div className="flex items-center gap-2 mb-2">
-                            <FileText className="h-5 w-5 text-emerald-500"/>
-                            <h4 className="font-semibold text-sm">Support Local Campaigns</h4>
+                    )}
+                    {unsignedPetitions.length > 0 && (
+                        <div className={cn(
+                            "w-full",
+                            unvotedPolls.length > 0 ? "md:pl-6" : ""
+                        )}>
+                            <div className="flex items-center gap-2 mb-2">
+                                <FileText className="h-5 w-5 text-emerald-500"/>
+                                <h4 className="font-semibold text-sm">Support Local Campaigns</h4>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                                {unsignedPetitions.length === 1 
+                                  ? "There's a new petition awaiting your signature." 
+                                  : `You have ${unsignedPetitions.length} petitions awaiting your signature.`}
+                            </p>
+                            <Button asChild className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+                                <Link href="/petitions">View & Sign</Link>
+                            </Button>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-3">
-                            {unsignedPetitions.length === 1 
-                              ? "There's a new petition awaiting your signature." 
-                              : `You have ${unsignedPetitions.length} petitions awaiting your signature.`}
-                        </p>
-                        <Button asChild className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
-                            <Link href="/petitions">View & Sign</Link>
-                        </Button>
-                    </div>
-                )}
+                    )}
+                </div>
             </CardFooter>
         )}
       </Card>
