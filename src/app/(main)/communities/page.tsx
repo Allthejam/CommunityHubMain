@@ -53,6 +53,7 @@ export default function CommunitiesDiscoveryPage() {
     const { user, userProfile } = useUser();
     const { toast } = useToast();
     const router = useRouter();
+    const db = useFirestore();
 
     const [communities, setCommunities] = useState<PublicCommunityData[]>([]);
     const [loading, setLoading] = useState(true);
@@ -270,7 +271,6 @@ export default function CommunitiesDiscoveryPage() {
         }
     };
 
-    const db = useFirestore();
     const [dbCountries, setDbCountries] = useState<{ id: string; name: string }[]>([]);
     const [dbStates, setDbStates] = useState<{ id: string; name: string; parent?: string }[]>([]);
     const [dbRegions, setDbRegions] = useState<{ id: string; name: string; parent?: string }[]>([]);
