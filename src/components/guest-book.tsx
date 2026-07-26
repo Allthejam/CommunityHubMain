@@ -79,7 +79,13 @@ const StarDisplay = ({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'm
 
 // ─── Single review card (for carousel) ────────────────────────────────────────
 const ReviewCard = ({ entry, className }: { entry: any; className?: string }) => {
-    const entryDate = entry.createdAt?.toDate ? entry.createdAt.toDate() : new Date(entry.createdAt);
+    if (!entry) return null;
+
+    const entryDate = entry.createdAt?.toDate 
+        ? entry.createdAt.toDate() 
+        : entry.createdAt 
+        ? new Date(entry.createdAt) 
+        : null;
     
     const displayName = entry.isAnonymous 
         ? 'Anonymous' 
@@ -88,8 +94,8 @@ const ReviewCard = ({ entry, className }: { entry: any; className?: string }) =>
             const parts = name.trim().split(/\s+/);
             if (parts.length <= 1) return parts[0];
             const firstName = parts[0];
-            const lastInitial = parts[1][0].toUpperCase();
-            return `${firstName} ${lastInitial}.`;
+            const lastInitial = parts[1] && parts[1][0] ? parts[1][0].toUpperCase() : '';
+            return lastInitial ? `${firstName} ${lastInitial}.` : firstName;
         })();
 
     const initials = entry.isAnonymous ? 'A' : (entry.authorName || 'A').split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2);
@@ -112,10 +118,10 @@ const ReviewCard = ({ entry, className }: { entry: any; className?: string }) =>
                             </Avatar>
                             <div>
                                 <p className="font-semibold text-sm leading-tight">{displayName}</p>
-                                <p className="text-xs text-muted-foreground">{isValid(entryDate) ? format(entryDate, 'dd MMM yyyy') : ''}</p>
+                                <p className="text-xs text-muted-foreground">{entryDate && isValid(entryDate) ? format(entryDate, 'dd MMM yyyy') : ''}</p>
                             </div>
                         </div>
-                        <StarDisplay rating={entry.rating} />
+                        <StarDisplay rating={entry.rating || 5} />
                     </div>
                     <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">&ldquo;{entry.content}&rdquo;</p>
                 </div>
@@ -127,67 +133,78 @@ const ReviewCard = ({ entry, className }: { entry: any; className?: string }) =>
 // ─── Responsive Grid Carousel ────────────────────────────────────────────────
 const CascadingCarousel = ({ entries }: { entries: any[] }) => {
     const [current, setCurrent] = useState(0);
+    const validEntries = (entries || []).filter(Boolean);
+
+    useEffect(() => {
+        if (current >= validEntries.length && validEntries.length > 0) {
+            setCurrent(0);
+        }
+    }, [validEntries.length, current]);
 
     const next = () => {
-        if (entries.length <= 1) return;
-        setCurrent((c) => (c + 1) % entries.length);
+        if (validEntries.length <= 1) return;
+        setCurrent((c) => (c + 1) % validEntries.length);
     };
 
     const prev = () => {
-        if (entries.length <= 1) return;
-        setCurrent((c) => (c - 1 + entries.length) % entries.length);
+        if (validEntries.length <= 1) return;
+        setCurrent((c) => (c - 1 + validEntries.length) % validEntries.length);
     };
 
     // Auto-advance every 6s
     useEffect(() => {
-        if (entries.length <= 1) return;
+        if (validEntries.length <= 1) return;
         const interval = setInterval(() => {
-            setCurrent((c) => (c + 1) % entries.length);
+            setCurrent((c) => (c + 1) % validEntries.length);
         }, 6000);
         return () => clearInterval(interval);
-    }, [entries.length]);
+    }, [validEntries.length]);
+
+    if (!validEntries.length) return null;
+
+    const safeIndex = current % validEntries.length;
 
     return (
         <div className="relative w-full">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-center py-6">
                 {/* First card: always visible */}
-                {entries.length > 0 && (
+                {validEntries.length > 0 && (
                     <div className="transition-all duration-500 hover:scale-[1.01] h-full flex items-center">
-                        <ReviewCard entry={entries[current]} className="hover:shadow-md" />
+                        <ReviewCard entry={validEntries[safeIndex]} className="hover:shadow-md" />
                     </div>
                 )}
 
                 {/* Second card: visible on medium screens and up. In 3-column layout, it is the center card and pops. */}
-                {entries.length > 1 && (
+                {validEntries.length > 1 && (
                     <div className="hidden md:block transition-all duration-500 hover:scale-[1.01] h-full flex items-center">
                         <ReviewCard 
-                            entry={entries[(current + 1) % entries.length]} 
+                            entry={validEntries[(safeIndex + 1) % validEntries.length]} 
                             className="lg:scale-120 lg:shadow-2xl lg:shadow-black/20 lg:border-primary/40 lg:z-10 hover:lg:scale-125"
                         />
                     </div>
                 )}
 
                 {/* Third card: visible on large screens and up */}
-                {entries.length > 2 && (
+                {validEntries.length > 2 && (
                     <div className="hidden lg:block transition-all duration-500 hover:scale-[1.01] h-full flex items-center">
-                        <ReviewCard entry={entries[(current + 2) % entries.length]} className="hover:shadow-md" />
+                        <ReviewCard entry={validEntries[(safeIndex + 2) % validEntries.length]} className="hover:shadow-md" />
                     </div>
                 )}
             </div>
 
             {/* Nav buttons */}
-            {entries.length > 1 && (
+            {validEntries.length > 1 && (
                 <div className="flex items-center justify-center gap-3 mt-6">
                     <Button variant="outline" size="icon" className="rounded-full h-9 w-9" onClick={prev}>
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <div className="flex items-center gap-1.5">
-                        {entries.map((_, idx) => (
+                        {validEntries.map((_, idx) => (
                             <button
                                 key={idx}
                                 className={cn(
                                     'rounded-full transition-all duration-300',
-                                    idx === current ? 'w-5 h-2 bg-primary' : 'w-2 h-2 bg-muted-foreground/30 hover:bg-muted-foreground/60'
+                                    idx === safeIndex ? 'w-5 h-2 bg-primary' : 'w-2 h-2 bg-muted-foreground/30 hover:bg-muted-foreground/60'
                                 )}
                                 onClick={() => setCurrent(idx)}
                             />
@@ -231,9 +248,9 @@ export function GuestBook({ communityId }: { communityId: string | null }) {
             const fetched = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
             // Sort by createdAt descending client‑side
             fetched.sort((a, b) => {
-                const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-                const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
-                return bDate.getTime() - aDate.getTime();
+                const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return (isNaN(bTime) ? 0 : bTime) - (isNaN(aTime) ? 0 : aTime);
             });
             setEntries(fetched);
         } catch { setEntries([]); }

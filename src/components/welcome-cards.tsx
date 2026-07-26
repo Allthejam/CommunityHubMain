@@ -139,7 +139,7 @@ export function WelcomeCards() {
                 alt={userProfile?.name || 'User Avatar'}
               />
               <AvatarFallback>
-                {userProfile?.name ? userProfile.name.split(' ').map((n) => n[0]).join('') : <UserIcon />}
+                {userProfile?.name ? userProfile.name.split(' ').map((n: string) => n[0]).join('') : <UserIcon />}
               </AvatarFallback>
             </Avatar>
           )}
@@ -234,61 +234,78 @@ export function WelcomeCards() {
         )}
       </Card>
       <Card className='border-0 md:border rounded-none md:rounded-lg'>
-         <CardHeader className="p-4 md:p-6 pb-2 flex-row items-center justify-between">
-            <CardTitle className="text-xl">
-                {isNationalAdvertiser
-                  ? "National Advertiser View"
-                  : isVisiting
-                  ? "📍 Visiting Community Hub"
-                  : "Your Home Community"}
-            </CardTitle>
-            {!isNationalAdvertiser && (
-                <Button variant="ghost" size="icon" onClick={handleToggleFavourite}>
-                    <Heart className={cn("h-6 w-6 text-muted-foreground transition-colors", isFavourited && "fill-red-500 text-red-500")} />
-                </Button>
-            )}
-         </CardHeader>
-        <CardContent className="p-4 md:p-6 pt-0">
-           {isLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-5 w-4/5" />
-                <Skeleton className="h-10 w-1/2" />
-              </div>
-            ) : isNationalAdvertiser ? (
-                <div className="space-y-3 text-sm text-muted-foreground">
-                    <p>As a National Advertiser, you don't have a specific home community. This page serves as a preview of how your adverts will appear within a live community hub.</p>
-                    <p>Use the user menu to visit other communities.</p>
-                </div>
-            ) : (
-                <div className="flex flex-col items-start gap-3 w-full">
-                    {isVisiting ? (
-                        <div className="space-y-2 text-sm w-full">
-                            <p className="text-muted-foreground">
-                                You are viewing the community of <strong className="text-foreground font-bold">"{userProfile?.communityName || 'Community'}"</strong>
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Your Home Community: <strong className="text-emerald-700 dark:text-emerald-400 font-bold">{homeCommName}</strong>
-                            </p>
-                            <div className="pt-1">
-                                <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs shadow-sm h-8" onClick={handleReturnHome} disabled={isReturning}>
-                                    {isReturning && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                                    Return to Home Community
-                                </Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <p className="text-muted-foreground text-sm">
-                            You are viewing your home community: <span className="font-bold text-foreground">{userProfile?.communityName || 'Community'}</span>.
-                        </p>
-                    )}
-
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/community/${userProfile?.communityId}/about`}>Want to know about this community</Link>
-                    </Button>
-                </div>
-            )}
-        </CardContent>
-      </Card>
+         {isVisiting && !isNationalAdvertiser ? (
+           <>
+             <CardHeader className="p-4 md:p-6 pb-2 flex-row items-center justify-between">
+               <CardTitle className="text-xl font-bold">You are Visiting</CardTitle>
+               <Button variant="ghost" size="icon" onClick={handleToggleFavourite}>
+                   <Heart className={cn("h-6 w-6 text-muted-foreground transition-colors", isFavourited && "fill-red-500 text-red-500")} />
+               </Button>
+             </CardHeader>
+             <CardContent className="p-4 md:p-6 pt-0">
+               {isLoading ? (
+                 <div className="space-y-3">
+                   <Skeleton className="h-5 w-4/5" />
+                   <Skeleton className="h-10 w-1/2" />
+                 </div>
+               ) : (
+                 <div className="flex flex-col items-start gap-3 w-full">
+                   <p className="text-muted-foreground text-sm">
+                     You are visiting the community of <strong className="text-foreground font-bold text-base">&ldquo;{userProfile?.communityName || 'Community'}&rdquo;</strong>
+                   </p>
+                   <p className="text-xs text-muted-foreground">
+                     Your Home Community: <strong className="text-emerald-700 dark:text-emerald-400 font-bold">{homeCommName}</strong>
+                   </p>
+                   <div className="flex flex-wrap items-center gap-2 pt-1">
+                     <Button variant="outline" size="sm" asChild>
+                       <Link href={`/community/${userProfile?.communityId}/about`}>Want to know about this community</Link>
+                     </Button>
+                     <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs shadow-sm h-8" onClick={handleReturnHome} disabled={isReturning}>
+                       {isReturning && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                       Return to Home Community
+                     </Button>
+                   </div>
+                 </div>
+               )}
+             </CardContent>
+           </>
+         ) : (
+           <>
+             <CardHeader className="p-4 md:p-6 pb-2 flex-row items-center justify-between">
+               <CardTitle className="text-xl">
+                 {isNationalAdvertiser ? "National Advertiser View" : "Your Home Community"}
+               </CardTitle>
+               {!isNationalAdvertiser && (
+                 <Button variant="ghost" size="icon" onClick={handleToggleFavourite}>
+                     <Heart className={cn("h-6 w-6 text-muted-foreground transition-colors", isFavourited && "fill-red-500 text-red-500")} />
+                 </Button>
+               )}
+             </CardHeader>
+             <CardContent className="p-4 md:p-6 pt-0">
+               {isLoading ? (
+                 <div className="space-y-3">
+                   <Skeleton className="h-5 w-4/5" />
+                   <Skeleton className="h-10 w-1/2" />
+                 </div>
+               ) : isNationalAdvertiser ? (
+                 <div className="space-y-3 text-sm text-muted-foreground">
+                     <p>As a National Advertiser, you don't have a specific home community. This page serves as a preview of how your adverts will appear within a live community hub.</p>
+                     <p>Use the user menu to visit other communities.</p>
+                 </div>
+               ) : (
+                 <div className="flex flex-col items-start gap-3 w-full">
+                   <p className="text-muted-foreground text-sm">
+                     You are viewing your home community: <span className="font-bold text-foreground">{userProfile?.communityName || 'Community'}</span>.
+                   </p>
+                   <Button variant="outline" size="sm" asChild>
+                     <Link href={`/community/${userProfile?.communityId}/about`}>Want to know about this community</Link>
+                   </Button>
+                 </div>
+               )}
+             </CardContent>
+           </>
+         )}
+       </Card>
     </div>
   );
 }
