@@ -116,6 +116,7 @@ export async function updateUserCommunityAction(params: {
   try {
     const { firestore } = initializeAdminApp();
     const userRef = firestore.collection('users').doc(userId);
+    const userDoc = await userRef.get();
     const communityRef = firestore.collection('communities').doc(communityId);
 
     const communityDoc = await communityRef.get();
@@ -125,20 +126,25 @@ export async function updateUserCommunityAction(params: {
     }
 
     const communityData = communityDoc.data()!;
+    const userData = userDoc.exists ? userDoc.data() : {};
 
-    // This action now ONLY changes the user's active community for viewing purposes.
-    // It does NOT add them as a permanent member.
+    // Lock in homeCommunityId permanently so visiting another community never overwrites home community
+    const homeCommId = userData?.homeCommunityId || userData?.communityId || communityId;
+    const homeCommName = userData?.homeCommunityName || userData?.communityName || communityData.name;
+
     await userRef.set({
-      communityId: communityId,
-      communityName: communityData.name,
+      homeCommunityId: homeCommId,
+      homeCommunityName: homeCommName,
+      activeCommunityId: communityId,
+      activeCommunityName: communityData.name,
     }, { merge: true });
 
     revalidatePath('/', 'layout');
 
     return { success: true, communityName: communityData.name };
   } catch (error: any) {
-    console.error("Error updating user's community membership:", error);
-    return { success: false, error: error.message || 'Failed to update community membership.' };
+    console.error("Error updating user's active community:", error);
+    return { success: false, error: error.message || 'Failed to update active community.' };
   }
 }
 
@@ -617,8 +623,11 @@ export async function changeHomeCommunityAction(params: { userId: string; newCom
 
     await userRef.set({
       homeCommunityId: newCommunityId,
+      homeCommunityName: communityDoc.data()!.name,
       communityId: newCommunityId,
       communityName: communityDoc.data()!.name,
+      activeCommunityId: newCommunityId,
+      activeCommunityName: communityDoc.data()!.name,
       memberOf: FieldValue.arrayUnion(newCommunityId)
     }, { merge: true });
 

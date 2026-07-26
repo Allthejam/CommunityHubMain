@@ -803,8 +803,8 @@ export default function UserProfilePage() {
                                         <Input value={countryName || 'Loading...'} disabled />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Home Community</Label>
-                                        <Input value={userProfile.communityName || "N/A"} disabled />
+                                        <Label>Home Community (Locked In)</Label>
+                                        <Input value={userProfile.homeCommunityName || userProfile.communityName || "N/A"} disabled className="bg-slate-50 dark:bg-slate-900 font-semibold" />
                                     </div>
                                 </CardContent>
                                 {isOwner && (
@@ -905,33 +905,90 @@ export default function UserProfilePage() {
                                         My Leadership Hubs
                                     </CardTitle>
                                     <CardDescription>
-                                        Manage additional communities to expand your reach and revenue.
+                                        Your primary registered home hub and up to 9 additional communities under your leadership.
                                     </CardDescription>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="space-y-6">
                                     {loadingHubs ? (
                                         <div className="flex justify-center items-center h-24"><Loader2 className="h-6 w-6 animate-spin"/></div>
-                                    ) : leadershipHubs.length > 0 ? (
-                                        <Accordion type="single" collapsible className="w-full">
-                                            {leadershipHubs.map(hub => (
-                                                <AccordionItem key={hub.id} value={hub.id}>
-                                                    <AccordionTrigger>
-                                                        <div className="flex justify-between items-center w-full pr-4">
-                                                            <span>{hub.name}</span>
-                                                            <StatusBadge status={hub.status} />
-                                                        </div>
-                                                    </AccordionTrigger>
-                                                    <AccordionContent>
-                                                        <div className="flex justify-between items-center">
-                                                            <p className="text-sm text-muted-foreground">{hub.region}, {hub.state}</p>
-                                                            <Button size="sm" onClick={() => handleSwitchToFavourite(hub.id)}>Go to Dashboard</Button>
-                                                        </div>
-                                                    </AccordionContent>
-                                                </AccordionItem>
-                                            ))}
-                                        </Accordion>
                                     ) : (
-                                        <p className="text-sm text-muted-foreground text-center py-4">You are not leading any additional communities.</p>
+                                        <>
+                                            {/* 1. Main Home Community Section */}
+                                            {(() => {
+                                                const mainHomeId = userProfile.homeCommunityId || userProfile.communityId;
+                                                const mainHomeHub = leadershipHubs.find(h => h.id === mainHomeId);
+                                                const additionalHubs = leadershipHubs.filter(h => h.id !== mainHomeId);
+
+                                                return (
+                                                    <div className="space-y-6">
+                                                        <div className="p-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-3">
+                                                            <div className="flex items-center justify-between">
+                                                                <Badge className="bg-emerald-600 text-white font-semibold gap-1.5 px-3 py-1 text-xs">
+                                                                    <Home className="h-3.5 w-3.5" />
+                                                                    <span>Main Home Community (Locked)</span>
+                                                                </Badge>
+                                                                {mainHomeHub && <StatusBadge status={mainHomeHub.status} />}
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="font-bold text-base text-slate-900 dark:text-slate-100">
+                                                                    {userProfile.homeCommunityName || userProfile.communityName || mainHomeHub?.name || "Main Registered Hub"}
+                                                                </h4>
+                                                                {mainHomeHub && (
+                                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                                        {[mainHomeHub.region, mainHomeHub.state].filter(Boolean).join(', ')}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            {mainHomeHub && (
+                                                                <div className="flex justify-end pt-1">
+                                                                    <Button size="sm" variant="default" onClick={() => handleSwitchToFavourite(mainHomeHub.id)}>
+                                                                        Go to Main Dashboard
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* 2. Line Divider */}
+                                                        <div className="relative my-4">
+                                                            <div className="absolute inset-0 flex items-center">
+                                                                <Separator />
+                                                            </div>
+                                                            <div className="relative flex justify-center text-xs uppercase">
+                                                                <span className="bg-background px-3 text-muted-foreground font-semibold">
+                                                                    Additional Leadership Hubs ({additionalHubs.length} / 9)
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 3. Up to 9 Additional Leadership Hubs */}
+                                                        {additionalHubs.length > 0 ? (
+                                                            <Accordion type="single" collapsible className="w-full">
+                                                                {additionalHubs.slice(0, 9).map(hub => (
+                                                                    <AccordionItem key={hub.id} value={hub.id}>
+                                                                        <AccordionTrigger>
+                                                                            <div className="flex justify-between items-center w-full pr-4">
+                                                                                <span className="font-medium">{hub.name}</span>
+                                                                                <StatusBadge status={hub.status} />
+                                                                            </div>
+                                                                        </AccordionTrigger>
+                                                                        <AccordionContent>
+                                                                            <div className="flex justify-between items-center pt-1">
+                                                                                <p className="text-sm text-muted-foreground">{[hub.region, hub.state].filter(Boolean).join(', ')}</p>
+                                                                                <Button size="sm" variant="outline" onClick={() => handleSwitchToFavourite(hub.id)}>Go to Dashboard</Button>
+                                                                            </div>
+                                                                        </AccordionContent>
+                                                                    </AccordionItem>
+                                                                ))}
+                                                            </Accordion>
+                                                        ) : (
+                                                            <p className="text-xs text-muted-foreground text-center py-3 italic">
+                                                                No additional leadership hubs added yet. (Up to 9 additional communities allowed)
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
+                                        </>
                                     )}
                                 </CardContent>
                             </Card>
