@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Petition, PetitionCategory, PetitionStatus } from '@/lib/types/petitions';
 import { PetitionCard } from '@/components/petitions/petition-card';
-import { BarChart3, Users, Activity, CheckCircle2, Plus, X, Loader2, Play } from 'lucide-react';
+import { BarChart3, Users, Activity, CheckCircle2, Plus, X, Loader2, Play, Pause } from 'lucide-react';
 import { useFirestore, useUser, useMemoFirebase, useCollection, useDoc } from '@/firebase';
 import {
   collection,
