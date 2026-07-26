@@ -104,6 +104,7 @@ const engageSubItems = [
     { href: '/lost-and-found', label: 'Lost & Found', icon: HeartHandshake, permission: 'viewLostAndFound' },
     { href: '/charities', label: 'Charities', icon: Heart, permission: 'viewCharities' },
     { href: '/polls', label: 'Polls', icon: BadgeHelp, permission: 'viewPolls' },
+    { href: '/petitions', label: 'Petitions', icon: FileText, permission: 'viewPolls' },
     { href: '/guestbook', label: 'Guest Book', icon: BookOpen, permission: 'viewGuestBook' },
 ];
 

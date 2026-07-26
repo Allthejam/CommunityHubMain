@@ -34,6 +34,7 @@ import {
   Tv,
   X,
   BookOpen,
+  FileText,
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -110,6 +111,7 @@ const engageSubItems = [
     { href: '/lost-and-found', label: 'Lost & Found', icon: HeartHandshake },
     { href: '/charities', label: 'Charities', icon: Heart },
     { href: '/polls', label: 'Polls', icon: BadgeHelp },
+    { href: '/petitions', label: 'Petitions', icon: FileText },
     { href: '/guestbook', label: 'Guest Book', icon: BookOpen },
 ];
 

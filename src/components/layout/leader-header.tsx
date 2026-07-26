@@ -95,6 +95,7 @@ const adminSubItems = [
     { href: '/leader/marketing', label: 'Marketing', icon: Sparkles, permission: 'viewMarketing' },
     { href: '/leader/financials', label: 'Financials', icon: DollarSign, permission: 'viewFinancials' },
     { href: '/leader/polls', label: 'Polls', icon: ListTodo, permission: 'viewPolls' },
+    { href: '/leader/petitions', label: 'Petitions', icon: FileText, permission: 'viewPolls' },
     { href: '/leader/settings', label: 'Community Settings', icon: SettingsIcon, permission: 'viewSettings' },
 ];
 

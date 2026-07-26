@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
-import { User as UserIcon, Bell, BellOff, Globe, Heart, BadgeHelp } from 'lucide-react';
+import { User as UserIcon, Bell, BellOff, Globe, Heart, BadgeHelp, FileText } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -45,6 +45,21 @@ export function WelcomeCards() {
     return activePolls.filter((poll: any) => !poll.votedBy?.includes(user.uid));
   }, [activePolls, user]);
 
+  const petitionsQuery = useMemoFirebase(() => {
+    if (!communityId || !firestore) return null;
+    return query(
+        collection(firestore, `communities/${communityId}/petitions`),
+        where('status', '==', 'active'),
+        limit(5)
+    );
+  }, [communityId, firestore]);
+  const { data: activePetitions, isLoading: petitionsLoading } = useCollection(petitionsQuery);
+
+  const unsignedPetitions = React.useMemo(() => {
+    if (!activePetitions || !user) return [];
+    return activePetitions.filter((pet: any) => !pet.signedBy?.includes(user.uid));
+  }, [activePetitions, user]);
+
   const notificationsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
@@ -64,7 +79,7 @@ export function WelcomeCards() {
     }
   }, [userProfile]);
 
-  const isLoading = isUserLoading || isProfileLoading || pollsLoading || notificationsLoading;
+  const isLoading = isUserLoading || isProfileLoading || pollsLoading || notificationsLoading || petitionsLoading;
   const notificationCount = newNotifications?.length || 0;
   const isNationalAdvertiser = userProfile?.accountType === 'national';
   
@@ -149,22 +164,41 @@ export function WelcomeCards() {
             )}
           </div>
         </CardContent>
-         {!isLoading && unvotedPolls.length > 0 && (
-            <CardFooter className="p-4 md:p-6 pt-0 border-t mt-4">
-                <div className="w-full">
-                    <div className="flex items-center gap-2 mb-2">
-                        <BadgeHelp className="h-5 w-5 text-primary"/>
-                        <h4 className="font-semibold">Have Your Say!</h4>
+         {!isLoading && (unvotedPolls.length > 0 || unsignedPetitions.length > 0) && (
+            <CardFooter className="p-4 md:p-6 pt-0 border-t mt-4 flex flex-col gap-4">
+                {unvotedPolls.length > 0 && (
+                    <div className="w-full">
+                        <div className="flex items-center gap-2 mb-2">
+                            <BadgeHelp className="h-5 w-5 text-indigo-500"/>
+                            <h4 className="font-semibold text-sm">Have Your Say!</h4>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3">
+                            {unvotedPolls.length === 1 
+                              ? "There's a new community poll waiting for your vote." 
+                              : `You have ${unvotedPolls.length} community polls waiting for your vote.`}
+                        </p>
+                        <Button asChild className="w-full h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
+                            <Link href="/polls">View & Vote</Link>
+                        </Button>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                        {unvotedPolls.length === 1 
-                          ? "There's a new community poll waiting for your vote." 
-                          : `You have ${unvotedPolls.length} community polls waiting for your vote.`}
-                    </p>
-                    <Button asChild className="w-full">
-                        <Link href="/polls">View & Vote</Link>
-                    </Button>
-                </div>
+                )}
+                {unvotedPolls.length > 0 && unsignedPetitions.length > 0 && <hr className="w-full border-slate-100" />}
+                {unsignedPetitions.length > 0 && (
+                    <div className="w-full">
+                        <div className="flex items-center gap-2 mb-2">
+                            <FileText className="h-5 w-5 text-emerald-500"/>
+                            <h4 className="font-semibold text-sm">Support Local Campaigns</h4>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3">
+                            {unsignedPetitions.length === 1 
+                              ? "There's a new petition awaiting your signature." 
+                              : `You have ${unsignedPetitions.length} petitions awaiting your signature.`}
+                        </p>
+                        <Button asChild className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+                            <Link href="/petitions">View & Sign</Link>
+                        </Button>
+                    </div>
+                )}
             </CardFooter>
         )}
       </Card>
