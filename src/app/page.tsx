@@ -197,14 +197,6 @@ export default function SignInPage() {
     }
   }
 
-  if (isUserLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-  
   const hasAnnouncements = loginAnnouncementsData && loginAnnouncementsData.length > 0;
 
   return (
