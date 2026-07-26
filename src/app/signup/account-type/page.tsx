@@ -98,9 +98,9 @@ function AccountTypeItem({ acc, playingAudioId, onTogglePlay, setPlayingAudioId,
     }, [acc.audioTourId, setPlayingAudioId, audioRefs]);
 
     return (
-        <div 
-            onClick={() => router.push(acc.href)} 
-            className="p-4 rounded-lg border-2 border-border hover:border-primary/50 cursor-pointer transition-all flex items-start gap-4"
+        <Link 
+            href={acc.href} 
+            className="p-4 rounded-lg border-2 border-border hover:border-primary/50 cursor-pointer transition-all flex items-start gap-4 block"
         >
             <acc.icon className="h-8 w-8 text-primary mt-1" />
             <div className="flex-1">
@@ -110,7 +110,7 @@ function AccountTypeItem({ acc, playingAudioId, onTogglePlay, setPlayingAudioId,
             <div className="flex items-center">
                 {audioTourData?.audioUrl && (
                     <>
-                        <Button onClick={(e) => { e.stopPropagation(); onTogglePlay(acc.audioTourId); }} variant="ghost" size="icon" className="h-8 w-8">
+                        <Button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePlay(acc.audioTourId); }} variant="ghost" size="icon" className="h-8 w-8">
                             {isCurrentlyPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                         </Button>
                         <audio 
@@ -122,11 +122,11 @@ function AccountTypeItem({ acc, playingAudioId, onTogglePlay, setPlayingAudioId,
                 )}
                 <Dialog>
                     <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                             <HelpCircle className="h-5 w-5 text-muted-foreground" />
                         </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent onClick={(e) => e.stopPropagation()}>
                         <DialogHeader>
                             <DialogTitle>{acc.title}</DialogTitle>
                         </DialogHeader>
@@ -140,7 +140,7 @@ function AccountTypeItem({ acc, playingAudioId, onTogglePlay, setPlayingAudioId,
                 </Dialog>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </div>
-        </div>
+        </Link>
     );
 }
 
