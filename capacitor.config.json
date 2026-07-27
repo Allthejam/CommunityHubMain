@@ -1,0 +1,19 @@
+{
+  "appId": "uk.co.mycommunityhub.app",
+  "appName": "Community Hub",
+  "webDir": "out",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#4F46E5"
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  }
+}
