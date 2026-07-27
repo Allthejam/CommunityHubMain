@@ -738,10 +738,11 @@ function PlatformSettingsContent() {
   
   const isPoliceContactIncomplete = !policeContact.officerId;
 
-  const finalLoadingState = loading || isUserLoading || profileLoading || communityLoading || communityProfileDocLoading || appsLoading || liaisonsLoading || loadingCategories;
+  const effectiveLiaisonsLoading = approvedLiaisonUserIds.length > 0 ? liaisonsLoading : false;
+  const finalLoadingState = isUserLoading || profileLoading || (Boolean(communityId) && communityLoading);
 
   if (finalLoadingState) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /></div>
+    return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
   }
   
   const pageAccessGroup = permissionGroups.find(g => g.title === 'Page Access');
