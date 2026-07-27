@@ -27,9 +27,10 @@ import type { Map, FeatureGroup, Control as LeafletControl } from 'leaflet';
 
 interface CommunityBoundaryMapProps {
     disabled?: boolean;
+    communityId?: string;
 }
 
-const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ disabled = false }) => {
+const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ disabled = false, communityId: propCommunityId }) => {
     const mapContainerRef = React.useRef<HTMLDivElement>(null);
     const mapInstanceRef = React.useRef<Map | null>(null);
     const drawnItemsRef = React.useRef<FeatureGroup | null>(null);
@@ -53,7 +54,9 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ disabled = 
     const { toast } = useToast();
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile } = useDoc(userProfileRef);
-    const communityId = (userProfile as any)?.impersonating?.communityId || userProfile?.communityId;
+
+    const visitedCommunityId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
+    const communityId = propCommunityId || (userProfile as any)?.impersonating?.communityId || visitedCommunityId || userProfile?.activeCommunityId || userProfile?.communityId || userProfile?.homeCommunityId;
     
     const communityRef = useMemoFirebase(() => (communityId ? doc(db, 'communities', communityId) : null), [communityId, db]);
     const { data: communityData } = useDoc(communityRef);

@@ -381,14 +381,31 @@ export async function runSaveCommunityBoundary(params: {
 export async function runCheckBoundaryOverlap(params: { communityId: string; geoJson: any }): Promise<{ overlaps: boolean; reason: string; conflictingCommunityId?: string; conflictingCommunityName?: string; conflictingCommunityGeoJson?: string; }> {
     const { communityId, geoJson } = params;
 
+    const extractGeometry = (inputGeoJson: any) => {
+        if (!inputGeoJson) return null;
+        if (inputGeoJson.type === 'FeatureCollection' && inputGeoJson.features?.[0]) {
+            return inputGeoJson.features[0].geometry || inputGeoJson.features[0];
+        }
+        if (inputGeoJson.type === 'Feature' && inputGeoJson.geometry) {
+            return inputGeoJson.geometry;
+        }
+        if (inputGeoJson.coordinates) {
+            return inputGeoJson;
+        }
+        return null;
+    };
+
     const getBoundingBox = (geom: any): [number, number, number, number] => {
         let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
-        const coordinates = geom.coordinates[0]; 
-        for (const [lon, lat] of coordinates) {
-            minLon = Math.min(minLon, lon);
-            minLat = Math.min(minLat, lat);
-            maxLon = Math.max(maxLon, lon);
-            maxLat = Math.max(maxLat, lat);
+        const coords = geom.coordinates?.[0] || geom.coordinates || [];
+        for (const pt of coords) {
+            if (Array.isArray(pt) && typeof pt[0] === 'number' && typeof pt[1] === 'number') {
+                const [lon, lat] = pt;
+                minLon = Math.min(minLon, lon);
+                minLat = Math.min(minLat, lat);
+                maxLon = Math.max(maxLon, lon);
+                maxLat = Math.max(maxLat, lat);
+            }
         }
         return [minLon, minLat, maxLon, maxLat];
     };
@@ -408,11 +425,12 @@ export async function runCheckBoundaryOverlap(params: { communityId: string; geo
         
         const snapshot = await communitiesRef.where('boundary', '!=', null).get();
 
-        if (!geoJson?.geometry?.coordinates) {
-             throw new Error("Invalid GeoJSON provided for checking.");
+        const newGeom = extractGeometry(geoJson);
+        if (!newGeom || !newGeom.coordinates) {
+             return { overlaps: false, reason: "No overlaps detected." };
         }
 
-        const newBoundaryBox = getBoundingBox(geoJson.geometry);
+        const newBoundaryBox = getBoundingBox(newGeom);
 
         for (const doc of snapshot.docs) {
             if (doc.id === communityId) {
@@ -423,15 +441,16 @@ export async function runCheckBoundaryOverlap(params: { communityId: string; geo
             if (data.boundary) {
                 try {
                     const existingGeoJson = JSON.parse(data.boundary);
-                     if (!existingGeoJson?.geometry?.coordinates) {
+                    const existingGeom = extractGeometry(existingGeoJson);
+                    if (!existingGeom || !existingGeom.coordinates) {
                         continue; 
                     }
-                    const existingBoundaryBox = getBoundingBox(existingGeoJson.geometry);
+                    const existingBoundaryBox = getBoundingBox(existingGeom);
                     
                     if (doBoundingBoxesOverlap(newBoundaryBox, existingBoundaryBox)) {
                         return {
                             overlaps: true,
-                            reason: `Boundary may overlap with '${data.name}'.`,
+                            reason: `Boundary overlaps with neighboring community '${data.name}'.`,
                             conflictingCommunityId: doc.id,
                             conflictingCommunityName: data.name,
                             conflictingCommunityGeoJson: data.boundary
