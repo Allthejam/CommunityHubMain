@@ -247,7 +247,8 @@ export default function AppHeader() {
       sessionStorage.setItem('visitedCommunityId', communitySelection.community);
       sessionStorage.setItem('visitedCommunityName', result.communityName);
       toast({ title: 'Community Switched!', description: `You are now viewing the ${result.communityName} hub.` });
-      window.location.reload();
+      router.push('/home');
+      router.refresh();
     } else {
       toast({ title: 'Switch Failed', description: result.error || 'Could not switch communities.', variant: 'destructive' });
     }
@@ -262,7 +263,8 @@ export default function AppHeader() {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
       toast({ title: 'Returned Home' });
-      window.location.reload();
+      router.push('/home');
+      router.refresh();
     } else {
       toast({ title: "Error Returning Home", description: result.error, variant: 'destructive' });
     }

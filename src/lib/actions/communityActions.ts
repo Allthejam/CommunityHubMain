@@ -133,7 +133,7 @@ export async function claimCommunityLeadershipAction(params: { userId: string, c
                 role: 'president',
                 title: 'President',
                 communityId: communityId,
-                homeCommunityId: communityId,
+                onboardingCompleted: false, // Trigger onboarding for the newly claimed community
                 memberOf: FieldValue.arrayUnion(communityId),
                 communityRoles: {
                     [communityId]: {
