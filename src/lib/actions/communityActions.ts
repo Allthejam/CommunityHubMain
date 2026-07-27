@@ -129,10 +129,10 @@ export async function claimCommunityLeadershipAction(params: { userId: string, c
             
             const finalStatus = communityData?.status;
 
-            transaction.set(userRef, {
+            const userData = userDoc.data();
+            const userUpdates: Record<string, any> = {
                 role: 'president',
                 title: 'President',
-                communityId: communityId,
                 onboardingCompleted: false, // Trigger onboarding for the newly claimed community
                 memberOf: FieldValue.arrayUnion(communityId),
                 communityRoles: {
@@ -146,7 +146,17 @@ export async function claimCommunityLeadershipAction(params: { userId: string, c
                         leader: true
                     }
                 }
-            }, { merge: true });
+            };
+
+            // Protect permanent home community! Only set if user has no home community yet.
+            if (!userData?.homeCommunityId) {
+                userUpdates.homeCommunityId = communityId;
+                userUpdates.homeCommunityName = communityData?.name;
+                userUpdates.communityId = communityId;
+                userUpdates.communityName = communityData?.name;
+            }
+
+            transaction.set(userRef, userUpdates, { merge: true });
 
             transaction.update(communityRef, {
                 leaderCount: FieldValue.increment(1),

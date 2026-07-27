@@ -295,10 +295,10 @@ export function WelcomeCards() {
                ) : (
                  <div className="flex flex-col items-start gap-3 w-full">
                    <p className="text-muted-foreground text-sm">
-                     You are viewing your home community: <span className="font-bold text-foreground">{userProfile?.communityName || 'Community'}</span>.
+                     You are viewing your home community: <span className="font-bold text-foreground">{userProfile?.homeCommunityName || userProfile?.communityName || 'Community'}</span>.
                    </p>
                    <Button variant="outline" size="sm" asChild>
-                     <Link href={`/community/${userProfile?.communityId}/about`}>Want to know about this community</Link>
+                     <Link href={`/community/${userProfile?.homeCommunityId || userProfile?.communityId}/about`}>Want to know about this community</Link>
                    </Button>
                  </div>
                )}
