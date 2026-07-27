@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -85,13 +83,31 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ disabled = 
             try {
                 const L = await import('leaflet');
                 await import('leaflet-draw');
+
+                // Fix Leaflet marker icon paths in Next.js
+                delete (L.Icon.Default.prototype as any)._getIconUrl;
+                L.Icon.Default.mergeOptions({
+                    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                });
+
                 if (mapContainerRef.current && !(mapContainerRef.current as any)._leaflet_id) {
-                    map = L.map(mapContainerRef.current).setView([54.5, -4], 5);
+                    map = L.map(mapContainerRef.current, {
+                        zoomControl: true,
+                        scrollWheelZoom: true,
+                    }).setView([54.5, -4], 5);
                     mapInstanceRef.current = map;
+
                     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
                         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                     }).addTo(map);
+
                     setIsMapReady(true);
+
+                    setTimeout(() => {
+                        map.invalidateSize();
+                    }, 250);
                 }
             } catch (error) {
                 console.error("Failed to load Leaflet modules:", error);
@@ -143,6 +159,10 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ disabled = 
             });
             map.addControl(drawControlRef.current);
         }
+
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 300);
         
         const onDrawCreated = (e: any) => {
             drawnItemsRef.current?.clearLayers();
@@ -191,11 +211,12 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ disabled = 
         if (!address || !mapInstanceRef.current) return;
         setIsSearching(true);
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${address}`);
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
             const data = await response.json();
             if (data && data.length > 0) {
                 const { lat, lon } = data[0];
-                mapInstanceRef.current?.setView([lat, lon], 13);
+                mapInstanceRef.current?.setView([parseFloat(lat), parseFloat(lon)], 13);
+                setTimeout(() => mapInstanceRef.current?.invalidateSize(), 200);
             } else {
                 toast({ variant: 'destructive', title: 'Location not found' });
             }
@@ -264,7 +285,14 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ disabled = 
       };
     
     const handleOverlapCheck = async () => {
-        if (!boundaryData || !communityId) return;
+        if (!boundaryData) {
+            toast({ variant: 'destructive', title: 'No Boundary Drawn', description: 'Please draw a boundary on the map first.' });
+            return;
+        }
+        if (!communityId) {
+            toast({ variant: 'destructive', title: 'Community Not Found', description: 'Could not identify active community.' });
+            return;
+        }
 
         setIsChecking(true);
         overlapLayerRef.current?.clearLayers();
@@ -316,6 +344,7 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ disabled = 
     const handleShowMyBoundary = () => {
         if (drawnItemsRef.current && drawnItemsRef.current.getLayers().length > 0) {
             mapInstanceRef.current?.fitBounds(drawnItemsRef.current.getBounds());
+            setTimeout(() => mapInstanceRef.current?.invalidateSize(), 200);
         } else {
             toast({ variant: 'destructive', title: 'No Boundary', description: 'You have not drawn or saved a boundary for this community yet.' });
         }
@@ -333,7 +362,39 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ disabled = 
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 w-full">
+            {/* Scoped CSS to prevent Tailwind from distorting Leaflet map tiles and controls */}
+            <style jsx global>{`
+                .leaflet-container {
+                    width: 100% !important;
+                    height: 400px !important;
+                    position: relative !important;
+                    z-index: 1 !important;
+                    overflow: hidden !important;
+                    border-radius: 0.5rem !important;
+                }
+                .leaflet-tile-container img {
+                    max-width: none !important;
+                    max-height: none !important;
+                    width: auto !important;
+                    height: auto !important;
+                }
+                .leaflet-control-container {
+                    position: absolute !important;
+                    z-index: 10 !important;
+                }
+                .leaflet-top, .leaflet-bottom {
+                    position: absolute !important;
+                    z-index: 10 !important;
+                }
+                .leaflet-pane {
+                    z-index: 1 !important;
+                }
+                .leaflet-draw-toolbar a {
+                    background-color: #ffffff !important;
+                }
+            `}</style>
+
             <form onSubmit={handleSearch} className="flex gap-2">
                 <Input 
                     placeholder="Enter an address or city to jump to location..."
@@ -347,87 +408,61 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ disabled = 
                     Search
                 </Button>
             </form>
-            <div className={cn("relative z-[1]", disabled && "pointer-events-none opacity-70")}>
-                <div ref={mapContainerRef} style={{ height: '400px', width: '100%' }} className="rounded-lg border bg-muted" />
+
+            <div className={cn("relative z-0 overflow-hidden rounded-lg border bg-muted min-h-[400px] w-full isolate", disabled && "pointer-events-none opacity-70")}>
+                <div ref={mapContainerRef} style={{ height: '400px', width: '100%', position: 'relative' }} className="w-full h-[400px] overflow-hidden rounded-lg" />
             </div>
+
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Info className="h-4 w-4 shrink-0" />
                 <p>{getInstructionText()}</p>
             </div>
+
             <div className="flex justify-between items-start flex-wrap gap-4">
                 {overlapResult?.overlaps && !isBoundaryModified && (
                     <Alert variant="destructive" className="flex-1 min-w-[250px] bg-red-50 dark:bg-red-900/20">
                         <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Overlap Detected</AlertTitle>
-                        <AlertDescription>
-                            {overlapResult.reason}
-                            <div className="flex items-center space-x-2 mt-4">
-                                <Checkbox id="acknowledge-overlap" onCheckedChange={(checked) => setAcknowledgeOverlap(checked as boolean)} />
-                                <Label htmlFor="acknowledge-overlap" className="text-xs">I acknowledge the overlap and agree to share this area.</Label>
+                        <AlertTitle>Boundary Overlap Detected</AlertTitle>
+                        <AlertDescription className="space-y-2 text-xs">
+                            <p>{overlapResult.reason}</p>
+                            <p>You can either adjust your boundary to remove the overlap, or check the box below to acknowledge the shared territory and log a dispute for platform review.</p>
+                            <div className="flex items-center space-x-2 pt-2">
+                                <Checkbox 
+                                    id="acknowledge-overlap" 
+                                    checked={acknowledgeOverlap} 
+                                    onCheckedChange={(checked) => setAcknowledgeOverlap(checked as boolean)}
+                                />
+                                <Label htmlFor="acknowledge-overlap" className="text-xs font-semibold cursor-pointer">
+                                    I acknowledge this overlap and wish to save anyway.
+                                </Label>
                             </div>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="link" size="sm" className="p-0 h-auto text-xs mt-2 text-destructive">What to do if you dispute this?</Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Resolving a Boundary Dispute</DialogTitle>
-                                    </DialogHeader>
-                                    <div className="py-4 space-y-4 text-sm">
-                                        <div className="flex items-start gap-4">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold flex-shrink-0">1</div>
-                                            <div>
-                                                <h4 className="font-semibold">Contact the Other Leader</h4>
-                                                <p className="text-muted-foreground">First, try to resolve this directly. Contact the leader for the community of "{overlapResult?.conflictingCommunityName}".</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-start gap-4">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold flex-shrink-0">2</div>
-                                            <div>
-                                                <h4 className="font-semibold">Discuss & Resolve</h4>
-                                                <p className="text-muted-foreground">Discuss the overlapping boundary lines and come to a mutual resolution. One or both of you may need to adjust your boundaries.</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-start gap-4">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold flex-shrink-0">3</div>
-                                            <div>
-                                                <h4 className="font-semibold">Contact Admins if Unresolved</h4>
-                                                <p className="text-muted-foreground">If you cannot reach a resolution, please contact the platform administrators via the "Community Boundary Dispute" category on the Report an Issue page.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <Button asChild><Link href={`/report-issue?tab=platform&subject=Community%20Boundary%20Dispute`}>Contact Admins</Link></Button>
-                                        <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                        </AlertDescription>
-                    </Alert>
-                )}
-                {overlapResult && !overlapResult.overlaps && !isBoundaryModified && (
-                    <Alert variant="default" className="flex-1 min-w-[250px] bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-                        <Check className="h-4 w-4 text-green-600" />
-                        <AlertTitle className="text-green-800 dark:text-green-300">No Overlaps Found</AlertTitle>
-                        <AlertDescription className="text-green-700 dark:text-green-400">
-                            {overlapResult.reason}
                         </AlertDescription>
                     </Alert>
                 )}
 
-                <div className="flex gap-2 ml-auto self-end flex-wrap">
-                    <Button variant="secondary" onClick={handleShowAll} disabled={isFetchingAll}>
+                {overlapResult && !overlapResult.overlaps && !isBoundaryModified && (
+                     <Alert className="flex-1 min-w-[250px] bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300">
+                        <Check className="h-4 w-4 text-emerald-600" />
+                        <AlertTitle>Boundary Validated!</AlertTitle>
+                        <AlertDescription className="text-xs">
+                            No overlaps were found with neighboring communities. You can now save your boundary.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                <div className="flex items-center gap-2 flex-wrap ml-auto">
+                    <Button variant="outline" size="sm" onClick={handleShowMyBoundary} disabled={disabled}>
+                        Focus My Boundary
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleShowAll} disabled={isFetchingAll || disabled}>
                         {isFetchingAll && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Show All Boundaries
+                        Show Neighboring Boundaries
                     </Button>
-                    <Button variant="secondary" onClick={handleShowMyBoundary} disabled={!boundaryData}>
-                        Show My Boundary
-                    </Button>
-                    <Button variant="outline" onClick={handleOverlapCheck} disabled={!boundaryData || isChecking || disabled}>
+                    <Button variant="secondary" size="sm" onClick={handleOverlapCheck} disabled={isChecking || !boundaryData || disabled}>
                         {isChecking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Check for Overlaps
                     </Button>
-                    <Button onClick={handleSaveBoundary} disabled={!canSave || isSaving || disabled}>
+                    <Button size="sm" onClick={handleSaveBoundary} disabled={isSaving || !canSave || disabled}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save Boundary
                     </Button>
