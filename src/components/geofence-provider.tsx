@@ -55,6 +55,23 @@ export function GeofenceProvider({ children }: { children: React.ReactNode }) {
     return profileMuted.includes(enteredCommunity.id) || localMutedGeofences.includes(enteredCommunity.id);
   }, [enteredCommunity, userProfile, localMutedGeofences]);
 
+  // Trigger a device notification if system notifications are allowed
+  React.useEffect(() => {
+    if (enteredCommunity && !isMuted) {
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(`Welcome to ${enteredCommunity.name}!`, {
+            body: `You've entered the ${enteredCommunity.name} community. Tap to view local updates or switch view.`,
+            icon: 'https://i.postimg.cc/HnhWpVyt/HubLogo192x192.png',
+            tag: `geofence-${enteredCommunity.id}`,
+          });
+        } catch (e) {
+          console.error('System notification error:', e);
+        }
+      }
+    }
+  }, [enteredCommunity, isMuted]);
+
   const handleSwitchCommunity = () => {
     if (!enteredCommunity) return;
 

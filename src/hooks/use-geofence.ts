@@ -89,11 +89,11 @@ export function useGeofence(currentCommunityId: string | null, enabled: boolean 
       setError(err.message);
     };
 
-    // Watch position in low-power/high-accuracy config
+    // Watch position in high-accuracy real-time config
     watchId = navigator.geolocation.watchPosition(successHandler, errorHandler, {
-      enableHighAccuracy: false, // false uses less battery, sufficient for community entry
-      timeout: 30000,
-      maximumAge: 60000, // cache for 1 minute
+      enableHighAccuracy: true, // High accuracy GPS for real-time movement tracking while driving
+      timeout: 10000,           // 10 second timeout
+      maximumAge: 5000,         // Cache for 5 seconds so position updates rapidly while travelling
     });
 
     return () => {
