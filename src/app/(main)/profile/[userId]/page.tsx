@@ -34,6 +34,7 @@ import {
     Info,
     FileText,
 } from "lucide-react";
+import { UserCalendar } from "@/components/profile/user-calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -1008,6 +1009,7 @@ export default function UserProfilePage() {
                                     )}
                                 </CardContent>
                             </Card>
+                            <UserCalendar userId={userId as string} isOwner={isOwner} />
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
@@ -1089,18 +1091,6 @@ export default function UserProfilePage() {
                                     ) : (
                                         <p className="text-sm text-muted-foreground text-center py-4">You haven't added any communities to your favourites yet.</p>
                                     )}
-                                </CardContent>
-                            </Card>
-                            <Card className="md:col-span-1">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <CalendarIcon className="h-6 w-6 text-primary" />
-                                        My Calendar
-                                    </CardTitle>
-                                    <CardDescription>Your personal schedule of community events.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                <p className="text-sm text-muted-foreground">Calendar functionality will be added in a future update.</p>
                                 </CardContent>
                             </Card>
                         </div>
