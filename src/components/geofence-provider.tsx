@@ -26,6 +26,28 @@ export function GeofenceProvider({ children }: { children: React.ReactNode }) {
 
   const [currentCommunityId, setCurrentCommunityId] = React.useState<string | null>(null);
   const [localMutedGeofences, setLocalMutedGeofences] = React.useState<string[]>([]);
+  const [dismissedGeofences, setDismissedGeofences] = React.useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('dismissedGeofences');
+        return stored ? JSON.parse(stored) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  const dismissCommunityGeofence = React.useCallback((commId: string) => {
+    setDismissedGeofences(prev => {
+      if (prev.includes(commId)) return prev;
+      const next = [...prev, commId];
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('dismissedGeofences', JSON.stringify(next));
+      }
+      return next;
+    });
+  }, []);
 
   // Synchronize active community ID from session storage or profile
   React.useEffect(() => {
@@ -48,12 +70,12 @@ export function GeofenceProvider({ children }: { children: React.ReactNode }) {
   const isGeofenceEnabled = userProfile?.settings?.geofenceEnabled !== false;
   const { enteredCommunity, setEnteredCommunity } = useGeofence(currentCommunityId, isGeofenceEnabled);
 
-  // Determine if the detected entry community has been muted
+  // Determine if the detected entry community has been muted or dismissed
   const isMuted = React.useMemo(() => {
     if (!enteredCommunity) return false;
     const profileMuted = userProfile?.mutedGeofences || [];
-    return profileMuted.includes(enteredCommunity.id) || localMutedGeofences.includes(enteredCommunity.id);
-  }, [enteredCommunity, userProfile, localMutedGeofences]);
+    return profileMuted.includes(enteredCommunity.id) || localMutedGeofences.includes(enteredCommunity.id) || dismissedGeofences.includes(enteredCommunity.id);
+  }, [enteredCommunity, userProfile, localMutedGeofences, dismissedGeofences]);
 
   // Trigger a device notification if system notifications are allowed
   React.useEffect(() => {
@@ -75,21 +97,26 @@ export function GeofenceProvider({ children }: { children: React.ReactNode }) {
   const handleSwitchCommunity = () => {
     if (!enteredCommunity) return;
 
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('visitedCommunityId', enteredCommunity.id);
-      setEnteredCommunity(null);
-      
-      toast({
-        title: 'Community Switched',
-        description: `Welcome to the ${enteredCommunity.name} community page!`,
-      });
+    const targetId = enteredCommunity.id;
+    const targetName = enteredCommunity.name;
 
-      // Redirect to home and trigger a refresh to reload context
-      router.push('/home');
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
+    // Immediately mark as dismissed for this session so popups stop
+    dismissCommunityGeofence(targetId);
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('visitedCommunityId', targetId);
     }
+    
+    setEnteredCommunity(null);
+    setCurrentCommunityId(targetId);
+
+    toast({
+      title: 'Community Switched',
+      description: `Welcome to the ${targetName} community page!`,
+    });
+
+    router.push('/home');
+    router.refresh();
   };
 
   const handleMuteCommunity = async () => {
@@ -97,6 +124,8 @@ export function GeofenceProvider({ children }: { children: React.ReactNode }) {
 
     const targetId = enteredCommunity.id;
     const targetName = enteredCommunity.name;
+
+    dismissCommunityGeofence(targetId);
 
     // Save to LocalStorage immediately
     const updatedLocal = [...localMutedGeofences, targetId];
@@ -121,6 +150,9 @@ export function GeofenceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleDismiss = () => {
+    if (enteredCommunity) {
+      dismissCommunityGeofence(enteredCommunity.id);
+    }
     setEnteredCommunity(null);
   };
 

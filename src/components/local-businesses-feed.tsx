@@ -166,7 +166,10 @@ export function LocalBusinessesFeed({ communityId }: { communityId: string | nul
   
   const accommodationCategoryValues = useMemo(() => accommodationCategories.map(c => c.value), []);
   
-  const overallLoading = businessesLoading || couriersLoading || communityLoading || profileLoading;
+  const effectiveBusinessesLoading = communityId ? businessesLoading : false;
+  const effectiveCouriersLoading = courierId ? couriersLoading : false;
+  const effectiveCommunityLoading = communityId ? communityLoading : false;
+  const overallLoading = effectiveBusinessesLoading || effectiveCouriersLoading || effectiveCommunityLoading || profileLoading;
   
   useEffect(() => {
     if (overallLoading) {

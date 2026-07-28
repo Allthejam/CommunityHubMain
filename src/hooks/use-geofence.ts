@@ -53,8 +53,21 @@ export function useGeofence(currentCommunityId: string | null, enabled: boolean 
           const isInside = isPointInPolygon(latitude, longitude, polygon as [number, number][]);
           
           if (isInside) {
-            // We are inside this community! Check if it's different from the active one
-            if (community.id !== currentCommunityId) {
+            // We are inside this community! Check if it's different from the active one and not dismissed in this session
+            let isDismissedInSession = false;
+            if (typeof window !== 'undefined') {
+              try {
+                const storedDismissed = sessionStorage.getItem('dismissedGeofences');
+                if (storedDismissed) {
+                  const list = JSON.parse(storedDismissed);
+                  if (Array.isArray(list) && list.includes(community.id)) {
+                    isDismissedInSession = true;
+                  }
+                }
+              } catch (e) {}
+            }
+
+            if (community.id !== currentCommunityId && !isDismissedInSession) {
               setEnteredCommunity({ id: community.id, name: community.name });
               return; // Trigger only one community detection at a time
             }

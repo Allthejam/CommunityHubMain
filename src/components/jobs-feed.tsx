@@ -53,7 +53,7 @@ export function JobsFeed({ communityId }: { communityId: string | null }) {
   const jobs = React.useMemo(() => rawJobs?.filter(filterExpired) || [], [rawJobs, filterExpired]);
   const seekers = React.useMemo(() => rawSeekers?.filter(filterExpired) || [], [rawSeekers, filterExpired]);
 
-  const loading = jobsLoading || seekersLoading;
+  const loading = communityId ? (jobsLoading || seekersLoading) : false;
 
   return (
     <Card>

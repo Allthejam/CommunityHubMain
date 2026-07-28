@@ -80,7 +80,10 @@ export function WelcomeCards() {
     }
   }, [userProfile]);
 
-  const isLoading = isUserLoading || isProfileLoading || pollsLoading || notificationsLoading || petitionsLoading;
+  const effectivePollsLoading = communityId ? pollsLoading : false;
+  const effectivePetitionsLoading = communityId ? petitionsLoading : false;
+  const effectiveNotificationsLoading = user ? notificationsLoading : false;
+  const isLoading = isUserLoading || isProfileLoading || effectivePollsLoading || effectiveNotificationsLoading || effectivePetitionsLoading;
   const notificationCount = newNotifications?.length || 0;
   const isNationalAdvertiser = userProfile?.accountType === 'national';
   
