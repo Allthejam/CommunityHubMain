@@ -413,7 +413,7 @@ export function WelcomeCards() {
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="font-bold text-sm text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                              <Sparkles className="h-4 w-4 text-amber-600" />
+                              <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
                               You are visiting &ldquo;{currentCommName}&rdquo;
                             </p>
                             <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
@@ -422,11 +422,11 @@ export function WelcomeCards() {
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <Button size="sm" variant="outline" asChild className="text-xs h-8">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 w-full">
+                          <Button size="sm" variant="outline" asChild className="text-xs h-8 w-full sm:w-auto justify-center">
                             <Link href={`/community/${currentCommId}/about`}>About {currentCommName}</Link>
                           </Button>
-                          <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-8 font-semibold shadow-xs" onClick={handleReturnHome} disabled={isReturning}>
+                          <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-8 font-semibold shadow-xs w-full sm:w-auto justify-center" onClick={handleReturnHome} disabled={isReturning}>
                             {isReturning && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                             Return to Home ({homeCommName})
                           </Button>
@@ -437,12 +437,12 @@ export function WelcomeCards() {
                         <p className="text-sm text-muted-foreground">
                           You are currently viewing your home community hub: <strong className="text-foreground font-bold">{homeCommName}</strong>.
                         </p>
-                        <div className="flex items-center gap-2 pt-1">
-                          <Button variant="outline" size="sm" asChild className="text-xs h-8">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 w-full">
+                          <Button variant="outline" size="sm" asChild className="text-xs h-8 w-full sm:w-auto justify-center">
                             <Link href={`/community/${currentCommId}/about`}>About {homeCommName}</Link>
                           </Button>
-                          <Button variant="secondary" size="sm" className="text-xs h-8 gap-1.5" onClick={handleSyncLocation} disabled={isSyncingLocation}>
-                            {isSyncingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Locate className="h-3.5 w-3.5 text-primary" />}
+                          <Button variant="secondary" size="sm" className="text-xs h-8 gap-1.5 w-full sm:w-auto justify-center" onClick={handleSyncLocation} disabled={isSyncingLocation}>
+                            {isSyncingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Locate className="h-3.5 w-3.5 text-primary shrink-0" />}
                             <span>Sync My Location</span>
                           </Button>
                         </div>
