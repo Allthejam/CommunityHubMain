@@ -333,50 +333,58 @@ export function WelcomeCards() {
       </Card>
 
       {/* Right Card: Interactive Community & Holiday Maker Guide with Location Sync */}
-      <Card className="border-0 md:border rounded-none md:rounded-lg flex flex-col justify-between">
-        <Tabs defaultValue="overview" className="w-full flex-grow flex flex-col justify-between">
+      <Card className="border-0 md:border rounded-none md:rounded-lg flex flex-col justify-between overflow-hidden max-w-full">
+        <Tabs defaultValue="overview" className="w-full flex-grow flex flex-col justify-between max-w-full">
           <div>
-            <CardHeader className="p-4 md:p-6 pb-2 flex flex-row items-center justify-between gap-2">
-              <div>
-                <CardTitle className="text-xl font-bold flex items-center gap-2">
-                  {isVisiting ? (
-                    <span className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                      <MapPin className="h-5 w-5 animate-bounce" />
-                      Visiting {currentCommName}
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <Globe className="h-5 w-5 text-primary" />
-                      {isNationalAdvertiser ? "National View" : homeCommName}
-                    </span>
-                  )}
-                </CardTitle>
-                <CardDescription className="text-xs mt-0.5">
-                  {isVisiting ? `Hub context: ${currentCommName} (Home: ${homeCommName})` : `Your primary home community hub`}
-                </CardDescription>
-              </div>
+            <CardHeader className="p-4 md:p-6 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 max-w-full">
+              <div className="flex items-center justify-between w-full sm:w-auto">
+                <div>
+                  <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
+                    {isVisiting ? (
+                      <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                        <MapPin className="h-5 w-5 animate-bounce shrink-0" />
+                        Visiting {currentCommName}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5">
+                        <Globe className="h-5 w-5 text-primary shrink-0" />
+                        {isNationalAdvertiser ? "National View" : homeCommName}
+                      </span>
+                    )}
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-0.5">
+                    {isVisiting ? `Hub context: ${currentCommName} (Home: ${homeCommName})` : `Your primary home community hub`}
+                  </CardDescription>
+                </div>
 
-              <div className="flex items-center gap-1 shrink-0">
                 {!isNationalAdvertiser && (
-                  <Button variant="ghost" size="icon" onClick={handleToggleFavourite} title="Toggle Favourite">
+                  <Button variant="ghost" size="icon" className="sm:hidden shrink-0" onClick={handleToggleFavourite} title="Toggle Favourite">
                     <Heart className={cn("h-5 w-5 text-muted-foreground transition-colors", isFavourited && "fill-red-500 text-red-500")} />
                   </Button>
                 )}
-                <TabsList className="h-8 p-1">
-                  <TabsTrigger value="overview" className="text-xs px-2.5 h-6">
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
+                {!isNationalAdvertiser && (
+                  <Button variant="ghost" size="icon" className="hidden sm:inline-flex shrink-0" onClick={handleToggleFavourite} title="Toggle Favourite">
+                    <Heart className={cn("h-5 w-5 text-muted-foreground transition-colors", isFavourited && "fill-red-500 text-red-500")} />
+                  </Button>
+                )}
+                <TabsList className="h-9 p-1 grid grid-cols-2 w-full sm:w-auto">
+                  <TabsTrigger value="overview" className="text-xs px-2.5 h-7">
                     Overview
                   </TabsTrigger>
                   <TabsTrigger 
                     value="holiday_maker" 
-                    className="text-xs px-2.5 h-6 gap-1 font-semibold text-purple-700 dark:text-purple-300"
+                    className="text-xs px-2.5 h-7 gap-1 font-semibold text-purple-700 dark:text-purple-300"
                     onClick={() => {
                       if (!detectedCommunity && !isSyncingLocation) {
                         handleSyncLocation();
                       }
                     }}
                   >
-                    <Palmtree className="h-3.5 w-3.5 text-purple-500" />
-                    Visitor Guide
+                    <Palmtree className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                    <span>Visitor Guide</span>
                   </TabsTrigger>
                 </TabsList>
               </div>
