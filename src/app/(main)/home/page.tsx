@@ -188,10 +188,10 @@ export default function HomePage() {
       
       <div className='px-4 md:px-0 space-y-6 md:space-y-8'>
           <AnnouncementBanners allAnnouncements={standardAnnouncements} />
-          <EventsFeed communityId={activeCommunityId} />
-          <WhatsonFeed communityId={activeCommunityId} />
-          <AccommodationFeed communityId={activeCommunityId} />
-          <LocalBusinessesFeed communityId={activeCommunityId} />
+          <div id="events" className="scroll-mt-20"><EventsFeed communityId={activeCommunityId} /></div>
+          <div id="whatson" className="scroll-mt-20"><WhatsonFeed communityId={activeCommunityId} /></div>
+          <div id="accommodation" className="scroll-mt-20"><AccommodationFeed communityId={activeCommunityId} /></div>
+          <div id="dining" className="scroll-mt-20"><LocalBusinessesFeed communityId={activeCommunityId} /></div>
           <CommunityAdverts communityId={activeCommunityId} />
           <ProductsFeed communityId={activeCommunityId} />
           <NationalAdvertisers layout="compact" />
@@ -204,7 +204,7 @@ export default function HomePage() {
             <LostAndFoundFeed communityId={activeCommunityId} />
             <BuySwapSellFeed communityId={activeCommunityId} />
           </div>
-          <HighstreetFeed communityId={activeCommunityId} />
+          <div id="shopping" className="scroll-mt-20"><HighstreetFeed communityId={activeCommunityId} /></div>
           <ValuedPartners layout="carousel" />
           <GuestBook communityId={activeCommunityId} />
       </div>

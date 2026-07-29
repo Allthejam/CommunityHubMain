@@ -222,6 +222,14 @@ export function WelcomeCards() {
     }
   };
 
+  const scrollToSection = (id: string) => {
+    if (typeof window === 'undefined') return;
+    const elem = document.getElementById(id);
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left Card: User Profile Welcome */}
@@ -504,32 +512,24 @@ export function WelcomeCards() {
 
                       {/* Visitor Feature Quick Grid */}
                       <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                        <Button variant="outline" size="sm" asChild className="justify-start gap-2 h-8 text-xs bg-background">
-                          <Link href="/home#accommodation">
-                            <Bed className="h-3.5 w-3.5 text-purple-600 shrink-0" />
-                            <span>Stays & Hotels</span>
-                          </Link>
+                        <Button variant="outline" size="sm" className="justify-start gap-2 h-8 text-xs bg-background cursor-pointer" onClick={() => scrollToSection('accommodation')}>
+                          <Bed className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                          <span>Stays & Hotels</span>
                         </Button>
 
-                        <Button variant="outline" size="sm" asChild className="justify-start gap-2 h-8 text-xs bg-background">
-                          <Link href="/home#businesses">
-                            <Utensils className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                            <span>Dining & Pubs</span>
-                          </Link>
+                        <Button variant="outline" size="sm" className="justify-start gap-2 h-8 text-xs bg-background cursor-pointer" onClick={() => scrollToSection('dining')}>
+                          <Utensils className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          <span>Dining & Pubs</span>
                         </Button>
 
-                        <Button variant="outline" size="sm" asChild className="justify-start gap-2 h-8 text-xs bg-background">
-                          <Link href="/home#whatson">
-                            <Compass className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                            <span>What's On & Sights</span>
-                          </Link>
+                        <Button variant="outline" size="sm" className="justify-start gap-2 h-8 text-xs bg-background cursor-pointer" onClick={() => scrollToSection('whatson')}>
+                          <Compass className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                          <span>What's On & Sights</span>
                         </Button>
 
-                        <Button variant="outline" size="sm" asChild className="justify-start gap-2 h-8 text-xs bg-background">
-                          <Link href="/home#highstreet">
-                            <ShoppingBag className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                            <span>Local Shopping</span>
-                          </Link>
+                        <Button variant="outline" size="sm" className="justify-start gap-2 h-8 text-xs bg-background cursor-pointer" onClick={() => scrollToSection('shopping')}>
+                          <ShoppingBag className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                          <span>Local Shopping</span>
                         </Button>
                       </div>
 
