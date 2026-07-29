@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
-import { User as UserIcon, Bell, BellOff, Globe, Heart, BadgeHelp, FileText, Palmtree, MapPin, Compass, Utensils, Bed, ShoppingBag, ArrowRight, Loader2, Sparkles, RefreshCw } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { User as UserIcon, Bell, BellOff, Globe, Heart, BadgeHelp, FileText, Palmtree, MapPin, Compass, Utensils, Bed, ShoppingBag, ArrowRight, Loader2, Sparkles, RefreshCw, Locate, Check } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -15,12 +15,21 @@ import { type Notification } from '@/lib/types/notifications';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from './ui/badge';
 
+type MappedCommunityDoc = {
+  id: string;
+  name: string;
+  boundary?: string;
+};
+
 export function WelcomeCards() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   
   const [notificationsAllowed, setNotificationsAllowed] = React.useState(true);
+  const [isSyncingLocation, setIsSyncingLocation] = React.useState(false);
+  const [detectedCommunity, setDetectedCommunity] = React.useState<{ id: string; name: string } | null>(null);
+  const [locationSyncedMessage, setLocationSyncedMessage] = React.useState<string | null>(null);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -30,6 +39,13 @@ export function WelcomeCards() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
 
   const communityId = userProfile?.communityId;
+
+  // Query all mapped communities for location detection
+  const communitiesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'communities'), where('boundary', '!=', null));
+  }, [firestore]);
+  const { data: mappedCommunities } = useCollection<MappedCommunityDoc>(communitiesQuery);
 
   const pollsQuery = useMemoFirebase(() => {
     if (!communityId || !firestore) return null;
@@ -111,6 +127,87 @@ export function WelcomeCards() {
   const homeCommName = userProfile?.homeCommunityName || 'Home Community';
   const currentCommName = userProfile?.communityName || 'Community';
   const currentCommId = userProfile?.communityId || userProfile?.homeCommunityId;
+
+  // Ray-casting algorithm to check if lat/lon is inside a boundary polygon
+  const isPointInPolygon = useCallback((lat: number, lng: number, polygon: [number, number][]): boolean => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i][0], yi = polygon[i][1];
+      const xj = polygon[j][0], yj = polygon[j][1];
+      const intersect = ((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }, []);
+
+  // Location sync trigger attached to Visitor Guide button
+  const handleSyncLocation = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      toast({ title: 'Location Error', description: 'Geolocation is not supported by your device.', variant: 'destructive' });
+      return;
+    }
+
+    setIsSyncingLocation(true);
+    setLocationSyncedMessage(null);
+    setDetectedCommunity(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        let foundMatch: { id: string; name: string } | null = null;
+
+        if (mappedCommunities && mappedCommunities.length > 0) {
+          for (const comm of mappedCommunities) {
+            if (!comm.boundary) continue;
+            try {
+              const geoJson = JSON.parse(comm.boundary);
+              const polygon = geoJson?.geometry?.coordinates?.[0];
+              if (Array.isArray(polygon) && isPointInPolygon(latitude, longitude, polygon as [number, number][])) {
+                foundMatch = { id: comm.id, name: comm.name };
+                break;
+              }
+            } catch (e) {}
+          }
+        }
+
+        setIsSyncingLocation(false);
+
+        if (foundMatch) {
+          setDetectedCommunity(foundMatch);
+          setLocationSyncedMessage(`You are in ${foundMatch.name}!`);
+          toast({
+            title: '📍 Location Detected!',
+            description: `You are currently in ${foundMatch.name}. Tap "Switch Hub" to view.`,
+          });
+        } else {
+          setDetectedCommunity(null);
+          setLocationSyncedMessage(`Location synced! No mapped community hub detected at your current coordinates.`);
+          toast({
+            title: '📍 Location Synced',
+            description: `No mapped community hub found at your location. You are on ${currentCommName}.`,
+          });
+        }
+      },
+      (error) => {
+        setIsSyncingLocation(false);
+        toast({ title: 'Location Error', description: error.message || 'Could not acquire GPS location.', variant: 'destructive' });
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  const handleSwitchToDetectedCommunity = (commId: string, commName: string) => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('visitedCommunityId', commId);
+    }
+    setDetectedCommunity(null);
+    setLocationSyncedMessage(null);
+    toast({
+      title: 'Community Switched!',
+      description: `Now displaying content for ${commName}.`,
+    });
+    window.location.reload();
+  };
 
   const handleReturnHome = async () => {
     if (!user) return;
@@ -235,7 +332,7 @@ export function WelcomeCards() {
         )}
       </Card>
 
-      {/* Right Card: Interactive Community & Holiday Maker Guide */}
+      {/* Right Card: Interactive Community & Holiday Maker Guide with Location Sync */}
       <Card className="border-0 md:border rounded-none md:rounded-lg flex flex-col justify-between">
         <Tabs defaultValue="overview" className="w-full flex-grow flex flex-col justify-between">
           <div>
@@ -269,7 +366,15 @@ export function WelcomeCards() {
                   <TabsTrigger value="overview" className="text-xs px-2.5 h-6">
                     Overview
                   </TabsTrigger>
-                  <TabsTrigger value="holiday_maker" className="text-xs px-2.5 h-6 gap-1 font-semibold text-purple-700 dark:text-purple-300">
+                  <TabsTrigger 
+                    value="holiday_maker" 
+                    className="text-xs px-2.5 h-6 gap-1 font-semibold text-purple-700 dark:text-purple-300"
+                    onClick={() => {
+                      if (!detectedCommunity && !isSyncingLocation) {
+                        handleSyncLocation();
+                      }
+                    }}
+                  >
                     <Palmtree className="h-3.5 w-3.5 text-purple-500" />
                     Visitor Guide
                   </TabsTrigger>
@@ -320,20 +425,70 @@ export function WelcomeCards() {
                           <Button variant="outline" size="sm" asChild className="text-xs h-8">
                             <Link href={`/community/${currentCommId}/about`}>About {homeCommName}</Link>
                           </Button>
+                          <Button variant="secondary" size="sm" className="text-xs h-8 gap-1.5" onClick={handleSyncLocation} disabled={isSyncingLocation}>
+                            {isSyncingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Locate className="h-3.5 w-3.5 text-primary" />}
+                            <span>Sync My Location</span>
+                          </Button>
                         </div>
                       </div>
                     )}
                   </TabsContent>
 
-                  {/* Tab 2: Holiday Makers & Visitors Guide */}
+                  {/* Tab 2: Holiday Makers & Visitors Guide with Integrated GPS Sync */}
                   <TabsContent value="holiday_maker" className="mt-0 space-y-3">
                     <div className="p-3.5 rounded-xl border bg-purple-50/60 dark:bg-purple-950/20 border-purple-200 dark:border-purple-900 space-y-3">
                       <div className="flex items-center justify-between">
                         <Badge className="bg-purple-600 text-white gap-1 text-[11px]">
                           <Palmtree className="h-3 w-3" /> Holiday Maker & Visitor Guide
                         </Badge>
-                        <span className="text-xs text-purple-700 dark:text-purple-300 font-bold">{currentCommName}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[11px] text-purple-700 dark:text-purple-300 gap-1 p-1 hover:bg-purple-100" 
+                          onClick={handleSyncLocation}
+                          disabled={isSyncingLocation}
+                        >
+                          {isSyncingLocation ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                          <span>Sync GPS Location</span>
+                        </Button>
                       </div>
+
+                      {/* Location Detection Notification */}
+                      {detectedCommunity && (
+                        <div className="p-3 rounded-lg border border-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 space-y-2">
+                          <p className="text-xs font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                            <MapPin className="h-4 w-4 text-indigo-600 animate-bounce" />
+                            Location Detected: You are currently in &ldquo;{detectedCommunity.name}&rdquo;!
+                          </p>
+                          <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                            Would you like to switch to browse the {detectedCommunity.name} community hub?
+                          </p>
+                          <div className="flex items-center gap-2 pt-1">
+                            <Button 
+                              size="sm" 
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7 px-3 font-semibold"
+                              onClick={() => handleSwitchToDetectedCommunity(detectedCommunity.id, detectedCommunity.name)}
+                            >
+                              Switch to {detectedCommunity.name}
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-xs h-7 text-muted-foreground"
+                              onClick={() => setDetectedCommunity(null)}
+                            >
+                              Dismiss
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {!detectedCommunity && locationSyncedMessage && (
+                        <p className="text-[11px] text-purple-800 dark:text-purple-300 font-medium italic flex items-center gap-1">
+                          <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          {locationSyncedMessage}
+                        </p>
+                      )}
 
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         Staying in or visiting {currentCommName}? Explore everything this community hub has mapped out for visitors:
