@@ -36,7 +36,8 @@ export function MainLayoutClientWrapper({ children }: { children: React.ReactNod
         }
     }, [user, userProfile, isUserLoading, profileLoading, router]);
 
-    const showDialog = !isUserLoading && !profileLoading && user && userProfile && !userProfile.hasSeenWelcome;
+    const hasSeenWelcomeLocally = typeof window !== 'undefined' && (localStorage.getItem('hasSeenWelcome') === 'true' || sessionStorage.getItem('hasSeenWelcome') === 'true');
+    const showDialog = !isUserLoading && !profileLoading && user && userProfile && !userProfile.hasSeenWelcome && !hasSeenWelcomeLocally;
 
     return (
         <>
