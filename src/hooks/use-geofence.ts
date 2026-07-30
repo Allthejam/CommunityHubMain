@@ -10,27 +10,72 @@ export type GeofenceCommunity = {
   boundary?: string; // stringified GeoJSON
 };
 
+const CACHE_KEY = 'cachedGeofenceCommunities_v1';
+const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export function useGeofence(currentCommunityId: string | null, enabled: boolean = true) {
   const { user } = useUser();
   const db = useFirestore();
   const [coords, setCoords] = React.useState<{ latitude: number; longitude: number } | null>(null);
   const [enteredCommunity, setEnteredCommunity] = React.useState<{ id: string; name: string } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [shouldFetchQuery, setShouldFetchQuery] = React.useState(false);
 
-  // Memoized query to fetch all communities with a valid boundary
+  // Initialize cached communities from localStorage to allow zero-network instant startup
+  const [cachedCommunities, setCachedCommunities] = React.useState<GeofenceCommunity[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(CACHE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.timestamp && (Date.now() - parsed.timestamp < CACHE_EXPIRY_MS) && Array.isArray(parsed.data)) {
+            return parsed.data;
+          }
+        }
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  // Defer database query for geofence boundaries by 3.5s so initial page load gets 100% network bandwidth
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setShouldFetchQuery(true);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Memoized query to fetch all communities with a valid boundary (deferred)
   const communitiesQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !shouldFetchQuery) return null;
     return query(collection(db, 'communities'), where('boundary', '!=', null));
-  }, [db]);
+  }, [db, shouldFetchQuery]);
 
-  const { data: communities } = useCollection<GeofenceCommunity>(communitiesQuery);
+  const { data: liveCommunities } = useCollection<GeofenceCommunity>(communitiesQuery);
+
+  // Update local cache whenever live communities arrive from database
+  React.useEffect(() => {
+    if (liveCommunities && liveCommunities.length > 0) {
+      setCachedCommunities(liveCommunities);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            timestamp: Date.now(),
+            data: liveCommunities,
+          }));
+        } catch (e) {}
+      }
+    }
+  }, [liveCommunities]);
+
+  const effectiveCommunities = (liveCommunities && liveCommunities.length > 0) ? liveCommunities : cachedCommunities;
 
   // Helper to check if a coordinate is inside a polygon (ray-casting algorithm)
   const isPointInPolygon = React.useCallback((lat: number, lng: number, polygon: [number, number][]): boolean => {
     let inside = false;
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const xi = polygon[i][0], yi = polygon[i][1]; // lon, lat
-      const xj = polygon[j][0], yj = polygon[j][1]; // lon, lat
+      const xi = polygon[i][0], yi = polygon[i][1];
+      const xj = polygon[j][0], yj = polygon[j][1];
       const intersect = ((yi > lat) !== (yj > lat))
         && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
       if (intersect) inside = !inside;
@@ -40,9 +85,9 @@ export function useGeofence(currentCommunityId: string | null, enabled: boolean 
 
   // Check current coordinates against all community boundaries
   const checkGeofences = React.useCallback((latitude: number, longitude: number) => {
-    if (!communities || communities.length === 0) return;
+    if (!effectiveCommunities || effectiveCommunities.length === 0) return;
 
-    for (const community of communities) {
+    for (const community of effectiveCommunities) {
       if (!community.boundary) continue;
 
       try {
@@ -53,7 +98,6 @@ export function useGeofence(currentCommunityId: string | null, enabled: boolean 
           const isInside = isPointInPolygon(latitude, longitude, polygon as [number, number][]);
           
           if (isInside) {
-            // We are inside this community! Check if it's different from the active one and not dismissed in this session
             let isDismissedInSession = false;
             if (typeof window !== 'undefined') {
               try {
@@ -69,7 +113,7 @@ export function useGeofence(currentCommunityId: string | null, enabled: boolean 
 
             if (community.id !== currentCommunityId && !isDismissedInSession) {
               setEnteredCommunity({ id: community.id, name: community.name });
-              return; // Trigger only one community detection at a time
+              return;
             }
           }
         }
@@ -77,7 +121,7 @@ export function useGeofence(currentCommunityId: string | null, enabled: boolean 
         console.error(`Error parsing boundary for community ${community.id}:`, err);
       }
     }
-  }, [communities, currentCommunityId, isPointInPolygon]);
+  }, [effectiveCommunities, currentCommunityId, isPointInPolygon]);
 
   React.useEffect(() => {
     if (!enabled) {
@@ -102,17 +146,16 @@ export function useGeofence(currentCommunityId: string | null, enabled: boolean 
       setError(err.message);
     };
 
-    // Watch position in high-accuracy real-time config
     watchId = navigator.geolocation.watchPosition(successHandler, errorHandler, {
-      enableHighAccuracy: true, // High accuracy GPS for real-time movement tracking while driving
-      timeout: 10000,           // 10 second timeout
-      maximumAge: 5000,         // Cache for 5 seconds so position updates rapidly while travelling
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 5000,
     });
 
     return () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
     };
-  }, [checkGeofences]);
+  }, [checkGeofences, enabled]);
 
   return {
     coords,

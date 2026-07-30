@@ -30,6 +30,8 @@ import { AccommodationFeed } from '@/components/accommodation-feed';
 import { BuySwapSellFeed } from '@/components/buy-swap-sell-feed';
 import { GuestBook } from '@/components/guest-book';
 
+import { LazyFeed } from '@/components/lazy-feed';
+
 export default function HomePage() {
   const { user, isUserLoading: authLoading } = useUser();
   const db = useFirestore();
@@ -184,29 +186,78 @@ export default function HomePage() {
           <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
           {userProfile?.accountType !== 'national' && <NoLeaderAlert communityId={activeCommunityId} userProfile={userProfile} />}
       </div>
+
+      {/* Priority 1 (Top of Page): Loads Instantly */}
       <WelcomeCards />
       
       <div className='px-4 md:px-0 space-y-6 md:space-y-8'>
           <AnnouncementBanners allAnnouncements={standardAnnouncements} />
+          
+          {/* Top Priority Feeds: Loaded Immediately */}
           <div id="events" className="scroll-mt-20"><EventsFeed communityId={activeCommunityId} /></div>
-          <div id="whatson" className="scroll-mt-20"><WhatsonFeed communityId={activeCommunityId} /></div>
-          <div id="accommodation" className="scroll-mt-20"><AccommodationFeed communityId={activeCommunityId} /></div>
-          <div id="dining" className="scroll-mt-20"><LocalBusinessesFeed communityId={activeCommunityId} /></div>
-          <CommunityAdverts communityId={activeCommunityId} />
-          <ProductsFeed communityId={activeCommunityId} />
-          <NationalAdvertisers layout="compact" />
-          <JobsFeed communityId={activeCommunityId} />
-          <EnterpriseGroupsFeed communityId={activeCommunityId} />
           <NewsFeed communityId={activeCommunityId} />
-          <PollsSnippet communityId={activeCommunityId} />
-          <LocalCharitiesFeed communityId={activeCommunityId} />
+
+          {/* Staged / Lazy Loaded Feeds: Fetched progressively as user scrolls */}
+          <LazyFeed id="whatson" className="scroll-mt-20">
+            <WhatsonFeed communityId={activeCommunityId} />
+          </LazyFeed>
+
+          <LazyFeed id="accommodation" className="scroll-mt-20">
+            <AccommodationFeed communityId={activeCommunityId} />
+          </LazyFeed>
+
+          <LazyFeed id="dining" className="scroll-mt-20">
+            <LocalBusinessesFeed communityId={activeCommunityId} />
+          </LazyFeed>
+
+          <LazyFeed>
+            <CommunityAdverts communityId={activeCommunityId} />
+          </LazyFeed>
+
+          <LazyFeed>
+            <ProductsFeed communityId={activeCommunityId} />
+          </LazyFeed>
+
+          <LazyFeed>
+            <NationalAdvertisers layout="compact" />
+          </LazyFeed>
+
+          <LazyFeed>
+            <JobsFeed communityId={activeCommunityId} />
+          </LazyFeed>
+
+          <LazyFeed>
+            <EnterpriseGroupsFeed communityId={activeCommunityId} />
+          </LazyFeed>
+
+          <LazyFeed>
+            <PollsSnippet communityId={activeCommunityId} />
+          </LazyFeed>
+
+          <LazyFeed>
+            <LocalCharitiesFeed communityId={activeCommunityId} />
+          </LazyFeed>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-            <LostAndFoundFeed communityId={activeCommunityId} />
-            <BuySwapSellFeed communityId={activeCommunityId} />
+            <LazyFeed>
+              <LostAndFoundFeed communityId={activeCommunityId} />
+            </LazyFeed>
+            <LazyFeed>
+              <BuySwapSellFeed communityId={activeCommunityId} />
+            </LazyFeed>
           </div>
-          <div id="shopping" className="scroll-mt-20"><HighstreetFeed communityId={activeCommunityId} /></div>
-          <ValuedPartners layout="carousel" />
-          <GuestBook communityId={activeCommunityId} />
+
+          <LazyFeed id="shopping" className="scroll-mt-20">
+            <HighstreetFeed communityId={activeCommunityId} />
+          </LazyFeed>
+
+          <LazyFeed>
+            <ValuedPartners layout="carousel" />
+          </LazyFeed>
+
+          <LazyFeed>
+            <GuestBook communityId={activeCommunityId} />
+          </LazyFeed>
       </div>
     </div>
   );
