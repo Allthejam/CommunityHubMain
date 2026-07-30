@@ -118,6 +118,13 @@ export default function ForumTopicDetailsPage() {
         });
       }
 
+      // 3. Increment category post count
+      if (categoryRef) {
+        await updateDoc(categoryRef, {
+          posts: increment(1),
+        });
+      }
+
       setReplyContent('');
       toast({ title: 'Reply Posted!', description: 'Your message has been added to the discussion.' });
     } catch (err: any) {

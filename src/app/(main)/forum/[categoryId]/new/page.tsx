@@ -82,10 +82,11 @@ export default function NewForumTopicPage() {
         replies: 0,
       });
 
-      // 2. Increment topic count in category document
+      // 2. Increment topic count and post count in category document
       if (categoryRef) {
         await updateDoc(categoryRef, {
           topics: increment(1),
+          posts: increment(1),
         });
       }
 

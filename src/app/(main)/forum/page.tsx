@@ -17,10 +17,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, where, doc } from "firebase/firestore";
+import { collection, query, where, doc, updateDoc } from "firebase/firestore";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { type Topic } from "@/lib/forum-data";
 
 type ForumCategory = {
   id: string;
@@ -94,7 +95,51 @@ export default function ForumPage() {
 
     const { data: categories, isLoading: dataLoading } = useCollection<ForumCategory>(categoriesQuery);
     
+    // Query all live topics to dynamically compute real-time topic and post counts
+    const topicsQuery = useMemoFirebase(() => {
+        if (!userProfile?.communityId || !db) return null;
+        return query(collection(db, "forum-topics"), where("communityId", "==", userProfile.communityId));
+    }, [db, userProfile?.communityId]);
+    const { data: allTopics } = useCollection<Topic>(topicsQuery);
+
     const loading = authLoading || profileLoading || dataLoading;
+
+    // Auto-reconcile and compute live topic and post counts for each category
+    const categoryStats = React.useMemo(() => {
+      const statsMap = new Map<string, { topicsCount: number; postsCount: number }>();
+      if (!allTopics) return statsMap;
+
+      for (const topic of allTopics) {
+        const catId = (topic as any).categoryId;
+        if (!catId) continue;
+        const current = statsMap.get(catId) || { topicsCount: 0, postsCount: 0 };
+        const repliesCount = Number((topic as any).replies) || 0;
+        statsMap.set(catId, {
+          topicsCount: current.topicsCount + 1,
+          postsCount: current.postsCount + 1 + repliesCount,
+        });
+      }
+      return statsMap;
+    }, [allTopics]);
+
+    // Auto-sync category docs in Firestore background if cached counts were outdated
+    React.useEffect(() => {
+      if (!categories || !db || !allTopics) return;
+      for (const category of categories) {
+        const stats = categoryStats.get(category.id);
+        const actualTopics = stats?.topicsCount ?? 0;
+        const actualPosts = stats?.postsCount ?? 0;
+
+        if (category.topics !== actualTopics || category.posts !== actualPosts) {
+          try {
+            updateDoc(doc(db, "forum-categories", category.id), {
+              topics: actualTopics,
+              posts: actualPosts,
+            });
+          } catch (e) {}
+        }
+      }
+    }, [categories, categoryStats, db, allTopics]);
 
     const filteredCategories = React.useMemo(() => {
       if (!categories) return [];
@@ -170,6 +215,10 @@ export default function ForumPage() {
                         {filteredCategories.map((category, index) => {
                             const accent = CATEGORY_ACCENTS[index % CATEGORY_ACCENTS.length];
                             const IconComponent = accent.icon;
+                            
+                            const stats = categoryStats.get(category.id);
+                            const topicCount = allTopics ? (stats?.topicsCount ?? 0) : (category.topics || 0);
+                            const postCount = allTopics ? (stats?.postsCount ?? 0) : (category.posts || 0);
 
                             return (
                                 <Link 
@@ -200,10 +249,10 @@ export default function ForumPage() {
                                                 <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/50 shrink-0">
                                                     <div className="flex items-center gap-2">
                                                         <Badge variant="outline" className={`text-xs px-2.5 py-1 ${accent.badgeBg}`}>
-                                                            💬 <strong className="ml-1">{category.topics || 0}</strong> Topics
+                                                            💬 <strong className="ml-1">{topicCount}</strong> {topicCount === 1 ? 'Topic' : 'Topics'}
                                                         </Badge>
                                                         <Badge variant="outline" className="text-xs px-2.5 py-1 bg-muted/60 text-muted-foreground border-border">
-                                                            ✉️ <strong className="ml-1 text-foreground">{category.posts || 0}</strong> Posts
+                                                            ✉️ <strong className="ml-1 text-foreground">{postCount}</strong> {postCount === 1 ? 'Post' : 'Posts'}
                                                         </Badge>
                                                     </div>
 
