@@ -68,18 +68,17 @@ export default function ForumTopicDetailsPage() {
   }, [categoryId, db]);
   const { data: category } = useDoc<ForumCategory>(categoryRef);
 
-  // Load Replies for Topic
+  // Load Replies for Topic (using subcollection path permitted in rules)
   const repliesQuery = useMemoFirebase(() => {
     if (!topicId || !db) return null;
     return query(
-      collection(db, 'forum-replies'),
-      where('topicId', '==', topicId),
+      collection(db, 'forum-topics', topicId, 'replies'),
       orderBy('createdAt', 'asc')
     );
   }, [topicId, db]);
   const { data: replies, isLoading: repliesLoading } = useCollection<ForumReply>(repliesQuery);
 
-  const loading = profileLoading || topicLoading || repliesLoading;
+  const loading = profileLoading || topicLoading;
 
   const handlePostReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,8 +98,8 @@ export default function ForumTopicDetailsPage() {
       const authorName = userProfile?.name || `${userProfile?.firstName || ''} ${userProfile?.lastName || ''}`.trim() || 'Community Member';
       const authorAvatar = userProfile?.avatar || '';
 
-      // 1. Add reply document
-      await addDoc(collection(db, 'forum-replies'), {
+      // 1. Add reply document into forum-topics/{topicId}/replies subcollection
+      await addDoc(collection(db, 'forum-topics', topicId, 'replies'), {
         topicId,
         categoryId,
         communityId: userProfile?.communityId || '9ayHMyZf4SRw2gof1AM9',

@@ -288,9 +288,19 @@ service cloud.firestore {
     match /forum-topics/{topicId} {
       allow read: if true;
       allow write: if isSignedIn();
+
+      match /replies/{replyId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
     }
 
     match /forum-topics/{topicId}/posts/{postId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /forum-replies/{replyId} {
       allow read: if true;
       allow write: if isSignedIn();
     }
