@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import NationalAdvertisers from '@/components/national-advertisers';
 import { ValuedPartners } from '@/components/valued-partners';
 import { UpcomingEventsFeed } from '@/components/upcoming-events-feed';
+import { NoticeboardCard } from '@/components/noticeboard-card';
 
 export default function FeedPage() {
   const { user, isUserLoading } = useUser();
@@ -143,21 +144,11 @@ export default function FeedPage() {
             )}
           </div>
         </div>
-
         {/* Right Sidebar - Independent Scroll */}
         <aside className="hidden lg:block lg:col-span-1 lg:sticky lg:top-24 space-y-6 max-height-[calc(100vh-7rem)] overflow-y-auto pl-2 custom-scrollbar">
            <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
            <UpcomingEventsFeed />
-           <Card>
-            <CardHeader>
-                <CardTitle className="text-lg">About Feed</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-sm text-muted-foreground">
-                    This is your local community town square. Share updates, news, and stay connected with your neighbors.
-                </p>
-            </CardContent>
-          </Card>
+           <NoticeboardCard />
         </aside>
       </div>
     </div>
