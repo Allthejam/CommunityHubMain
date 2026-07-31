@@ -138,7 +138,7 @@ export default function FeedPage() {
     ? allAnnouncements.filter(a => a.type === "Emergency") 
     : [];
     
-  const loading = isUserLoading || profileLoading || postsLoading || platformLoading || communityLoading;
+  const loading = isUserLoading || activeCommunityLoading || postsLoading || platformLoading || communityLoading;
 
   const visiblePosts = React.useMemo(() => {
     return posts.slice(0, displayCount);
