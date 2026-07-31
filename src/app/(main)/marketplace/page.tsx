@@ -289,6 +289,7 @@ export default function MarketplacePage() {
     );
   }, [communityId, db]);
   const { data: rawItems, isLoading: itemsLoading } = useCollection<MarketplaceItem>(marketplaceQuery);
+  const loading = isUserLoading || activeCommunityLoading || itemsLoading;
 
   const items = React.useMemo(() => {
     if (!rawItems) return [];

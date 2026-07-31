@@ -199,7 +199,7 @@ export default function JobsPage() {
     setIsDeleting(null);
   };
 
-  const loading = jobsLoading || seekersLoading || isUserLoading || profileLoading;
+  const loading = jobsLoading || seekersLoading || isUserLoading || activeCommunityLoading;
 
   return (
     <div className="space-y-8 pb-12">
