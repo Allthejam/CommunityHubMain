@@ -85,19 +85,14 @@ type Seeker = {
   expiresAt?: any;
 };
 
+import { useActiveCommunityId } from "@/hooks/use-active-community-id";
+
 export default function JobsPage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = React.useState('');
-
-  const userProfileRef = useMemoFirebase(() => {
-    if (!user || !db) return null;
-    return doc(db, 'users', user.uid);
-  }, [user, db]);
-  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-
-  const communityId = userProfile?.communityId;
+  const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
 
   const [isDeleting, setIsDeleting] = React.useState<string | null>(null);
 

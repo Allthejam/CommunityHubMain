@@ -18,20 +18,18 @@ import { Button } from '@/components/ui/button';
 const INITIAL_POST_LIMIT = 6;
 const BATCH_INCREMENT = 6;
 
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+
 export default function FeedPage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
-  
-  const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
-  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+  const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
 
   const [posts, setPosts] = React.useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = React.useState(true);
   const [displayCount, setDisplayCount] = React.useState(INITIAL_POST_LIMIT);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
-  
-  const communityId = userProfile?.communityId;
 
   // Real-time listener for community posts (staged limit for fast initial paint)
   React.useEffect(() => {

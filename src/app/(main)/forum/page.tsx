@@ -76,30 +76,26 @@ const CATEGORY_ACCENTS = [
   },
 ];
 
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+
 export default function ForumPage() {
     const { user, isUserLoading: authLoading } = useUser();
     const db = useFirestore();
     const [searchQuery, setSearchQuery] = React.useState('');
-
-    const userProfileRef = useMemoFirebase(() => {
-        if (!user || !db) return null;
-        return doc(db, 'users', user.uid);
-    }, [user, db]);
-
-    const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+    const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
 
     const categoriesQuery = useMemoFirebase(() => {
-        if (!userProfile?.communityId || !db) return null;
-        return query(collection(db, "forum-categories"), where("communityId", "==", userProfile.communityId));
-    }, [db, userProfile?.communityId]);
+        if (!communityId || !db) return null;
+        return query(collection(db, "forum-categories"), where("communityId", "==", communityId));
+    }, [db, communityId]);
 
     const { data: categories, isLoading: dataLoading } = useCollection<ForumCategory>(categoriesQuery);
     
     // Query all live topics to dynamically compute real-time topic and post counts
     const topicsQuery = useMemoFirebase(() => {
-        if (!userProfile?.communityId || !db) return null;
-        return query(collection(db, "forum-topics"), where("communityId", "==", userProfile.communityId));
-    }, [db, userProfile?.communityId]);
+        if (!communityId || !db) return null;
+        return query(collection(db, "forum-topics"), where("communityId", "==", communityId));
+    }, [db, communityId]);
     const { data: allTopics } = useCollection<Topic>(topicsQuery);
 
     const loading = authLoading || profileLoading || dataLoading;

@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from "react";
+import { useActiveCommunityId } from "@/hooks/use-active-community-id";
 import Image from "next/image";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -105,9 +106,7 @@ function BusinessDirectoryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
-  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-  const communityId = userProfile?.communityId;
+  const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
   const communityName = userProfile?.communityName;
 
   const communityRef = useMemoFirebase(() => (communityId ? doc(db, 'communities', communityId) : null), [communityId, db]);

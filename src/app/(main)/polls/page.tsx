@@ -94,6 +94,8 @@ const CATEGORIES: { value: PollCategory | 'all'; label: string }[] = [
   { value: 'regulations', label: '📜 Rules' },
 ];
 
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+
 // ─── Main page ─────────────────────────────────────────────────────────────────
 export default function PollsPage() {
   const db = useFirestore();
@@ -101,10 +103,8 @@ export default function PollsPage() {
   const [catFilter, setCatFilter]       = React.useState<PollCategory | 'all'>('all');
   const [statusFilter, setStatusFilter] = React.useState<PollStatus | 'all'>('active');
 
-  // Read the user's communityId from their Firestore profile
-  const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
-  const { data: userProfile } = useDoc(userDocRef);
-  const communityId: string | null = userProfile?.communityId ?? null;
+  // Read the active communityId (handles visiting community hubs)
+  const { communityId, userProfile, isLoading: profileLoading } = useActiveCommunityId();
 
   // Subscribe to the community's polls collection
   const pollsQuery = useMemoFirebase(

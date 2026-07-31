@@ -3,6 +3,7 @@
 "use client";
 
 import * as React from "react";
+import { useActiveCommunityId } from "@/hooks/use-active-community-id";
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,23 +87,22 @@ export default function EventsPage() {
   const [sortOption, setSortOption] = React.useState('startDate-asc');
 
 
-  const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, "users", user.uid) : null), [user, db]);
-  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+  const { communityId, isLoading: activeCommunityLoading } = useActiveCommunityId();
 
   const eventsQuery = useMemoFirebase(() => {
-    if (!userProfile?.communityId || !db) {
+    if (!communityId || !db) {
       return null;
     }
     return query(
       collection(db, "events"),
-      where("communityId", "==", userProfile.communityId),
+      where("communityId", "==", communityId),
       where("status", "in", ["Live", "Upcoming"])
     );
-  }, [db, userProfile?.communityId]);
+  }, [db, communityId]);
 
   const { data: events, isLoading: eventsLoading } = useCollection<CommunityEvent>(eventsQuery);
 
-  const loading = authLoading || profileLoading || eventsLoading;
+  const loading = authLoading || activeCommunityLoading || eventsLoading;
   
   const filteredAndSortedEvents = React.useMemo(() => {
     let filtered = events || [];

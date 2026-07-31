@@ -146,14 +146,13 @@ const LostAndFoundCard = ({ item }: { item: Item }) => {
   );
 };
 
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+
 function LostAndFoundContent() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [searchQuery, setSearchQuery] = React.useState('');
-
-  const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
-  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-  const communityId = userProfile?.communityId;
+  const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
   
   const activeItemsQuery = useMemoFirebase(() => 
     communityId && db

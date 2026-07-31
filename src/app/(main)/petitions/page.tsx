@@ -53,9 +53,9 @@ export default function PublicPetitionsPage() {
     return list;
   }, [petitionCategories]);
 
-  const userDocRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
-  const { data: userProfile } = useDoc(userDocRef);
-  const communityId = userProfile?.communityId;
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+
+  const { communityId, userProfile, isLoading: profileLoading } = useActiveCommunityId();
 
   const petitionsQuery = useMemoFirebase(
     () =>

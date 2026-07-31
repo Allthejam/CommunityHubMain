@@ -99,25 +99,25 @@ const NewsRow = ({ story }: { story: NewsStory }) => (
 );
 
 
+import { useActiveCommunityId } from "@/hooks/use-active-community-id";
+
 export default function NewsPage() {
     const { user, isUserLoading: authLoading } = useUser();
     const db = useFirestore();
-
-    const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
-    const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+    const { communityId, isLoading: activeCommunityLoading } = useActiveCommunityId();
 
     const newsQuery = useMemoFirebase(() => {
-        if (!userProfile?.communityId || !db) return null;
+        if (!communityId || !db) return null;
         return query(
             collection(db, "news"),
-            where("communityId", "==", userProfile.communityId),
+            where("communityId", "==", communityId),
             where("status", "==", "Published")
         );
-    }, [db, userProfile?.communityId]);
+    }, [db, communityId]);
 
     const { data: newsData, isLoading: newsLoading } = useCollection<NewsStory>(newsQuery);
     
-    const loading = authLoading || profileLoading || newsLoading;
+    const loading = authLoading || activeCommunityLoading || newsLoading;
 
     const [view, setView] = React.useState('grid');
     const [titleFilter, setTitleFilter] = React.useState("");

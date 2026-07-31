@@ -272,15 +272,14 @@ const MarketplaceItemCard = ({ item, onDelete }: { item: MarketplaceItem, onDele
     );
 };
 
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+
 export default function MarketplacePage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isFormOpen, setIsFormOpen] = React.useState(false);
-
-  const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
-  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-  const communityId = userProfile?.communityId;
+  const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
 
   const marketplaceQuery = useMemoFirebase(() => {
     if (!communityId || !db) return null;

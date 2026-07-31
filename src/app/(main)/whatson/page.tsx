@@ -147,29 +147,29 @@ const WhatsonRow = ({ item }: { item: WhatsonItem }) => (
 );
 
 
+import { useActiveCommunityId } from "@/hooks/use-active-community-id";
+
 export default function WhatsonPage() {
   const { user, isUserLoading: authLoading } = useUser();
   const db = useFirestore();
   const [view, setView] = React.useState('grid');
 
-
-  const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, "users", user.uid) : null), [user, db]);
-  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+  const { communityId, isLoading: activeCommunityLoading } = useActiveCommunityId();
 
   const whatsonQuery = useMemoFirebase(() => {
-    if (!userProfile?.communityId || !db) {
+    if (!communityId || !db) {
       return null;
     }
     return query(
       collection(db, "whatson"),
-      where("communityId", "==", userProfile.communityId),
+      where("communityId", "==", communityId),
       where("status", "==", "Active")
     );
-  }, [db, userProfile?.communityId]);
+  }, [db, communityId]);
 
   const { data: whatsonItems, isLoading: itemsLoading } = useCollection<WhatsonItem>(whatsonQuery);
   
-  const loading = authLoading || profileLoading || itemsLoading;
+  const loading = authLoading || activeCommunityLoading || itemsLoading;
 
   const [activeFilter, setActiveFilter] = React.useState("All");
 

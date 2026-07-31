@@ -358,31 +358,31 @@ const ApplyForListingDialog = () => {
     )
 }
 
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+
 export default function CharitiesPage() {
-  const [charities, setCharities] = useState<Charity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState("All");
-  const [view, setView] = React.useState('grid');
-  
   const { user, isUserLoading: authLoading } = useUser();
   const db = useFirestore();
+  const [view, setView] = useState('grid');
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [charities, setCharities] = useState<Charity[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
-  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+  const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
 
   const charitiesQuery = useMemoFirebase(() => {
-    if (!userProfile?.communityId || !db) return null;
+    if (!communityId || !db) return null;
     return query(
-        collection(db, "charities"),
-        where("communityId", "==", userProfile.communityId),
-        where("status", "==", "Active")
+      collection(db, "charities"),
+      where("communityId", "==", communityId),
+      where("status", "==", "Approved")
     );
-  }, [db, userProfile?.communityId]);
+  }, [db, communityId]);
 
   const { data: charitiesData, isLoading: itemsLoading } = useCollection<Charity>(charitiesQuery);
 
   useEffect(() => {
-      setLoading(authLoading || profileLoading || itemsLoading);
+      setLoading(authLoading || activeCommunityLoading || itemsLoading);
       if (charitiesData) {
           setCharities(charitiesData);
       }
