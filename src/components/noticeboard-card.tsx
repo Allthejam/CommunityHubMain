@@ -66,13 +66,33 @@ export function NoticeboardCard() {
   }, [user, firestore]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const communityId = userProfile?.communityId;
-  const homeCommName = userProfile?.homeCommunityName || 'Home Community';
-  const currentCommName = userProfile?.communityName || 'Community';
-  const currentCommId = userProfile?.communityId || userProfile?.homeCommunityId;
-  const isVisiting = !!(userProfile?.homeCommunityId && userProfile?.communityId && userProfile.homeCommunityId !== userProfile.communityId);
+  const [visitedCommunityId, setVisitedCommunityId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const visitedId = sessionStorage.getItem('visitedCommunityId');
+      if (visitedId) {
+        setVisitedCommunityId(visitedId);
+      }
+    }
+  }, []);
+
+  const homeCommId = userProfile?.homeCommunityId || userProfile?.communityId;
+  const homeCommName = userProfile?.homeCommunityName || userProfile?.communityName || 'Home Community';
+
+  const activeCommId = visitedCommunityId || userProfile?.communityId || userProfile?.homeCommunityId || '9ayHMyZf4SRw2gof1AM9';
+  const activeCommRef = useMemoFirebase(() => {
+    if (!firestore || !activeCommId) return null;
+    return doc(firestore, 'communities', activeCommId);
+  }, [firestore, activeCommId]);
+  const { data: activeCommDoc } = useDoc(activeCommRef);
+
+  const communityId = activeCommId;
+  const currentCommId = activeCommId;
+  const currentCommName = (activeCommDoc as any)?.name || (visitedCommunityId ? 'Visiting Community' : userProfile?.communityName) || 'Community';
+  const isVisiting = !!(homeCommId && currentCommId && homeCommId !== currentCommId);
   const isNationalAdvertiser = userProfile?.accountType === 'national';
-  const isFavourited = userProfile?.favouriteCommunities?.includes(userProfile?.communityId);
+  const isFavourited = userProfile?.favouriteCommunities?.includes(activeCommId);
 
   // Mapped communities for location sync
   const communitiesQuery = useMemoFirebase(() => {

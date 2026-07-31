@@ -123,10 +123,30 @@ export function WelcomeCards() {
   };
 
   const [isReturning, setIsReturning] = useState(false);
-  const isVisiting = !!(userProfile?.homeCommunityId && userProfile?.communityId && userProfile.homeCommunityId !== userProfile.communityId);
-  const homeCommName = userProfile?.homeCommunityName || 'Home Community';
-  const currentCommName = userProfile?.communityName || 'Community';
-  const currentCommId = userProfile?.communityId || userProfile?.homeCommunityId;
+  const [visitedCommunityId, setVisitedCommunityId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const visitedId = sessionStorage.getItem('visitedCommunityId');
+      if (visitedId) {
+        setVisitedCommunityId(visitedId);
+      }
+    }
+  }, []);
+
+  const homeCommId = userProfile?.homeCommunityId || userProfile?.communityId;
+  const homeCommName = userProfile?.homeCommunityName || userProfile?.communityName || 'Home Community';
+
+  const activeCommId = visitedCommunityId || userProfile?.communityId || userProfile?.homeCommunityId || '9ayHMyZf4SRw2gof1AM9';
+  const activeCommRef = useMemoFirebase(() => {
+    if (!firestore || !activeCommId) return null;
+    return doc(firestore, 'communities', activeCommId);
+  }, [firestore, activeCommId]);
+  const { data: activeCommDoc } = useDoc(activeCommRef);
+
+  const currentCommId = activeCommId;
+  const currentCommName = (activeCommDoc as any)?.name || (visitedCommunityId ? 'Visiting Community' : userProfile?.communityName) || 'Community';
+  const isVisiting = !!(homeCommId && currentCommId && homeCommId !== currentCommId);
 
   // Ray-casting algorithm to check if lat/lon is inside a boundary polygon
   const isPointInPolygon = useCallback((lat: number, lng: number, polygon: [number, number][]): boolean => {
