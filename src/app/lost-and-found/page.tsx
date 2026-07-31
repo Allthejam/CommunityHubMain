@@ -178,7 +178,7 @@ function LostAndFoundContent() {
   const { data: activeItems, isLoading: activeItemsLoading } = useCollection<Item>(activeItemsQuery);
   const { data: pendingItems, isLoading: pendingItemsLoading } = useCollection<Item>(userPendingItemsQuery);
 
-  const loading = isUserLoading || profileLoading || activeItemsLoading || pendingItemsLoading;
+  const loading = isUserLoading || activeCommunityLoading || activeItemsLoading || pendingItemsLoading;
 
   const allItems = React.useMemo(() => {
     const combined = [...(activeItems || [])];
