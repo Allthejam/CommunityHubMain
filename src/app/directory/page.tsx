@@ -154,7 +154,7 @@ function BusinessDirectoryContent() {
   const [isClient, setIsClient] = React.useState(false);
   React.useEffect(() => setIsClient(true), []);
 
-  const dataIsLoading = authLoading || profileLoading || primaryLoading || additionalLoading || couriersLoading || communityLoading;
+  const dataIsLoading = authLoading || activeCommunityLoading || primaryLoading || additionalLoading || couriersLoading || communityLoading;
   
   React.useEffect(() => {
     if (dataIsLoading || !isClient) return;
