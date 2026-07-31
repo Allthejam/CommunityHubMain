@@ -336,8 +336,6 @@ export default function MarketplacePage() {
       </div>
     );
   };
-  
-  const loading = isUserLoading || profileLoading || itemsLoading;
 
   return (
     <div className="space-y-8 pb-12">
