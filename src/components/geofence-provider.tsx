@@ -156,8 +156,8 @@ export function GeofenceProvider({ children }: { children: React.ReactNode }) {
     setEnteredCommunity(null);
   };
 
-  // Only open the dialog if we have a detected community and it's not muted
-  const isOpen = !!enteredCommunity && !isMuted;
+  // Only open the dialog if we have a detected community, it's not muted, AND user is not already viewing it
+  const isOpen = !!enteredCommunity && !isMuted && enteredCommunity.id !== currentCommunityId;
 
   return (
     <>

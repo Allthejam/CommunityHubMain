@@ -175,12 +175,21 @@ export function NoticeboardCard() {
         setIsSyncingLocation(false);
 
         if (foundMatch) {
-          setDetectedCommunity(foundMatch);
-          setLocationSyncedMessage(`You are in ${foundMatch.name}!`);
-          toast({
-            title: '📍 Location Detected!',
-            description: `You are currently in ${foundMatch.name}. Tap "Switch Hub" to view.`,
-          });
+          if (foundMatch.id === currentCommId) {
+            setDetectedCommunity(null);
+            setLocationSyncedMessage(`You are currently in ${foundMatch.name} (Active Hub)!`);
+            toast({
+              title: '📍 Location Synced!',
+              description: `You are in ${foundMatch.name}, which is your active hub.`,
+            });
+          } else {
+            setDetectedCommunity(foundMatch);
+            setLocationSyncedMessage(`You are in ${foundMatch.name}!`);
+            toast({
+              title: '📍 Location Detected!',
+              description: `You are currently in ${foundMatch.name}. Tap "Switch Hub" to view.`,
+            });
+          }
         } else {
           setDetectedCommunity(null);
           setLocationSyncedMessage(`Location synced! No mapped community hub detected at your coordinates.`);
@@ -284,14 +293,21 @@ export function NoticeboardCard() {
               <MapPin className="h-4 w-4 text-indigo-600 animate-bounce shrink-0" />
               Location Detected: You are currently in &ldquo;{detectedCommunity.name}&rdquo;!
             </p>
-            <div className="flex items-center gap-2">
-              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7 px-3 font-semibold" onClick={() => handleSwitchToDetectedCommunity(detectedCommunity.id, detectedCommunity.name)}>
-                Switch to {detectedCommunity.name}
-              </Button>
-              <Button size="sm" variant="ghost" className="text-xs h-7 text-muted-foreground" onClick={() => setDetectedCommunity(null)}>
-                Dismiss
-              </Button>
-            </div>
+            {detectedCommunity.id !== currentCommId ? (
+              <div className="flex items-center gap-2">
+                <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7 px-3 font-semibold" onClick={() => handleSwitchToDetectedCommunity(detectedCommunity.id, detectedCommunity.name)}>
+                  Switch to {detectedCommunity.name}
+                </Button>
+                <Button size="sm" variant="ghost" className="text-xs h-7 text-muted-foreground" onClick={() => setDetectedCommunity(null)}>
+                  Dismiss
+                </Button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-emerald-800 dark:text-emerald-300 font-semibold flex items-center gap-1">
+                <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                You are currently viewing the active {detectedCommunity.name} hub.
+              </p>
+            )}
           </div>
         )}
 
