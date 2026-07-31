@@ -386,7 +386,7 @@ export default function CharitiesPage() {
       if (charitiesData) {
           setCharities(charitiesData);
       }
-  }, [authLoading, profileLoading, itemsLoading, charitiesData]);
+  }, [authLoading, activeCommunityLoading, itemsLoading, charitiesData]);
 
   const categories = useMemo(() => {
     if (!charities) return ["All"];
