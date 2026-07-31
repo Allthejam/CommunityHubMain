@@ -98,7 +98,7 @@ export default function ForumPage() {
     }, [db, communityId]);
     const { data: allTopics } = useCollection<Topic>(topicsQuery);
 
-    const loading = authLoading || profileLoading || dataLoading;
+    const loading = authLoading || activeCommunityLoading || dataLoading;
 
     // Auto-reconcile and compute live topic and post counts for each category
     const categoryStats = React.useMemo(() => {
