@@ -6,6 +6,7 @@ import { PetitionCard } from '@/components/petitions/petition-card';
 import { Sparkles, Users, Layers, Award, Loader2, HelpCircle } from 'lucide-react';
 import { useFirestore, useUser, useMemoFirebase, useCollection, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
 
 // Helper to display category names nicely
 const getPetitionCategoryLabel = (cat: any) => {
@@ -52,8 +53,6 @@ export default function PublicPetitionsPage() {
     });
     return list;
   }, [petitionCategories]);
-
-import { useActiveCommunityId } from '@/hooks/use-active-community-id';
 
   const { communityId, userProfile, isLoading: profileLoading } = useActiveCommunityId();
 
