@@ -116,7 +116,6 @@ export async function updateUserCommunityAction(params: {
   try {
     const { firestore } = initializeAdminApp();
     const userRef = firestore.collection('users').doc(userId);
-    const userDoc = await userRef.get();
     const communityRef = firestore.collection('communities').doc(communityId);
 
     const communityDoc = await communityRef.get();
@@ -126,58 +125,20 @@ export async function updateUserCommunityAction(params: {
     }
 
     const communityData = communityDoc.data()!;
-    const userData = userDoc.exists ? userDoc.data() : {};
 
-    // ABSOLUTE RULE: Protect homeCommunityId & homeCommunityName.
-    // NEVER overwrite homeCommunityId or homeCommunityName if already set on the user doc!
-    const updates: Record<string, any> = {
-      activeCommunityId: communityId,
-      activeCommunityName: communityData.name,
-    };
-
-    if (!userData?.homeCommunityId) {
-      updates.homeCommunityId = userData?.communityId || communityId;
-      updates.homeCommunityName = userData?.communityName || communityData.name;
-    }
-
-    await userRef.set(updates, { merge: true });
+    // This action now ONLY changes the user's active community for viewing purposes.
+    // It does NOT add them as a permanent member.
+    await userRef.set({
+      communityId: communityId,
+      communityName: communityData.name,
+    }, { merge: true });
 
     revalidatePath('/', 'layout');
 
     return { success: true, communityName: communityData.name };
   } catch (error: any) {
-    console.error("Error updating user's active community:", error);
-    return { success: false, error: error.message || 'Failed to update active community.' };
-  }
-}
-
-export async function repairUserHomeCommunityAction(params: {
-  userId: string;
-  homeCommunityId: string;
-  homeCommunityName: string;
-}): Promise<ActionResponse> {
-  const { userId, homeCommunityId, homeCommunityName } = params;
-  if (!userId || !homeCommunityId) {
-    return { success: false, error: 'User ID and Home Community ID are required.' };
-  }
-
-  try {
-    const { firestore } = initializeAdminApp();
-    const userRef = firestore.collection('users').doc(userId);
-
-    await userRef.set({
-      homeCommunityId: homeCommunityId,
-      homeCommunityName: homeCommunityName,
-      communityId: homeCommunityId,
-      communityName: homeCommunityName,
-    }, { merge: true });
-
-    revalidatePath('/', 'layout');
-
-    return { success: true, message: `Home community permanently locked to ${homeCommunityName}` };
-  } catch (error: any) {
-    console.error("Error repairing home community:", error);
-    return { success: false, error: error.message };
+    console.error("Error updating user's community membership:", error);
+    return { success: false, error: error.message || 'Failed to update community membership.' };
   }
 }
 
@@ -196,7 +157,7 @@ export async function returnToHomeCommunityAction(params: { userId: string }): P
     }
 
     const userData = userDoc.data();
-    const homeCommunityId = userData?.homeCommunityId || userData?.memberOf?.[0];
+    const homeCommunityId = userData?.primaryHomeCommunityId || userData?.homeCommunityId || userData?.memberOf?.[0];
 
     if (!homeCommunityId) {
        return { success: false, error: "Home community not set for this user." };
@@ -211,14 +172,14 @@ export async function returnToHomeCommunityAction(params: { userId: string }): P
 
     const communityData = communityDoc.data()!;
 
-    // Set the active community back to the home community and lock homeCommunityId
+    // Lock active community, homeCommunityId, and primaryHomeCommunityId back to registered home community
     await userRef.set({
-      homeCommunityId: homeCommunityId,
-      homeCommunityName: communityData.name,
       communityId: homeCommunityId,
       communityName: communityData.name,
-      activeCommunityId: homeCommunityId,
-      activeCommunityName: communityData.name,
+      homeCommunityId: homeCommunityId,
+      homeCommunityName: communityData.name,
+      primaryHomeCommunityId: homeCommunityId,
+      primaryHomeCommunityName: communityData.name,
     }, { merge: true });
 
     revalidatePath('/', 'layout');
@@ -660,11 +621,8 @@ export async function changeHomeCommunityAction(params: { userId: string; newCom
 
     await userRef.set({
       homeCommunityId: newCommunityId,
-      homeCommunityName: communityDoc.data()!.name,
       communityId: newCommunityId,
       communityName: communityDoc.data()!.name,
-      activeCommunityId: newCommunityId,
-      activeCommunityName: communityDoc.data()!.name,
       memberOf: FieldValue.arrayUnion(newCommunityId)
     }, { merge: true });
 

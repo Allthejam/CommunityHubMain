@@ -340,43 +340,80 @@ function ShoppingContent() {
 
   return (
     <div className="space-y-8">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                  <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2">
-                    <ShoppingCart className="h-8 w-8" />
-                    Local Shopping
-                  </h1>
-                  <p className="text-muted-foreground mt-2">
-                    Browse products from businesses in your community.
-                  </p>
-              </div>
-              <div className="flex w-full md:w-auto items-center gap-2">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search products..." className="pl-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                </div>
-                <Sheet>
-                    <SheetTrigger asChild>
-                        <Button variant="outline">
-                            <Filter className="mr-2 h-4 w-4" />
-                            Filters
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent>
-                        <SheetHeader>
-                            <SheetTitle>Filter Products</SheetTitle>
-                        </SheetHeader>
-                        <ScrollArea className="h-[calc(100vh-8rem)]">
-                            <ShoppingFilters filters={filters} onFilterChange={handleFilterChange} onReset={handleResetFilters} className="border-none shadow-none" />
-                        </ScrollArea>
-                    </SheetContent>
-                </Sheet>
-              </div>
+      {/* Amber, Orange & Teal Shimmering Hero Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-teal-500/15 border border-amber-500/20 p-6 md:p-10 shadow-lg backdrop-blur-sm">
+        <div className="absolute -top-24 -right-24 w-72 h-72 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="space-y-3 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-background/80 backdrop-blur-md border border-amber-500/30 text-xs font-semibold text-amber-600 dark:text-amber-400 shadow-xs">
+              <Store className="h-3.5 w-3.5" />
+              <span>Support Your Local High Street</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight font-headline">
+              <span className="bg-gradient-to-r from-amber-600 via-orange-600 to-teal-600 dark:from-amber-400 dark:via-orange-400 dark:to-teal-400 bg-clip-text text-transparent">
+                Shop Local & Highstreet
+              </span>
+            </h1>
+
+            <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
+              Discover unique products, daily deals, and fresh arrivals from local independent businesses and shops in your area.
+            </p>
           </div>
-        </CardHeader>
-      </Card>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+            <div className="p-3.5 rounded-2xl bg-background/80 backdrop-blur-md border border-border/80 shadow-xs flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <Store className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-lg font-bold">{businesses?.length || 0}</div>
+                <div className="text-[10px] text-muted-foreground font-medium">Local Stores</div>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-background/80 backdrop-blur-md border border-border/80 shadow-xs flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                <ShoppingCart className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-lg font-bold">{products.length}</div>
+                <div className="text-[10px] text-muted-foreground font-medium">Products</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-10 mt-6 pt-6 border-t border-amber-500/20 flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search local products, brands, or shops..." 
+              className="pl-10 bg-background/80 backdrop-blur-md border-amber-500/30" 
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)} 
+            />
+          </div>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto bg-background/80 backdrop-blur-md border-amber-500/30 gap-2">
+                <Filter className="h-4 w-4 text-amber-600" />
+                <span>Filters</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Filter Products</SheetTitle>
+              </SheetHeader>
+              <ScrollArea className="h-[calc(100vh-8rem)]">
+                <ShoppingFilters filters={filters} onFilterChange={handleFilterChange} onReset={handleResetFilters} className="border-none shadow-none" />
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
       
       <div className="space-y-8">
           <Card>

@@ -34,7 +34,7 @@ import {
   Tv,
   X,
   BookOpen,
-  FileText,
+  Target,
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -96,13 +96,13 @@ const mainNavItems = [
 ];
 
 const discoverSubItems = [
-    { href: '/communities', label: 'Communities Map', icon: MapIcon },
     { href: '/events', label: 'Events', icon: CalendarIcon },
     { href: '/whatson', label: "What's On", icon: Tv },
     { href: '/news', label: 'News', icon: Newspaper },
     { href: '/directory', label: 'Businesses', icon: Building2 },
     { href: '/enterprise-partners', label: 'Enterprise Partners', icon: Briefcase },
     { href: '/national-advertisers', label: 'National Advertisers', icon: Star },
+    { href: '/regional-networks', label: 'Regional Networks', icon: MapIcon },
 ];
 
 const engageSubItems = [
@@ -112,7 +112,7 @@ const engageSubItems = [
     { href: '/lost-and-found', label: 'Lost & Found', icon: HeartHandshake },
     { href: '/charities', label: 'Charities', icon: Heart },
     { href: '/polls', label: 'Polls', icon: BadgeHelp },
-    { href: '/petitions', label: 'Petitions', icon: FileText },
+    { href: '/campaigns', label: 'Local Petitions', icon: Target },
     { href: '/guestbook', label: 'Guest Book', icon: BookOpen },
 ];
 
@@ -150,21 +150,22 @@ export default function AppHeader() {
   }, [user, firestore]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const isVisiting = useMemo(() => {
-    if (!userProfile) return false;
-    const activeCommunityId = userProfile.communityId;
-    if (!activeCommunityId || activeCommunityId === userProfile.homeCommunityId) return false;
-    const roleData = userProfile.communityRoles?.[activeCommunityId];
-    const isLeaderOfActive = roleData && ['president', 'leader', 'vice-president'].includes(roleData.role);
-    return !isLeaderOfActive;
-  }, [userProfile]);
+  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
   const visitedCommunityIdEffective = useMemo(() => {
     if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('visitedCommunityId') || userProfile?.communityId || null;
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlComm = urlParams.get('community');
+      if (urlComm) {
+        sessionStorage.setItem('visitedCommunityId', urlComm);
+        return urlComm;
+      }
+      return sessionStorage.getItem('visitedCommunityId') || homeCommunityId || null;
     }
-    return userProfile?.communityId || null;
-  }, [userProfile?.communityId]);
+    return homeCommunityId || null;
+  }, [homeCommunityId]);
+
+  const isVisiting = useMemo(() => !!(visitedCommunityIdEffective && homeCommunityId && visitedCommunityIdEffective !== homeCommunityId), [visitedCommunityIdEffective, homeCommunityId]);
 
   const visitedCommunityDataRef = useMemoFirebase(() => visitedCommunityIdEffective ? doc(firestore, 'communities', visitedCommunityIdEffective) : null, [visitedCommunityIdEffective, firestore]);
   const { data: visitedCommunityData } = useDoc(visitedCommunityDataRef);
@@ -240,35 +241,22 @@ export default function AppHeader() {
       toast({ title: 'No Community Selected', description: 'Please select a community to switch to.', variant: 'destructive' });
       return;
     }
-    setIsSwitching(true);
-    const result = await updateUserCommunityAction({ userId: user.uid, communityId: communitySelection.community });
-    if (result.success && result.communityName) {
-      setIsCommunityDialogOpen(false);
-      sessionStorage.setItem('visitedCommunityId', communitySelection.community);
-      sessionStorage.setItem('visitedCommunityName', result.communityName);
-      toast({ title: 'Community Switched!', description: `You are now viewing the ${result.communityName} hub.` });
-      router.push('/home');
-      router.refresh();
-    } else {
-      toast({ title: 'Switch Failed', description: result.error || 'Could not switch communities.', variant: 'destructive' });
+    const targetCommId = communitySelection.community;
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('visitedCommunityId', targetCommId);
     }
-    setIsSwitching(false);
+    setIsCommunityDialogOpen(false);
+    toast({ title: 'Visiting Community', description: `Opening hub for selected community.` });
+    router.push(`/home?community=${targetCommId}`);
   };
   
-  const handleReturnHome = async () => {
-    if (!user) return;
-    setIsSwitching(true);
-    const result = await returnToHomeCommunityAction({ userId: user.uid });
-    if (result.success) {
+  const handleReturnHome = () => {
+    if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
-      toast({ title: 'Returned Home' });
-      router.push('/home');
-      router.refresh();
-    } else {
-      toast({ title: "Error Returning Home", description: result.error, variant: 'destructive' });
     }
-    setIsSwitching(false);
+    toast({ title: 'Returned Home', description: `Returned to your locked Home Community hub.` });
+    router.push('/home');
   };
   
   const handleClaimLeadership = async () => {
@@ -366,14 +354,23 @@ export default function AppHeader() {
         availableDashboards.push({ href: '/leader/dashboard', label: 'Police', icon: Shield });
     }
 
-    if (userProfile.permissions?.isCourier) {
-        availableDashboards.push({ onClick: handleCourierDashboardClick, label: 'Courier', icon: Truck });
+    if (userProfile.permissions?.isCourier || userProfile.accountType === 'courier') {
+        availableDashboards.push({ href: '/courier/dashboard', label: 'Courier', icon: Truck });
     }
     
     return Array.from(new Map(availableDashboards.map(item => [item.label, item])).values());
-  }, [userProfile, handleAdminDashboardClick, handleAdvertiserDashboardClick, handleCourierDashboardClick]);
+  }, [userProfile, handleAdminDashboardClick, handleAdvertiserDashboardClick]);
 
   const renderAuthControls = () => {
+    if (!isClient || isUserLoading || profileLoading) {
+        return (
+            <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-8 w-16" />
+            </div>
+        );
+    }
     if (user) {
         const CurrentAccountIcon = userProfile?.role ? accountTypeIcons[userProfile.role as keyof typeof accountTypeIcons] || UserIcon : UserIcon;
         return (
@@ -406,8 +403,8 @@ export default function AppHeader() {
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                       <DropdownMenuLabel className="font-normal">
                           <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none">{userProfile?.name || user.displayName || 'User'}</p>
-                          <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                          <p className="text-sm font-medium leading-none">{userProfile?.name}</p>
+                          <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                           </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
@@ -499,14 +496,6 @@ export default function AppHeader() {
             </>
         );
     }
-    if (isUserLoading) {
-        return (
-            <div className="flex items-center gap-2">
-                <Skeleton className="h-8 w-8 rounded-full" />
-                <Skeleton className="h-8 w-16" />
-            </div>
-        );
-    }
     return <Button asChild><Link href="/">Sign In</Link></Button>;
   };
   
@@ -533,7 +522,7 @@ export default function AppHeader() {
         </div>
       )}
       <div className="flex w-full items-center gap-4 px-4 sm:px-6 py-2">
-        <MobileNav menuItems={[...mainNavItems, { href: '#', label: 'Discover', icon: MapIcon, subItems: discoverSubItems }, { href: '#', label: 'Engage', icon: UsersIcon, subItems: engageSubItems }] as any} />
+        {isClient && <MobileNav menuItems={[...mainNavItems, { href: '#', label: 'Discover', icon: MapIcon, subItems: discoverSubItems }, { href: '#', label: 'Engage', icon: UsersIcon, subItems: engageSubItems }] as any} />}
         
         <Link href="/home" className="flex items-center gap-2 font-bold text-lg mr-4">
             <Logo className="w-8 h-8" />
@@ -545,91 +534,100 @@ export default function AppHeader() {
         
         <div className="flex w-full items-center">
             <nav className="hidden w-full flex-1 md:flex">
-                <ScrollArea className="w-full">
-                    <div className="flex items-center justify-center gap-1 flex-wrap py-2">
-                        {mainNavItems.map((item) => (
-                            <Button
-                                key={item.href}
-                                variant="ghost"
-                                asChild
-                                size="sm"
-                                className={cn(
-                                    'justify-start text-xs',
-                                    pathname === item.href &&
-                                    'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
-                                )}
-                            >
-                                <Link href={item.href}>
-                                    <item.icon className="mr-2 h-4 w-4" />
-                                    {item.label}
-                                </Link>
-                            </Button>
-                        ))}
-                        {discoverSubItems.length > 0 && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="justify-start text-xs">
-                                        <MapIcon className="mr-2 h-4 w-4" /> Discover <ChevronDown className="ml-1 h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start">
-                                    {discoverSubItems.map(subItem => {
-                                        if (subItem.label === 'Businesses') {
+                {isClient ? (
+                    <ScrollArea className="w-full">
+                        <div className="flex items-center justify-center gap-1 flex-wrap py-2">
+                            {mainNavItems.map((item) => (
+                                <Button
+                                    key={item.href}
+                                    variant="ghost"
+                                    asChild
+                                    size="sm"
+                                    className={cn(
+                                        'justify-start text-xs',
+                                        pathname === item.href &&
+                                        'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
+                                    )}
+                                >
+                                    <Link href={item.href}>
+                                        <item.icon className="mr-2 h-4 w-4" />
+                                        {item.label}
+                                    </Link>
+                                </Button>
+                            ))}
+                            {discoverSubItems.length > 0 && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="justify-start text-xs">
+                                            <MapIcon className="mr-2 h-4 w-4" /> Discover <ChevronDown className="ml-1 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start">
+                                        {discoverSubItems.map(subItem => {
+                                            if (subItem.label === 'Businesses') {
+                                                return (
+                                                    <DropdownMenuSub key={subItem.href}>
+                                                        <DropdownMenuSubTrigger>
+                                                            <Briefcase className="mr-2 h-4 w-4" />
+                                                            <span>{subItem.label}</span>
+                                                        </DropdownMenuSubTrigger>
+                                                        <DropdownMenuPortal>
+                                                            <DropdownMenuSubContent>
+                                                            {businessSubItems.map(bizItem => {
+                                                                const Icon = bizItem.icon;
+                                                                return (
+                                                                    <DropdownMenuItem key={bizItem.href} asChild>
+                                                                        <Link href={bizItem.href}>
+                                                                            <Icon className="mr-2 h-4 w-4" />
+                                                                            {bizItem.label}
+                                                                        </Link>
+                                                                    </DropdownMenuItem>
+                                                                )
+                                                            })}
+                                                            </DropdownMenuSubContent>
+                                                        </DropdownMenuPortal>
+                                                    </DropdownMenuSub>
+                                                )
+                                            }
+                                            const Icon = subItem.icon;
                                             return (
-                                                <DropdownMenuSub key={subItem.href}>
-                                                    <DropdownMenuSubTrigger>
-                                                        <Briefcase className="mr-2 h-4 w-4" />
-                                                        <span>{subItem.label}</span>
-                                                    </DropdownMenuSubTrigger>
-                                                    <DropdownMenuPortal>
-                                                        <DropdownMenuSubContent>
-                                                        {businessSubItems.map(bizItem => {
-                                                            const Icon = bizItem.icon;
-                                                            return (
-                                                                <DropdownMenuItem key={bizItem.href} asChild>
-                                                                    <Link href={bizItem.href}>
-                                                                        <Icon className="mr-2 h-4 w-4" />
-                                                                        {bizItem.label}
-                                                                    </Link>
-                                                                </DropdownMenuItem>
-                                                            )
-                                                        })}
-                                                        </DropdownMenuSubContent>
-                                                    </DropdownMenuPortal>
-                                                </DropdownMenuSub>
+                                                <DropdownMenuItem key={subItem.href} asChild>
+                                                    <Link href={subItem.href}><Icon className="mr-2 h-4 w-4" /> {subItem.label}</Link>
+                                                </DropdownMenuItem>
+                                            );
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                            {engageSubItems.length > 0 && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="justify-start text-xs">
+                                            <UsersIcon className="mr-2 h-4 w-4" /> Engage <ChevronDown className="ml-1 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        {engageSubItems.map(subItem => {
+                                            const Icon = subItem.icon;
+                                            return (
+                                                <DropdownMenuItem key={subItem.href} asChild>
+                                                    <Link href={subItem.href}><Icon className="mr-2 h-4 w-4" /> {subItem.label}</Link>
+                                                </DropdownMenuItem>
                                             )
-                                        }
-                                        const Icon = subItem.icon;
-                                        return (
-                                            <DropdownMenuItem key={subItem.href} asChild>
-                                                <Link href={subItem.href}><Icon className="mr-2 h-4 w-4" /> {subItem.label}</Link>
-                                            </DropdownMenuItem>
-                                        );
-                                    })}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        )}
-                        {engageSubItems.length > 0 && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="justify-start text-xs">
-                                        <UsersIcon className="mr-2 h-4 w-4" /> Engage <ChevronDown className="ml-1 h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    {engageSubItems.map(subItem => {
-                                        const Icon = subItem.icon;
-                                        return (
-                                            <DropdownMenuItem key={subItem.href} asChild>
-                                                <Link href={subItem.href}><Icon className="mr-2 h-4 w-4" /> {subItem.label}</Link>
-                                            </DropdownMenuItem>
-                                        )
-                                    })}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        )}
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </div>
+                    </ScrollArea>
+                ) : (
+                    <div className="flex w-full items-center justify-center gap-2">
+                        <Skeleton className="h-8 w-24 rounded-md" />
+                        <Skeleton className="h-8 w-24 rounded-md" />
+                        <Skeleton className="h-8 w-24 rounded-md" />
+                        <Skeleton className="h-8 w-24 rounded-md" />
                     </div>
-                </ScrollArea>
+                )}
             </nav>
 
             <div className="ml-auto flex items-center gap-2 shrink-0">

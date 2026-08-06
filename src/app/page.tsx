@@ -85,8 +85,8 @@ export default function SignInPage() {
   }, []);
 
   useEffect(() => {
-    // Redirect authenticated users to home
-    if (!isUserLoading && user) {
+    // Redirect verified users to home
+    if (!isUserLoading && user && user.emailVerified) {
       router.push('/home');
     }
   }, [user, isUserLoading, router]);
@@ -155,7 +155,13 @@ export default function SignInPage() {
       setLoginAttempts(newAttempts);
       localStorage.setItem('loginAttempts', JSON.stringify(newAttempts));
 
-      router.push('/home');
+      if (!userCredential.user.emailVerified) {
+        setError("Please verify your email before logging in. Check your inbox for a verification link.");
+        setShowResend(true);
+        await auth.signOut();
+        setLoading(false);
+        return;
+      }
       
     } catch (e: any) {
       let errorMessage = 'An unknown error occurred.';
@@ -191,6 +197,14 @@ export default function SignInPage() {
     }
   }
 
+  if (isUserLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+  
   const hasAnnouncements = loginAnnouncementsData && loginAnnouncementsData.length > 0;
 
   return (
@@ -283,9 +297,6 @@ export default function SignInPage() {
                 <Button type="submit" className="w-full" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign In
-                </Button>
-                <Button variant="outline" asChild className="w-full">
-                    <Link href="/home">Enter Public Hub / Explore Home</Link>
                 </Button>
                 <div className="text-center text-sm text-muted-foreground">
                     Don't have an account?{' '}

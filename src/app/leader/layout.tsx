@@ -45,8 +45,7 @@ export default function LeaderLayout({
 
     if (userProfile) {
       const impersonating = (userProfile as any)?.impersonating;
-      const visitedCommunityId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
-      const communityId = impersonating?.communityId || visitedCommunityId || userProfile.communityId;
+      const communityId = impersonating?.communityId || userProfile.communityId;
       const communityRoleData = communityId ? userProfile.communityRoles?.[communityId] : null;
       
       const permissions = communityRoleData?.permissions || userProfile.permissions || {};

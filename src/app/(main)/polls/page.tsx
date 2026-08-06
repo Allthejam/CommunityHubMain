@@ -12,7 +12,7 @@ import {
   useDoc,
 } from '@/firebase';
 import { collection, doc, updateDoc, arrayUnion, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { voteOnPollAction } from '@/lib/actions/pollActions';
+
 
 // ─── Analytics sidebar ────────────────────────────────────────────────────────
 function AnalyticsWidget({ polls }: { polls: Poll[] }) {
@@ -94,8 +94,6 @@ const CATEGORIES: { value: PollCategory | 'all'; label: string }[] = [
   { value: 'regulations', label: '📜 Rules' },
 ];
 
-import { useActiveCommunityId } from '@/hooks/use-active-community-id';
-
 // ─── Main page ─────────────────────────────────────────────────────────────────
 export default function PollsPage() {
   const db = useFirestore();
@@ -103,8 +101,10 @@ export default function PollsPage() {
   const [catFilter, setCatFilter]       = React.useState<PollCategory | 'all'>('all');
   const [statusFilter, setStatusFilter] = React.useState<PollStatus | 'all'>('active');
 
-  // Read the active communityId (handles visiting community hubs)
-  const { communityId, userProfile, isLoading: profileLoading } = useActiveCommunityId();
+  // Read the user's communityId from their Firestore profile
+  const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
+  const { data: userProfile } = useDoc(userDocRef);
+  const communityId: string | null = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || null;
 
   // Subscribe to the community's polls collection
   const pollsQuery = useMemoFirebase(
@@ -113,7 +113,9 @@ export default function PollsPage() {
   );
   const { data: rawPolls, isLoading } = useCollection<Poll>(pollsQuery);
 
-  const polls: Poll[] = (rawPolls ?? []).map((p: any) => {
+  const itemsToProcess = rawPolls ?? [];
+
+  const polls: Poll[] = itemsToProcess.map((p: any) => {
     const title = p.title || p.question || 'Untitled Consultation';
     const description = p.description || p.question || 'No description provided.';
     const category = p.category || 'feedback';
@@ -164,11 +166,13 @@ export default function PollsPage() {
     if (optionIndex === -1) return;
 
     try {
-      await voteOnPollAction({
-        communityId,
-        pollId,
-        userId: user.uid,
-        optionIndex
+      const updatedOptions = poll.options.map((opt, idx) => 
+        idx === optionIndex ? { ...opt, votes: (opt.votes || 0) + 1 } : opt
+      );
+      await updateDoc(doc(db, 'communities', communityId, 'polls', pollId), {
+        options: updatedOptions,
+        votedBy: arrayUnion(user.uid),
+        updatedAt: serverTimestamp()
       });
     } catch (err) {
       console.error("Error voting:", err);

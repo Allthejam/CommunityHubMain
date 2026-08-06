@@ -29,41 +29,25 @@ export function WelcomeDialog({ userProfile }: { userProfile: any }) {
 
   const [isVisiting, setIsVisiting] = React.useState(false);
 
-  const markAsSeenLocally = React.useCallback(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('hasSeenWelcome', 'true');
-        sessionStorage.setItem('hasSeenWelcome', 'true');
-      } catch (e) {}
-    }
-  }, []);
-
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const localSeen = localStorage.getItem('hasSeenWelcome') === 'true';
-      const sessionSeen = sessionStorage.getItem('hasSeenWelcome') === 'true';
-      if (localSeen || sessionSeen || userProfile?.hasSeenWelcome) {
-        setIsOpen(false);
-        return;
-      }
-    }
-
-    if (!userProfile?.hasSeenWelcome) {
+    if (!userProfile.hasSeenWelcome) {
       const timer = setTimeout(() => {
         setIsOpen(true);
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [userProfile?.hasSeenWelcome]);
+  }, [userProfile.hasSeenWelcome]);
 
   const handleClose = async () => {
-    markAsSeenLocally();
     setIsOpen(false);
     if (user) {
-      try {
-        await updateWelcomeStatusAction(user.uid);
-      } catch (e) {
-        console.error('Failed to update welcome status in database:', e);
+      const result = await updateWelcomeStatusAction(user.uid);
+      if (!result.success) {
+        toast({
+          title: "Couldn't save preferences",
+          description: 'The welcome message may appear again.',
+          variant: 'destructive',
+        });
       }
     }
   };

@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import * as React from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import { collection, query, where, doc, getDoc } from 'firebase/firestore';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { type Announcement } from '@/lib/announcement-data';
@@ -18,9 +20,6 @@ import { NewsFeed } from '@/components/news-feed';
 import { PollsSnippet } from '@/components/polls-snippet';
 import { CampaignsSnippet } from '@/components/campaigns-snippet';
 import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { returnToHomeCommunityAction } from '@/lib/actions/userActions';
 import { NoLeaderAlert } from '@/components/no-leader-alert';
 import { LocalBusinessesFeed } from '@/components/local-businesses-feed';
 import { ProductsFeed } from '@/components/products-feed';
@@ -30,15 +29,76 @@ import { AnnouncementBanners } from '@/components/announcement-banners';
 import { AccommodationFeed } from '@/components/accommodation-feed';
 import { BuySwapSellFeed } from '@/components/buy-swap-sell-feed';
 import { GuestBook } from '@/components/guest-book';
+import { RegionalNetworksFeed } from '@/components/regional-networks-feed';
 
-import { LazyFeed } from '@/components/lazy-feed';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { MapPin, ArrowRight } from 'lucide-react';
 
-export default function HomePage() {
+function getGeoJsonBoundingBox(geoJson: any): { minLng: number; maxLng: number; minLat: number; maxLat: number } | null {
+  if (!geoJson) return null;
+  let coords: [number, number][] = [];
+  try {
+    const data = typeof geoJson === 'string' ? JSON.parse(geoJson) : geoJson;
+    if (data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+      data.features.forEach((f: any) => {
+        if (f.geometry?.type === 'Polygon' && Array.isArray(f.geometry.coordinates?.[0])) {
+          coords.push(...f.geometry.coordinates[0]);
+        }
+      });
+    } else if (data.type === 'Feature' && data.geometry?.type === 'Polygon' && Array.isArray(data.geometry.coordinates?.[0])) {
+      coords.push(...data.geometry.coordinates[0]);
+    } else if (data.type === 'Polygon' && Array.isArray(data.coordinates?.[0])) {
+      coords.push(...data.coordinates[0]);
+    }
+  } catch (e) {
+    return null;
+  }
+
+  if (coords.length === 0) return null;
+
+  let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+  coords.forEach(([lng, lat]) => {
+    if (typeof lng === 'number' && typeof lat === 'number') {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+  });
+
+  if (minLng === Infinity) return null;
+  return { minLng, maxLng, minLat, maxLat };
+}
+
+function isCommunityInsideRegionalBoundary(regionalGeoJsonStr: any, communityGeoJsonStr: any): boolean {
+  if (!regionalGeoJsonStr || !communityGeoJsonStr) return false;
+  try {
+    const rBox = getGeoJsonBoundingBox(regionalGeoJsonStr);
+    const cBox = getGeoJsonBoundingBox(communityGeoJsonStr);
+
+    if (!rBox || !cBox) return false;
+
+    return (
+      cBox.minLng >= rBox.minLng &&
+      cBox.maxLng <= rBox.maxLng &&
+      cBox.minLat >= rBox.minLat &&
+      cBox.maxLat <= rBox.maxLat
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
+function HomePageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlCommunityId = searchParams ? searchParams.get('community') : null;
+
   const { user, isUserLoading: authLoading } = useUser();
   const db = useFirestore();
-  const { toast } = useToast();
-  const [activeCommunityId, setActiveCommunityId] = useState<string | null>('9ayHMyZf4SRw2gof1AM9');
-  const [isReturning, setIsReturning] = useState(false);
+  const [activeCommunityId, setActiveCommunityId] = useState<string | null>(null);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!user || !db) return null;
@@ -46,29 +106,51 @@ export default function HomePage() {
   }, [user, db]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  // This single effect now reliably determines the active community ID
+  const isRegionalUser = (userProfile?.accountType === 'regional' || userProfile?.permissions?.isRegionalNetwork) === true;
+
   useEffect(() => {
     if (profileLoading) return;
 
-    const visitedId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
-    if (visitedId) {
-      setActiveCommunityId(visitedId);
-    } 
-    else if (userProfile?.communityId) {
-      setActiveCommunityId(userProfile.communityId);
-    } 
-    else {
-      setActiveCommunityId(userProfile?.homeCommunityId || '9ayHMyZf4SRw2gof1AM9');
+    if (urlCommunityId) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('visitedCommunityId', urlCommunityId);
+      }
+      setActiveCommunityId(urlCommunityId);
+      return;
     }
-  }, [userProfile, profileLoading]);
+
+    const visitedSession = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
+    const lockedHomeId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId;
+
+    if (visitedSession) {
+      setActiveCommunityId(visitedSession);
+    } else if (lockedHomeId) {
+      setActiveCommunityId(lockedHomeId);
+    } else if (isRegionalUser) {
+      router.replace('/regional/dashboard');
+      return;
+    } else if (userProfile?.communityId) {
+      setActiveCommunityId(userProfile.communityId);
+    } else {
+      setActiveCommunityId(null);
+    }
+  }, [userProfile, profileLoading, router, urlCommunityId, isRegionalUser]);
   
   const activeCommunityRef = useMemoFirebase(() => {
-    const commId = activeCommunityId || '9ayHMyZf4SRw2gof1AM9';
-    if (!db) return null;
-    return doc(db, 'communities', commId);
+    if (!activeCommunityId || !db) return null;
+    return doc(db, 'communities', activeCommunityId);
   }, [activeCommunityId, db]);
   const { data: activeCommunity, isLoading: communityLoading } = useDoc(activeCommunityRef);
   
+  const authoritiesQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(
+      collection(db, 'users'),
+      where('accountType', '==', 'regional')
+    );
+  }, [db]);
+  const { data: authorityDocs } = useCollection(authoritiesQuery);
+
   const platformAnnouncementsQuery = useMemoFirebase(() => {
       if (!db) return null;
       return query(
@@ -80,24 +162,88 @@ export default function HomePage() {
   const { data: platformAnnouncementsData, isLoading: platformLoading } = useCollection<Announcement>(platformAnnouncementsQuery);
 
   const communityAnnouncementsQuery = useMemoFirebase(() => {
-      const commId = activeCommunityId || '9ayHMyZf4SRw2gof1AM9';
-      if (!db) return null;
+      if (!db || !activeCommunityId) return null;
       return query(
           collection(db, "announcements"), 
           where("scope", "==", "community"),
-          where("communityId", "==", commId),
+          where("targetCommunityIds", "array-contains", activeCommunityId),
           where("status", "==", "Live")
       );
   }, [db, activeCommunityId]);
   const { data: communityAnnouncementsData, isLoading: communityAnnouncementsLoading } = useCollection<Announcement>(communityAnnouncementsQuery);
 
+  const regionalBroadcastsQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(
+      collection(db, 'regionalBroadcasts'),
+      where('status', '==', 'Live')
+    );
+  }, [db]);
+  const { data: rawRegionalBroadcasts } = useCollection(regionalBroadcastsQuery);
+
+  const targetedRegionalBroadcasts = useMemo(() => {
+    if (!rawRegionalBroadcasts || !activeCommunityId) return [];
+    return rawRegionalBroadcasts
+      .filter((b: any) => {
+        const explicitTargets = Array.isArray(b.targetCommunityIds) ? b.targetCommunityIds : [];
+        if (explicitTargets.includes(activeCommunityId)) return true;
+
+        if (b.authorityUserId && authorityDocs && activeCommunity) {
+          const auth = authorityDocs.find((a: any) => a.id === b.authorityUserId || a.uid === b.authorityUserId);
+          if (auth) {
+            const encompassed = auth.encompassedCommunityIds || auth.targetCommunityIds || [];
+            if (encompassed.includes(activeCommunityId) || auth.primaryCommunityId === activeCommunityId || auth.communityId === activeCommunityId) {
+              return true;
+            }
+            if (auth.regionalBoundary && activeCommunity.boundary) {
+              if (isCommunityInsideRegionalBoundary(auth.regionalBoundary, activeCommunity.boundary)) {
+                return true;
+              }
+            }
+            const commRegion = (activeCommunity.region || activeCommunity.state || '').toLowerCase().trim();
+            const authRegion = (auth.region || auth.state || auth.organizationName || '').toLowerCase().trim();
+            if (commRegion && authRegion && (commRegion.includes(authRegion) || authRegion.includes(commRegion))) {
+              return true;
+            }
+          }
+        }
+        return false;
+      })
+      .map((b: any) => ({
+        id: b.id,
+        subject: b.title,
+        message: b.message,
+        type: b.broadcastType === 'emergency' ? 'Emergency' : 'Standard',
+        severity: b.broadcastType === 'urgent' ? 'urgent' : 'normal',
+        scope: 'platform',
+        status: 'Live',
+        creator: b.organizationName || 'Regional Network Authority',
+        creatorId: b.authorityUserId,
+        isRegionalNetwork: true,
+        targetCommunityIds: b.targetCommunityIds,
+        createdAt: b.createdAt
+      }));
+  }, [rawRegionalBroadcasts, activeCommunityId, authorityDocs, activeCommunity]);
+
   const filteredPlatformAnnouncements = useMemo(() => {
     if (!platformAnnouncementsData || !activeCommunity) return [];
     
     return platformAnnouncementsData.filter(ann => {
+        const targetIds = (ann as any).targetCommunityIds || (ann as any).audience?.communities || [];
+        const isRegional = (ann as any).isRegionalNetwork;
+
+        // If targeted to specific communities, check spatial inclusion strictly
+        if (targetIds.length > 0) {
+            return targetIds.includes((activeCommunity as any).id);
+        }
+
+        // Regional broadcasts MUST NEVER leak globally without explicit targetCommunityIds matching activeCommunity
+        if (isRegional) {
+            return false;
+        }
+
         const audience = (ann as any).audience;
         
-        // If there's no audience object, default to platform-wide
         if (!audience) {
             return true;
         }
@@ -109,158 +255,102 @@ export default function HomePage() {
 
         const hasTargeting = communities.length > 0 || regions.length > 0 || states.length > 0 || countries.length > 0;
         
-        // If no specific audience is defined inside the audience object, it's global
         if (!hasTargeting) {
             return true;
         }
         
-        // Check for specific matches
         if (communities.includes((activeCommunity as any).id)) return true;
         if (regions.includes((activeCommunity as any).regionId)) return true;
         if (states.includes((activeCommunity as any).stateId)) return true;
         if (countries.includes((activeCommunity as any).countryId)) return true;
         
-        return false; // No match found
+        return false;
     });
   }, [platformAnnouncementsData, activeCommunity]);
 
-  const allAnnouncements = [...(filteredPlatformAnnouncements || []), ...(communityAnnouncementsData || [])];
+  const allAnnouncements = [...(filteredPlatformAnnouncements || []), ...(communityAnnouncementsData || []), ...(targetedRegionalBroadcasts || [])];
+  
+  // The main loading condition now depends on having the essential user/profile data AND a community ID.
+  const isLoading = authLoading || profileLoading || communityLoading || !activeCommunityId;
+
+  if (isLoading) {
+      return (
+          <div className="flex justify-center items-center h-96">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+      );
+  }
 
   const mailingLists = (userProfile as any)?.mailingLists || {};
   const showEmergency = mailingLists.emergency !== false;
 
   const emergencyBroadcasts = showEmergency 
-    ? allAnnouncements.filter(a => a.type === "Emergency") 
+    ? allAnnouncements.filter(a => a.type === "Emergency" || a.severity === "emergency" || (a as any).broadcastType === "emergency") 
     : [];
     
-  const standardAnnouncements = allAnnouncements.filter(a => a.type === "Standard");
-
-  const homeCommId = userProfile?.homeCommunityId || '9ayHMyZf4SRw2gof1AM9';
-  const homeCommName = userProfile?.homeCommunityName || 'Show Home Community, "Display Only"';
-  const currentCommId = activeCommunityId || userProfile?.communityId;
-  const currentCommName = (activeCommunity as any)?.name || userProfile?.communityName || 'Community';
-
-  const isVisiting = !!(currentCommId && homeCommId && currentCommId !== homeCommId);
-
-  const handleReturnHome = async () => {
-    if (!user) return;
-    setIsReturning(true);
-    try {
-      sessionStorage.removeItem('visitedCommunityId');
-      const res = await returnToHomeCommunityAction({ userId: user.uid });
-      if (res.success) {
-          setActiveCommunityId(homeCommId);
-          toast({ title: "Returned Home", description: `You are now back at your home community (${homeCommName}).` });
-      } else {
-          toast({ title: "Error", description: res.error, variant: "destructive" });
-      }
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to return home", variant: "destructive" });
-    } finally {
-      setIsReturning(false);
-    }
-  };
+  const standardAnnouncements = allAnnouncements.filter(a => a.type !== "Emergency" && a.severity !== "emergency" && (a as any).broadcastType !== "emergency");
 
   return (
     <div className="space-y-6 md:space-y-8">
-      {isVisiting && (
-        <div className="mx-4 md:mx-0 p-4 rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-xl">📍</span>
-            <div>
-              <p className="font-bold text-base">
-                You are currently visiting the <span className="underline decoration-amber-400 font-extrabold">{currentCommName}</span> hub.
-              </p>
-              <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
-                Your Home Community is: <strong className="font-semibold">{homeCommName}</strong>
-              </p>
-            </div>
+      {isRegionalUser && (
+        <div className="bg-gradient-to-r from-emerald-800 to-teal-900 text-white px-4 py-3 rounded-xl flex items-center justify-between shadow-md mb-2">
+          <div className="flex items-center gap-2 text-xs md:text-sm">
+            <MapPin className="h-4 w-4 text-emerald-300 shrink-0" />
+            <span>Regional Authority View: Viewing <strong>{activeCommunity?.name || 'Community'} Home Feed</strong></span>
           </div>
-          <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs px-4 h-9 shadow-sm whitespace-nowrap" onClick={handleReturnHome} disabled={isReturning}>
-            {isReturning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Return to Home Community
+          <Button asChild size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs shadow-sm">
+            <Link href="/regional/dashboard">
+              Return to Back Office <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            </Link>
           </Button>
         </div>
       )}
-
-      <div className='px-4 md:px-0 space-y-4'>
+      <div className='px-4 md:px-0'>
           <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
           {userProfile?.accountType !== 'national' && <NoLeaderAlert communityId={activeCommunityId} userProfile={userProfile} />}
       </div>
-
-      {/* Priority 1 (Top of Page): Loads Instantly */}
-      <WelcomeCards />
+      <WelcomeCards activeCommunityId={activeCommunityId} activeCommunity={activeCommunity} />
       
       <div className='px-4 md:px-0 space-y-6 md:space-y-8'>
           <AnnouncementBanners allAnnouncements={standardAnnouncements} />
-          
-          {/* Top Priority Feeds: Loaded Immediately */}
-          <div id="events" className="scroll-mt-20"><EventsFeed communityId={activeCommunityId} /></div>
-          <NewsFeed communityId={activeCommunityId} />
-          <CampaignsSnippet communityId={activeCommunityId} />
-
-          {/* Staged / Lazy Loaded Feeds: Fetched progressively as user scrolls */}
-          <LazyFeed id="whatson" className="scroll-mt-20">
+          <EventsFeed communityId={activeCommunityId} />
+          <div id="section-whatson" className="scroll-mt-20">
             <WhatsonFeed communityId={activeCommunityId} />
-          </LazyFeed>
-
-          <LazyFeed id="accommodation" className="scroll-mt-20">
-            <AccommodationFeed communityId={activeCommunityId} />
-          </LazyFeed>
-
-          <LazyFeed id="dining" className="scroll-mt-20">
-            <LocalBusinessesFeed communityId={activeCommunityId} />
-          </LazyFeed>
-
-          <LazyFeed>
-            <CommunityAdverts communityId={activeCommunityId} />
-          </LazyFeed>
-
-          <LazyFeed>
-            <ProductsFeed communityId={activeCommunityId} />
-          </LazyFeed>
-
-          <LazyFeed>
-            <NationalAdvertisers layout="compact" />
-          </LazyFeed>
-
-          <LazyFeed>
-            <JobsFeed communityId={activeCommunityId} />
-          </LazyFeed>
-
-          <LazyFeed>
-            <EnterpriseGroupsFeed communityId={activeCommunityId} />
-          </LazyFeed>
-
-          <LazyFeed>
-            <PollsSnippet communityId={activeCommunityId} />
-          </LazyFeed>
-
-          <LazyFeed>
-            <LocalCharitiesFeed communityId={activeCommunityId} />
-          </LazyFeed>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-            <LazyFeed>
-              <LostAndFoundFeed communityId={activeCommunityId} />
-            </LazyFeed>
-            <LazyFeed>
-              <BuySwapSellFeed communityId={activeCommunityId} />
-            </LazyFeed>
           </div>
-
-          <LazyFeed id="shopping" className="scroll-mt-20">
-            <HighstreetFeed communityId={activeCommunityId} />
-          </LazyFeed>
-
-          <LazyFeed>
-            <ValuedPartners layout="carousel" />
-          </LazyFeed>
-
-          <LazyFeed>
-            <GuestBook communityId={activeCommunityId} />
-          </LazyFeed>
+          <div id="section-accommodation" className="scroll-mt-20">
+            <AccommodationFeed communityId={activeCommunityId} />
+          </div>
+          <div id="section-businesses" className="scroll-mt-20">
+            <LocalBusinessesFeed communityId={activeCommunityId} />
+          </div>
+          <CommunityAdverts communityId={activeCommunityId} />
+          <div id="section-shopping" className="scroll-mt-20">
+            <ProductsFeed communityId={activeCommunityId} />
+          </div>
+          <NationalAdvertisers layout="compact" />
+          <JobsFeed communityId={activeCommunityId} />
+          <EnterpriseGroupsFeed communityId={activeCommunityId} />
+          <CampaignsSnippet communityId={activeCommunityId} />
+          <NewsFeed communityId={activeCommunityId} />
+          <PollsSnippet communityId={activeCommunityId} />
+          <LocalCharitiesFeed communityId={activeCommunityId} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+            <LostAndFoundFeed communityId={activeCommunityId} />
+            <BuySwapSellFeed communityId={activeCommunityId} />
+          </div>
+          <HighstreetFeed communityId={activeCommunityId} />
+          <ValuedPartners layout="carousel" />
+          <RegionalNetworksFeed communityId={activeCommunityId} />
+          <GuestBook communityId={activeCommunityId} />
       </div>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <React.Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-amber-600" /></div>}>
+      <HomePageContent />
+    </React.Suspense>
   );
 }

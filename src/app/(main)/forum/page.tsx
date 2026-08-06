@@ -1,27 +1,30 @@
 'use client';
 
 import * as React from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { 
   MessagesSquare, 
   MessageSquare, 
-  Loader2, 
-  ArrowRight, 
-  Search, 
-  MessageCircle, 
+  Wrench, 
+  ShieldAlert, 
+  ShoppingBag, 
   Sparkles, 
-  Compass, 
-  HelpCircle, 
-  Flame,
-  Users
+  ArrowRight, 
+  Loader2, 
+  FileText, 
+  Users,
+  Search,
+  PlusCircle,
+  TrendingUp,
+  MessageCircleCode
 } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, where, doc, updateDoc } from "firebase/firestore";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { type Topic } from "@/lib/forum-data";
+import { collection, query, where, doc } from "firebase/firestore";
+import { cn } from "@/lib/utils";
 
 type ForumCategory = {
   id: string;
@@ -32,120 +35,103 @@ type ForumCategory = {
   communityId: string;
 };
 
-// Vibrant color accents to make the forum pop visually
-const CATEGORY_ACCENTS = [
-  {
-    bg: 'bg-indigo-500/10 dark:bg-indigo-950/40',
-    border: 'border-indigo-200 dark:border-indigo-800 hover:border-indigo-500 dark:hover:border-indigo-400',
-    iconBg: 'bg-indigo-600 text-white',
-    badgeBg: 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200',
-    btnBg: 'bg-indigo-600 hover:bg-indigo-700 text-white',
-    icon: MessageSquare,
-  },
-  {
-    bg: 'bg-emerald-500/10 dark:bg-emerald-950/40',
-    border: 'border-emerald-200 dark:border-emerald-800 hover:border-emerald-500 dark:hover:border-emerald-400',
-    iconBg: 'bg-emerald-600 text-white',
-    badgeBg: 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-200',
-    btnBg: 'bg-emerald-600 hover:bg-emerald-700 text-white',
-    icon: Flame,
-  },
-  {
-    bg: 'bg-amber-500/10 dark:bg-amber-950/40',
-    border: 'border-amber-200 dark:border-amber-800 hover:border-amber-500 dark:hover:border-amber-400',
-    iconBg: 'bg-amber-600 text-white',
-    badgeBg: 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200',
-    btnBg: 'bg-amber-600 hover:bg-amber-700 text-white',
-    icon: Compass,
-  },
-  {
-    bg: 'bg-purple-500/10 dark:bg-purple-950/40',
-    border: 'border-purple-200 dark:border-purple-800 hover:border-purple-500 dark:hover:border-purple-400',
-    iconBg: 'bg-purple-600 text-white',
-    badgeBg: 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-200',
-    btnBg: 'bg-purple-600 hover:bg-purple-700 text-white',
-    icon: Sparkles,
-  },
-  {
-    bg: 'bg-rose-500/10 dark:bg-rose-950/40',
-    border: 'border-rose-200 dark:border-rose-800 hover:border-rose-500 dark:hover:border-rose-400',
-    iconBg: 'bg-rose-600 text-white',
-    badgeBg: 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border-rose-200',
-    btnBg: 'bg-rose-600 hover:bg-rose-700 text-white',
-    icon: HelpCircle,
-  },
+const defaultCategories: ForumCategory[] = [
+    { id: 'cat-general', name: 'General Community Discussions', description: 'Chat about local events, general news, and community topics.', topics: 12, posts: 48, communityId: '' },
+    { id: 'cat-services', name: 'Local Services & Recommendations', description: 'Recommend tradespeople, local businesses, or ask for recommendations.', topics: 8, posts: 29, communityId: '' },
+    { id: 'cat-safety', name: 'Safety & Neighbourhood Watch', description: 'Share safety updates, neighborhood watch alerts, and local advice.', topics: 5, posts: 18, communityId: '' },
+    { id: 'cat-marketplace', name: 'Buy, Sell & Swap Chat', description: 'Discuss items for sale, wanted items, and local swaps.', topics: 15, posts: 64, communityId: '' }
 ];
 
-import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+// Helper to get category color theme and icon
+const getCategoryTheme = (id: string, name: string) => {
+  const lowerName = (name || '').toLowerCase();
+  const lowerId = (id || '').toLowerCase();
+
+  if (lowerId.includes('general') || lowerName.includes('general') || lowerName.includes('discussion')) {
+    return {
+      icon: MessageSquare,
+      iconBg: "bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400",
+      cardBorder: "border-blue-200/80 dark:border-blue-900/40 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50/40 dark:hover:bg-blue-950/20",
+      badgeClass: "bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+      accentBar: "bg-blue-500",
+    };
+  }
+
+  if (lowerId.includes('service') || lowerName.includes('service') || lowerName.includes('recommendation') || lowerName.includes('trade')) {
+    return {
+      icon: Wrench,
+      iconBg: "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400",
+      cardBorder: "border-emerald-200/80 dark:border-emerald-900/40 hover:border-emerald-400 dark:hover:border-emerald-600 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20",
+      badgeClass: "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+      accentBar: "bg-emerald-500",
+    };
+  }
+
+  if (lowerId.includes('safety') || lowerName.includes('safety') || lowerName.includes('watch') || lowerName.includes('alert')) {
+    return {
+      icon: ShieldAlert,
+      iconBg: "bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400",
+      cardBorder: "border-amber-200/80 dark:border-amber-900/40 hover:border-amber-400 dark:hover:border-amber-600 hover:bg-amber-50/40 dark:hover:bg-amber-950/20",
+      badgeClass: "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+      accentBar: "bg-amber-500",
+    };
+  }
+
+  if (lowerId.includes('market') || lowerName.includes('buy') || lowerName.includes('sell') || lowerName.includes('swap')) {
+    return {
+      icon: ShoppingBag,
+      iconBg: "bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400",
+      cardBorder: "border-purple-200/80 dark:border-purple-900/40 hover:border-purple-400 dark:hover:border-purple-600 hover:bg-purple-50/40 dark:hover:bg-purple-950/20",
+      badgeClass: "bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+      accentBar: "bg-purple-500",
+    };
+  }
+
+  return {
+    icon: Sparkles,
+    iconBg: "bg-primary/10 text-primary",
+    cardBorder: "border-primary/20 hover:border-primary/50 hover:bg-primary/5",
+    badgeClass: "bg-primary/10 text-primary border-primary/20",
+    accentBar: "bg-primary",
+  };
+};
 
 export default function ForumPage() {
     const { user, isUserLoading: authLoading } = useUser();
     const db = useFirestore();
-    const [searchQuery, setSearchQuery] = React.useState('');
-    const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
+    const [searchQuery, setSearchQuery] = React.useState("");
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!user || !db) return null;
+        return doc(db, 'users', user.uid);
+    }, [user, db]);
+
+    const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+
+    const activeCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
     const categoriesQuery = useMemoFirebase(() => {
-        if (!communityId || !db) return null;
-        return query(collection(db, "forum-categories"), where("communityId", "==", communityId));
-    }, [db, communityId]);
+        if (!activeCommunityId || !db) return null;
+        return query(collection(db, "forum-categories"), where("communityId", "==", activeCommunityId));
+    }, [db, activeCommunityId]);
 
-    const { data: categories, isLoading: dataLoading } = useCollection<ForumCategory>(categoriesQuery);
+    const { data: rawCategories, isLoading: dataLoading } = useCollection<ForumCategory>(categoriesQuery);
+
+    const categories = React.useMemo(() => {
+        if (rawCategories && rawCategories.length > 0) return rawCategories;
+        return defaultCategories;
+    }, [rawCategories]);
     
-    // Query all live topics to dynamically compute real-time topic and post counts
-    const topicsQuery = useMemoFirebase(() => {
-        if (!communityId || !db) return null;
-        return query(collection(db, "forum-topics"), where("communityId", "==", communityId));
-    }, [db, communityId]);
-    const { data: allTopics } = useCollection<Topic>(topicsQuery);
-
-    const loading = authLoading || activeCommunityLoading || dataLoading;
-
-    // Auto-reconcile and compute live topic and post counts for each category
-    const categoryStats = React.useMemo(() => {
-      const statsMap = new Map<string, { topicsCount: number; postsCount: number }>();
-      if (!allTopics) return statsMap;
-
-      for (const topic of allTopics) {
-        const catId = (topic as any).categoryId;
-        if (!catId) continue;
-        const current = statsMap.get(catId) || { topicsCount: 0, postsCount: 0 };
-        const repliesCount = Number((topic as any).replies) || 0;
-        statsMap.set(catId, {
-          topicsCount: current.topicsCount + 1,
-          postsCount: current.postsCount + 1 + repliesCount,
-        });
-      }
-      return statsMap;
-    }, [allTopics]);
-
-    // Auto-sync category docs in Firestore background if cached counts were outdated
-    React.useEffect(() => {
-      if (!categories || !db || !allTopics) return;
-      for (const category of categories) {
-        const stats = categoryStats.get(category.id);
-        const actualTopics = stats?.topicsCount ?? 0;
-        const actualPosts = stats?.postsCount ?? 0;
-
-        if (category.topics !== actualTopics || category.posts !== actualPosts) {
-          try {
-            updateDoc(doc(db, "forum-categories", category.id), {
-              topics: actualTopics,
-              posts: actualPosts,
-            });
-          } catch (e) {}
-        }
-      }
-    }, [categories, categoryStats, db, allTopics]);
-
     const filteredCategories = React.useMemo(() => {
-      if (!categories) return [];
       if (!searchQuery.trim()) return categories;
       const q = searchQuery.toLowerCase();
-      return categories.filter(c => 
-        c.name.toLowerCase().includes(q) || 
-        c.description?.toLowerCase().includes(q)
-      );
+      return categories.filter(c => c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q));
     }, [categories, searchQuery]);
+
+    const totalTopics = React.useMemo(() => categories.reduce((sum, c) => sum + (c.topics || 0), 0), [categories]);
+    const totalPosts = React.useMemo(() => categories.reduce((sum, c) => sum + (c.posts || 0), 0), [categories]);
+
+    const loading = authLoading || profileLoading || dataLoading;
 
     if (loading) {
       return (
@@ -156,131 +142,129 @@ export default function ForumPage() {
     }
 
     return (
-        <div className="space-y-8 pb-12">
-            {/* Colorful Hero Header Banner */}
-            <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-r from-indigo-500/15 via-purple-500/15 to-amber-500/15 border border-indigo-200/50 dark:border-indigo-900/40 shadow-xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2.5">
-                            <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-xs">
-                                <MessagesSquare className="h-6 w-6" />
-                            </div>
-                            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-headline">
-                                Community Forum
-                            </h1>
-                        </div>
-                        <p className="text-sm text-muted-foreground pt-1">
-                            Connect, discuss, ask questions, and share knowledge with fellow members of your community.
-                        </p>
-                    </div>
-                    <Badge variant="secondary" className="w-fit bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-200 border-indigo-300 font-semibold px-3 py-1 text-xs">
-                      <Users className="h-3.5 w-3.5 mr-1" />
-                      {userProfile?.communityName || 'Local Hub'}
-                    </Badge>
-                </div>
+        <div className="space-y-8">
+            {/* Premium Shimmer Hero Header */}
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sky-500/15 via-indigo-500/15 to-purple-500/15 border border-primary/20 p-6 md:p-10 shadow-lg backdrop-blur-sm">
+                {/* Decorative Ambient Glow Orbs */}
+                <div className="absolute -top-24 -right-24 w-72 h-72 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
 
-                {/* Search Bar */}
-                <div className="relative max-w-md pt-2">
-                  <Search className="absolute left-3.5 top-5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    type="text" 
-                    placeholder="Search discussion categories..." 
-                    className="pl-10 h-10 bg-background/80 backdrop-blur-xs border-indigo-200 dark:border-indigo-900"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                    <div className="space-y-3 max-w-2xl">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-background/80 backdrop-blur-md border border-primary/30 text-xs font-semibold text-primary shadow-xs">
+                            <Sparkles className="h-3.5 w-3.5 animate-spin" style={{ animationDuration: '4s' }} />
+                            <span>Community Hub Discussions</span>
+                        </div>
+                        
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight font-headline">
+                            <span className="bg-gradient-to-r from-sky-600 via-primary to-purple-600 dark:from-sky-400 dark:via-primary dark:to-purple-400 bg-clip-text text-transparent">
+                                Community Forum
+                            </span>
+                        </h1>
+                        
+                        <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
+                            Share ideas, recommend local trades, discuss neighborhood safety, and connect with fellow residents in your community.
+                        </p>
+
+                        {/* Search Input Bar */}
+                        <div className="relative pt-2 max-w-md">
+                          <Search className="absolute left-3.5 top-5 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="Search categories or discussion topics..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 h-11 bg-background/90 backdrop-blur-md border-primary/30 focus-visible:ring-primary shadow-xs rounded-xl text-sm"
+                          />
+                        </div>
+                    </div>
+
+                    {/* Stats & Quick Action Pill */}
+                    <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
+                        <div className="p-4 rounded-2xl bg-background/80 backdrop-blur-md border border-border/80 shadow-xs flex items-center gap-4">
+                            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                                <MessageCircleCode className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <div className="text-xl font-bold">{totalTopics}</div>
+                                <div className="text-xs text-muted-foreground">Active Topics</div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-background/80 backdrop-blur-md border border-border/80 shadow-xs flex items-center gap-4">
+                            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                                <TrendingUp className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <div className="text-xl font-bold">{totalPosts}</div>
+                                <div className="text-xs text-muted-foreground">Total Messages</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Category Cards List - Whole Card Clickable */}
+            {/* Categories Section */}
             <div className="space-y-4">
-                <div className="flex items-center justify-between px-1">
-                  <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-                    <span>Discussion Categories</span>
-                    <Badge variant="outline" className="text-xs font-semibold">
-                      {filteredCategories.length}
-                    </Badge>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                    <MessagesSquare className="h-5 w-5 text-primary" />
+                    Discussion Categories
                   </h2>
-                  <p className="text-xs text-muted-foreground hidden sm:block">
-                    Click anywhere on a category card to open topics
-                  </p>
+                  <span className="text-xs text-muted-foreground">{filteredCategories.length} categories available</span>
                 </div>
 
-                {filteredCategories && filteredCategories.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-4">
-                        {filteredCategories.map((category, index) => {
-                            const accent = CATEGORY_ACCENTS[index % CATEGORY_ACCENTS.length];
-                            const IconComponent = accent.icon;
-                            
-                            const stats = categoryStats.get(category.id);
-                            const topicCount = allTopics ? (stats?.topicsCount ?? 0) : (category.topics || 0);
-                            const postCount = allTopics ? (stats?.postsCount ?? 0) : (category.posts || 0);
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredCategories.map((category) => {
+                        const theme = getCategoryTheme(category.id, category.name);
+                        const IconComponent = theme.icon;
 
-                            return (
-                                <Link 
-                                    key={category.id} 
-                                    href={`/forum/${category.id}`} 
-                                    className="block group transition-all duration-200 transform hover:-translate-y-0.5"
-                                >
-                                    <Card className={`overflow-hidden border-2 transition-all duration-200 cursor-pointer ${accent.border} shadow-xs group-hover:shadow-md`}>
-                                        <CardContent className="p-5 sm:p-6">
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                
-                                                {/* Left Icon & Text */}
-                                                <div className="flex items-start gap-4 flex-1">
-                                                    <div className={`p-3 rounded-xl ${accent.iconBg} shadow-xs shrink-0 mt-0.5 group-hover:scale-105 transition-transform`}>
-                                                        <IconComponent className="h-6 w-6" />
-                                                    </div>
-                                                    <div className="space-y-1.5 flex-1">
-                                                        <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
-                                                            <span>{category.name}</span>
-                                                        </h3>
-                                                        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                                                            {category.description || "Join the conversation and discuss local topics with your community."}
-                                                        </p>
-                                                    </div>
-                                                </div>
+                        return (
+                            <Link 
+                                key={category.id} 
+                                href={`/forum/${category.id}`} 
+                                className="block group focus:outline-none focus:ring-2 focus:ring-primary rounded-xl"
+                            >
+                                <Card className={cn(
+                                  "h-full relative overflow-hidden transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md border",
+                                  theme.cardBorder
+                                )}>
+                                    {/* Left Accent Bar */}
+                                    <div className={cn("absolute left-0 top-0 bottom-0 w-1.5 transition-colors", theme.accentBar)} />
 
-                                                {/* Right Stats & Action Button */}
-                                                <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/50 shrink-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant="outline" className={`text-xs px-2.5 py-1 ${accent.badgeBg}`}>
-                                                            💬 <strong className="ml-1">{topicCount}</strong> {topicCount === 1 ? 'Topic' : 'Topics'}
-                                                        </Badge>
-                                                        <Badge variant="outline" className="text-xs px-2.5 py-1 bg-muted/60 text-muted-foreground border-border">
-                                                            ✉️ <strong className="ml-1 text-foreground">{postCount}</strong> {postCount === 1 ? 'Post' : 'Posts'}
-                                                        </Badge>
-                                                    </div>
-
-                                                    <Button 
-                                                        size="sm" 
-                                                        className={`h-9 px-4 text-xs font-semibold gap-1.5 shadow-xs shrink-0 ${accent.btnBg} group-hover:translate-x-0.5 transition-transform`}
-                                                    >
-                                                        <span>Browse</span>
-                                                        <ArrowRight className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </div>
+                                    <CardContent className="p-5 pl-6 flex flex-col justify-between h-full gap-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className={cn("p-3 rounded-xl shrink-0 transition-transform group-hover:scale-105", theme.iconBg)}>
+                                                <IconComponent className="h-6 w-6" />
                                             </div>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <Card className="p-8 text-center border-dashed">
-                        <MessageSquare className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
-                        <h3 className="text-lg font-bold">No Categories Found</h3>
-                        <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-                            {searchQuery ? `No categories matched "${searchQuery}". Try a different keyword.` : "No forum categories have been created for this community yet."}
-                        </p>
-                        {searchQuery && (
-                          <Button variant="outline" size="sm" className="mt-4" onClick={() => setSearchQuery('')}>
-                            Clear Search
-                          </Button>
-                        )}
-                    </Card>
-                )}
+                                            <div className="space-y-1.5 flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                                                        {category.name}
+                                                    </h3>
+                                                    <ArrowRight className="h-4 w-4 text-muted-foreground/60 shrink-0 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                                                </div>
+                                                <p className="text-xs md:text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                                                    {category.description}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-3 pt-3 border-t border-border/50 text-xs font-medium text-muted-foreground">
+                                            <Badge variant="outline" className={cn("gap-1 py-0.5 px-2 font-medium text-xs", theme.badgeClass)}>
+                                                <FileText className="h-3.5 w-3.5" />
+                                                {category.topics || 0} {category.topics === 1 ? 'Topic' : 'Topics'}
+                                            </Badge>
+                                            <Badge variant="outline" className="gap-1 py-0.5 px-2 font-medium text-xs bg-muted/30">
+                                                <Users className="h-3.5 w-3.5" />
+                                                {category.posts || 0} {category.posts === 1 ? 'Post' : 'Posts'}
+                                            </Badge>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </Link>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

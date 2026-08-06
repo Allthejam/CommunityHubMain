@@ -20,10 +20,10 @@ type MenuItem = {
 };
 
 type MobileNavProps = {
-  menuItems: MenuItem[];
+  menuItems?: MenuItem[];
 };
 
-export function MobileNav({ menuItems }: MobileNavProps) {
+export function MobileNav({ menuItems = [] }: MobileNavProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isClient, setIsClient] = React.useState(false);

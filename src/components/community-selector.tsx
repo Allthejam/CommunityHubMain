@@ -38,6 +38,7 @@ interface CommunitySelectorProps {
   selection: CommunitySelection | null;
   onSelectionChange: (selection: CommunitySelection | null) => void;
   allowCreation?: boolean;
+  showCommunityDropdown?: boolean;
   isLocationVerified?: boolean;
   onVerificationChange?: (isVerified: boolean) => void;
   otherStateName?: string;
@@ -86,6 +87,7 @@ export function CommunitySelector({
     selection,
     onSelectionChange,
     allowCreation = false,
+    showCommunityDropdown = true,
     isLocationVerified,
     onVerificationChange,
     otherStateName,
@@ -182,7 +184,7 @@ export function CommunitySelector({
   
   // Fetch Communities based on selected region
   React.useEffect(() => {
-    if (!db || !selectedRegion || selectedRegion === 'new') {
+    if (!db || !selectedRegion || selectedRegion === 'new' || !showCommunityDropdown) {
       setCommunities([]);
       return;
     }
@@ -257,7 +259,7 @@ export function CommunitySelector({
     };
 
     fetchCommunities();
-  }, [db, selectedRegion, regions, selectedState, states, selectedCountry, countries, toast]);
+  }, [db, selectedRegion, regions, selectedState, states, selectedCountry, countries, toast, showCommunityDropdown]);
   
   const handleVerifyLocation = async () => {
     if (!onVerificationChange) return;
@@ -307,7 +309,7 @@ export function CommunitySelector({
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+            {showCommunityDropdown && <Skeleton className="h-10 w-full" />}
         </div>
     );
   }
@@ -320,7 +322,7 @@ export function CommunitySelector({
       
       {selectedState && selectedState !== 'new' && renderSelect('Region / Area *', regions, 'region', selectedRegion, (id) => handleSelect('region', id), loading.regions, allowCreation)}
       
-      {selectedRegion && selectedRegion !== 'new' && renderSelect('Community *', communities, 'community', selectedCommunity, (id) => handleSelect('community', id), loading.communities, allowCreation)}
+      {showCommunityDropdown && selectedRegion && selectedRegion !== 'new' && renderSelect('Community *', communities, 'community', selectedCommunity, (id) => handleSelect('community', id), loading.communities, allowCreation)}
       
       {allowCreation && (
           <div className="space-y-4">
@@ -336,7 +338,7 @@ export function CommunitySelector({
                   <Input value={otherRegionName} onChange={e => onOtherRegionNameChange?.(e.target.value)} placeholder="e.g., Los Angeles County"/>
               </div>
           )}
-          {(selectedState === 'new' || selectedRegion === 'new' || selectedCommunity === 'other') && (
+          {showCommunityDropdown && (selectedState === 'new' || selectedRegion === 'new' || selectedCommunity === 'other') && (
               <div className="space-y-2 p-4 border-l-4 border-primary bg-primary/5 rounded-r-lg">
                   <Label>New Community / Town Name</Label>
                   <Input value={otherCommunityName} onChange={e => onOtherCommunityNameChange?.(e.target.value)} placeholder="e.g., Hollywood"/>
@@ -348,13 +350,15 @@ export function CommunitySelector({
           )}
           </div>
       )}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground p-2 border rounded-md mt-4">
-        <span className="font-semibold">Legend:</span>
-        <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-500"></span>Active</div>
-        <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-yellow-500"></span>Needs Leader</div>
-        <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-purple-500"></span>Pending Approval</div>
-        <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500"></span>Inactive</div>
-    </div>
+      {showCommunityDropdown && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground p-2 border rounded-md mt-4">
+            <span className="font-semibold">Legend:</span>
+            <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-500"></span>Active</div>
+            <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-yellow-500"></span>Needs Leader</div>
+            <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-purple-500"></span>Pending Approval</div>
+            <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500"></span>Inactive</div>
+        </div>
+      )}
     </div>
   );
 }

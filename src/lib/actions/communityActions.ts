@@ -129,11 +129,11 @@ export async function claimCommunityLeadershipAction(params: { userId: string, c
             
             const finalStatus = communityData?.status;
 
-            const userData = userDoc.data();
-            const userUpdates: Record<string, any> = {
+            transaction.set(userRef, {
                 role: 'president',
                 title: 'President',
-                onboardingCompleted: false, // Trigger onboarding for the newly claimed community
+                communityId: communityId,
+                homeCommunityId: communityId,
                 memberOf: FieldValue.arrayUnion(communityId),
                 communityRoles: {
                     [communityId]: {
@@ -146,17 +146,7 @@ export async function claimCommunityLeadershipAction(params: { userId: string, c
                         leader: true
                     }
                 }
-            };
-
-            // Protect permanent home community! Only set if user has no home community yet.
-            if (!userData?.homeCommunityId) {
-                userUpdates.homeCommunityId = communityId;
-                userUpdates.homeCommunityName = communityData?.name;
-                userUpdates.communityId = communityId;
-                userUpdates.communityName = communityData?.name;
-            }
-
-            transaction.set(userRef, userUpdates, { merge: true });
+            }, { merge: true });
 
             transaction.update(communityRef, {
                 leaderCount: FieldValue.increment(1),
@@ -381,31 +371,14 @@ export async function runSaveCommunityBoundary(params: {
 export async function runCheckBoundaryOverlap(params: { communityId: string; geoJson: any }): Promise<{ overlaps: boolean; reason: string; conflictingCommunityId?: string; conflictingCommunityName?: string; conflictingCommunityGeoJson?: string; }> {
     const { communityId, geoJson } = params;
 
-    const extractGeometry = (inputGeoJson: any) => {
-        if (!inputGeoJson) return null;
-        if (inputGeoJson.type === 'FeatureCollection' && inputGeoJson.features?.[0]) {
-            return inputGeoJson.features[0].geometry || inputGeoJson.features[0];
-        }
-        if (inputGeoJson.type === 'Feature' && inputGeoJson.geometry) {
-            return inputGeoJson.geometry;
-        }
-        if (inputGeoJson.coordinates) {
-            return inputGeoJson;
-        }
-        return null;
-    };
-
     const getBoundingBox = (geom: any): [number, number, number, number] => {
         let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
-        const coords = geom.coordinates?.[0] || geom.coordinates || [];
-        for (const pt of coords) {
-            if (Array.isArray(pt) && typeof pt[0] === 'number' && typeof pt[1] === 'number') {
-                const [lon, lat] = pt;
-                minLon = Math.min(minLon, lon);
-                minLat = Math.min(minLat, lat);
-                maxLon = Math.max(maxLon, lon);
-                maxLat = Math.max(maxLat, lat);
-            }
+        const coordinates = geom.coordinates[0]; 
+        for (const [lon, lat] of coordinates) {
+            minLon = Math.min(minLon, lon);
+            minLat = Math.min(minLat, lat);
+            maxLon = Math.max(maxLon, lon);
+            maxLat = Math.max(maxLat, lat);
         }
         return [minLon, minLat, maxLon, maxLat];
     };
@@ -425,12 +398,11 @@ export async function runCheckBoundaryOverlap(params: { communityId: string; geo
         
         const snapshot = await communitiesRef.where('boundary', '!=', null).get();
 
-        const newGeom = extractGeometry(geoJson);
-        if (!newGeom || !newGeom.coordinates) {
-             return { overlaps: false, reason: "No overlaps detected." };
+        if (!geoJson?.geometry?.coordinates) {
+             throw new Error("Invalid GeoJSON provided for checking.");
         }
 
-        const newBoundaryBox = getBoundingBox(newGeom);
+        const newBoundaryBox = getBoundingBox(geoJson.geometry);
 
         for (const doc of snapshot.docs) {
             if (doc.id === communityId) {
@@ -441,16 +413,15 @@ export async function runCheckBoundaryOverlap(params: { communityId: string; geo
             if (data.boundary) {
                 try {
                     const existingGeoJson = JSON.parse(data.boundary);
-                    const existingGeom = extractGeometry(existingGeoJson);
-                    if (!existingGeom || !existingGeom.coordinates) {
+                     if (!existingGeoJson?.geometry?.coordinates) {
                         continue; 
                     }
-                    const existingBoundaryBox = getBoundingBox(existingGeom);
+                    const existingBoundaryBox = getBoundingBox(existingGeoJson.geometry);
                     
                     if (doBoundingBoxesOverlap(newBoundaryBox, existingBoundaryBox)) {
                         return {
                             overlaps: true,
-                            reason: `Boundary overlaps with neighboring community '${data.name}'.`,
+                            reason: `Boundary may overlap with '${data.name}'.`,
                             conflictingCommunityId: doc.id,
                             conflictingCommunityName: data.name,
                             conflictingCommunityGeoJson: data.boundary
@@ -640,58 +611,3 @@ export async function getCourierDeliveryFeeAction(communityId: string): Promise<
         return { fee: 0 };
     }
 }
-
-export interface PublicCommunityData {
-    id: string;
-    name: string;
-    country?: string;
-    state?: string;
-    region?: string;
-    status?: string;
-    leaderCount?: number;
-    memberCount?: number;
-    boundary?: string;
-    centroid?: { lat: number; lng: number };
-}
-
-export async function runGetAllPublicCommunities(): Promise<{ success: boolean; communities?: PublicCommunityData[]; error?: string }> {
-    try {
-        const { firestore } = initializeAdminApp();
-        const snapshot = await firestore.collection('communities')
-            .where('visibility', '==', 'public')
-            .get();
-
-        const communities: PublicCommunityData[] = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                name: data.name || '',
-                country: data.country || '',
-                state: data.state || '',
-                region: data.region || '',
-                status: data.status || 'inactive',
-                leaderCount: data.leaderCount || 0,
-                memberCount: data.memberCount || 0,
-                boundary: data.boundary || undefined,
-                centroid: data.centroid || undefined,
-            };
-        });
-
-        return { success: true, communities };
-    } catch (error: any) {
-        console.error("Error fetching public communities:", error);
-        return { success: false, error: error.message };
-    }
-}
-
-export async function runSaveCommunityCentroid(communityId: string, centroid: { lat: number; lng: number }): Promise<ActionResponse> {
-    try {
-        const { firestore } = initializeAdminApp();
-        await firestore.collection('communities').doc(communityId).update({ centroid });
-        return { success: true };
-    } catch (error: any) {
-        console.error("Error saving community centroid:", error);
-        return { success: false, error: error.message };
-    }
-}
-

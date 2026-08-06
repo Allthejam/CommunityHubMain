@@ -3,6 +3,7 @@
 'use client';
 
 import * as React from 'react';
+import MainAppLayout from '../(main)/layout';
 import {
   Archive,
   ArrowLeft,
@@ -25,6 +26,7 @@ import {
   Trash2,
   User as UserIcon,
   UserPlus,
+  Users,
   Video,
   VolumeX,
   X,
@@ -888,54 +890,38 @@ function ChatPageContent() {
     
     return (
         <>
-        <div className={cn("bg-slate-100 h-screen flex flex-col overflow-hidden font-sans text-slate-900", chatTheme?.mode, chatTheme?.texture )}>
-            <nav className="w-full h-20 bg-indigo-700 flex flex-row items-center justify-between px-6 text-white flex-shrink-0 z-50">
+        <div className={cn("bg-card h-[calc(100vh-7rem)] min-h-[620px] rounded-2xl border shadow-md flex flex-col overflow-hidden font-sans text-foreground", chatTheme?.mode, chatTheme?.texture )}>
+            <nav className="w-full h-16 bg-muted/60 border-b flex flex-row items-center justify-between px-4 text-foreground flex-shrink-0 z-40">
                 <div className="flex items-center gap-2">
-                    <Link href="/home" passHref>
-                        <Button variant="ghost" className="p-3 rounded-xl transition-all hover:bg-indigo-600 active:scale-95" title="Go Home">
-                            <Home className="h-6 w-6" />
-                        </Button>
-                    </Link>
-                    <Separator orientation="vertical" className="h-8 bg-indigo-500/50" />
-                    <Button variant="ghost" onClick={() => switchPage('main')} className="p-3 rounded-xl transition-all hover:bg-indigo-600 active:scale-95" title="Recent Chats">
-                        <MessageSquare className="h-6 w-6" />
+                    <Button variant="ghost" size="sm" onClick={() => switchPage('main')} className={cn("gap-1.5 font-medium text-xs rounded-lg transition-all", currentPage === 'main' && "bg-background shadow-xs text-primary font-semibold")} title="Recent Chats">
+                        <MessageSquare className="h-4 w-4 text-primary" />
+                        <span>Conversations</span>
                     </Button>
-                    <Button variant="ghost" onClick={() => switchPage('archived')} className="p-3 rounded-xl transition-all hover:bg-indigo-600 active:scale-95" title="Archived">
-                        <Archive className="h-6 w-6" />
+                    <Separator orientation="vertical" className="h-5" />
+                    <Button variant="ghost" size="sm" onClick={() => switchPage('groups')} className={cn("gap-1.5 font-medium text-xs rounded-lg transition-all", currentPage === 'groups' && "bg-background shadow-xs text-primary font-semibold")} title="Community Groups">
+                        <Users className="h-4 w-4 text-indigo-500" />
+                        <span>Groups</span>
                     </Button>
-                    <Button variant="ghost" onClick={() => switchPage('search')} className="p-3 rounded-xl transition-all hover:bg-indigo-600 active:scale-95" title="Community Members">
-                        <UserPlus className="h-6 w-6" />
+                    <Button variant="ghost" size="sm" onClick={() => switchPage('favorites')} className={cn("gap-1.5 font-medium text-xs rounded-lg transition-all", currentPage === 'favorites' && "bg-background shadow-xs text-primary font-semibold")} title="Favorite Chats">
+                        <Star className="h-4 w-4 text-amber-500" />
+                        <span>Favorites</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => switchPage('archived')} className={cn("gap-1.5 font-medium text-xs rounded-lg transition-all", currentPage === 'archived' && "bg-background shadow-xs text-primary font-semibold")} title="Archived">
+                        <Archive className="h-4 w-4" />
+                        <span>Archived</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => switchPage('search')} className={cn("gap-1.5 font-medium text-xs rounded-lg transition-all", currentPage === 'search' && "bg-background shadow-xs text-primary font-semibold")} title="Find Community Members">
+                        <UserPlus className="h-4 w-4 text-primary" />
+                        <span>Directory</span>
                     </Button>
                 </div>
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                            <Avatar className="h-10 w-10 border-2 border-white">
-                                <AvatarImage src={userProfile?.avatar} alt={userProfile?.name} />
-                                <AvatarFallback>{userProfile ? getInitials(userProfile.name) : 'U'}</AvatarFallback>
-                            </Avatar>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                        <DropdownMenuLabel className="font-normal">
-                            <div className="flex flex-col space-y-1">
-                                <p className="text-sm font-medium leading-none">{userProfile?.name}</p>
-                                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                            </div>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                            <Link href={`/profile/${user?.uid}`}>
-                                <UserIcon className="mr-2 h-4 w-4" />
-                                <span>My Profile</span>
-                            </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleLogout}>
-                            <LogOut className="mr-2 h-4 w-4" />
-                            <span>Log out</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                
+                <div className="flex items-center gap-2">
+                    <Button size="sm" className="gap-1.5 text-xs font-semibold shadow-xs" onClick={() => setOpenNewChatDialog(true)}>
+                        <PlusCircle className="h-4 w-4" />
+                        <span>New Chat</span>
+                    </Button>
+                </div>
             </nav>
              <main className="flex-1 flex overflow-hidden relative">
                 <aside id="sidebarPanel" ref={sidebarRef} className={cn("w-full md:w-80 bg-white border-r border-slate-200 flex flex-col transition-all duration-300 flex-shrink-0 z-30", (currentChatId || provisionalConversation) && "hidden md:flex")}
@@ -1305,8 +1291,10 @@ function ChatPageContent() {
 
 export default function ChatPage() {
     return (
-        <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-            <ChatPageContent />
-        </React.Suspense>
+        <MainAppLayout>
+            <React.Suspense fallback={<div className="flex h-[75vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+                <ChatPageContent />
+            </React.Suspense>
+        </MainAppLayout>
     );
 }

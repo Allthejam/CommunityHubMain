@@ -840,30 +840,19 @@ export async function runAddCommunityToLeadership(params: {
         const communityDoc = await transaction.get(communityRef);
         if (!communityDoc.exists) throw new Error("Community not found.");
 
-        const userDoc = await transaction.get(userRef);
-        const userData = userDoc.data() || {};
-
-        const updateData: { [key: string]: any } = {
+        transaction.set(userRef, {
             'role': 'president',
             'title': 'President',
+            'homeCommunityId': communityId,
             'communityId': communityId,
             'communityName': communityDoc.data()?.name,
             'memberOf': FieldValue.arrayUnion(communityId),
-            [`communityRoles.${communityId}`]: {
-                role: 'president',
-                title: 'President',
-                permissions: {
-                    hasBackOfficeAccess: true
+            permissions: {
+                dashboards: {
+                    leader: true
                 }
-            },
-            'permissions.dashboards.leader': true
-        };
-
-        if (!userData.homeCommunityId) {
-            updateData.homeCommunityId = communityId;
-        }
-
-        transaction.update(userRef, updateData);
+            }
+        }, { merge: true });
 
         transaction.update(communityRef, {
             'leaderCount': FieldValue.increment(1)

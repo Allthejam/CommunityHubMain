@@ -1,135 +1,212 @@
 'use client';
 
-import * as React from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { 
-  ArrowLeft, 
-  MessageSquare, 
-  Loader2, 
-  Send, 
-  User, 
-  Clock, 
-  MessageCircle, 
-  CheckCircle2,
-  Sparkles
-} from 'lucide-react';
 import Link from 'next/link';
-import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, where, orderBy, addDoc, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
+import { useParams } from 'next/navigation';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ArrowLeft, MessageSquare, Loader2 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import React, { useEffect, useState } from 'react';
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+} from 'firebase/firestore';
+import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
+import { RichTextEditor } from '@/components/rich-text-editor';
+import { runAddPostToTopic } from '@/lib/actions/forumActions';
 import { useToast } from '@/hooks/use-toast';
-import { type Topic, type ForumCategory } from '@/lib/forum-data';
 
-export type ForumReply = {
+type Post = {
   id: string;
-  topicId: string;
-  categoryId: string;
-  content: string;
-  authorId: string;
   authorName: string;
-  authorAvatar?: string;
+  authorAvatar: string;
+  authorId: string;
   createdAt: any;
+  content: string;
+  authorIsPrivate: boolean;
 };
 
-export default function ForumTopicDetailsPage() {
+type Topic = {
+  id: string;
+  title: string;
+  categoryId: string;
+};
+
+const PostCard = ({ post }: { post: Post }) => {
+  const authorName = post.authorIsPrivate ? 'Anonymous Member' : post.authorName;
+  const authorAvatar = post.authorIsPrivate ? '' : post.authorAvatar;
+  const authorInitial = post.authorIsPrivate
+    ? 'A'
+    : (post.authorName || 'A').charAt(0);
+
+  return (
+    <div className="flex gap-4">
+      <Avatar>
+        <AvatarImage src={authorAvatar} alt={authorName} />
+        <AvatarFallback>{authorInitial}</AvatarFallback>
+      </Avatar>
+      <div className="flex-1">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="font-semibold">{authorName}</span>
+          <span className="text-muted-foreground">
+            {post.createdAt
+              ? new Date(post.createdAt.toDate()).toLocaleString()
+              : 'Just now'}
+          </span>
+        </div>
+        <div
+          className="mt-2 text-foreground prose dark:prose-invert max-w-none text-sm"
+          dangerouslySetInnerHTML={{ __html: post.content }}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default function TopicPage() {
   const params = useParams();
   const categoryId = params.categoryId as string;
   const topicId = params.topicId as string;
   const db = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
-  const router = useRouter();
 
-  const [replyContent, setReplyContent] = React.useState('');
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [topic, setTopic] = useState<Topic | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  // Load User Profile
-  const userProfileRef = useMemoFirebase(() => {
-    if (!user || !db) return null;
-    return doc(db, 'users', user.uid);
-  }, [user, db]);
-  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+  const [replyContent, setReplyContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load Topic Details
-  const topicRef = useMemoFirebase(() => {
-    if (!topicId || !db) return null;
-    return doc(db, 'forum-topics', topicId);
+  const userProfileRef = useMemoFirebase(
+    () => (user ? doc(db, 'users', user.uid) : null),
+    [user, db]
+  );
+  const { data: userProfile } = useDoc(userProfileRef);
+
+  useEffect(() => {
+    if (!topicId || !db) return;
+
+    setLoading(true);
+    const fetchTopicAndPosts = async () => {
+      try {
+        // Fetch topic details
+        const topicRef = doc(db, 'forum-topics', topicId);
+        const topicSnap = await getDoc(topicRef);
+        if (topicSnap.exists()) {
+          setTopic({ id: topicSnap.id, ...topicSnap.data() } as Topic);
+
+          // Fetch posts only if topic exists
+          const postsQuery = query(
+            collection(db, `forum-topics/${topicId}/posts`),
+            orderBy('createdAt', 'asc')
+          );
+          const unsubscribe = onSnapshot(
+            postsQuery,
+            async (querySnapshot) => {
+              const fetchedPosts: Post[] = [];
+              const userPrivacyCache = new Map<string, boolean>();
+
+              for (const docSnapshot of querySnapshot.docs) {
+                const postData = docSnapshot.data();
+                let authorIsPrivate = false;
+
+                if (userPrivacyCache.has(postData.authorId)) {
+                  authorIsPrivate = userPrivacyCache.get(postData.authorId)!;
+                } else {
+                  const userRef = doc(db, 'users', postData.authorId);
+                  const userSnap = await getDoc(userRef);
+                  if (userSnap.exists()) {
+                    authorIsPrivate = userSnap.data().settings?.publicProfile === false;
+                    userPrivacyCache.set(postData.authorId, authorIsPrivate);
+                  }
+                }
+
+                fetchedPosts.push({
+                  id: docSnapshot.id,
+                  ...postData,
+                  authorIsPrivate,
+                } as Post);
+              }
+
+              setPosts(fetchedPosts);
+              setLoading(false);
+            },
+            (err) => {
+              console.error('Error fetching posts:', err);
+              setError('Failed to load posts for this topic.');
+              setLoading(false);
+            }
+          );
+          return unsubscribe;
+        } else {
+          setError('Topic not found.');
+          setLoading(false);
+          return () => {}; // Return a no-op unsubscribe function
+        }
+      } catch (err) {
+        console.error('Error fetching topic:', err);
+        setError('Failed to load topic.');
+        setLoading(false);
+        return () => {};
+      }
+    };
+
+    const unsubscribePromise = fetchTopicAndPosts();
+
+    return () => {
+      unsubscribePromise.then((unsub) => unsub && unsub());
+    };
   }, [topicId, db]);
-  const { data: topic, isLoading: topicLoading, error: topicError } = useDoc<Topic>(topicRef);
 
-  // Load Category Details
-  const categoryRef = useMemoFirebase(() => {
-    if (!categoryId || !db) return null;
-    return doc(db, 'forum-categories', categoryId);
-  }, [categoryId, db]);
-  const { data: category } = useDoc<ForumCategory>(categoryRef);
-
-  // Load Replies for Topic (using subcollection path permitted in rules)
-  const repliesQuery = useMemoFirebase(() => {
-    if (!topicId || !db) return null;
-    return query(
-      collection(db, 'forum-topics', topicId, 'replies'),
-      orderBy('createdAt', 'asc')
-    );
-  }, [topicId, db]);
-  const { data: replies, isLoading: repliesLoading } = useCollection<ForumReply>(repliesQuery);
-
-  const loading = profileLoading || topicLoading;
-
-  const handlePostReply = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!replyContent.trim()) {
-      toast({ title: 'Empty Reply', description: 'Please write a message before posting.', variant: 'destructive' });
-      return;
-    }
-
-    if (!user || !db || !topicId) {
-      toast({ title: 'Authentication Required', description: 'Please sign in to post a reply.', variant: 'destructive' });
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const authorName = userProfile?.name || `${userProfile?.firstName || ''} ${userProfile?.lastName || ''}`.trim() || 'Community Member';
-      const authorAvatar = userProfile?.avatar || '';
-
-      // 1. Add reply document into forum-topics/{topicId}/replies subcollection
-      await addDoc(collection(db, 'forum-topics', topicId, 'replies'), {
-        topicId,
-        categoryId,
-        communityId: userProfile?.communityId || '9ayHMyZf4SRw2gof1AM9',
-        content: replyContent.trim(),
-        authorId: user.uid,
-        authorName,
-        authorAvatar,
-        createdAt: serverTimestamp(),
+  const handleReply = async () => {
+    if (!user || !userProfile) {
+      toast({
+        title: 'Not Authenticated',
+        description: 'You must be logged in to reply.',
+        variant: 'destructive',
       });
-
-      // 2. Increment topic reply count and update lastPost timestamp
-      if (topicRef) {
-        await updateDoc(topicRef, {
-          replies: increment(1),
-          lastPost: Date.now(),
-        });
+      return;
+    }
+    if (!replyContent.trim()) {
+      toast({
+        title: 'Missing Content',
+        description: 'Please provide a message.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const result = await runAddPostToTopic({
+        topicId,
+        content: replyContent,
+        authorId: user.uid,
+      });
+      if (result.success) {
+        toast({ title: 'Reply Posted!' });
+        setReplyContent('');
+      } else {
+        throw new Error(result.error);
       }
-
-      // 3. Increment category post count
-      if (categoryRef) {
-        await updateDoc(categoryRef, {
-          posts: increment(1),
-        });
-      }
-
-      setReplyContent('');
-      toast({ title: 'Reply Posted!', description: 'Your message has been added to the discussion.' });
-    } catch (err: any) {
-      console.error('Error posting reply:', err);
-      toast({ title: 'Error', description: err.message || 'Failed to post reply.', variant: 'destructive' });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -138,172 +215,89 @@ export default function ForumTopicDetailsPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
-  if (topicError || !topic) {
+  if (error) {
     return (
-      <div className="text-center py-16 space-y-4 max-w-md mx-auto">
+      <div className="text-center">
         <h1 className="text-2xl font-bold">Topic Not Found</h1>
-        <p className="text-sm text-muted-foreground">This discussion topic may have been moved or removed.</p>
-        <Button asChild variant="default" className="mt-4 bg-purple-600 hover:bg-purple-700 text-white">
-          <Link href={`/forum/${categoryId}`}>
+        <p className="text-muted-foreground">{error}</p>
+        <Button asChild variant="link" className="mt-4">
+          <Link href="/forum">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Category
+            Return to Forum
           </Link>
         </Button>
       </div>
     );
   }
 
-  const topicDate = topic.createdAt?.toDate 
-    ? topic.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : 'Recently';
+  if (!topic) {
+    return null; // Should be covered by error state
+  }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
-      {/* Navigation Bar */}
-      <Button asChild variant="ghost" size="sm" className="text-xs hover:bg-muted font-medium">
-        <Link href={`/forum/${categoryId}`}>
-          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-          Back to {category?.name || 'Category'}
-        </Link>
-      </Button>
-
-      {/* Main Topic Header & Content Card */}
-      <Card className="border-2 border-purple-200/60 dark:border-purple-900/40 shadow-sm overflow-hidden">
-        <CardHeader className="p-6 bg-gradient-to-r from-purple-500/15 via-indigo-500/15 to-emerald-500/15 border-b border-purple-100 dark:border-purple-900/30 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <Badge variant="outline" className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-200 font-semibold text-xs">
-              {category?.name || 'Discussion Topic'}
-            </Badge>
-            <Badge variant="secondary" className="bg-purple-600 text-white text-xs px-2.5 py-0.5">
-              💬 {replies?.length || topic.replies || 0} Replies
-            </Badge>
-          </div>
-
-          <CardTitle className="text-xl sm:text-2xl font-extrabold tracking-tight font-headline text-foreground leading-snug">
-            {topic.title}
-          </CardTitle>
-
-          <div className="flex items-center gap-3 pt-2 text-xs text-muted-foreground flex-wrap">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6 border">
-                <AvatarImage src={topic.authorAvatar} alt={topic.authorName} />
-                <AvatarFallback className="text-[10px] bg-purple-100 text-purple-700 font-bold">
-                  {topic.authorName?.charAt(0) || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <span className="font-semibold text-foreground">{topic.authorName || 'Community Member'}</span>
-            </div>
-            <span>•</span>
-            <span className="flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-              {topicDate}
-            </span>
-          </div>
-        </CardHeader>
-
-        {/* Topic Body Content */}
-        <CardContent className="p-6 md:p-8 space-y-4">
-          <div className="text-base text-foreground leading-relaxed whitespace-pre-wrap font-normal">
-            {(topic as any).content || (topic as any).body || "No additional details provided for this topic."}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Discussion Replies List */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-            <MessageCircle className="h-5 w-5 text-purple-600" />
-            <span>Replies ({replies?.length || 0})</span>
-          </h3>
-        </div>
-
-        {replies && replies.length > 0 ? (
-          <div className="space-y-3">
-            {replies.map((reply) => {
-              const replyDate = reply.createdAt?.toDate 
-                ? reply.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                : 'Just now';
-
-              return (
-                <Card key={reply.id} className="border border-border/80 shadow-2xs">
-                  <CardContent className="p-4 sm:p-5 space-y-3">
-                    <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <Avatar className="h-8 w-8 border">
-                          <AvatarImage src={reply.authorAvatar} alt={reply.authorName} />
-                          <AvatarFallback className="text-xs bg-purple-100 text-purple-700 font-bold">
-                            {reply.authorName?.charAt(0) || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-bold text-foreground">{reply.authorName}</p>
-                          <p className="text-[11px] text-muted-foreground">{replyDate}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                      {reply.content}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <Card className="p-6 text-center border-dashed">
-            <p className="text-sm text-muted-foreground">No replies yet. Be the first to share your thoughts!</p>
-          </Card>
-        )}
+    <div className="space-y-8">
+      <div>
+        <Button asChild variant="ghost" className="mb-4">
+          <Link href={`/forum/${categoryId}`}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Topics
+          </Link>
+        </Button>
+        <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2">
+          <MessageSquare className="h-8 w-8 text-primary" />
+          {topic.title}
+        </h1>
       </div>
 
-      {/* Post a Reply Form Card */}
-      <Card className="border-2 border-purple-200/80 dark:border-purple-900/60 shadow-sm">
-        <CardHeader className="p-5 pb-2">
-          <CardTitle className="text-base font-bold flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-purple-600" />
-            <span>Join the Discussion</span>
-          </CardTitle>
-        </CardHeader>
-        <form onSubmit={handlePostReply}>
-          <CardContent className="p-5 pt-2 space-y-3">
-            <Textarea
-              placeholder="Write your reply to this topic..."
+      <div className="space-y-6">
+        {posts.map((post, index) => (
+          <React.Fragment key={post.id}>
+            {index === 0 ? (
+              <Card>
+                <CardHeader>
+                  <PostCard post={post} />
+                </CardHeader>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <PostCard post={post} />
+                </CardContent>
+              </Card>
+            )}
+            {index === 0 && posts.length > 1 && (
+              <>
+                <Separator />
+                <h3 className="text-xl font-semibold">Replies</h3>
+              </>
+            )}
+          </React.Fragment>
+        ))}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Post a Reply</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RichTextEditor
               value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
-              rows={4}
-              required
-              className="border-purple-200 dark:border-purple-900 focus-visible:ring-purple-500 leading-relaxed resize-y"
+              onChange={setReplyContent}
+              placeholder="Write your reply here..."
             />
           </CardContent>
-          <CardFooter className="p-5 pt-0 flex justify-end">
-            <Button
-              type="submit"
-              size="sm"
-              className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-5 h-9 text-xs gap-1.5 shadow-xs"
-              disabled={isSubmitting || !replyContent.trim()}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Posting...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="h-3.5 w-3.5" />
-                  <span>Post Reply</span>
-                </>
-              )}
+          <CardFooter>
+            <Button onClick={handleReply} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Submit Reply
             </Button>
           </CardFooter>
-        </form>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

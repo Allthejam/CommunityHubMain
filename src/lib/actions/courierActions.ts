@@ -225,7 +225,7 @@ export async function updateCourierApplicationStatusAction(params: {
         date: Timestamp.now(),
         status: 'new',
         relatedId: communityId,
-        actionUrl: `https://www.courier.my-community-hub.co.uk/?email=${encodeURIComponent(userData.email)}`,
+        actionUrl: `/courier/dashboard`,
         targetApp: 'main'
       });
     });
@@ -362,3 +362,185 @@ export async function unappointCommunityCourierAction(params: { userId: string, 
         return { success: false, error: error.message };
     }
 }
+
+export async function updateCourierFullProfileAction(params: {
+  userId: string;
+  communityId: string;
+  businessName?: string;
+  shortDescription?: string;
+  longDescription?: string;
+  vehicleDetails?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  deliveryFee?: number;
+  stripeAccountId?: string;
+  logoImage?: string;
+  bannerImage?: string;
+  team?: Array<{ id?: string; name: string; role: string; phone?: string; photoUrl?: string }>;
+  pageThreeContent?: string;
+  pageTwoIntro?: string;
+  contactNumber?: string;
+  addresses?: Array<{ addressLine1?: string; addressLine2?: string; city?: string; county?: string; postcode?: string; country?: string }>;
+  dispatchPhone?: string;
+  supportEmail?: string;
+  depotAddress?: string;
+  websiteUrl?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  keywords?: string;
+}): Promise<ActionResponse> {
+  const {
+    userId,
+    communityId,
+    businessName,
+    shortDescription,
+    longDescription,
+    vehicleDetails,
+    contactPhone,
+    contactEmail,
+    contactNumber,
+    deliveryFee,
+    stripeAccountId,
+    logoImage,
+    bannerImage,
+    team,
+    pageThreeContent,
+    pageTwoIntro,
+    addresses,
+    dispatchPhone,
+    supportEmail,
+    depotAddress,
+    websiteUrl,
+    metaTitle,
+    metaDescription,
+    keywords,
+  } = params;
+
+  if (!userId || !communityId) {
+    return { success: false, error: 'User ID and Community ID are required.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const batch = firestore.batch();
+
+    // 1. Update /communities/{communityId}
+    const communityRef = firestore.collection('communities').doc(communityId);
+    const communityUpdates: any = {
+      courierId: userId,
+      updatedAt: Timestamp.now(),
+    };
+    if (deliveryFee !== undefined) {
+      communityUpdates.courierDeliveryFee = deliveryFee;
+    }
+    batch.update(communityRef, communityUpdates);
+
+    // 2. Update /users/{userId}
+    const userRef = firestore.collection('users').doc(userId);
+    const userUpdates: any = {
+      'permissions.isCourier': true,
+      [`communityRoles.${communityId}.role`]: 'community-courier',
+      updatedAt: Timestamp.now(),
+    };
+    const phoneVal = contactPhone || contactNumber;
+    if (phoneVal) userUpdates.phone = phoneVal;
+    if (vehicleDetails) userUpdates.vehicleType = vehicleDetails;
+    if (shortDescription) userUpdates.courierBio = shortDescription;
+    batch.update(userRef, userUpdates);
+
+    // 3. Update or Create /businesses/{businessId}
+    const businessesRef = firestore.collection('businesses');
+    const existingBizQuery = await businessesRef
+      .where('ownerId', '==', userId)
+      .where('accountType', '==', 'courier')
+      .where('primaryCommunityId', '==', communityId)
+      .limit(1)
+      .get();
+
+    const bizPayload: any = {
+      businessName: businessName || 'Local Courier Service',
+      shortDescription: shortDescription || '',
+      longDescription: longDescription || '',
+      vehicleDetails: vehicleDetails || '',
+      contactPhone: phoneVal || '',
+      contactNumber: phoneVal || '',
+      contactEmail: contactEmail || '',
+      updatedAt: Timestamp.now(),
+    };
+
+    if (stripeAccountId !== undefined) bizPayload.stripeAccountId = stripeAccountId;
+    if (logoImage !== undefined) bizPayload.logoImage = logoImage;
+    if (bannerImage !== undefined) bizPayload.bannerImage = bannerImage;
+    if (team !== undefined) {
+      bizPayload.team = team.map(m => ({
+        id: m.id || `team-${Date.now()}`,
+        name: (m.name || '').replace(/<[^>]*>?/gm, '').trim(),
+        role: (m.role || '').replace(/<[^>]*>?/gm, '').trim(),
+        phone: (m.phone || '').replace(/<[^>]*>?/gm, '').trim(),
+        photoUrl: m.photoUrl || '',
+        text: m.text || '',
+      }));
+      // Map to exact Firestore field pageTwoContent
+      bizPayload.pageTwoContent = team.map(m => {
+        const cleanName = (m.name || '').replace(/<[^>]*>?/gm, '').trim();
+        const cleanRole = (m.role || '').replace(/<[^>]*>?/gm, '').trim();
+        const cleanPhone = (m.phone || '').replace(/<[^>]*>?/gm, '').trim();
+        return {
+          id: m.id || `team-${Date.now()}`,
+          name: cleanName,
+          role: cleanRole,
+          phone: cleanPhone,
+          text: m.text && m.text.trim() ? m.text : `<p><strong>${cleanName}</strong> - ${cleanRole}${cleanPhone ? ` (${cleanPhone})` : ''}</p>`,
+          image: m.photoUrl || ''
+        };
+      });
+    }
+
+    if (pageThreeContent !== undefined) {
+      bizPayload.pageThreeContent = pageThreeContent;
+    } else if (depotAddress) {
+      bizPayload.pageThreeContent = depotAddress;
+    }
+
+    if (addresses !== undefined) {
+      bizPayload.addresses = addresses;
+    } else if (depotAddress) {
+      bizPayload.addresses = [{ addressLine1: depotAddress, city: '', postcode: '' }];
+    }
+
+    if (dispatchPhone !== undefined) bizPayload.dispatchPhone = dispatchPhone;
+    if (supportEmail !== undefined) bizPayload.supportEmail = supportEmail;
+    if (depotAddress !== undefined) bizPayload.depotAddress = depotAddress;
+    if (websiteUrl !== undefined) bizPayload.websiteUrl = websiteUrl;
+
+    if (pageTwoIntro !== undefined) {
+      bizPayload.pageTwoIntro = pageTwoIntro;
+    }
+    if (metaTitle !== undefined) bizPayload.metaTitle = metaTitle;
+    if (metaDescription !== undefined) bizPayload.metaDescription = metaDescription;
+    if (keywords !== undefined) bizPayload.keywords = keywords;
+
+    if (!existingBizQuery.empty) {
+      const bizDocRef = existingBizQuery.docs[0].ref;
+      batch.update(bizDocRef, bizPayload);
+    } else {
+      const newBizRef = businessesRef.doc();
+      batch.set(newBizRef, {
+        ownerId: userId,
+        accountType: 'courier',
+        primaryCommunityId: communityId,
+        status: 'Subscribed',
+        isFreeListing: true,
+        createdAt: Timestamp.now(),
+        ...bizPayload,
+      });
+    }
+
+    await batch.commit();
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error updating courier profile:', error);
+    return { success: false, error: error.message };
+  }
+}
+

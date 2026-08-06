@@ -34,7 +34,7 @@ import {
     Info,
     FileText,
 } from "lucide-react";
-import { UserCalendar } from "@/components/profile/user-calendar";
+import { ProfileCalendar } from "@/components/profile-calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -284,59 +284,13 @@ export default function UserProfilePage() {
                 setLoadingFavourites(false);
             }
 
-            const isLeaderAccount = userProfile.accountType === 'leader' || ['president', 'leader', 'vice-president'].includes(userProfile.role || '');
-            
-            if (isLeaderAccount && db && userId) {
-                const fetchHubs = async () => {
-                    setLoadingHubs(true);
-                    try {
-                        const roleHubIds = Object.keys(userProfile.communityRoles || {});
-                        const memberHubIds = userProfile.memberOf || [];
-                        const homeHubId = userProfile.homeCommunityId;
-                        const currentHubId = userProfile.communityId;
-                        
-                        const candidateIds = Array.from(new Set([
-                            ...roleHubIds,
-                            ...memberHubIds,
-                            homeHubId,
-                            currentHubId
-                        ].filter(Boolean) as string[]));
-                        
-                        const hubsMap = new Map<string, CommunityDetails>();
-
-                        if (candidateIds.length > 0) {
-                            const hubsQuery = query(collection(db, 'communities'), where(documentId(), 'in', candidateIds.slice(0, 10)));
-                            const snapshot = await getDocs(hubsQuery);
-                            snapshot.docs.forEach(doc => {
-                                hubsMap.set(doc.id, { id: doc.id, ...doc.data() } as CommunityDetails);
-                            });
-                        }
-
-                        try {
-                            const ownerQuery = query(collection(db, 'communities'), where('stripeAccountOwnerId', '==', userId as string));
-                            const ownerSnap = await getDocs(ownerQuery);
-                            ownerSnap.docs.forEach(doc => {
-                                hubsMap.set(doc.id, { id: doc.id, ...doc.data() } as CommunityDetails);
-                            });
-                        } catch (e) {
-                            // Ignore if index missing
-                        }
-
-                        setLeadershipHubs(Array.from(hubsMap.values()));
-                    } catch (error) {
-                        console.error("Error fetching leadership hubs:", error);
-                    } finally {
-                        setLoadingHubs(false);
-                    }
-                };
-                fetchHubs();
-            } else if (userProfile.communityRoles && Object.keys(userProfile.communityRoles).length > 0 && db) {
+            if (userProfile.communityRoles && Object.keys(userProfile.communityRoles).length > 0 && db) {
                 const fetchHubs = async () => {
                     setLoadingHubs(true);
                     try {
                         const hubIds = Object.keys(userProfile.communityRoles!);
                         if (hubIds.length > 0) {
-                            const hubsQuery = query(collection(db, 'communities'), where(documentId(), 'in', hubIds.slice(0, 10)));
+                            const hubsQuery = query(collection(db, 'communities'), where(documentId(), 'in', hubIds));
                             const snapshot = await getDocs(hubsQuery);
                             const hubsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunityDetails));
                             setLeadershipHubs(hubsData);
@@ -564,17 +518,12 @@ export default function UserProfilePage() {
         }
     }
     
-    const handleSwitchToFavourite = async (communityId: string) => {
-        if (!user) return;
-        setIsSwitching(true);
-        const result = await updateUserCommunityAction({ userId: user.uid, communityId });
-        setIsSwitching(false);
-        if (result.success) {
-            toast({ title: "Community Switched!", description: `You are now viewing the ${result.communityName} hub.` });
-            router.push('/home');
-        } else {
-            toast({ title: 'Switch Failed', description: result.error, variant: 'destructive' });
+    const handleSwitchToFavourite = (communityId: string) => {
+        if (!communityId) return;
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('visitedCommunityId', communityId);
         }
+        router.push(`/home?community=${communityId}`);
     }
 
     const handleAccountClosure = async () => {
@@ -817,8 +766,8 @@ export default function UserProfilePage() {
                                         <Input value={countryName || 'Loading...'} disabled />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Home Community (Locked In)</Label>
-                                        <Input value={userProfile.homeCommunityName || userProfile.communityName || "N/A"} disabled className="bg-slate-50 dark:bg-slate-900 font-semibold" />
+                                        <Label>Home Community</Label>
+                                        <Input value={userProfile.communityName || "N/A"} disabled />
                                     </div>
                                 </CardContent>
                                 {isOwner && (
@@ -919,97 +868,40 @@ export default function UserProfilePage() {
                                         My Leadership Hubs
                                     </CardTitle>
                                     <CardDescription>
-                                        Your primary registered home hub and up to 9 additional communities under your leadership.
+                                        Manage additional communities to expand your reach and revenue.
                                     </CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-6">
+                                <CardContent>
                                     {loadingHubs ? (
                                         <div className="flex justify-center items-center h-24"><Loader2 className="h-6 w-6 animate-spin"/></div>
+                                    ) : leadershipHubs.length > 0 ? (
+                                        <Accordion type="single" collapsible className="w-full">
+                                            {leadershipHubs.map(hub => (
+                                                <AccordionItem key={hub.id} value={hub.id}>
+                                                    <AccordionTrigger>
+                                                        <div className="flex justify-between items-center w-full pr-4">
+                                                            <span>{hub.name}</span>
+                                                            <StatusBadge status={hub.status} />
+                                                        </div>
+                                                    </AccordionTrigger>
+                                                    <AccordionContent>
+                                                        <div className="flex justify-between items-center">
+                                                            <p className="text-sm text-muted-foreground">{hub.region}, {hub.state}</p>
+                                                            <Button size="sm" onClick={() => handleSwitchToFavourite(hub.id)}>Go to Dashboard</Button>
+                                                        </div>
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            ))}
+                                        </Accordion>
                                     ) : (
-                                        <>
-                                            {/* 1. Main Home Community Section */}
-                                            {(() => {
-                                                const mainHomeId = userProfile.homeCommunityId || userProfile.communityId;
-                                                const mainHomeHub = leadershipHubs.find(h => h.id === mainHomeId);
-                                                const effectiveMainHomeId = mainHomeHub?.id || mainHomeId;
-                                                const effectiveMainHomeName = mainHomeHub?.name || userProfile.homeCommunityName || userProfile.communityName;
-
-                                                const additionalHubs = leadershipHubs.filter(h => h.id !== effectiveMainHomeId && h.name !== effectiveMainHomeName);
-
-                                                return (
-                                                    <div className="space-y-6">
-                                                        <div className="p-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                                <Badge className="bg-emerald-600 text-white font-semibold gap-1.5 px-3 py-1 text-xs">
-                                                                    <Home className="h-3.5 w-3.5" />
-                                                                    <span>Main Home Community (Locked)</span>
-                                                                </Badge>
-                                                                {mainHomeHub && <StatusBadge status={mainHomeHub.status} />}
-                                                            </div>
-                                                            <div>
-                                                                <h4 className="font-bold text-base text-slate-900 dark:text-slate-100">
-                                                                    {effectiveMainHomeName || "Main Registered Hub"}
-                                                                </h4>
-                                                                {mainHomeHub && (
-                                                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                                                        {[mainHomeHub.region, mainHomeHub.state].filter(Boolean).join(', ')}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                            {mainHomeHub && (
-                                                                <div className="flex justify-end pt-1">
-                                                                    <Button size="sm" variant="default" onClick={() => handleSwitchToFavourite(mainHomeHub.id)}>
-                                                                        Go to Main Dashboard
-                                                                    </Button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        {/* 2. Line Divider */}
-                                                        <div className="relative my-4">
-                                                            <div className="absolute inset-0 flex items-center">
-                                                                <Separator />
-                                                            </div>
-                                                            <div className="relative flex justify-center text-xs uppercase">
-                                                                <span className="bg-background px-3 text-muted-foreground font-semibold">
-                                                                    Additional Leadership Hubs ({additionalHubs.length} / 9)
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* 3. Up to 9 Additional Leadership Hubs */}
-                                                        {additionalHubs.length > 0 ? (
-                                                            <Accordion type="single" collapsible className="w-full">
-                                                                {additionalHubs.slice(0, 9).map(hub => (
-                                                                    <AccordionItem key={hub.id} value={hub.id}>
-                                                                        <AccordionTrigger>
-                                                                            <div className="flex justify-between items-center w-full pr-4">
-                                                                                <span className="font-medium">{hub.name}</span>
-                                                                                <StatusBadge status={hub.status} />
-                                                                            </div>
-                                                                        </AccordionTrigger>
-                                                                        <AccordionContent>
-                                                                            <div className="flex justify-between items-center pt-1">
-                                                                                <p className="text-sm text-muted-foreground">{[hub.region, hub.state].filter(Boolean).join(', ')}</p>
-                                                                                <Button size="sm" variant="outline" onClick={() => handleSwitchToFavourite(hub.id)}>Go to Dashboard</Button>
-                                                                            </div>
-                                                                        </AccordionContent>
-                                                                    </AccordionItem>
-                                                                ))}
-                                                            </Accordion>
-                                                        ) : (
-                                                            <p className="text-xs text-muted-foreground text-center py-3 italic">
-                                                                No additional leadership hubs added yet. (Up to 9 additional communities allowed)
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })()}
-                                        </>
+                                        <p className="text-sm text-muted-foreground text-center py-4">You are not leading any additional communities.</p>
                                     )}
                                 </CardContent>
                             </Card>
-                            <UserCalendar userId={userId as string} isOwner={isOwner} />
+
+                            {/* My Calendar & Personal Schedule */}
+                            <ProfileCalendar userId={userId} communityId={userProfile?.communityId} />
+
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">

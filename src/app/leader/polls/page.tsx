@@ -79,46 +79,18 @@ function AdminAnalyticsWidget({ polls }: { polls: Poll[] }) {
 }
 
 // ─── Create poll form ─────────────────────────────────────────────────────────
-// Helper to display category names nicely
-const getCategoryLabel = (cat: any) => {
-  if (!cat) return '✨ Other';
-  let catStr = '';
-  if (typeof cat === 'string') {
-    catStr = cat;
-  } else if (typeof cat === 'object') {
-    catStr = cat.name || cat.label || cat.id || JSON.stringify(cat);
-  } else {
-    catStr = String(cat);
-  }
-
-  const normalized = catStr.toLowerCase();
-  if (normalized === 'budget') return '💰 Budget Spend';
-  if (normalized === 'events') return '📅 Events / Recaps';
-  if (normalized === 'feedback') return '💬 Community Feedback';
-  if (normalized === 'regulations') return '📜 Local Rules';
-  return `✨ ${catStr.charAt(0).toUpperCase() + catStr.slice(1)}`;
-};
-
-// ─── Create poll form ─────────────────────────────────────────────────────────
 interface CreatePollFormProps {
   onCreate: (data: Omit<Poll, 'id'>) => Promise<void>;
-  categories: string[];
 }
 
-function CreatePollForm({ onCreate, categories }: CreatePollFormProps) {
+function CreatePollForm({ onCreate }: CreatePollFormProps) {
   const [title, setTitle]       = React.useState('');
   const [desc, setDesc]         = React.useState('');
-  const [category, setCategory] = React.useState<PollCategory>('feedback');
+  const [category, setCategory] = React.useState<PollCategory>('budget');
   const [status, setStatus]     = React.useState<'active' | 'draft'>('active');
   const [options, setOptions]   = React.useState(['', '']);
   const [endDateTime, setEndDateTime] = React.useState('');
   const [saving, setSaving]     = React.useState(false);
-
-  React.useEffect(() => {
-    if (categories && categories.length > 0) {
-      setCategory(categories[0]);
-    }
-  }, [categories]);
 
   function addOption() { if (options.length < 6) setOptions([...options, '']); }
   function removeOption(i: number) { if (options.length > 2) setOptions(options.filter((_, idx) => idx !== i)); }
@@ -185,16 +157,12 @@ function CreatePollForm({ onCreate, categories }: CreatePollFormProps) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Category</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)}
+            <select value={category} onChange={(e) => setCategory(e.target.value as PollCategory)}
               className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              {categories.map((cat) => {
-                const val = typeof cat === 'string' ? cat : (cat.id || cat.name || JSON.stringify(cat));
-                return (
-                  <option key={val} value={val}>
-                    {getCategoryLabel(cat)}
-                  </option>
-                );
-              })}
+              <option value="budget">💰 Budget Spend</option>
+              <option value="events">📅 Events / Recaps</option>
+              <option value="feedback">💬 Community Feedback</option>
+              <option value="regulations">📜 Local Rules</option>
             </select>
           </div>
           <div>
@@ -291,16 +259,15 @@ function formatForDateTimeInput(endDate: any): string {
   return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
 }
 
+// ─── Edit Poll Settings modal ──────────────────────────────────────────────────
 function EditPollModal({
   currentCategory,
   currentEndDate,
-  categories,
   onConfirm,
   onCancel,
 }: {
   currentCategory: PollCategory;
   currentEndDate: any;
-  categories: string[];
   onConfirm: (cat: PollCategory, end: Date | null) => void;
   onCancel: () => void;
 }) {
@@ -321,17 +288,13 @@ function EditPollModal({
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category</label>
           <select
             value={selected}
-            onChange={(e) => setSelected(e.target.value)}
+            onChange={(e) => setSelected(e.target.value as PollCategory)}
             className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            {categories.map((cat) => {
-              const val = typeof cat === 'string' ? cat : (cat.id || cat.name || JSON.stringify(cat));
-              return (
-                <option key={val} value={val}>
-                  {getCategoryLabel(cat)}
-                </option>
-              );
-            })}
+            <option value="budget">💰 Budget Spend</option>
+            <option value="events">📅 Events / Recaps</option>
+            <option value="feedback">💬 Community Feedback</option>
+            <option value="regulations">📜 Local Rules</option>
           </select>
         </div>
 
@@ -362,6 +325,15 @@ function EditPollModal({
   );
 }
 
+// ─── Filter categories ────────────────────────────────────────────────────────
+const CATEGORIES: { value: PollCategory | 'all'; label: string }[] = [
+  { value: 'all',         label: '✨ All Topics' },
+  { value: 'budget',      label: '💰 Budget' },
+  { value: 'events',      label: '📅 Events' },
+  { value: 'feedback',    label: '💬 Feedback' },
+  { value: 'regulations', label: '📜 Rules' },
+];
+
 // ─── Main page ─────────────────────────────────────────────────────────────────
 export default function LeaderPollsPage() {
   const db = useFirestore();
@@ -370,22 +342,6 @@ export default function LeaderPollsPage() {
   const [statusFilter, setStatusFilter] = React.useState<PollStatus | 'all'>('all');
   const [deleteTarget, setDeleteTarget] = React.useState<string | null>(null);
   const [editingCategoryPollId, setEditingCategoryPollId] = React.useState<string | null>(null);
-
-  // Load platform_settings/dropdowns
-  const dropdownRef = useMemoFirebase(() => (db ? doc(db, 'platform_settings', 'dropdowns') : null), [db]);
-  const { data: dropdowns } = useDoc(dropdownRef);
-  const pCategories = React.useMemo(() => {
-    return dropdowns?.pCategories || ['budget', 'events', 'feedback', 'regulations'];
-  }, [dropdowns]);
-
-  const filterCategories = React.useMemo(() => {
-    const list = [{ value: 'all', label: '✨ All Topics' }];
-    pCategories.forEach((cat) => {
-      const valStr = typeof cat === 'string' ? cat : (cat.id || cat.name || JSON.stringify(cat));
-      list.push({ value: valStr, label: getCategoryLabel(cat) });
-    });
-    return list;
-  }, [pCategories]);
 
   // Read user's communityId
   const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
@@ -502,7 +458,6 @@ export default function LeaderPollsPage() {
         <EditPollModal
           currentCategory={polls.find((p) => p.id === editingCategoryPollId)?.category || 'feedback'}
           currentEndDate={polls.find((p) => p.id === editingCategoryPollId)?.endDate || null}
-          categories={pCategories}
           onConfirm={handleUpdatePollSettings}
           onCancel={() => setEditingCategoryPollId(null)}
         />
@@ -542,7 +497,7 @@ export default function LeaderPollsPage() {
             </span>
           </div>
 
-          {communityId && <CreatePollForm onCreate={handleCreate} categories={pCategories} />}
+          {communityId && <CreatePollForm onCreate={handleCreate} />}
           <AdminAnalyticsWidget polls={polls} />
         </aside>
 
@@ -551,7 +506,7 @@ export default function LeaderPollsPage() {
           {/* Filter bar */}
           <div className="bg-white p-3 rounded-2xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
             <div className="flex gap-1 overflow-x-auto whitespace-nowrap pb-1 sm:pb-0">
-              {filterCategories.map(({ value, label }) => (
+              {CATEGORIES.map(({ value, label }) => (
                 <button key={value} onClick={() => setCatFilter(value)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all border ${
                     catFilter === value

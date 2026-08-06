@@ -8,6 +8,7 @@ import {
   Users,
   Building,
   Globe,
+  Map,
   HelpCircle,
   Mic, Play, Pause, ChevronRight
 } from 'lucide-react'
@@ -68,6 +69,14 @@ const accountTypes = [
     details: "A National Advertiser account is for brands who want to run large-scale advertising campaigns across the entire Community Hub platform, targeting users by interest rather than specific community locations. This is ideal for national brand awareness by removing the expensive Pay Per Click model, with us if you pay for a month or a year that's what you get regardless of the traffic you generate.",
     audioTourId: "199d2ecd-79b8-487d-b894-e0aa3fd80f05"
   },
+  {
+    icon: Map,
+    title: 'Regional Network Account',
+    description: 'For National Parks, Regional Councils, and Regional Authorities.',
+    href: '/signup/regional',
+    details: "A Regional Network Account is designed for National Park Authorities, Regional Councils, and Conservation or Emergency Authorities. It allows you to define a geographic boundary map covering multiple communities, publish regional announcements, and dispatch multi-community emergency broadcasts directly to affected residents.",
+    audioTourId: "regional-network-audio-tour"
+  },
 ];
 
 interface AccountTypeItemProps {
@@ -98,9 +107,9 @@ function AccountTypeItem({ acc, playingAudioId, onTogglePlay, setPlayingAudioId,
     }, [acc.audioTourId, setPlayingAudioId, audioRefs]);
 
     return (
-        <Link 
-            href={acc.href} 
-            className="p-4 rounded-lg border-2 border-border hover:border-primary/50 cursor-pointer transition-all flex items-start gap-4 block"
+        <div 
+            onClick={() => router.push(acc.href)} 
+            className="p-4 rounded-lg border-2 border-border hover:border-primary/50 cursor-pointer transition-all flex items-start gap-4"
         >
             <acc.icon className="h-8 w-8 text-primary mt-1" />
             <div className="flex-1">
@@ -110,7 +119,7 @@ function AccountTypeItem({ acc, playingAudioId, onTogglePlay, setPlayingAudioId,
             <div className="flex items-center">
                 {audioTourData?.audioUrl && (
                     <>
-                        <Button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePlay(acc.audioTourId); }} variant="ghost" size="icon" className="h-8 w-8">
+                        <Button onClick={(e) => { e.stopPropagation(); onTogglePlay(acc.audioTourId); }} variant="ghost" size="icon" className="h-8 w-8">
                             {isCurrentlyPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                         </Button>
                         <audio 
@@ -122,11 +131,11 @@ function AccountTypeItem({ acc, playingAudioId, onTogglePlay, setPlayingAudioId,
                 )}
                 <Dialog>
                     <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
                             <HelpCircle className="h-5 w-5 text-muted-foreground" />
                         </Button>
                     </DialogTrigger>
-                    <DialogContent onClick={(e) => e.stopPropagation()}>
+                    <DialogContent>
                         <DialogHeader>
                             <DialogTitle>{acc.title}</DialogTitle>
                         </DialogHeader>
@@ -140,7 +149,7 @@ function AccountTypeItem({ acc, playingAudioId, onTogglePlay, setPlayingAudioId,
                 </Dialog>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </div>
-        </Link>
+        </div>
     );
 }
 

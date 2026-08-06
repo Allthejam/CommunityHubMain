@@ -37,7 +37,8 @@ import {
   Info,
   ListTodo,
   Sparkles,
-  HeartHandshake
+  HeartHandshake,
+  Target
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -95,7 +96,7 @@ const adminSubItems = [
     { href: '/leader/marketing', label: 'Marketing', icon: Sparkles, permission: 'viewMarketing' },
     { href: '/leader/financials', label: 'Financials', icon: DollarSign, permission: 'viewFinancials' },
     { href: '/leader/polls', label: 'Polls', icon: ListTodo, permission: 'viewPolls' },
-    { href: '/leader/petitions', label: 'Petitions', icon: FileText, permission: 'viewPolls' },
+    { href: '/leader/campaigns', label: 'Petitions', icon: Target, permission: 'viewPolls' },
     { href: '/leader/settings', label: 'Community Settings', icon: SettingsIcon, permission: 'viewSettings' },
 ];
 
@@ -261,14 +262,7 @@ export default function LeaderHeader() {
     return all;
   }, [userProfile]);
 
-  const isVisiting = useMemo(() => {
-    if (!userProfile) return false;
-    const activeCommunityId = userProfile.communityId;
-    if (!activeCommunityId || activeCommunityId === userProfile.homeCommunityId) return false;
-    const roleData = userProfile.communityRoles?.[activeCommunityId];
-    const isLeaderOfActive = roleData && ['president', 'leader', 'vice-president'].includes(roleData.role);
-    return !isLeaderOfActive;
-  }, [userProfile]);
+  const isVisiting = useMemo(() => !!(userProfile && userProfile.communityId !== userProfile.homeCommunityId), [userProfile]);
 
   return (
     <header className={cn("sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-card px-4 sm:px-6")}>

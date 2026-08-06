@@ -29,7 +29,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { runCreateNewsStory, runProofreadText, aiRefineNewsAction, type ProofreadTextOutput } from "@/lib/actions/newsActions";
+import { runCreateNewsStory, runProofreadText, type ProofreadTextOutput } from "@/lib/actions/newsActions";
 import Image from "next/image";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { runSpellCheck } from "@/lib/actions";
@@ -38,8 +38,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { doc, getDoc } from "firebase/firestore";
 import { runSaveNewsCategories } from "@/lib/actions/communityActions";
-import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 
 const initialCategories = ["Community news", "local sports", "council updates", "Business spotlight", "opinion", "Other"];
 
@@ -60,14 +58,6 @@ export default function CreateNewsStoryPage() {
     const [isUploading, setIsUploading] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [isProofreading, setIsProofreading] = React.useState(false);
-    const [isRefining, setIsRefining] = React.useState(false);
-    const [refineData, setRefineData] = React.useState<{
-        refinedBody: string;
-        headlines: string[];
-        summary: string;
-    } | null>(null);
-    const [selectedHeadline, setSelectedHeadline] = React.useState("");
-    const [useSummary, setUseSummary] = React.useState(true);
     
     const [categories, setCategories] = React.useState(initialCategories);
     const [showNewCategoryInput, setShowNewCategoryInput] = React.useState(false);
@@ -178,41 +168,6 @@ export default function CreateNewsStoryPage() {
             setContent(proofreadData.proofreadText);
             setProofreadData(null);
             toast({ title: "Content Updated", description: "AI suggestions have been applied." });
-        }
-    };
-
-    const handleRefine = async () => {
-        if (!content) {
-            toast({ title: "Nothing to refine!", description: "Please write some draft content first.", variant: "destructive" });
-            return;
-        }
-        setIsRefining(true);
-        try {
-            const result = await aiRefineNewsAction({ draftText: content });
-            if (result.success && result.data) {
-                setRefineData(result.data);
-                setSelectedHeadline(result.data.headlines[0] || "");
-            } else {
-                throw new Error(result.error || "Failed to refine content.");
-            }
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message || "Could not refine the content.", variant: "destructive" });
-        } finally {
-            setIsRefining(false);
-        }
-    };
-
-    const handleApplyRefine = () => {
-        if (refineData) {
-            setContent(refineData.refinedBody);
-            if (selectedHeadline) {
-                setTitle(selectedHeadline);
-            }
-            if (useSummary && refineData.summary) {
-                setShortDescription(refineData.summary);
-            }
-            setRefineData(null);
-            toast({ title: "Draft Refined!", description: "AI suggestions have been applied to title, summary, and body." });
         }
     };
 
@@ -431,11 +386,7 @@ export default function CreateNewsStoryPage() {
                             onChange={setContent}
                             placeholder="Write your news story here..."
                         />
-                         <div className="flex justify-end gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={handleRefine} disabled={isRefining}>
-                                {isRefining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                                AI Writing Assistant
-                            </Button>
+                         <div className="flex justify-end">
                             <Button type="button" variant="outline" size="sm" onClick={handleProofread} disabled={isProofreading}>
                                 {isProofreading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                                 Proofread with AI
@@ -471,7 +422,7 @@ export default function CreateNewsStoryPage() {
                 <div className="grid grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto p-1">
                     <div className="space-y-4">
                          <h3 className="font-semibold">Suggestions</h3>
-                          <ul className="space-y-2 text-sm list-disc pl-5 text-muted-foreground">
+                         <ul className="space-y-2 text-sm list-disc pl-5 text-muted-foreground">
                             {proofreadData?.suggestions.map((suggestion, index) => (
                                 <li key={index}>{suggestion}</li>
                             ))}
@@ -487,68 +438,6 @@ export default function CreateNewsStoryPage() {
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                     <Button onClick={handleAcceptProofread}>Accept Changes</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
-        <Dialog open={!!refineData} onOpenChange={() => setRefineData(null)}>
-            <DialogContent className="max-w-3xl">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> AI Writing Assistant</DialogTitle>
-                    <DialogDescription>
-                        Gemini has polished your draft and generated suggested headlines and summary.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto p-1">
-                    <div className="space-y-4">
-                         <div>
-                             <h3 className="font-bold text-sm mb-2 text-slate-800">Suggested Headlines</h3>
-                             <p className="text-[11px] text-muted-foreground mb-3">Select a headline to replace your current title:</p>
-                             <div className="space-y-2">
-                                 {refineData?.headlines.map((headline, idx) => (
-                                     <label key={idx} className={cn(
-                                         "flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 transition-colors text-xs font-semibold text-slate-700",
-                                         selectedHeadline === headline && "border-indigo-500 bg-indigo-50/20"
-                                     )}>
-                                         <input 
-                                             type="radio" 
-                                             name="refined-headline" 
-                                             checked={selectedHeadline === headline}
-                                             onChange={() => setSelectedHeadline(headline)}
-                                             className="mt-0.5"
-                                         />
-                                         <span>{headline}</span>
-                                     </label>
-                                 ))}
-                             </div>
-                         </div>
-                         <div className="border-t pt-4 space-y-2">
-                             <div className="flex items-center gap-2">
-                                 <Checkbox 
-                                     id="use-refined-summary" 
-                                     checked={useSummary} 
-                                     onCheckedChange={(checked) => setUseSummary(!!checked)} 
-                                 />
-                                 <label htmlFor="use-refined-summary" className="text-xs font-bold text-slate-700 cursor-pointer">
-                                     Apply AI-generated Summary
-                                 </label>
-                             </div>
-                             <p className="text-xs text-muted-foreground bg-slate-50 border rounded-lg p-3 leading-relaxed">
-                                 {refineData?.summary}
-                             </p>
-                         </div>
-                    </div>
-                    <div className="space-y-2">
-                        <h3 className="font-bold text-sm text-slate-800">Refined Content Draft</h3>
-                        <div 
-                            className="p-4 border rounded-lg bg-secondary/35 text-xs leading-relaxed max-h-96 overflow-y-auto"
-                            dangerouslySetInnerHTML={{ __html: refineData?.refinedBody || "" }}
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <Button onClick={handleApplyRefine}>Apply Refinements</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

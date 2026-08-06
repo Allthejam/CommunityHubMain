@@ -3,7 +3,6 @@
 "use client";
 
 import * as React from "react";
-import { useActiveCommunityId } from "@/hooks/use-active-community-id";
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,6 +77,8 @@ const EventRow = ({ event }: { event: CommunityEvent }) => (
     </Card>
 );
 
+import { mockEvents } from "@/lib/mock-data";
+
 export default function EventsPage() {
   const { user, isUserLoading: authLoading } = useUser();
   const db = useFirestore();
@@ -86,23 +87,38 @@ export default function EventsPage() {
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [sortOption, setSortOption] = React.useState('startDate-asc');
 
+  const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, "users", user.uid) : null), [user, db]);
+  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const { communityId, isLoading: activeCommunityLoading } = useActiveCommunityId();
+  const activeCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
   const eventsQuery = useMemoFirebase(() => {
-    if (!communityId || !db) {
+    if (!activeCommunityId || !db) {
       return null;
     }
     return query(
       collection(db, "events"),
-      where("communityId", "==", communityId),
-      where("status", "in", ["Live", "Upcoming"])
+      where("communityId", "==", activeCommunityId),
+      where("status", "in", ["Live", "Upcoming", "approved"])
     );
-  }, [db, communityId]);
+  }, [db, activeCommunityId]);
 
-  const { data: events, isLoading: eventsLoading } = useCollection<CommunityEvent>(eventsQuery);
+  const { data: rawEvents, isLoading: eventsLoading } = useCollection<CommunityEvent>(eventsQuery);
 
-  const loading = authLoading || activeCommunityLoading || eventsLoading;
+  const events = React.useMemo(() => {
+    if (rawEvents && rawEvents.length > 0) return rawEvents;
+    return mockEvents.map(e => ({
+      id: e.id,
+      title: e.title,
+      category: e.category,
+      startDate: { toDate: () => new Date(e.startDate) },
+      endDate: e.endDate ? { toDate: () => new Date(e.endDate) } : undefined,
+      image: e.image?.imageUrl || "https://picsum.photos/seed/event-live/600/400",
+      dataAiHint: e.dataAiHint || "community event"
+    })) as CommunityEvent[];
+  }, [rawEvents]);
+
+  const loading = authLoading || profileLoading || eventsLoading;
   
   const filteredAndSortedEvents = React.useMemo(() => {
     let filtered = events || [];

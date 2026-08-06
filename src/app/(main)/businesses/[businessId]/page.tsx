@@ -22,6 +22,8 @@ import {
     Calendar,
     Store,
     ExternalLink,
+    ChevronLeft,
+    ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -340,6 +342,30 @@ export default function BusinessProfilePage() {
     }, [businessId, db]);
     const { data: gallery, isLoading: galleryLoading } = useCollection<GalleryImage>(galleryQuery);
 
+    const allGalleryImages = React.useMemo(() => {
+        const list: Array<{ id: string; url: string; description?: string }> = [];
+        if (profile?.gallery && Array.isArray(profile.gallery)) {
+            profile.gallery.forEach((g: any, i: number) => {
+                if (g?.url) {
+                    list.push({ id: g.id || `biz-g-${i}`, url: g.url, description: g.description });
+                }
+            });
+        }
+        if (gallery && gallery.length > 0) {
+            gallery.forEach((g) => {
+                if (g.url && !list.some((existing) => existing.url === g.url)) {
+                    list.push({ id: g.id, url: g.url, description: g.description });
+                }
+            });
+        }
+        return list;
+    }, [profile?.gallery, gallery]);
+
+    const primaryCommunityRef = useMemoFirebase(() => {
+        if (!profile?.primaryCommunityId || !db) return null;
+        return doc(db, 'communities', profile.primaryCommunityId);
+    }, [profile?.primaryCommunityId, db]);
+    const { data: primaryCommunityData } = useDoc<any>(primaryCommunityRef);
 
     const availableYears = React.useMemo(() => {
         if (!profile?.meetingMinutes) return [];
@@ -411,18 +437,24 @@ export default function BusinessProfilePage() {
         );
     }
     
-    const name = profile.businessName || profile.name || 'Business Name';
-    const categoryLabel = profile.businessCategory?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' & ') || 'Category';
-    const primaryAddress = profile.addresses?.[0] ? `${profile.addresses[0].addressLine1}, ${profile.addresses[0].city}, ${profile.addresses[0].postcode}` : 'No address provided';
-    const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
+    const primaryCommunityName = primaryCommunityData?.name || profile?.communityName || 'Local Community';
+
+    const name = profile?.businessName || profile?.name || 'Business Name';
+    const isCourier = profile?.accountType === 'courier' || profile?.businessCategory === 'courier';
+    const categoryLabel = isCourier
+        ? `Community Courier for "${primaryCommunityName}"`
+        : (profile?.businessCategory?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' & ') || 'Category');
+    const primaryAddress = profile?.addresses?.[0] ? `${profile.addresses[0].addressLine1}, ${profile.addresses[0].city}, ${profile.addresses[0].postcode}` : 'No address provided';
+    const getInitials = (n: string) => n.split(' ').map(part => part[0]).join('').toUpperCase();
     
-    const page2Available = profile.showPageTwo !== false && ((profile.pageTwoContent && profile.pageTwoContent.length > 0) || !!profile.pageTwoIntro);
+    const page2Available = profile?.showPageTwo !== false && ((profile?.pageTwoContent && profile.pageTwoContent.length > 0) || !!profile?.pageTwoIntro);
     
-    const page3Type = profile.pageThreeType || 'custom';
-    const page3MinutesAvailable = page3Type === 'minutes' && profile.showPageThree !== false && profile.meetingMinutes && profile.meetingMinutes.length > 0;
-    const page3CustomAvailable = page3Type === 'custom' && profile.showPageThree !== false && !!profile.pageThreeContent;
+    const page2TabTitle = isCourier ? 'Meet Our Team' : (profile?.pageTwoTitle || 'Our Team');
+    const page3Type = profile?.pageThreeType || 'custom';
+    const page3MinutesAvailable = page3Type === 'minutes' && profile?.showPageThree !== false && profile?.meetingMinutes && profile.meetingMinutes.length > 0;
+    const page3CustomAvailable = page3Type === 'custom' && profile?.showPageThree !== false && !!profile?.pageThreeContent;
     const page3Available = page3MinutesAvailable || page3CustomAvailable;
-    const page3TabTitle = page3Type === 'minutes' ? 'Meeting Minutes' : 'Contact Us';
+    const page3TabTitle = page3Type === 'minutes' ? 'Meeting Minutes' : (isCourier ? 'Contact & Depot' : 'Contact Us');
 
     return (
         <div className="max-w-6xl mx-auto">
@@ -431,36 +463,46 @@ export default function BusinessProfilePage() {
                 Back
             </Button>
             <Card className="overflow-hidden">
-                <div className="relative">
+                {/* Clean Unobstructed Banner Image */}
+                <div className="w-full h-48 md:h-64 relative bg-muted">
                     {profile.bannerImage ? (
-                        <Image src={profile.bannerImage} alt={`${name} banner`} width={1200} height={300} className="w-full h-48 md:h-64 object-cover" priority />
-                    ) : <div className="h-48 md:h-64 bg-muted w-full" />}
-                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                     <div className="absolute bottom-0 left-0 p-6 flex items-end gap-4">
-                        <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-lg border-4 border-background overflow-hidden -mb-12 md:-mb-16 bg-card">
-                            <Avatar className="h-full w-full">
-                                <AvatarImage src={profile.logoImage} alt={`${name} logo`} className="object-contain" />
-                                <AvatarFallback className="text-4xl">{getInitials(name)}</AvatarFallback>
-                            </Avatar>
-                        </div>
-                        <div>
-                             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white font-headline">
-                                {name}
-                            </h1>
-                             <p className="text-white/90 text-lg">{categoryLabel}</p>
-                        </div>
-                     </div>
+                        <Image src={profile.bannerImage} alt={`${name} banner`} width={1200} height={300} className="w-full h-full object-cover" priority />
+                    ) : <div className="h-full w-full bg-gradient-to-r from-purple-100 to-indigo-100" />}
                 </div>
 
-                <div className="p-6 pt-16 md:pt-20">
+                {/* Clean Business Header Below Banner Image */}
+                <div className="p-6 border-b bg-card relative">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 -mt-16 md:-mt-20">
+                        <div className="flex flex-col md:flex-row items-start md:items-end gap-4">
+                            <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-xl border-4 border-background overflow-hidden bg-card shadow-md shrink-0">
+                                <Avatar className="h-full w-full">
+                                    <AvatarImage src={profile.logoImage} alt={`${name} logo`} className="object-contain" />
+                                    <AvatarFallback className="text-4xl">{getInitials(name)}</AvatarFallback>
+                                </Avatar>
+                            </div>
+                            <div className="pt-2 md:pt-0">
+                                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground font-headline">
+                                    {name}
+                                </h1>
+                                <p className="text-muted-foreground text-sm font-medium">{categoryLabel}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6">
                    <div className="grid md:grid-cols-3 gap-8">
                        <div className="md:col-span-2 space-y-8">
                             {activeTab === 'page1' && (
                                 <>
                                     <div>
-                                        <h2 className="text-2xl font-semibold font-headline">About {name}</h2>
-                                        {profile.shortDescription && <p className="mt-4 text-lg text-muted-foreground font-light leading-relaxed">{profile.shortDescription}</p>}
-                                        <div className="prose dark:prose-invert max-w-none text-muted-foreground mt-4" dangerouslySetInnerHTML={{ __html: profile.longDescription || ""}}/>
+                                        <h2 className="text-2xl font-semibold font-headline">
+                                            {isCourier ? 'About Your Community Local Courier' : `About ${name}`}
+                                        </h2>
+                                        {!isCourier && profile.shortDescription && <p className="mt-4 text-lg text-muted-foreground font-light leading-relaxed">{profile.shortDescription}</p>}
+                                        {profile.longDescription && (
+                                            <div className="prose dark:prose-invert max-w-none text-muted-foreground mt-4" dangerouslySetInnerHTML={{ __html: profile.longDescription }}/>
+                                        )}
                                     </div>
                                     
                                     {gallery && gallery.length > 0 && (
@@ -501,6 +543,7 @@ export default function BusinessProfilePage() {
                             )}
                              {activeTab === 'page2' && page2Available && (
                                 <div className="space-y-8">
+                                    <h2 className="text-2xl font-semibold font-headline">{page2TabTitle}</h2>
                                     {profile.pageTwoIntro && (
                                         <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: profile.pageTwoIntro }} />
                                     )}
@@ -599,7 +642,7 @@ export default function BusinessProfilePage() {
                                 <CardContent className="p-2">
                                     <div className="flex flex-col gap-1">
                                         <Button variant={activeTab === 'page1' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('page1')} className="justify-start">Profile</Button>
-                                        <Button variant={activeTab === 'page2' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('page2')} disabled={!page2Available} className="justify-start">Page 2</Button>
+                                        <Button variant={activeTab === 'page2' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('page2')} disabled={!page2Available} className="justify-start">{page2TabTitle}</Button>
                                         <Button variant={activeTab === 'page3' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('page3')} disabled={!page3Available} className="justify-start">{page3TabTitle}</Button>
                                     </div>
                                 </CardContent>
@@ -646,40 +689,178 @@ export default function BusinessProfilePage() {
                                 <CardContent className="space-y-3 text-sm">
                                     <div>
                                         <p className="font-semibold">Primary Community</p>
-                                        <p className="text-muted-foreground">{profile.primaryCommunityName || 'Not specified'}</p>
+                                        <p className="text-muted-foreground font-medium">{primaryCommunityName}</p>
                                     </div>
-                                    {loadingCommunities ? <Loader2 className="h-4 w-4 animate-spin" /> : 
-                                    additionalCommunityNames.length > 0 && (
-                                        <div>
-                                            <p className="font-semibold mt-2">Also in</p>
-                                            <ul className="list-disc pl-5 text-muted-foreground">
-                                                {additionalCommunityNames.map((name, index) => (
-                                                    <li key={index}>{name}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
+                                    {loadingCommunities ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                                        additionalCommunityNames.length > 0 && (
+                                            <div>
+                                                <p className="font-semibold mt-2">Also in</p>
+                                                <ul className="list-disc pl-5 text-muted-foreground">
+                                                    {additionalCommunityNames.map((name, index) => (
+                                                        <li key={index}>{name}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )
                                     )}
                                 </CardContent>
                             </Card>
                              <BusinessAdverts businessId={businessId as string} />
                             <BusinessEvents businessId={businessId as string} />
-                            {hasOpeningHours(profile.openingHours) && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <Clock className="h-5 w-5" /> Opening Hours
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <OpeningHours hours={profile.openingHours} />
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </div>
-                   </div>
-                </div>
-            </Card>
+                             {hasOpeningHours(profile.openingHours) && (
+                                 <Card>
+                                     <CardHeader>
+                                         <CardTitle className="text-lg flex items-center gap-2">
+                                             <Clock className="h-5 w-5" /> Opening Hours
+                                         </CardTitle>
+                                     </CardHeader>
+                                     <CardContent>
+                                         <OpeningHours hours={profile.openingHours} />
+                                     </CardContent>
+                                 </Card>
+                             )}
+                         </div>
+                    </div>
+                 </div>
+             </Card>
+
+            {/* Bottom Highlight Courier Gallery Carousel */}
+            {allGalleryImages.length > 0 && (
+                <CourierGalleryCarousel images={allGalleryImages} />
+            )}
         </div>
     );
 }
 
+function CourierGalleryCarousel({ images }: { images: Array<{ id: string; url: string; description?: string }> }) {
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [selectedImage, setSelectedImage] = React.useState<{ url: string; description?: string } | null>(null);
+  const [isPaused, setIsPaused] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!images || images.length <= 1 || isPaused || selectedImage) return;
+
+    const timer = setInterval(() => {
+      setActiveIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    }, 3500);
+
+    return () => clearInterval(timer);
+  }, [images, isPaused, selectedImage]);
+
+  if (!images || images.length === 0) return null;
+
+  const handlePrev = () => {
+    setActiveIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const handleNext = () => {
+    setActiveIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  return (
+    <Card 
+      className="mt-8 border bg-card overflow-hidden shadow-sm"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      <CardHeader className="pb-2 flex flex-row items-center justify-between border-b bg-muted/20">
+        <div>
+          <CardTitle className="text-xl font-bold font-headline flex items-center gap-2">
+            <Camera className="h-5 w-5 text-purple-600" />
+            Courier Photo Showcase
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Browse delivery fleet, package handling, and local community service photos.
+          </CardDescription>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="icon" onClick={handlePrev} className="h-8 w-8 rounded-full">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleNext} className="h-8 w-8 rounded-full">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="py-8 px-4">
+        {/* Carousel Slider Container */}
+        <div className="relative flex items-center justify-center min-h-[280px] overflow-hidden py-4">
+          <div className="flex items-center justify-center gap-3 sm:gap-6 w-full max-w-5xl transition-all duration-500 ease-out">
+            {[-1, 0, 1].map((offset) => {
+              const imageIndex = (activeIndex + offset + images.length) % images.length;
+              const img = images[imageIndex];
+              const isCenter = offset === 0;
+
+              return (
+                <div
+                  key={`${img.id}-${offset}`}
+                  onClick={() => {
+                    if (isCenter) {
+                      setSelectedImage(img);
+                    } else {
+                      setActiveIndex(imageIndex);
+                    }
+                  }}
+                  className={`relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-in-out transform shrink-0 ${
+                    isCenter
+                      ? 'w-64 sm:w-80 md:w-[420px] aspect-video scale-110 z-20 shadow-2xl ring-4 ring-purple-600/80 opacity-100'
+                      : 'w-36 sm:w-48 md:w-60 aspect-video scale-90 z-10 opacity-60 hover:opacity-90 shadow-md grayscale-[20%]'
+                  }`}
+                >
+                  <Image
+                    src={img.url}
+                    alt={img.description || 'Courier Gallery Photo'}
+                    fill
+                    className="object-cover"
+                  />
+                  {isCenter && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-3 text-white">
+                      <p className="text-xs font-medium truncate">{img.description || 'Click to view full photo'}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Carousel Pagination Dots */}
+        <div className="flex justify-center items-center gap-1.5 mt-4">
+          {images.map((img, idx) => (
+            <button
+              key={img.id}
+              onClick={() => setActiveIndex(idx)}
+              className={`h-2 rounded-full transition-all ${
+                idx === activeIndex ? 'w-6 bg-purple-600' : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/60'
+              }`}
+              title={`Photo ${idx + 1}`}
+            />
+          ))}
+        </div>
+      </CardContent>
+
+      {/* Full Photo Dialog Modal */}
+      {selectedImage && (
+        <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle className="text-base flex items-center gap-2">
+                <Camera className="h-4 w-4 text-purple-600" />
+                {selectedImage.description || 'Courier Photo Preview'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
+              <Image
+                src={selectedImage.url}
+                alt={selectedImage.description || 'Courier Photo'}
+                fill
+                className="object-contain"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </Card>
+  );
+}

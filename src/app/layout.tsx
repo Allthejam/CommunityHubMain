@@ -7,7 +7,6 @@ import { CartProvider } from '@/contexts/cart-context'
 import { GoogleAnalytics } from '@/components/google-analytics'
 import { CookieConsentDialog } from '@/components/cookie-consent-dialog'
 import { ServiceWorkerRegistrar } from '@/components/service-worker-registrar'
-import { GeofenceProvider } from '@/components/geofence-provider'
 import Script from 'next/script'
 
 export const metadata: Metadata = {
@@ -84,10 +83,8 @@ export default function RootLayout({
           <ServiceWorkerRegistrar />
           <GoogleAnalytics />
           <CartProvider>
-            <GeofenceProvider>
-              {children}
-              <CookieConsentDialog />
-            </GeofenceProvider>
+            {children}
+            <CookieConsentDialog />
           </CartProvider>
           <Toaster />
         </FirebaseClientProvider>

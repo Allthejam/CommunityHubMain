@@ -10,6 +10,7 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
+import { mockEnterpriseGroups } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Handshake, Loader2, Globe, Mail, Phone, LayoutGrid, List, FilterX } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -96,7 +97,8 @@ export default function EnterprisePage() {
 
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, "users", user.uid) : null), [user, db]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-  const communityId = userProfile?.communityId;
+
+  const communityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
   const primaryGroupsQuery = useMemoFirebase(() => {
     if (!communityId || !db) return null;
@@ -149,13 +151,15 @@ export default function EnterprisePage() {
     const visiting = (additionalGroups || []).filter(g => g.primaryCommunityId !== communityId).map(g => ({ ...g, isVisiting: true, isLive: getIsLive(g) }));
 
     const combined = Array.from(new Map([...local, ...visiting].map(item => [item.id, item])).values());
-    
+
+    const itemsToUse = combined.length > 0 ? combined : mockEnterpriseGroups.map(g => ({ ...g, isVisiting: false, isLive: true }));
+
     // Sort: Live first, then alphabetical
-    const sorted = combined.sort((a, b) => {
+    const sorted = itemsToUse.sort((a, b) => {
         const liveA = a.isLive ? 1 : 0;
         const liveB = b.isLive ? 1 : 0;
         if (liveA !== liveB) return liveB - liveA;
-        return a.businessName.localeCompare(b.businessName);
+        return (a.businessName || 'Business').localeCompare(b.businessName || 'Business');
     });
 
     setClientGroups({
@@ -225,7 +229,7 @@ export default function EnterprisePage() {
                                         <div className="relative w-full aspect-video bg-muted flex items-center justify-center p-2">
                                             <Image
                                                 src={group.logoImage || "https://picsum.photos/seed/enterprise/600/400"}
-                                                alt={group.businessName}
+                                                alt={group.businessName || group.name || "Enterprise Partner Logo"}
                                                 fill
                                                 className="object-contain"
                                             />
@@ -269,7 +273,7 @@ export default function EnterprisePage() {
                                     <div className="relative h-16 w-16 flex-shrink-0 mr-4">
                                         <Image
                                             src={group.logoImage || "https://picsum.photos/seed/enterprise/400"}
-                                            alt={group.businessName}
+                                            alt={group.businessName || group.name || "Enterprise Partner Logo"}
                                             fill
                                             className="object-contain"
                                         />

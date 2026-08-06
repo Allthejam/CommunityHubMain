@@ -99,25 +99,44 @@ const NewsRow = ({ story }: { story: NewsStory }) => (
 );
 
 
-import { useActiveCommunityId } from "@/hooks/use-active-community-id";
+import { mockNews } from "@/lib/mock-data";
 
 export default function NewsPage() {
     const { user, isUserLoading: authLoading } = useUser();
     const db = useFirestore();
-    const { communityId, isLoading: activeCommunityLoading } = useActiveCommunityId();
+
+    const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
+    const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+
+    const activeCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
     const newsQuery = useMemoFirebase(() => {
-        if (!communityId || !db) return null;
+        if (!activeCommunityId || !db) return null;
         return query(
             collection(db, "news"),
-            where("communityId", "==", communityId),
-            where("status", "==", "Published")
+            where("communityId", "==", activeCommunityId),
+            where("status", "in", ["Published", "Live", "approved"])
         );
-    }, [db, communityId]);
+    }, [db, activeCommunityId]);
 
-    const { data: newsData, isLoading: newsLoading } = useCollection<NewsStory>(newsQuery);
+    const { data: rawNewsData, isLoading: newsLoading } = useCollection<NewsStory>(newsQuery);
+
+    const newsData = React.useMemo(() => {
+        if (rawNewsData && rawNewsData.length > 0) return rawNewsData;
+        return mockNews.map(n => ({
+            id: n.id,
+            title: n.title,
+            author: n.author,
+            category: n.category,
+            snippet: n.snippet,
+            content: n.content,
+            image: n.image,
+            dataAiHint: n.dataAiHint,
+            date: { toDate: () => new Date(n.date) }
+        })) as NewsStory[];
+    }, [rawNewsData]);
     
-    const loading = authLoading || activeCommunityLoading || newsLoading;
+    const loading = authLoading || profileLoading || newsLoading;
 
     const [view, setView] = React.useState('grid');
     const [titleFilter, setTitleFilter] = React.useState("");

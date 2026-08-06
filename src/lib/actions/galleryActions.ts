@@ -1,4 +1,3 @@
-
 'use server';
 
 import { initializeAdminApp } from "@/firebase/admin-app";
@@ -10,11 +9,12 @@ type ActionResponse = {
   error?: string;
 };
 
-type GalleryImage = {
+type GalleryImageItem = {
   id?: string;
   url: string;
   path: string;
   description?: string;
+  createdAt?: any;
 };
 
 export async function addGalleryImageAction(params: {
@@ -22,8 +22,9 @@ export async function addGalleryImageAction(params: {
   userId?: string;
   imageUrl: string;
   storagePath: string;
+  description?: string;
 }): Promise<ActionResponse> {
-  const { businessId, userId, imageUrl, storagePath } = params;
+  const { businessId, userId, imageUrl, storagePath, description } = params;
 
   if (!businessId && !userId) {
     return { success: false, error: "Business ID or User ID is required." };
@@ -33,16 +34,36 @@ export async function addGalleryImageAction(params: {
     const { firestore } = initializeAdminApp();
     
     const newImage = {
-        url: imageUrl,
-        path: storagePath,
-        createdAt: Timestamp.now(),
-        description: '', // Add a default empty description
+      url: imageUrl,
+      path: storagePath,
+      createdAt: Timestamp.now(),
+      description: description || '',
     };
 
     if (businessId) {
-      const galleryRef = firestore.collection(`businesses/${businessId}/gallery`).doc();
-      await galleryRef.set(newImage);
+      // 1. Save to gallery array on /businesses/{businessId}
+      const bizDocRef = firestore.collection('businesses').doc(businessId);
+      await bizDocRef.update({
+        gallery: FieldValue.arrayUnion(newImage),
+        updatedAt: Timestamp.now(),
+      });
     } else if (userId) {
+      // Find courier business for this user
+      const bizQuery = await firestore.collection('businesses')
+        .where('ownerId', '==', userId)
+        .where('accountType', '==', 'courier')
+        .limit(1)
+        .get();
+
+      if (!bizQuery.empty) {
+        const bizDocRef = bizQuery.docs[0].ref;
+        await bizDocRef.update({
+          gallery: FieldValue.arrayUnion(newImage),
+          updatedAt: Timestamp.now(),
+        });
+      }
+
+      // Also set on subcollection for backwards compatibility
       const galleryRef = firestore.collection(`users/${userId}/gallery`).doc();
       await galleryRef.set(newImage);
     }
@@ -50,83 +71,77 @@ export async function addGalleryImageAction(params: {
     return { success: true };
   } catch (error: any) {
     console.error("Error adding image to gallery:", error);
-    return { success: false, error: "Could not save the image to the database." };
+    return { success: false, error: error.message || "Could not save the image to the database." };
   }
 }
-
-export async function updateGalleryImageDescriptionAction(params: {
-  userId: string;
-  imageId: string;
-  description: string;
-}): Promise<ActionResponse> {
-  const { userId, imageId, description } = params;
-   if (!userId || !imageId) {
-    return { success: false, error: "Missing required parameters." };
-  }
-  try {
-    const { firestore } = initializeAdminApp();
-    const imageDocRef = firestore.collection(`users/${userId}/gallery`).doc(imageId);
-    await imageDocRef.update({ description: description });
-    return { success: true };
-  } catch (error: any) {
-    console.error("Error updating image description:", error);
-    return { success: false, error: "Could not update description." };
-  }
-}
-
-export async function updateBusinessGalleryImageDescriptionAction(params: {
-  businessId: string;
-  imageId: string;
-  description: string;
-}): Promise<ActionResponse> {
-  const { businessId, imageId, description } = params;
-  if (!businessId || !imageId) {
-    return { success: false, error: "Business ID and Image ID are required." };
-  }
-
-  try {
-    const { firestore } = initializeAdminApp();
-    const imageRef = firestore.doc(`businesses/${businessId}/gallery/${imageId}`);
-    await imageRef.update({ description });
-    return { success: true };
-  } catch (error: any) {
-    console.error("Error updating business image description:", error);
-    return { success: false, error: "Could not update description." };
-  }
-}
-
 
 export async function deleteGalleryImageAction(params: {
   businessId?: string;
   userId?: string;
+  imageUrl?: string;
   imagePath: string;
-  imageId: string;
+  imageId?: string;
 }): Promise<ActionResponse> {
-  const { businessId, userId, imagePath, imageId } = params;
+  const { businessId, userId, imageUrl, imagePath, imageId } = params;
 
-  if ((!businessId && !userId) || !imageId) {
-    return { success: false, error: "Business/User ID and Image ID are required." };
-  }
-  
   try {
     const { firestore, adminApp } = initializeAdminApp();
-    
+
+    let targetBizDocRef: any = null;
+
     if (businessId) {
-        await firestore.doc(`businesses/${businessId}/gallery/${imageId}`).delete();
+      targetBizDocRef = firestore.collection('businesses').doc(businessId);
     } else if (userId) {
-        await firestore.doc(`users/${userId}/gallery/${imageId}`).delete();
+      const bizQuery = await firestore.collection('businesses')
+        .where('ownerId', '==', userId)
+        .where('accountType', '==', 'courier')
+        .limit(1)
+        .get();
+      if (!bizQuery.empty) {
+        targetBizDocRef = bizQuery.docs[0].ref;
+      }
     }
 
+    if (targetBizDocRef) {
+      const bizDoc = await targetBizDocRef.get();
+      if (bizDoc.exists) {
+        const existingGallery: any[] = bizDoc.data()?.gallery || [];
+        const updatedGallery = existingGallery.filter((item: any) => {
+          if (imageUrl && item.url === imageUrl) return false;
+          if (imagePath && item.path === imagePath) return false;
+          if (imageId && item.id === imageId) return false;
+          return true;
+        });
+        await targetBizDocRef.update({
+          gallery: updatedGallery,
+          updatedAt: Timestamp.now(),
+        });
+      }
+    }
+
+    // Delete from legacy subcollections if applicable
+    if (userId && imageId) {
+      try {
+        await firestore.doc(`users/${userId}/gallery/${imageId}`).delete();
+      } catch (_) {}
+    }
+    if (businessId && imageId) {
+      try {
+        await firestore.doc(`businesses/${businessId}/gallery/${imageId}`).delete();
+      } catch (_) {}
+    }
+
+    // Delete file from Firebase Storage
     if (imagePath) {
-        try {
-            const bucket = getStorage(adminApp).bucket(process.env.GCLOUD_STORAGE_BUCKET);
-            const file = bucket.file(imagePath);
-            await file.delete();
-        } catch (storageError: any) {
-             if (storageError.code !== 404) {
-                console.warn(`Could not delete storage object '${imagePath}': ${storageError.message}`);
-            }
+      try {
+        const bucket = getStorage(adminApp).bucket(process.env.GCLOUD_STORAGE_BUCKET);
+        const file = bucket.file(imagePath);
+        await file.delete();
+      } catch (storageError: any) {
+        if (storageError.code !== 404) {
+          console.warn(`Could not delete storage object '${imagePath}': ${storageError.message}`);
         }
+      }
     }
 
     return { success: true };

@@ -25,7 +25,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, User, Building, Crown, HeartHandshake, Globe, Loader2, HelpCircle, EyeOff, Eye, Mic, Play, Pause, Briefcase, MailCheck } from "lucide-react";
+import { ArrowLeft, User, Building, Crown, HeartHandshake, Globe, MapPin, Loader2, HelpCircle, EyeOff, Eye, Mic, Play, Pause, Briefcase, MailCheck } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { collection, doc, setDoc, addDoc, serverTimestamp, getDoc, writeBatch, query, where, getDocs, limit, FieldValue, increment } from "firebase/firestore";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { checkCommunityLeaderAction } from "@/lib/actions/communityActions";
@@ -36,7 +37,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from '@/components/ui/skeleton';
 
 type SignUpFormProps = {
-  accountType: 'personal' | 'business' | 'leader' | 'enterprise' | 'national' | 'advertiser';
+  accountType: 'personal' | 'business' | 'leader' | 'enterprise' | 'national' | 'advertiser' | 'regional';
 }
 
 const ageRanges = ["Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"];
@@ -146,7 +147,7 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
             return docSnap.exists() ? docSnap.data().name : null;
         };
 
-        const requiresCommunity = accountType && !['advertiser', 'national'].includes(accountType);
+        const requiresCommunity = accountType && !['advertiser', 'national', 'regional'].includes(accountType);
 
         if (requiresCommunity) {
             const countryNameRes = country ? await getDocName('locations', country) : null;
@@ -226,14 +227,16 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
             isBusinessOwner: accountType === 'business',
             isEnterpriseUser: accountType === 'enterprise',
             isNationalAdvertiser: accountType === 'national' || accountType === 'advertiser',
+            isRegionalNetwork: accountType === 'regional',
             isReporter: false,
-            hasBroadcastAccess: false,
+            hasBroadcastAccess: accountType === 'regional',
             isAdmin: false,
             dashboards: {
                 leader: accountType === 'leader',
                 business: accountType === 'business',
                 enterprise: accountType === 'enterprise',
                 national: accountType === 'national' || accountType === 'advertiser',
+                regional: accountType === 'regional',
                 reporter: false,
                 police: false,
                 courier: false,
@@ -246,6 +249,9 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
         if (accountType === 'leader') {
           finalRole = 'president';
           finalTitle = 'President';
+        } else if (accountType === 'regional') {
+          finalRole = 'regional_authority';
+          finalTitle = 'Regional Authority';
         }
 
         const userProfileData: any = {
@@ -258,9 +264,10 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
           title: finalTitle,
           accountType: accountType,
           permissions,
-          businessName: ['business', 'advertiser', 'enterprise', 'national'].includes(accountType!) ? businessName : null,
-          gender: ['advertiser', 'national'].includes(accountType!) ? null : gender,
-          ageRange: ['advertiser', 'national'].includes(accountType!) ? null : ageRange,
+          businessName: ['business', 'advertiser', 'enterprise', 'national', 'regional'].includes(accountType!) ? businessName : null,
+          organizationName: accountType === 'regional' ? businessName : null,
+          gender: ['advertiser', 'national', 'regional'].includes(accountType!) ? null : gender,
+          ageRange: ['advertiser', 'national', 'regional'].includes(accountType!) ? null : ageRange,
           homeCommunityId: finalCommunityId,
           communityId: finalCommunityId,
           communityName: finalCommunityName,
@@ -344,11 +351,15 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
   }, [db, accountType]);
 
   const isSubmitting = isPending;
-  const requiresCommunity = accountType && !['advertiser', 'national'].includes(accountType);
+  const isRegionalAccount = accountType === 'regional';
+  const requiresCommunity = accountType && !['advertiser', 'national', 'regional'].includes(accountType);
+  const requiresLocation = requiresCommunity || isRegionalAccount;
   const isCreatingNewLocation = communitySelection?.state === 'new' || communitySelection?.region === 'new' || communitySelection?.community === 'other';
-  const communitySelectionComplete = !requiresCommunity || 
-    (communitySelection?.community && communitySelection.community !== 'other') ||
-    (isCreatingNewLocation && isLocationVerified);
+  const communitySelectionComplete = !requiresLocation || 
+    (isRegionalAccount ? (!!communitySelection?.country && (!!communitySelection?.state || communitySelection?.state === 'new')) : (
+      (communitySelection?.community && communitySelection.community !== 'other') ||
+      (isCreatingNewLocation && isLocationVerified)
+    ));
   
   useEffect(() => {
     if (isCreatingNewLocation && isLocationVerified && ['personal', 'business', 'enterprise'].includes(accountType)) {
@@ -417,13 +428,15 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
             </div>
         </div>
         
-        {(accountType === 'business' || accountType === 'enterprise' || accountType === 'national' || accountType === 'advertiser') && (
+        {(accountType === 'business' || accountType === 'enterprise' || accountType === 'national' || accountType === 'advertiser' || accountType === 'regional') && (
             <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="business-name">Business / Organization Name</Label>
+                    <Label htmlFor="business-name">
+                        {accountType === 'regional' ? 'Organisation / Authority Name' : 'Business / Organization Name'}
+                    </Label>
                     <Input 
                         id="business-name" 
-                        placeholder="e.g., Global Tech Inc." 
+                        placeholder={accountType === 'regional' ? 'e.g., National Park Scotland, Highland Council, Morayshire Council' : 'e.g., Global Tech Inc.'} 
                         required 
                         value={businessName}
                         onChange={(e) => setBusinessName(e.target.value)}
@@ -540,12 +553,15 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
             </div>
         </div>
         
-        {requiresCommunity && (
+        {requiresLocation && (
             <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-medium">Community Selection</h3>
+                <h3 className="text-lg font-medium">
+                    {isRegionalAccount ? 'Regional Location & Area Selection' : 'Community Selection'}
+                </h3>
                 <CommunitySelector 
                     selection={communitySelection} 
                     onSelectionChange={handleCommunitySelection} 
+                    showCommunityDropdown={!isRegionalAccount}
                     isLocationVerified={isLocationVerified} 
                     onVerificationChange={setIsLocationVerified}
                     allowCreation={true}
@@ -556,6 +572,16 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
                     otherCommunityName={otherCommunityName}
                     onOtherCommunityNameChange={setOtherCommunityName}
                 />
+
+                {isRegionalAccount && (
+                    <Alert className="bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800">
+                        <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        <AlertTitle className="text-emerald-800 dark:text-emerald-300 font-semibold">Regional Geographic Perimeter</AlertTitle>
+                        <AlertDescription className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">
+                            As a Regional Network Authority (such as National Park Authorities or Regional Councils), your account spans multiple towns and communities across your perimeter corners (e.g., Cairngorms perimeter). Select your base Country and Region above, and you will draw your exact boundary map in your Regional Back-Office.
+                        </AlertDescription>
+                    </Alert>
+                )}
             </div>
         )}
     

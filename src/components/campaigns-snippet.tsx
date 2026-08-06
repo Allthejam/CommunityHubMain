@@ -4,8 +4,8 @@ import * as React from 'react';
 import Link from 'next/link';
 import { collection } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { Petition } from '@/lib/types/petitions';
-import { Target, ArrowRight, Loader2, Bus, Building2, Trees, Stethoscope, Megaphone, HelpCircle } from 'lucide-react';
+import { Campaign, CampaignCategory } from '@/lib/types/campaigns';
+import { Target, ArrowRight, Flame, Users, Trophy, Loader2, Bus, Building2, Trees, Stethoscope, Megaphone, HelpCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,15 @@ import { cn } from '@/lib/utils';
 interface CampaignsSnippetProps {
   communityId: string;
 }
+
+const CATEGORY_META: Record<CampaignCategory, { label: string; color: string; icon: any }> = {
+  transport: { label: '🚌 Transport', color: 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800', icon: Bus },
+  banking_services: { label: '🏦 Banking & Services', color: 'bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800', icon: Building2 },
+  community_facilities: { label: '🏛️ Facilities', color: 'bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800', icon: Megaphone },
+  environment: { label: '🌳 Environment', color: 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800', icon: Trees },
+  healthcare: { label: '🏥 Healthcare', color: 'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800', icon: Stethoscope },
+  other: { label: '📣 Action', color: 'bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800', icon: HelpCircle },
+};
 
 function PulseDot() {
   return (
@@ -27,34 +36,33 @@ function PulseDot() {
 export function CampaignsSnippet({ communityId }: CampaignsSnippetProps) {
   const db = useFirestore();
 
-  // Query petitions subcollection directly
-  const petitionsQuery = useMemoFirebase(
+  // Query petitions without restrictive orderBy so all existing docs load safely
+  const campaignsQuery = useMemoFirebase(
     () => (db && communityId) ? collection(db, 'communities', communityId, 'petitions') : null,
     [db, communityId]
   );
-  const { data: rawPetitions, isLoading } = useCollection<any>(petitionsQuery);
+  const { data: rawCampaigns, isLoading } = useCollection<any>(campaignsQuery);
 
-  const petitions: Petition[] = React.useMemo(() => {
-    if (!rawPetitions) return [];
-    return rawPetitions.map((p: any) => ({
-      id: p.id,
-      communityId: p.communityId || communityId,
-      title: p.title || p.name || p.question || p.headline || p.topic || 'Untitled Petition',
-      description: p.description || p.summary || p.content || p.details || 'No description provided.',
-      category: p.category || 'council',
-      status: p.status || 'active',
-      authorName: p.authorName || p.creatorName || p.author || 'Community Leader',
-      authorRole: p.authorRole || 'Leader',
-      targetSignatures: p.targetSignatures || p.target || p.goal || 1000,
-      signaturesCount: p.signaturesCount || p.currentSignatures || (p.signedUserIds?.length || 0),
-      signedUserIds: p.signedUserIds || p.signatures || [],
-      isPinned: Boolean(p.isPinned),
-      createdAt: p.createdAt
+  const campaigns: Campaign[] = React.useMemo(() => {
+    if (!rawCampaigns) return [];
+    return rawCampaigns.map((c: any) => ({
+      id: c.id,
+      communityId: c.communityId || communityId,
+      title: c.title || c.name || c.question || c.headline || c.topic || 'Untitled Petition',
+      description: c.description || c.summary || c.content || c.details || 'No description provided.',
+      category: (c.category as CampaignCategory) || 'transport',
+      status: c.status || 'active',
+      creatorName: c.creatorName || c.author || c.creator || 'Community Action',
+      targetSignatures: c.targetSignatures || c.target || c.targetAmount || c.goal || 1000,
+      currentSignatures: c.currentSignatures || c.signaturesCount || (c.signedUserIds?.length || 0),
+      signedUserIds: c.signedUserIds || c.signatures || c.supporters || [],
+      isPinned: Boolean(c.isPinned),
+      createdAt: c.createdAt
     }));
-  }, [rawPetitions, communityId]);
+  }, [rawCampaigns, communityId]);
 
-  // Display top 3 active petitions
-  const visiblePetitions = petitions.filter(p => p.status === 'active').slice(0, 3);
+  // Display top 3 active or pinned campaigns
+  const visibleCampaigns = campaigns.filter(c => c.status === 'active' || c.status === 'victory').slice(0, 3);
 
   return (
     <section className="w-full my-6">
@@ -81,7 +89,7 @@ export function CampaignsSnippet({ communityId }: CampaignsSnippetProps) {
           </div>
 
           <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs shrink-0 self-start sm:self-center">
-            <Link href="/petitions" className="flex items-center gap-1.5">
+            <Link href="/campaigns" className="flex items-center gap-1.5">
               <span>View All Petitions</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
@@ -93,36 +101,45 @@ export function CampaignsSnippet({ communityId }: CampaignsSnippetProps) {
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
           </div>
-        ) : visiblePetitions.length === 0 ? (
+        ) : visibleCampaigns.length === 0 ? (
           <div className="py-4 text-center space-y-1">
             <p className="text-xs font-semibold text-foreground">No active community petitions at present.</p>
             <p className="text-[11px] text-muted-foreground">Community leaders set out local petitions here when council plans or service changes affect your ward.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {visiblePetitions.map((p) => {
-              const percent = Math.min(100, Math.round(((p.signaturesCount || 0) / (p.targetSignatures || 1000)) * 100));
+            {visibleCampaigns.map((c) => {
+              const catMeta = CATEGORY_META[c.category] || CATEGORY_META.other;
+              const Icon = catMeta.icon;
+              const percent = Math.min(100, Math.round(((c.currentSignatures || 0) / (c.targetSignatures || 1000)) * 100));
 
               return (
                 <div
-                  key={p.id}
+                  key={c.id}
                   className="bg-card/90 dark:bg-card/70 backdrop-blur-xs rounded-xl p-4 border border-amber-200/50 dark:border-amber-900/40 shadow-2xs hover:shadow-sm transition-all flex flex-col justify-between space-y-3"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <Badge variant="outline" className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-900 border-amber-300">
-                        <span>🏛️ {p.category}</span>
+                      <Badge variant="outline" className={cn("text-[10px] font-bold gap-1 px-2 py-0.5", catMeta.color)}>
+                        <Icon className="h-3 w-3" />
+                        <span>{catMeta.label}</span>
                       </Badge>
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-400">
-                        <PulseDot /> Active
-                      </span>
+                      {c.status === 'victory' ? (
+                        <Badge className="bg-purple-600 text-white font-bold text-[10px] gap-1">
+                          <Trophy className="h-3 w-3" /> Victory!
+                        </Badge>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                          <PulseDot /> Active
+                        </span>
+                      )}
                     </div>
 
                     <h3 className="font-bold text-xs md:text-sm text-foreground line-clamp-2 leading-snug">
-                      {p.title}
+                      {c.title}
                     </h3>
                     <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                      {p.description}
+                      {c.description}
                     </p>
                   </div>
 
@@ -130,12 +147,12 @@ export function CampaignsSnippet({ communityId }: CampaignsSnippetProps) {
                   <div className="space-y-1.5 pt-2 border-t border-amber-200/40 dark:border-amber-900/30">
                     <div className="flex justify-between items-center text-[11px] font-semibold">
                       <span className="text-muted-foreground">Signatures</span>
-                      <span className="text-amber-700 dark:text-amber-400 font-bold">{p.signaturesCount} / {p.targetSignatures}</span>
+                      <span className="text-amber-700 dark:text-amber-400 font-bold">{c.currentSignatures} / {c.targetSignatures}</span>
                     </div>
                     <Progress value={percent} className="h-1.5 bg-amber-500/20" />
                     <div className="flex justify-between items-center text-[10px] font-bold pt-0.5">
                       <span className="text-muted-foreground">{percent}% Supported</span>
-                      <Link href="/petitions" className="text-amber-700 dark:text-amber-400 hover:underline">
+                      <Link href="/campaigns" className="text-amber-700 dark:text-amber-400 hover:underline">
                         Sign Petition ✍️
                       </Link>
                     </div>

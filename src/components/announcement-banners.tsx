@@ -14,7 +14,11 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
 const AnnouncementItem = ({ announcement, context }: { announcement: Announcement, context: 'carousel' | 'dialog' }) => {
-    const fromText = announcement.scope === 'platform' ? 'from The Administrators' : 'from Community Admin';
+    const fromText = announcement.creator 
+        ? `from ${announcement.creator}` 
+        : announcement.scope === 'platform' 
+            ? 'from The Administrators' 
+            : 'from Community Admin';
     const isUrgent = announcement.severity === 'urgent';
     const hasImage = !!announcement.image;
 

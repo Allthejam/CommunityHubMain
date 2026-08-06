@@ -76,8 +76,16 @@ export async function getBusinessOrdersAction(ownerId: string): Promise<any[]> {
 export async function getCourierOrdersAction(courierId: string, communityId: string): Promise<any[]> {
     try {
         const { firestore } = initializeAdminApp();
+        const userDoc = await firestore.collection('users').doc(courierId).get();
+        const userData = userDoc.data();
+        
         const commDoc = await firestore.collection('communities').doc(communityId).get();
-        if (!commDoc.exists || commDoc.data()?.courierId !== courierId) {
+        const commData = commDoc.data();
+
+        const isAssignedCourier = commData?.courierId === courierId;
+        const isCourierUser = userData?.permissions?.isCourier === true || userData?.accountType === 'courier' || userData?.permissions?.isStaff === true;
+
+        if (!isAssignedCourier && !isCourierUser) {
             return [];
         }
 

@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { saveCommunityEventToCalendarAction } from "@/lib/actions/calendarActions";
+import { addEventToUserCalendar } from "@/lib/actions/calendarActions";
 
 type CommunityEvent = {
     id: string;
@@ -57,13 +57,14 @@ export default function EventDetailPage() {
             return;
         }
         setIsAdding(true);
-        const result = await saveCommunityEventToCalendarAction({
+        const result = await addEventToUserCalendar({
             userId: user.uid,
-            eventId: event.id || (eventId as string),
-            title: event.title,
-            startDate: event.startDate?.toDate ? event.startDate.toDate().toISOString() : new Date().toISOString(),
-            communityId: (event as any).communityId || 'community',
-            communityName: (event as any).communityName || 'Local',
+            event: {
+                title: event.title,
+                date: event.startDate.toDate().toISOString(),
+                time: event.startTime || "All Day",
+                type: event.category,
+            },
         });
         setIsAdding(false);
         if (result.success) {

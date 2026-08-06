@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from "react";
-import { useActiveCommunityId } from "@/hooks/use-active-community-id";
 import Image from "next/image";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -106,8 +105,10 @@ function BusinessDirectoryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
-  const communityName = userProfile?.communityName;
+  const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
+  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+  const communityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+  const communityName = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityName') : null) || userProfile?.communityName;
 
   const communityRef = useMemoFirebase(() => (communityId ? doc(db, 'communities', communityId) : null), [communityId, db]);
   const { data: communityData, isLoading: communityLoading } = useDoc(communityRef);
@@ -154,7 +155,7 @@ function BusinessDirectoryContent() {
   const [isClient, setIsClient] = React.useState(false);
   React.useEffect(() => setIsClient(true), []);
 
-  const dataIsLoading = authLoading || activeCommunityLoading || primaryLoading || additionalLoading || couriersLoading || communityLoading;
+  const dataIsLoading = authLoading || profileLoading || primaryLoading || additionalLoading || couriersLoading || communityLoading;
   
   React.useEffect(() => {
     if (dataIsLoading || !isClient) return;

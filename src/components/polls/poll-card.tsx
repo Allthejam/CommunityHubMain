@@ -341,16 +341,6 @@ export function PollCard({
       <h3 className="text-lg font-bold text-slate-800 leading-snug tracking-tight mb-2">{poll.title}</h3>
       <p className="text-slate-500 text-xs leading-relaxed mb-4">{poll.description}</p>
 
-      {/* Already Voted Alert */}
-      {hasVoted && !isAdmin && !isClosed && (
-        <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-start gap-2.5 shadow-sm">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
-          <div className="text-[11px] text-emerald-800 leading-relaxed font-semibold">
-            You have already cast your vote on this consultation. You can only vote once per poll. Thank you for your feedback!
-          </div>
-        </div>
-      )}
-
       {/* Admin controls (leader view only) */}
       {isAdmin && onUpdateStatus && onDelete && (
         <AdminControls poll={poll} onUpdateStatus={onUpdateStatus} onDelete={onDelete} onEditCategory={onEditCategory} />

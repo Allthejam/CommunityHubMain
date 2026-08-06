@@ -39,6 +39,8 @@ import HeartHandshake from 'lucide-react/dist/esm/icons/heart-handshake';
 import BadgeHelp from 'lucide-react/dist/esm/icons/badge-help';
 import Siren from 'lucide-react/dist/esm/icons/siren';
 import BookOpen from 'lucide-react/dist/esm/icons/book-open';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Target from 'lucide-react/dist/esm/icons/target';
 
 import { signOut } from 'firebase/auth';
 import { doc, collection, query, where, onSnapshot, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
@@ -89,13 +91,13 @@ const mainNavItems = [
 ];
 
 const discoverSubItems = [
-    { href: '/communities', label: 'Communities Map', icon: MapIcon, permission: 'viewHome' },
     { href: '/events', label: 'Events', icon: Calendar, permission: 'viewEvents' },
     { href: '/whatson', label: "What's On", icon: Tv, permission: 'viewWhatson' },
     { href: '/news', label: 'News', icon: Newspaper, permission: 'viewNews' },
     { href: '/directory', label: 'Businesses', icon: Building2, permission: 'viewDirectory' },
     { href: '/enterprise-partners', label: 'Enterprise Partners', icon: Briefcase, permission: 'viewEnterprise' },
     { href: '/national-advertisers', label: 'National Advertisers', icon: Star, permission: 'viewNationalAdvertisers' },
+    { href: '/regional-networks', label: 'Regional Networks', icon: MapIcon, permission: 'viewRegionalNetworks' },
 ];
 
 const engageSubItems = [
@@ -105,7 +107,7 @@ const engageSubItems = [
     { href: '/lost-and-found', label: 'Lost & Found', icon: HeartHandshake, permission: 'viewLostAndFound' },
     { href: '/charities', label: 'Charities', icon: Heart, permission: 'viewCharities' },
     { href: '/polls', label: 'Polls', icon: BadgeHelp, permission: 'viewPolls' },
-    { href: '/petitions', label: 'Petitions', icon: FileText, permission: 'viewPolls' },
+    { href: '/campaigns', label: 'Local Petitions', icon: Target, permission: 'viewPolls' },
     { href: '/guestbook', label: 'Guest Book', icon: BookOpen, permission: 'viewGuestBook' },
 ];
 
@@ -311,6 +313,10 @@ export default function AppHeader() {
       availableDashboards.push({ onClick: handleAdvertiserDashboardClick, label: 'Advertiser', icon: Star });
     }
 
+    if (userProfile.accountType === 'regional' || userProfile.permissions?.isRegionalNetwork) {
+      availableDashboards.push({ href: '/regional/dashboard', label: 'Return to Regional Back-Office', icon: MapIcon });
+    }
+
     if (userProfile.role === 'reporter') {
       availableDashboards.push({ href: '/reporter/dashboard', label: 'Reporter', icon: Newspaper });
     }
@@ -329,14 +335,7 @@ export default function AppHeader() {
   }, [userProfile]);
 
   const CurrentAccountIcon = userProfile?.role ? accountTypeIcons[userProfile.role as keyof typeof accountTypeIcons] || UserIcon : UserIcon;
-  const isVisiting = useMemo(() => {
-    if (!userProfile) return false;
-    const activeCommunityId = userProfile.communityId;
-    if (!activeCommunityId || activeCommunityId === userProfile.homeCommunityId) return false;
-    const roleData = userProfile.communityRoles?.[activeCommunityId];
-    const isLeaderOfActive = roleData && ['president', 'leader', 'vice-president'].includes(roleData.role);
-    return !isLeaderOfActive;
-  }, [userProfile]);
+  const isVisiting = userProfile && userProfile.communityId !== userProfile.homeCommunityId;
   const visitedCommunityHasNoLeader = isVisiting && visitedCommunityData?.leaderCount === 0;
 
   const handleCommunitySwitch = async () => {

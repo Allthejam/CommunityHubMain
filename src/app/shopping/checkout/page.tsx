@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { createCheckoutSession } from '@/lib/actions/stripeActions';
 import { getCourierDeliveryFeeAction } from '@/lib/actions/communityActions';
-import { collection, query, where, getDocs, documentId, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, documentId, doc } from 'firebase/firestore';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -245,7 +245,7 @@ export default function CheckoutPage() {
         <form onSubmit={methods.handleSubmit(onSubmit)}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             <div className="lg:col-span-2 space-y-8">
-              <Card shadow-md>
+              <Card className="shadow-md">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MapPin className="h-5 w-5 text-primary" />
@@ -285,7 +285,7 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
 
-              <Card shadow-md>
+              <Card className="shadow-md">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Truck className="h-5 w-5 text-primary" />

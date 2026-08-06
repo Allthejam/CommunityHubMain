@@ -40,12 +40,8 @@ export function NoLeaderAlert({ communityId, userProfile }: NoLeaderAlertProps) 
     setIsClaiming(true);
     const result = await claimCommunityLeadershipAction({ userId: user.uid, communityId });
     if (result.success) {
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('visitedCommunityId', communityId);
-          sessionStorage.removeItem('hasSkippedOnboarding');
-        }
-        toast({ title: "Congratulations!", description: "You are now the leader of this community. Redirecting to your onboarding setup..." });
-        router.push('/leader/onboarding');
+        toast({ title: "Congratulations!", description: "You are now the leader of this community. Redirecting to your new dashboard..." });
+        router.push('/leader/dashboard');
     } else {
         toast({ title: "Error", description: result.error, variant: "destructive" });
     }

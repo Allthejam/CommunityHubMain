@@ -1,389 +1,300 @@
-'use client';
 
-import * as React from 'react';
-import Image from 'next/image';
-import { useParams } from 'next/navigation';
-import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy } from 'firebase/firestore';
-import { Skeleton } from '@/components/ui/skeleton';
+"use client";
+
+import * as React from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { doc, getDoc, collection, query, orderBy } from "firebase/firestore";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+    ArrowLeft,
+    Loader2,
+    MapPin,
+    HelpCircle,
+    Phone,
+    User,
+    Mail,
+    Shield,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Separator } from '@/components/ui/separator';
-import {
-  Info,
-  Users,
-  MapPin,
-  Shield,
-  Phone,
-  Building,
-  Calendar,
-  Ruler,
-  HelpCircle,
-} from 'lucide-react';
+} from "@/components/ui/accordion";
+import { Separator } from "@/components/ui/separator";
 
-export default function CommunityAboutPage() {
-  const params = useParams();
-  const communityId = params.communityId as string;
-  const db = useFirestore();
 
-  // Fetch community basic info
-  const communityRef = useMemoFirebase(
-    () => (communityId && db ? doc(db, 'communities', communityId) : null),
-    [communityId, db]
-  );
-  const { data: community, isLoading: communityLoading } = useDoc(communityRef);
+type CommunityProfileData = {
+    headline?: string;
+    introduction?: string;
+    population?: string;
+    area?: string;
+    yearEstablished?: string;
+    mainContent?: string;
+    mapEmbedCode?: string;
+    bannerImage?: string;
+    imageOne?: string;
+    imageTwo?: string;
+    usefulInformation?: { name: string; number: string; address: string; }[];
+    communityInformation?: {
+        name: string;
+        title: string;
+        email: string;
+        phone: string;
+    }[];
+    policeContact?: {
+        stationName: string;
+        officerName: string;
+        contactEmail: string;
+        contactPhone: string;
+    };
+    showLeadershipOnAboutPage?: boolean;
+};
 
-  // Fetch the leader-created about page content
-  const profileRef = useMemoFirebase(
-    () => (communityId && db ? doc(db, 'community_profiles', communityId) : null),
-    [communityId, db]
-  );
-  const { data: profile, isLoading: profileLoading } = useDoc(profileRef);
-
-  if (communityLoading || profileLoading) {
-    return (
-      <div className="space-y-6 p-4 md:p-0">
-        <Skeleton className="h-64 w-full rounded-lg" />
-        <Skeleton className="h-10 w-3/4" />
-        <Skeleton className="h-6 w-1/2" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    );
-  }
-
-  const communityName = (community as any)?.name || 'Community';
-  const hasProfile = profile && (profile.headline || profile.introduction || profile.mainContent);
-
-  if (!hasProfile) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-        <Info className="h-16 w-16 text-muted-foreground/40 mb-4" />
-        <h1 className="text-2xl font-bold mb-2">About {communityName}</h1>
-        <p className="text-muted-foreground max-w-md">
-          The community leader hasn't set up the about page for this community yet. Check back later!
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8 px-4 md:px-0 pb-8">
-      {/* Banner Image */}
-      {profile.bannerImage && (
-        <div className="relative w-full h-48 sm:h-64 md:h-80 rounded-xl overflow-hidden shadow-lg">
-          <Image
-            src={profile.bannerImage}
-            alt={profile.bannerImageDescription || `${communityName} banner`}
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-          <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white drop-shadow-lg">
-              {communityName}
-            </h1>
-            {profile.headline && (
-              <p className="text-white/90 text-sm sm:text-base mt-1 drop-shadow">
-                {profile.headline}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* If no banner, show title normally */}
-      {!profile.bannerImage && (
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{communityName}</h1>
-          {profile.headline && (
-            <p className="text-lg text-muted-foreground mt-1">{profile.headline}</p>
-          )}
-        </div>
-      )}
-
-      {/* Stats row */}
-      {(profile.population || profile.area || profile.yearEstablished) && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {profile.population && (
-            <Card>
-              <CardContent className="flex items-center gap-3 p-4">
-                <Users className="h-8 w-8 text-primary shrink-0" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Population</p>
-                  <p className="text-lg font-bold">{profile.population}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {profile.area && (
-            <Card>
-              <CardContent className="flex items-center gap-3 p-4">
-                <Ruler className="h-8 w-8 text-primary shrink-0" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Area</p>
-                  <p className="text-lg font-bold">{profile.area}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {profile.yearEstablished && (
-            <Card>
-              <CardContent className="flex items-center gap-3 p-4">
-                <Calendar className="h-8 w-8 text-primary shrink-0" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Established</p>
-                  <p className="text-lg font-bold">{profile.yearEstablished}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* Introduction */}
-      {profile.introduction && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Info className="h-5 w-5" /> About {communityName}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className="prose prose-sm dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: profile.introduction }}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Main Content */}
-      {profile.mainContent && (
-        <Card>
-          <CardContent className="pt-6">
-            <div
-              className="prose prose-sm dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: profile.mainContent }}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Content images */}
-      {(profile.imageOne || profile.imageTwo) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {profile.imageOne && (
-            <div className="relative h-64 rounded-lg overflow-hidden shadow">
-              <Image
-                src={profile.imageOne}
-                alt={profile.imageOneDescription || `${communityName} image`}
-                fill
-                className="object-cover"
-              />
-            </div>
-          )}
-          {profile.imageTwo && (
-            <div className="relative h-64 rounded-lg overflow-hidden shadow">
-              <Image
-                src={profile.imageTwo}
-                alt={profile.imageTwoDescription || `${communityName} image`}
-                fill
-                className="object-cover"
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Useful Local Information */}
-      {profile.usefulInformation && profile.usefulInformation.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5" /> Useful Local Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {profile.usefulInformation.map((item: any, index: number) => (
-                <div
-                  key={index}
-                  className="p-3 border rounded-lg bg-muted/30"
-                >
-                  <p className="font-semibold">{item.name}</p>
-                  {item.number && (
-                    <p className="text-sm text-muted-foreground">📞 {item.number}</p>
-                  )}
-                  {item.address && (
-                    <p className="text-sm text-muted-foreground">📍 {item.address}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Police / Emergency Contact */}
-      {profile.policeContact &&
-        (profile.policeContact.stationName ||
-          profile.policeContact.officerName ||
-          profile.policeContact.contactEmail ||
-          profile.policeContact.contactPhone) && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" /> Police / Emergency Contact
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {profile.policeContact.stationName && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Station</p>
-                    <p className="font-semibold">{profile.policeContact.stationName}</p>
-                  </div>
-                )}
-                {profile.policeContact.officerName && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Lead Officer</p>
-                    <p className="font-semibold">{profile.policeContact.officerName}</p>
-                  </div>
-                )}
-                {profile.policeContact.contactEmail && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-semibold">{profile.policeContact.contactEmail}</p>
-                  </div>
-                )}
-                {profile.policeContact.contactPhone && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="font-semibold">{profile.policeContact.contactPhone}</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-      {/* Leadership Team */}
-      {profile.showLeadershipOnAboutPage !== false &&
-        profile.communityInformation &&
-        profile.communityInformation.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" /> Leadership Team
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {profile.communityInformation.map((member: any, index: number) => (
-                  <div
-                    key={index}
-                    className="p-4 border rounded-lg bg-muted/30 text-center"
-                  >
-                    <p className="font-bold">{member.name}</p>
-                    {member.title && (
-                      <p className="text-sm text-primary">{member.title}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-      {/* Embedded Map */}
-      {profile.mapEmbedCode && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" /> Location
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className="aspect-video w-full rounded-md border overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!border-0"
-              dangerouslySetInnerHTML={{ __html: profile.mapEmbedCode }}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* FAQ Section */}
-      {(community as any)?.faqPublished && <FaqSection communityId={communityId} />}
-    </div>
-  );
+type CommunityData = {
+    name?: string;
+    profileId?: string;
 }
 
-// Separate component so FAQ data fetching is independent
-function FaqSection({ communityId }: { communityId: string }) {
-  const db = useFirestore();
+type FaqItem = {
+    id: string;
+    question: string;
+    answer: string;
+    order: number;
+}
 
-  const faqQuery = useMemoFirebase(
-    () =>
-      communityId && db
-        ? query(
-            collection(db, 'communities', communityId, 'faqs'),
-            orderBy('order', 'asc')
-          )
-        : null,
-    [communityId, db]
-  );
-  const { data: faqItems, isLoading } = useCollection(faqQuery);
+export default function CommunityAboutPage() {
+    const params = useParams();
+    const router = useRouter();
+    const communityId = params.communityId as string;
+    const db = useFirestore();
+    
+    const [aboutData, setAboutData] = React.useState<CommunityProfileData | null>(null);
+    const [communityName, setCommunityName] = React.useState("");
+    const [loading, setLoading] = React.useState(true);
+    
+    const faqsQuery = useMemoFirebase(() => {
+        if (!communityId || !db) return null;
+        return query(collection(db, `communities/${communityId}/faqs`), orderBy("order", "asc"));
+    }, [communityId, db]);
+    
+    const { data: faqs, isLoading: faqsLoading } = useCollection<FaqItem>(faqsQuery);
 
-  if (isLoading) {
+    React.useEffect(() => {
+        if (!communityId || !db) return;
+
+        const fetchAboutData = async () => {
+            setLoading(true);
+            try {
+                const communityRef = doc(db, 'communities', communityId as string);
+                const communitySnap = await getDoc(communityRef);
+
+                if (communitySnap.exists()) {
+                    const communityData = communitySnap.data() as CommunityData;
+                    setCommunityName(communityData.name || "");
+
+                    if (communityData.profileId) {
+                        const profileRef = doc(db, 'community_profiles', communityData.profileId);
+                        const profileSnap = await getDoc(profileRef);
+                        if (profileSnap.exists()) {
+                            setAboutData(profileSnap.data() as CommunityProfileData);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch community data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAboutData();
+    }, [communityId, db]);
+    
+     if (loading || faqsLoading) {
+        return (
+            <div className="flex justify-center items-center h-96">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+    
+    if (!aboutData) {
+         return (
+            <div className="text-center py-12">
+                <h1 className="text-2xl font-bold">About {communityName}</h1>
+                <p className="text-muted-foreground mt-4">This community hasn't created their "About" page yet.</p>
+                <Button asChild variant="link" className="mt-4">
+                    <Link href="/home"><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Link>
+                </Button>
+            </div>
+        );
+    }
+    
+    const handleScrollToFaq = () => {
+        document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' });
+    }
+
     return (
-      <Card>
-        <CardContent className="p-6 space-y-3">
-          <Skeleton className="h-6 w-1/3" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </CardContent>
-      </Card>
+        <div className="container mx-auto bg-card p-4 sm:p-6 lg:p-8 rounded-lg shadow-sm border">
+            <div className="flex justify-between items-center mb-6">
+                <Button variant="ghost" onClick={() => router.back()}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                </Button>
+                 {faqs && faqs.length > 0 && (
+                    <Button variant="outline" onClick={handleScrollToFaq}>
+                        <HelpCircle className="mr-2 h-4 w-4" />
+                        FAQs
+                    </Button>
+                )}
+            </div>
+            
+            <div className="space-y-12">
+                <div className="text-center">
+                    <h1 className="text-4xl font-bold font-headline">{aboutData.headline || `About ${communityName}`}</h1>
+                    {aboutData.introduction && (
+                        <div 
+                            className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto prose dark:prose-invert"
+                            dangerouslySetInnerHTML={{ __html: aboutData.introduction }} 
+                        />
+                    )}
+                </div>
+
+                {aboutData.bannerImage && (
+                    <div className="relative w-full h-80 rounded-lg overflow-hidden shadow-lg border">
+                        <Image src={aboutData.bannerImage} alt="Community Banner" fill className="object-cover" priority />
+                    </div>
+                )}
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                    <Card><CardHeader><CardTitle>{aboutData.population || "N/A"}</CardTitle><CardContent className="p-0"><p className="text-sm text-muted-foreground">Population</p></CardContent></CardHeader></Card>
+                    <Card><CardHeader><CardTitle>{aboutData.area || "N/A"}</CardTitle><CardContent className="p-0"><p className="text-sm text-muted-foreground">Area</p></CardContent></CardHeader></Card>
+                    <Card><CardHeader><CardTitle>{aboutData.yearEstablished || "N/A"}</CardTitle><CardContent className="p-0"><p className="text-sm text-muted-foreground">Established</p></CardContent></CardHeader></Card>
+                </div>
+
+                {aboutData.mainContent && (
+                    <div 
+                        className="prose dark:prose-invert max-w-none"
+                        dangerouslySetInnerHTML={{ __html: aboutData.mainContent }} 
+                    />
+                )}
+
+                {aboutData.usefulInformation && aboutData.usefulInformation.length > 0 && (
+                    <div className="pt-8 border-t">
+                        <h2 className="text-2xl font-bold font-headline mb-6 flex items-center gap-2 text-primary"><Phone className="h-6 w-6"/> Useful Contacts</h2>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {aboutData.usefulInformation.map((contact, index) => (
+                                <Card key={index} className="bg-secondary/20 border-none">
+                                    <CardHeader>
+                                        <CardTitle className="text-lg">{contact.name}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="text-sm">
+                                        <p className="font-bold text-foreground">{contact.number}</p>
+                                        <p className="mt-1 text-muted-foreground">{contact.address}</p>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {aboutData.policeContact?.stationName && (
+                     <div className="pt-8 border-t">
+                         <h2 className="text-2xl font-bold font-headline mb-6 flex items-center gap-2 text-primary"><Shield className="h-6 w-6"/> Police & Community Safety</h2>
+                         <Card className="max-w-md bg-destructive/5 border-destructive/20">
+                            <CardHeader>
+                                <CardTitle>{aboutData.policeContact.stationName}</CardTitle>
+                                {aboutData.policeContact.officerName && <CardDescription>Lead: {aboutData.policeContact.officerName}</CardDescription>}
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <Phone className="h-4 w-4 text-muted-foreground" />
+                                    <span>{aboutData.policeContact.contactPhone}</span>
+                                </div>
+                                {aboutData.policeContact.contactEmail && (
+                                     <div className="flex items-center gap-2">
+                                        <Mail className="h-4 w-4 text-muted-foreground" />
+                                        <span>{aboutData.policeContact.contactEmail}</span>
+                                    </div>
+                                )}
+                            </CardContent>
+                         </Card>
+                     </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {aboutData.imageOne && (
+                        <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-md border">
+                            <Image src={aboutData.imageOne} alt="Community Image One" fill className="object-cover" />
+                        </div>
+                    )}
+                     {aboutData.imageTwo && (
+                        <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-md border">
+                            <Image src={aboutData.imageTwo} alt="Community Image Two" fill className="object-cover" />
+                        </div>
+                    )}
+                </div>
+
+                {aboutData.mapEmbedCode && (
+                    <div className="pt-8 border-t">
+                         <h2 className="text-2xl font-bold font-headline mb-6 flex items-center gap-2 text-primary"><MapPin className="h-6 w-6"/> Our Location</h2>
+                         <div
+                            className="aspect-video w-full rounded-md border bg-muted map-embed-container shadow-md"
+                            dangerouslySetInnerHTML={{ __html: aboutData.mapEmbedCode }}
+                        />
+                    </div>
+                )}
+                
+                {faqs && faqs.length > 0 && (
+                    <div id="faq-section" className="pt-8 border-t">
+                        <h2 className="text-2xl font-bold font-headline mb-6 flex items-center gap-2 text-primary"><HelpCircle className="h-6 w-6" /> Frequently Asked Questions</h2>
+                        <Accordion type="single" collapsible className="w-full">
+                            {faqs.map(faq => (
+                                <AccordionItem key={faq.id} value={faq.id}>
+                                    <AccordionTrigger className="text-lg font-semibold">{faq.question}</AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="prose dark:prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: faq.answer }} />
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    </div>
+                )}
+
+                {aboutData.showLeadershipOnAboutPage !== false && aboutData.communityInformation && aboutData.communityInformation.length > 0 && (
+                    <div className="pt-8 border-t">
+                        <h2 className="text-2xl font-bold font-headline mb-6 flex items-center gap-2 text-primary"><User className="h-6 w-6"/> Community Leadership</h2>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {aboutData.communityInformation.map((leader, index) => (
+                                <Card key={index} className="shadow-none border-dashed">
+                                    <CardHeader>
+                                        <CardTitle className="text-lg">{leader.name}</CardTitle>
+                                        {leader.title && <CardDescription>{leader.title}</CardDescription>}
+                                    </CardHeader>
+                                    <CardContent className="text-sm text-muted-foreground space-y-2">
+                                        {leader.email && (
+                                            <div className="flex items-center gap-2">
+                                                <Mail className="h-4 w-4" />
+                                                <a href={`mailto:${leader.email}`} className="hover:underline text-primary break-all">{leader.email}</a>
+                                            </div>
+                                        )}
+                                        {leader.phone && (
+                                            <div className="flex items-center gap-2">
+                                                <Phone className="h-4 w-4" />
+                                                <span>{leader.phone}</span>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
     );
-  }
-
-  if (!faqItems || faqItems.length === 0) return null;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <HelpCircle className="h-5 w-5" /> Frequently Asked Questions
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Accordion type="single" collapsible className="w-full">
-          {faqItems.map((item: any) => (
-            <AccordionItem key={item.id} value={item.id}>
-              <AccordionTrigger className="hover:no-underline text-left">
-                <span className="font-semibold">{item.question}</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div
-                  className="prose prose-sm dark:prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{ __html: item.answer }}
-                />
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </CardContent>
-    </Card>
-  );
 }

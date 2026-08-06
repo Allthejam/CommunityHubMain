@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Settings, Bell, Shield, Palette, Sparkles, Save, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -10,11 +10,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
+import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { saveAllUserSettingsAction } from "@/lib/actions/userSettingsActions";
 import { saveSubscriptionAction, deleteSubscriptionAction } from "@/lib/actions/pushActions";
 import { Input } from "@/components/ui/input";
-import { doc, collection, query } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { addDays, format, isBefore } from "date-fns";
 import {
@@ -130,78 +130,12 @@ export default function SettingsPage() {
     adPersonalization: false,
     selectedCategories: [] as string[],
     darkMode: false,
-    geofenceEnabled: true,
     theme: {
         background: "",
         card: "",
         primary: "",
     }
   });
-
-  const [mutedIds, setMutedIds] = useState<string[]>([]);
-
-  const communitiesQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, 'communities'));
-  }, [db]);
-  const { data: allCommunities } = useCollection<any>(communitiesQuery);
-
-  useEffect(() => {
-    const profileMuted = (userProfile as any)?.mutedGeofences || [];
-    let localMuted: string[] = [];
-    if (typeof window !== 'undefined') {
-      const localStr = localStorage.getItem('mutedGeofences');
-      if (localStr) {
-        try {
-          localMuted = JSON.parse(localStr);
-        } catch (e) {}
-      }
-    }
-    const merged = Array.from(new Set([...profileMuted, ...localMuted]));
-    setMutedIds(merged);
-  }, [userProfile]);
-
-  const mutedCommunities = useMemo(() => {
-    return (allCommunities || []).filter(c => mutedIds.includes(c.id));
-  }, [allCommunities, mutedIds]);
-
-  const handleUnmuteCommunity = async (communityId: string) => {
-    const updatedIds = mutedIds.filter(id => id !== communityId);
-    setMutedIds(updatedIds);
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('mutedGeofences', JSON.stringify(updatedIds));
-    }
-
-    if (user) {
-      setIsSaving(true);
-      try {
-        const { updateDoc, arrayRemove } = await import('firebase/firestore');
-        const userRef = doc(db, 'users', user.uid);
-        await updateDoc(userRef, {
-          mutedGeofences: arrayRemove(communityId)
-        });
-        toast({
-          title: "Community Unblocked",
-          description: "You will now receive geofence entry welcome notifications for this community again.",
-        });
-      } catch (err: any) {
-        console.error("Error unmuting community:", err);
-        toast({
-          title: "Error",
-          description: "Could not sync preference. Please try again.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsSaving(false);
-      }
-    } else {
-      toast({
-        title: "Community Unblocked",
-        description: "You will now receive geofence entry welcome notifications for this community again.",
-      });
-    }
-  };
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -617,17 +551,6 @@ export default function SettingsPage() {
                           <p>Emergency notifications are temporarily disabled and will automatically resume on {format(settings.emergencyNotificationsSnoozedUntil, 'PPP')}.</p>
                         </div>
                       )}
-                      <div className="flex items-center justify-between pt-4 border-t">
-                          <div>
-                              <Label htmlFor="geofence-notifications" className="font-medium">Location-Based Entry Welcomes (GPS)</Label>
-                              <p className="text-sm text-muted-foreground">Alert you when entering a mapped community boundary to switch your active view.</p>
-                          </div>
-                          <Switch
-                            id="geofence-notifications"
-                            checked={settings.geofenceEnabled}
-                            onCheckedChange={(checked) => setSettings(s => ({...s, geofenceEnabled: checked}))}
-                          />
-                      </div>
                     </div>
               </div>
           </CardContent>
@@ -635,8 +558,7 @@ export default function SettingsPage() {
                <Button onClick={() => handleSaveSettings('notifications', { 
                    'mailingLists.standard': settings.standardNotifications,
                    'mailingLists.emergency': settings.emergencyNotificationsSnoozedUntil ? false : settings.emergencyNotifications, // if snoozed, it's off
-                   'settings.emergencyNotificationsSnoozedUntil': settings.emergencyNotificationsSnoozedUntil,
-                   'settings.geofenceEnabled': settings.geofenceEnabled
+                   'settings.emergencyNotificationsSnoozedUntil': settings.emergencyNotificationsSnoozedUntil
                 })} disabled={isSaving}>
                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                    Save Notification Settings
@@ -698,40 +620,6 @@ export default function SettingsPage() {
                 )}
             </CardFooter>
         </Card>
-
-        <Card className="md:col-span-2">
-             <CardHeader>
-                 <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" /> Blocked Geofence Communities</CardTitle>
-                 <CardDescription>Manage communities you have muted from geofence welcome notifications.</CardDescription>
-             </CardHeader>
-             <CardContent>
-                 {mutedCommunities.length > 0 ? (
-                     <div className="divide-y rounded-md border">
-                         {mutedCommunities.map(community => (
-                             <div key={community.id} className="flex items-center justify-between p-4">
-                                 <div>
-                                     <span className="font-semibold text-sm">{community.name}</span>
-                                     <p className="text-xs text-muted-foreground">Muted from entry welcome messages</p>
-                                 </div>
-                                 <Button 
-                                     variant="outline" 
-                                     size="sm" 
-                                     onClick={() => handleUnmuteCommunity(community.id)}
-                                     disabled={isSaving}
-                                     className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200"
-                                 >
-                                     Restore Alerts
-                                 </Button>
-                             </div>
-                         ))}
-                     </div>
-                 ) : (
-                     <div className="text-center py-6 text-sm text-muted-foreground border border-dashed rounded-lg bg-slate-50/50">
-                         No blocked communities. You will receive entry alerts for all mapped communities.
-                     </div>
-                 )}
-             </CardContent>
-         </Card>
     </div>
   );
 }

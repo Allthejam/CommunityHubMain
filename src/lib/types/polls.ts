@@ -13,7 +13,7 @@ export interface PollOption {
 }
 
 export type PollStatus = 'active' | 'closed' | 'draft' | 'paused';
-export type PollCategory = string;
+export type PollCategory = 'budget' | 'events' | 'feedback' | 'regulations';
 
 export interface Poll {
   id: string;

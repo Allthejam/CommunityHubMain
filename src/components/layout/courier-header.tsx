@@ -26,6 +26,8 @@ import {
   Briefcase,
   Landmark,
   Settings as SettingsIcon,
+  Package,
+  MessageSquare,
 } from 'lucide-react';
 
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -72,9 +74,11 @@ const getInitials = (name: string | undefined) => {
 };
 
 const courierNavItems = [
-  { href: '/home', label: 'Home', icon: HomeIcon },
   { href: '/courier/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/courier/orders', label: 'Orders', icon: Package },
+  { href: '/courier/chat', label: 'Chat', icon: MessageSquare },
   { href: '/courier/financials', label: 'Financials', icon: Landmark },
+  { href: '/courier/profile', label: 'Profile', icon: UserIcon },
 ];
 
 export default function CourierHeader() {
@@ -173,21 +177,14 @@ export default function CourierHeader() {
         availableDashboards.push({ href: '/leader/dashboard', label: 'Police', icon: Shield });
     }
 
-    if (userProfile.permissions?.isCourier) {
-        availableDashboards.push({ onClick: handleCourierDashboardClick, label: 'Courier', icon: Truck });
+    if (userProfile.permissions?.isCourier || userProfile.accountType === 'courier') {
+        availableDashboards.push({ href: '/courier/dashboard', label: 'Courier', icon: Truck });
     }
     
     return Array.from(new Map(availableDashboards.map(item => [item.label, item])).values());
-  }, [userProfile, handleAdminDashboardClick, handleAdvertiserDashboardClick, handleCourierDashboardClick]);
+  }, [userProfile, handleAdminDashboardClick, handleAdvertiserDashboardClick]);
 
-  const isVisiting = useMemo(() => {
-    if (!userProfile) return false;
-    const activeCommunityId = userProfile.communityId;
-    if (!activeCommunityId || activeCommunityId === userProfile.homeCommunityId) return false;
-    const roleData = userProfile.communityRoles?.[activeCommunityId];
-    const isLeaderOfActive = roleData && ['president', 'leader', 'vice-president'].includes(roleData.role);
-    return !isLeaderOfActive;
-  }, [userProfile]);
+  const isVisiting = useMemo(() => !!(userProfile && userProfile.communityId !== userProfile.homeCommunityId), [userProfile]);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-card px-4 sm:px-6">

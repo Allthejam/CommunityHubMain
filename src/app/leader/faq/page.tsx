@@ -16,7 +16,7 @@ import {
     X,
     Sparkles,
 } from "lucide-react"
-import { collection, query, onSnapshot, orderBy, doc } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy } from "firebase/firestore";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -41,8 +41,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { runCreateFaq, runUpdateFaq, runDeleteFaq, runUpdateFaqOrder, runToggleFaqVisibility, aiGenerateFaqDraftAction, runBulkCreateFaqs } from "@/lib/actions/faqActions";
-import { cn } from "@/lib/utils";
+import { doc } from 'firebase/firestore';
+import { runCreateFaq, runUpdateFaq, runDeleteFaq, runUpdateFaqOrder, runToggleFaqVisibility } from "@/lib/actions/faqActions";
 import {
   Accordion,
   AccordionContent,
@@ -85,12 +85,6 @@ export default function LeaderFaqPage() {
     const [currentAnswer, setCurrentAnswer] = React.useState("");
     const [isProofreading, setIsProofreading] = React.useState(false);
     const [proofreadData, setProofreadData] = React.useState<ProofreadTextOutput | null>(null);
-    
-    const [isGeneratorOpen, setIsGeneratorOpen] = React.useState(false);
-    const [rawText, setRawText] = React.useState("");
-    const [isGenerating, setIsGenerating] = React.useState(false);
-    const [generatedFaqs, setGeneratedFaqs] = React.useState<Array<{ question: string; answer: string }>>([]);
-    const [isSavingBulk, setIsSavingBulk] = React.useState(false);
     
     const { toast } = useToast();
 
@@ -193,58 +187,6 @@ export default function LeaderFaqPage() {
         }
         setIsSaving(false);
     }
-
-    const handleGenerateFaqs = async () => {
-        if (!rawText.trim()) {
-            toast({ title: "Nothing to analyze!", description: "Please paste some raw text first.", variant: "destructive" });
-            return;
-        }
-        setIsGenerating(true);
-        try {
-            const result = await aiGenerateFaqDraftAction({ rawText });
-            if (result.success && result.data?.faqs) {
-                setGeneratedFaqs(result.data.faqs);
-            } else {
-                throw new Error(result.error || "Failed to generate FAQ drafts.");
-            }
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message || "Could not generate drafts.", variant: "destructive" });
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
-    const handleUpdateGeneratedFaq = (index: number, field: 'question' | 'answer', value: string) => {
-        setGeneratedFaqs(prev => prev.map((item, idx) => idx === index ? { ...item, [field]: value } : item));
-    };
-
-    const handleDeleteGeneratedFaq = (index: number) => {
-        setGeneratedFaqs(prev => prev.filter((_, idx) => idx !== index));
-    };
-
-    const handleSaveBulkFaqs = async () => {
-        if (!communityId) return;
-        if (generatedFaqs.length === 0) {
-            toast({ title: "Empty list", description: "No FAQs to save.", variant: "destructive" });
-            return;
-        }
-        setIsSavingBulk(true);
-        try {
-            const result = await runBulkCreateFaqs({ communityId, items: generatedFaqs });
-            if (result.success) {
-                toast({ title: "Success", description: `Successfully created ${generatedFaqs.length} FAQ items.` });
-                setIsGeneratorOpen(false);
-                setRawText("");
-                setGeneratedFaqs([]);
-            } else {
-                throw new Error(result.error);
-            }
-        } catch (error: any) {
-            toast({ title: "Error saving bulk FAQs", description: error.message, variant: "destructive" });
-        } finally {
-            setIsSavingBulk(false);
-        }
-    };
     
     return (
     <>
@@ -275,16 +217,10 @@ export default function LeaderFaqPage() {
                         <CardTitle>FAQ Items</CardTitle>
                         <CardDescription>Manage the questions and answers for your community.</CardDescription>
                     </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => setIsGeneratorOpen(true)}>
-                            <Sparkles className="mr-2 h-4 w-4 text-primary" />
-                            Auto-Generate FAQs
-                        </Button>
-                        <Button onClick={() => handleOpenDialog()}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Add New FAQ
-                        </Button>
-                    </div>
+                    <Button onClick={() => handleOpenDialog()}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add New FAQ
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     {loading ? (
@@ -366,7 +302,7 @@ export default function LeaderFaqPage() {
                 <div className="grid grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto p-1">
                     <div className="space-y-4">
                          <h3 className="font-semibold">Suggestions</h3>
-                          <ul className="space-y-2 text-sm list-disc pl-5 text-muted-foreground">
+                         <ul className="space-y-2 text-sm list-disc pl-5 text-muted-foreground">
                             {proofreadData?.suggestions.map((suggestion, index) => (
                                 <li key={index}>{suggestion}</li>
                             ))}
@@ -383,86 +319,6 @@ export default function LeaderFaqPage() {
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                     <Button onClick={handleAcceptProofread}>Accept Changes</Button>
                 </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
-        <Dialog open={isGeneratorOpen} onOpenChange={setIsGeneratorOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-                <DialogHeader className="p-6 pb-2 border-b">
-                    <DialogTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> Auto-Generate FAQs with AI</DialogTitle>
-                    <DialogDescription>
-                        Paste newsletter text, council announcements, or guidelines to draft Q&As in bulk.
-                    </DialogDescription>
-                </DialogHeader>
-
-                {generatedFaqs.length === 0 ? (
-                    <div className="p-6 space-y-4 flex-1 overflow-y-auto">
-                        <div className="space-y-2">
-                            <Label htmlFor="raw-text-input">Raw Text Copy / Announcement Details</Label>
-                            <Textarea 
-                                id="raw-text-input" 
-                                placeholder="Paste local rules, newsletters, or notices here..."
-                                value={rawText}
-                                onChange={(e) => setRawText(e.target.value)}
-                                className="min-h-[250px] text-sm leading-relaxed"
-                            />
-                        </div>
-                        <div className="flex justify-end gap-2">
-                            <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
-                            <Button onClick={handleGenerateFaqs} disabled={isGenerating}>
-                                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                                Generate FAQ Drafts
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
-                    <>
-                        <ScrollArea className="flex-1 p-6">
-                            <div className="space-y-6">
-                                {generatedFaqs.map((faq, index) => (
-                                    <div key={index} className="p-4 border rounded-xl bg-slate-50/50 space-y-4 relative group">
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            className="absolute top-2 right-2 h-8 w-8 hover:text-destructive text-muted-foreground transition-colors"
-                                            onClick={() => handleDeleteGeneratedFaq(index)}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                        <div className="space-y-2 pr-8">
-                                            <Label className="text-xs font-bold text-slate-700">Question #{index + 1}</Label>
-                                            <Input 
-                                                value={faq.question} 
-                                                onChange={(e) => handleUpdateGeneratedFaq(index, 'question', e.target.value)}
-                                                className="bg-white font-semibold text-xs text-slate-800"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-bold text-slate-700">Answer #{index + 1}</Label>
-                                            <Textarea 
-                                                value={faq.answer} 
-                                                onChange={(e) => handleUpdateGeneratedFaq(index, 'answer', e.target.value)}
-                                                className="bg-white min-h-[80px] text-xs leading-relaxed text-slate-700"
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </ScrollArea>
-                        <DialogFooter className="p-6 pt-4 border-t flex items-center justify-between gap-2">
-                            <Button variant="ghost" onClick={() => setGeneratedFaqs([])} disabled={isSavingBulk}>
-                                Start Over
-                            </Button>
-                            <div className="flex gap-2">
-                                <Button variant="outline" onClick={() => setIsGeneratorOpen(false)} disabled={isSavingBulk}>Cancel</Button>
-                                <Button onClick={handleSaveBulkFaqs} disabled={isSavingBulk}>
-                                    {isSavingBulk ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                                    Save & Publish FAQs
-                                </Button>
-                            </div>
-                        </DialogFooter>
-                    </>
-                )}
             </DialogContent>
         </Dialog>
     </>

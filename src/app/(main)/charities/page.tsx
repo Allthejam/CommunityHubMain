@@ -19,6 +19,7 @@ import { RichTextEditor } from "@/components/rich-text-editor";
 import { useToast } from "@/hooks/use-toast";
 import { applyForCharityListingAction } from "@/lib/actions/charityActions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 type Charity = {
   id: string;
@@ -358,35 +359,34 @@ const ApplyForListingDialog = () => {
     )
 }
 
-import { useActiveCommunityId } from '@/hooks/use-active-community-id';
-
 export default function CharitiesPage() {
-  const { user, isUserLoading: authLoading } = useUser();
-  const db = useFirestore();
-  const [view, setView] = useState('grid');
-  const [activeFilter, setActiveFilter] = useState("All");
   const [charities, setCharities] = useState<Charity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [view, setView] = React.useState('grid');
+  
+  const { user, isUserLoading: authLoading } = useUser();
+  const db = useFirestore();
 
-  const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
+  const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
+  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+
+  const activeCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
   const charitiesQuery = useMemoFirebase(() => {
-    if (!communityId || !db) return null;
+    if (!activeCommunityId || !db) return null;
     return query(
-      collection(db, "charities"),
-      where("communityId", "==", communityId),
-      where("status", "==", "Approved")
+        collection(db, "charities"),
+        where("communityId", "==", activeCommunityId)
     );
-  }, [db, communityId]);
+  }, [db, activeCommunityId]);
 
   const { data: charitiesData, isLoading: itemsLoading } = useCollection<Charity>(charitiesQuery);
 
   useEffect(() => {
-      setLoading(authLoading || activeCommunityLoading || itemsLoading);
-      if (charitiesData) {
-          setCharities(charitiesData);
-      }
-  }, [authLoading, activeCommunityLoading, itemsLoading, charitiesData]);
+      setLoading(authLoading || profileLoading || itemsLoading);
+      setCharities(charitiesData || []);
+  }, [authLoading, profileLoading, itemsLoading, charitiesData]);
 
   const categories = useMemo(() => {
     if (!charities) return ["All"];
@@ -408,69 +408,98 @@ export default function CharitiesPage() {
   }
 
   return (
-    <div className="space-y-8 container mx-auto px-4 py-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2">
-                <Heart className="h-8 w-8 text-primary" />
-                Local Charities
-            </h1>
-            <p className="text-muted-foreground">
-              Find and support non-profit organizations making a difference in your community.
-            </p>
-        </div>
-        <div className="flex items-center gap-2 self-start sm:self-center">
-          <ApplyForListingDialog />
-          <div className="flex items-center gap-1 rounded-md bg-muted p-1">
-            <Button variant={view === 'grid' ? 'default' : 'ghost'} size="sm" onClick={() => setView('grid')}>
-                <LayoutGrid className="h-5 w-5" />
-                <span className="hidden sm:inline ml-2">Grid</span>
-            </Button>
-            <Button variant={view === 'list' ? 'default' : 'ghost'} size="sm" onClick={() => setView('list')}>
-                <List className="h-5 w-5" />
-                 <span className="hidden sm:inline ml-2">List</span>
-            </Button>
-        </div>
-        </div>
-      </div>
+    <div className="space-y-8">
+      {/* Rose & Emerald Shimmering Hero Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-rose-500/15 via-pink-500/15 to-emerald-500/15 border border-rose-500/20 p-6 md:p-10 shadow-lg backdrop-blur-sm">
+        <div className="absolute -top-24 -right-24 w-72 h-72 bg-rose-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
 
-       <div className="flex flex-wrap gap-2">
-        {categories.map((category) => (
-          <Button
-            key={category}
-            variant={activeFilter === category ? "default" : "outline"}
-            onClick={() => setActiveFilter(category)}
-          >
-            {category}
-          </Button>
-        ))}
-      </div>
-
-        {view === 'grid' ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredCharities && filteredCharities.length > 0 ? (
-                filteredCharities.map((charity) => (
-                    <CharityCard key={charity.id} charity={charity} />
-              ))
-            ) : (
-                 <Card className="col-span-full h-48 flex items-center justify-center">
-                    <p className="text-muted-foreground">No charities found for this category.</p>
-                </Card>
-            )}
-          </div>
-        ) : (
-            <div className="space-y-4">
-                {filteredCharities && filteredCharities.length > 0 ? (
-                    filteredCharities.map((charity) => (
-                        <CharityRow key={charity.id} charity={charity} />
-                    ))
-                ) : (
-                    <Card className="col-span-full h-48 flex items-center justify-center">
-                        <p className="text-muted-foreground">No charities found for this category.</p>
-                    </Card>
-                )}
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="space-y-3 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-background/80 backdrop-blur-md border border-rose-500/30 text-xs font-semibold text-rose-600 dark:text-rose-400 shadow-xs">
+              <Heart className="h-3.5 w-3.5 fill-rose-500" />
+              <span>Community Non-Profit Directory</span>
             </div>
-        )}
+
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight font-headline">
+              <span className="bg-gradient-to-r from-rose-600 via-pink-600 to-emerald-600 dark:from-rose-400 dark:via-pink-400 dark:to-emerald-400 bg-clip-text text-transparent">
+                Local Charities & Causes
+              </span>
+            </h1>
+
+            <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
+              Find and support registered non-profit organizations, community groups, and local causes making a positive impact in your area.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+            <div className="p-4 rounded-2xl bg-background/80 backdrop-blur-md border border-border/80 shadow-xs flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                <Heart className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">{charities.length}</div>
+                <div className="text-xs text-muted-foreground font-medium">Registered Charities</div>
+              </div>
+            </div>
+
+            <ApplyForListingDialog />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <Button
+              key={category}
+              variant={activeFilter === category ? "default" : "outline"}
+              size="sm"
+              onClick={() => setActiveFilter(category)}
+              className={cn("rounded-full text-xs font-medium", activeFilter === category && "bg-rose-600 hover:bg-rose-700 text-white")}
+            >
+              {category}
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1 rounded-md bg-muted p-1 shrink-0">
+          <Button variant={view === 'grid' ? 'default' : 'ghost'} size="sm" onClick={() => setView('grid')}>
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button variant={view === 'list' ? 'default' : 'ghost'} size="sm" onClick={() => setView('list')}>
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {view === 'grid' ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {filteredCharities && filteredCharities.length > 0 ? (
+            filteredCharities.map((charity) => (
+              <CharityCard key={charity.id} charity={charity} />
+            ))
+          ) : (
+            <Card className="col-span-full h-48 flex flex-col items-center justify-center border-dashed">
+              <Heart className="h-8 w-8 text-muted-foreground/40 mb-2" />
+              <p className="text-sm font-medium text-muted-foreground">No charities listed for this category yet.</p>
+            </Card>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredCharities && filteredCharities.length > 0 ? (
+            filteredCharities.map((charity) => (
+              <CharityRow key={charity.id} charity={charity} />
+            ))
+          ) : (
+            <Card className="col-span-full h-48 flex flex-col items-center justify-center border-dashed">
+              <Heart className="h-8 w-8 text-muted-foreground/40 mb-2" />
+              <p className="text-sm font-medium text-muted-foreground">No charities listed for this category yet.</p>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 }

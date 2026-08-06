@@ -1,48 +1,40 @@
 'use client'
 import * as React from 'react';
-import CreatePostForm from '@/components/create-post-form';
-import PostCard from '@/components/post-card';
+import CreatePostForm from '@/components/create-post-form'
+import PostCard from '@/components/post-card'
 import { type Post } from '@/components/post-card';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, orderBy, doc, onSnapshot, getDoc, limit } from 'firebase/firestore';
-import { Loader2, ArrowDown, Sparkles } from 'lucide-react';
+import { collection, query, where, orderBy, doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import EmergencyAlert from '@/components/emergency-alert';
 import { type Announcement } from '@/lib/announcement-data';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import NationalAdvertisers from '@/components/national-advertisers';
 import { ValuedPartners } from '@/components/valued-partners';
 import { UpcomingEventsFeed } from '@/components/upcoming-events-feed';
-import { NoticeboardCard } from '@/components/noticeboard-card';
-import { Button } from '@/components/ui/button';
-
-const INITIAL_POST_LIMIT = 6;
-const BATCH_INCREMENT = 6;
-
-import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+import { CommunityNoticeboardCarousel } from '@/components/community-noticeboard-carousel';
 
 export default function FeedPage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
-  const { communityId, userProfile, isLoading: activeCommunityLoading } = useActiveCommunityId();
+  const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
+  const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
   const [posts, setPosts] = React.useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = React.useState(true);
-  const [displayCount, setDisplayCount] = React.useState(INITIAL_POST_LIMIT);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
+  
+  const communityId = userProfile?.communityId;
 
-  // Real-time listener for community posts (staged limit for fast initial paint)
   React.useEffect(() => {
     if (!communityId || !db) {
         setPostsLoading(false);
         return;
     };
     
-    // Fetch posts ordered by creation date
     const postsQuery = query(
       collection(db, `communities/${communityId}/posts`),
-      orderBy('createdAt', 'desc'),
-      limit(50) // High ceiling for snapshot while rendering in progressive stages
+      orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(postsQuery, async (snapshot) => {
@@ -82,31 +74,6 @@ export default function FeedPage() {
 
     return () => unsubscribe();
   }, [communityId, db]);
-
-  // IntersectionObserver for auto-loading next stage as user scrolls down
-  React.useEffect(() => {
-    if (postsLoading || displayCount >= posts.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setIsLoadingMore(true);
-          setTimeout(() => {
-            setDisplayCount((prev) => Math.min(prev + BATCH_INCREMENT, posts.length));
-            setIsLoadingMore(false);
-          }, 300);
-        }
-      },
-      { rootMargin: '200px' }
-    );
-
-    const currentRef = loadMoreRef.current;
-    if (currentRef) observer.observe(currentRef);
-
-    return () => {
-      if (currentRef) observer.unobserve(currentRef);
-    };
-  }, [postsLoading, displayCount, posts.length]);
   
   const platformAnnouncementsQuery = useMemoFirebase(() => {
       if (!db) return null;
@@ -138,13 +105,7 @@ export default function FeedPage() {
     ? allAnnouncements.filter(a => a.type === "Emergency") 
     : [];
     
-  const loading = isUserLoading || activeCommunityLoading || postsLoading || platformLoading || communityLoading;
-
-  const visiblePosts = React.useMemo(() => {
-    return posts.slice(0, displayCount);
-  }, [posts, displayCount]);
-
-  const hasMorePosts = posts.length > displayCount;
+  const loading = isUserLoading || profileLoading || postsLoading || platformLoading || communityLoading;
 
   return (
     <div className="space-y-6">
@@ -172,36 +133,9 @@ export default function FeedPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : posts && posts.length > 0 ? (
-              <>
-                {visiblePosts.map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-
-                {/* Staged Load Sentinel / Trigger */}
-                {hasMorePosts && (
-                  <div ref={loadMoreRef} className="pt-4 text-center">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="text-xs font-semibold gap-2 border-indigo-200 text-indigo-700 dark:text-indigo-300"
-                      onClick={() => setDisplayCount((prev) => Math.min(prev + BATCH_INCREMENT, posts.length))}
-                      disabled={isLoadingMore}
-                    >
-                      {isLoadingMore ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          <span>Loading more posts...</span>
-                        </>
-                      ) : (
-                        <>
-                          <ArrowDown className="h-3.5 w-3.5" />
-                          <span>Load More Posts ({posts.length - displayCount} remaining)</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </>
+              posts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))
             ) : (
               <div className="text-center py-12">
                 <h3 className="text-lg font-semibold">No posts yet</h3>
@@ -211,13 +145,13 @@ export default function FeedPage() {
           </div>
         </div>
 
-        {/* Right Sidebar - Independent Scroll & Noticeboard Carousel */}
+        {/* Right Sidebar - Independent Scroll */}
         <aside className="hidden lg:block lg:col-span-1 lg:sticky lg:top-24 space-y-6 max-height-[calc(100vh-7rem)] overflow-y-auto pl-2 custom-scrollbar">
            <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
-           <NoticeboardCard />
            <UpcomingEventsFeed />
+           <CommunityNoticeboardCarousel />
         </aside>
       </div>
     </div>
-  );
+  )
 }
