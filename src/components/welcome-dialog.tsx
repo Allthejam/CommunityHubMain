@@ -27,33 +27,22 @@ export function WelcomeDialog({ userProfile }: { userProfile: any }) {
   const { toast } = useToast();
   const router = useRouter();
 
-  const [isVisiting, setIsVisiting] = React.useState(false);
+  const [acknowledged, setAcknowledged] = React.useState(false);
 
   React.useEffect(() => {
-    const localFlag = typeof window !== 'undefined' && localStorage.getItem(`hasSeenWelcome_${userProfile?.uid || 'user'}`);
-    if (!userProfile.hasSeenWelcome && !localFlag) {
+    if (!userProfile.hasSeenWelcome && !acknowledged) {
       const timer = setTimeout(() => {
         setIsOpen(true);
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [userProfile.hasSeenWelcome, userProfile?.uid]);
+  }, [userProfile.hasSeenWelcome, acknowledged]);
 
   const handleClose = async () => {
     setIsOpen(false);
-    // Set local flag immediately so it never shows again this session or any future session
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(`hasSeenWelcome_${userProfile?.uid || 'user'}`, 'true');
-    }
+    setAcknowledged(true); // optimistic: prevent re-show this session immediately
     if (user) {
-      const result = await updateWelcomeStatusAction(user.uid);
-      if (!result.success) {
-        toast({
-          title: "Couldn't save preferences",
-          description: 'The welcome message may appear again.',
-          variant: 'destructive',
-        });
-      }
+      await updateWelcomeStatusAction(user.uid);
     }
   };
 
