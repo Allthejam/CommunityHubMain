@@ -30,16 +30,21 @@ export function WelcomeDialog({ userProfile }: { userProfile: any }) {
   const [isVisiting, setIsVisiting] = React.useState(false);
 
   React.useEffect(() => {
-    if (!userProfile.hasSeenWelcome) {
+    const localFlag = typeof window !== 'undefined' && localStorage.getItem(`hasSeenWelcome_${userProfile?.uid || 'user'}`);
+    if (!userProfile.hasSeenWelcome && !localFlag) {
       const timer = setTimeout(() => {
         setIsOpen(true);
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [userProfile.hasSeenWelcome]);
+  }, [userProfile.hasSeenWelcome, userProfile?.uid]);
 
   const handleClose = async () => {
     setIsOpen(false);
+    // Set local flag immediately so it never shows again this session or any future session
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`hasSeenWelcome_${userProfile?.uid || 'user'}`, 'true');
+    }
     if (user) {
       const result = await updateWelcomeStatusAction(user.uid);
       if (!result.success) {
