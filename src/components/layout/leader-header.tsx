@@ -213,6 +213,10 @@ export default function LeaderHeader() {
       availableDashboards.push({ onClick: handleAdvertiserDashboardClick, label: 'Advertiser', icon: Star });
     }
 
+    if (userProfile.accountType === 'regional' || userProfile.permissions?.isRegionalNetwork) {
+      availableDashboards.push({ href: '/regional/dashboard', label: 'Regional Back-Office', icon: MapIcon });
+    }
+
     if (userProfile.role === 'reporter') {
       availableDashboards.push({ href: '/reporter/dashboard', label: 'Reporter', icon: Newspaper });
     }
