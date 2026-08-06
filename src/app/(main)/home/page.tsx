@@ -111,6 +111,13 @@ function HomePageContent() {
   useEffect(() => {
     if (profileLoading) return;
 
+    // Regional accounts have no fixed community — their back office IS their home.
+    // Always redirect them to the regional dashboard first, regardless of any saved community ID.
+    if (isRegionalUser) {
+      router.replace('/regional/dashboard');
+      return;
+    }
+
     if (urlCommunityId) {
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('visitedCommunityId', urlCommunityId);
@@ -126,9 +133,6 @@ function HomePageContent() {
       setActiveCommunityId(visitedSession);
     } else if (lockedHomeId) {
       setActiveCommunityId(lockedHomeId);
-    } else if (isRegionalUser) {
-      router.replace('/regional/dashboard');
-      return;
     } else if (userProfile?.communityId) {
       setActiveCommunityId(userProfile.communityId);
     } else {
