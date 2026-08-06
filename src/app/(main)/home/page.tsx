@@ -16,6 +16,7 @@ import { LocalCharitiesFeed } from '@/components/local-charities-feed';
 import { LostAndFoundFeed } from '@/components/lost-and-found-feed';
 import { NewsFeed } from '@/components/news-feed';
 import { PollsSnippet } from '@/components/polls-snippet';
+import { CampaignsSnippet } from '@/components/campaigns-snippet';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -196,6 +197,7 @@ export default function HomePage() {
           {/* Top Priority Feeds: Loaded Immediately */}
           <div id="events" className="scroll-mt-20"><EventsFeed communityId={activeCommunityId} /></div>
           <NewsFeed communityId={activeCommunityId} />
+          <CampaignsSnippet communityId={activeCommunityId} />
 
           {/* Staged / Lazy Loaded Feeds: Fetched progressively as user scrolls */}
           <LazyFeed id="whatson" className="scroll-mt-20">
