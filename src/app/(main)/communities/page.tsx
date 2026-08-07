@@ -22,6 +22,7 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { 
     Search, 
     MapPin, 
@@ -35,8 +36,11 @@ import {
     ExternalLink,
     LocateFixed,
     Navigation,
-    Home
+    Home,
+    AlertCircle,
+    Info
 } from 'lucide-react';
+
 
 // Dynamic import for Leaflet map to prevent SSR issues
 const CommunitiesMapView = dynamic(() => import('@/components/communities-map-view'), {
@@ -545,17 +549,41 @@ export default function CommunitiesDiscoveryPage() {
                                     <span>Registered Community</span>
                                 </Button>
 
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    onClick={requestGpsLocation} 
-                                    disabled={isLocating}
-                                    className="h-8 text-xs font-semibold gap-1.5 bg-background shadow-xs hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/50"
-                                    title="Use live device GPS or Wi-Fi triangulation"
-                                >
-                                    {isLocating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5 text-blue-600" />}
-                                    <span>Live GPS / Wi-Fi</span>
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        onClick={requestGpsLocation} 
+                                        disabled={isLocating}
+                                        className="h-8 text-xs font-semibold gap-1.5 bg-background shadow-xs hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/50"
+                                        title="Use live device GPS or Wi-Fi triangulation"
+                                    >
+                                        {isLocating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5 text-blue-600" />}
+                                        <span>Live GPS / Wi-Fi</span>
+                                    </Button>
+
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button type="button" className="text-amber-600 dark:text-amber-400 hover:text-amber-700 p-1 transition-colors rounded-full hover:bg-amber-100/50 dark:hover:bg-amber-950/50" aria-label="Wi-Fi accuracy information">
+                                                    <AlertCircle className="h-4 w-4" />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-xs text-xs p-3 space-y-1.5 bg-slate-900 text-slate-100 border-slate-700 shadow-xl">
+                                                <p className="font-bold text-amber-300 flex items-center gap-1.5">
+                                                    <AlertCircle className="h-3.5 w-3.5" />
+                                                    Wi-Fi Location Accuracy Note
+                                                </p>
+                                                <p className="leading-relaxed">
+                                                    Wi-Fi connections rely on internet provider IP routing, which can place your location at a regional data hub <strong>hundreds of miles away</strong> (e.g. Blackpool instead of Scotland).
+                                                </p>
+                                                <p className="text-[11px] text-slate-300 pt-1.5 border-t border-slate-800">
+                                                    For exact results on desktop/Wi-Fi, please type your town or postcode below.
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                             </div>
                         </div>
 
@@ -581,6 +609,15 @@ export default function CommunitiesDiscoveryPage() {
                                 {isSearchingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Search Address / Postcode"}
                             </Button>
                         </div>
+
+                        {/* Wi-Fi vs Mobile GPS Accuracy Notice Banner */}
+                        <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300 leading-normal">
+                            <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                            <span>
+                                <strong>Wi-Fi Accuracy Notice:</strong> Wi-Fi geolocation uses your ISP's internet routing hub (which can place you 100s of miles away, e.g. Blackpool). For exact location, use mobile device GPS or type your town/postcode above.
+                            </span>
+                        </div>
+
                     </div>
 
                     {/* Cascading Location Filter Toolbar (Country -> Constituent -> Region -> Community) */}
