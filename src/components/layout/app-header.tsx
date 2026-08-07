@@ -101,6 +101,7 @@ const discoverSubItems = [
 ];
 
 const engageSubItems = [
+    { href: '/communities', label: 'Community Map', icon: MapIcon, permission: 'viewCommunities' },
     { href: '/forum', label: 'Forum', icon: UsersIcon, permission: 'viewForum' },
     { href: '/jobs', label: 'Jobs', icon: Briefcase, permission: 'viewJobs' },
     { href: '/marketplace', label: 'Buy, Swap & Sell', icon: ShoppingCart, permission: 'viewMarketplace' },
