@@ -476,16 +476,22 @@ export default function CommunitiesDiscoveryPage() {
             return;
         }
         setSwitchingId(commId);
+
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('visitedCommunityId', commId);
+        }
+
         const res = await updateUserCommunityAction({ userId: user.uid, communityId: commId });
         setSwitchingId(null);
 
         if (res.success) {
             toast({ title: "Community Switched!", description: `You are now viewing ${commName}` });
-            window.location.href = '/home';
+            window.location.href = `/home?community=${commId}`;
         } else {
             toast({ title: "Error", description: res.error || "Failed to switch community", variant: "destructive" });
         }
     };
+
 
     // Stats Counters
     const activeCount = useMemo(() => communities.filter(c => c.status === 'active' || (c.leaderCount || 0) > 0).length, [communities]);

@@ -216,14 +216,18 @@ export default function CommunitiesMapView({
                         router.push('/signup');
                         return;
                     }
+                    if (typeof window !== 'undefined') {
+                        sessionStorage.setItem('visitedCommunityId', community.id);
+                    }
                     const res = await updateUserCommunityAction({ userId: user.uid, communityId: community.id });
                     if (res.success) {
                         toast({ title: "Community Switched!", description: `Now viewing ${community.name}` });
-                        window.location.href = '/home';
+                        window.location.href = `/home?community=${community.id}`;
                     } else {
                         toast({ title: "Error", description: res.error || "Failed to switch community", variant: "destructive" });
                     }
                 });
+
 
                 marker.bindPopup(popupContent);
                 marker.on('click', () => onSelectCommunity(community.id));
