@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import 'leaflet/dist/leaflet.css';
 import type { Map as LeafletMap, Marker as LeafletMarker, LayerGroup } from 'leaflet';
-import { PublicCommunityData, runSaveCommunityCentroid } from '@/lib/actions/communityActions';
+import { PublicCommunityData, PublicRegionalNetworkData, runSaveCommunityCentroid } from '@/lib/actions/communityActions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Crown, Users, MapPin, ExternalLink, Compass, LocateFixed, Loader2 } from 'lucide-react';
+import { Crown, Users, MapPin, ExternalLink, Compass, LocateFixed, Loader2, ShieldCheck } from 'lucide-react';
 import { updateUserCommunityAction } from '@/lib/actions/userActions';
 import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,9 @@ import { useRouter } from 'next/navigation';
 interface CommunitiesMapViewProps {
     communities: (PublicCommunityData & { distance?: number })[];
     allCommunities?: PublicCommunityData[];
+    regionalNetworks?: PublicRegionalNetworkData[];
+    showCommunityBoundaries?: boolean;
+    showRegionalNetworks?: boolean;
     userLocation: { lat: number; lng: number } | null;
     selectedCommunityId: string | null;
     onSelectCommunity: (id: string) => void;
@@ -52,16 +55,16 @@ export function getCentroidFromGeoJson(geoJsonStr: string): { lat: number; lng: 
             coords = geojson.coordinates[0][0];
         }
 
-        if (!coords || coords.length === 0) return null;
-        
-        let sumLat = 0;
-        let sumLng = 0;
+        if (coords.length === 0) return null;
+
+        let latSum = 0, lngSum = 0;
         coords.forEach(([lng, lat]) => {
-            sumLat += lat;
-            sumLng += lng;
+            latSum += lat;
+            lngSum += lng;
         });
-        return { lat: sumLat / coords.length, lng: sumLng / coords.length };
-    } catch {
+
+        return { lat: latSum / coords.length, lng: lngSum / coords.length };
+    } catch (e) {
         return null;
     }
 }
@@ -69,6 +72,9 @@ export function getCentroidFromGeoJson(geoJsonStr: string): { lat: number; lng: 
 export default function CommunitiesMapView({
     communities,
     allCommunities,
+    regionalNetworks = [],
+    showCommunityBoundaries = true,
+    showRegionalNetworks = true,
     userLocation,
     selectedCommunityId,
     onSelectCommunity,
@@ -83,14 +89,6 @@ export default function CommunitiesMapView({
     const { user } = useUser();
     const { toast } = useToast();
     const router = useRouter();
-
-    const handleLocateMe = () => {
-        if (userLocation && mapInstanceRef.current) {
-            mapInstanceRef.current.flyTo([userLocation.lat, userLocation.lng], 11, { duration: 1.2 });
-        } else if (onRequestGpsLocation) {
-            onRequestGpsLocation();
-        }
-    };
 
     const [isMapReady, setIsMapReady] = useState(false);
 
@@ -108,13 +106,15 @@ export default function CommunitiesMapView({
                 const initialZoom = userLocation ? 9 : 6;
 
                 const map = L.map(mapContainerRef.current).setView([initialLat, initialLng], initialZoom);
-                mapInstanceRef.current = map;
 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors'
                 }).addTo(map);
 
-                markersLayerRef.current = L.layerGroup().addTo(map);
+                const markersGroup = L.layerGroup().addTo(map);
+                markersLayerRef.current = markersGroup;
+                mapInstanceRef.current = map;
                 setIsMapReady(true);
             }
         };
@@ -129,14 +129,7 @@ export default function CommunitiesMapView({
         };
     }, []);
 
-    // Update center when user location changes
-    useEffect(() => {
-        if (mapInstanceRef.current && userLocation) {
-            mapInstanceRef.current.flyTo([userLocation.lat, userLocation.lng], 9, { duration: 1.2 });
-        }
-    }, [userLocation]);
-
-    // Render Markers & Boundaries
+    // Update Markers & Polygons whenever props or layer toggles change
     useEffect(() => {
         if (!isMapReady || !mapInstanceRef.current || !markersLayerRef.current) return;
 
@@ -145,125 +138,148 @@ export default function CommunitiesMapView({
             markersLayerRef.current?.clearLayers();
             markersMapRef.current.clear();
 
-            // Render User Location Pin if available
+            // Render User's Live Location Pulse Pin if available
             if (userLocation) {
                 const userIcon = L.divIcon({
                     className: 'custom-user-marker',
                     html: `
-                        <div style="position: relative; display: flex; items-center: center; justify-content: center; width: 36px; height: 36px;">
-                            <div style="position: absolute; width: 36px; height: 36px; background-color: rgba(59, 130, 246, 0.35); border-radius: 50%; border: 1px solid rgba(59, 130, 246, 0.6); top: 0; left: 0;"></div>
-                            <div style="position: absolute; top: 7px; left: 7px; background-color: #2563eb; width: 22px; height: 22px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.8); z-index: 2;"></div>
+                        <div style="position: relative; width: 24px; height: 24px;">
+                            <div style="position: absolute; width: 24px; height: 24px; border-radius: 50%; background: #3b82f6; opacity: 0.4; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                            <div style="position: absolute; top: 4px; left: 4px; width: 16px; height: 16px; border-radius: 50%; background: #2563eb; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
                         </div>
                     `,
-                    iconSize: [36, 36],
-                    iconAnchor: [18, 18]
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
                 });
-                const userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon, zIndexOffset: 1000 })
+                const userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
                     .bindPopup('<div style="font-weight: 700; color: #1e3a8a;">📍 You Are Here</div><div style="font-size: 11px; color: #475569;">Your current GPS location</div>');
-                
-                userMarker.bindTooltip("📍 You Are Here", { permanent: false, direction: "top" });
                 markersLayerRef.current?.addLayer(userMarker);
             }
 
-            // Render Community Pins
-            communities.forEach(community => {
-                let coords = community.centroid;
+            // 1. Render Community Pins & Boundaries if enabled
+            if (showCommunityBoundaries) {
+                communities.forEach(community => {
+                    let coords = community.centroid;
 
-                if (!coords && community.boundary) {
-                    coords = getCentroidFromGeoJson(community.boundary) || undefined;
-                }
+                    if (!coords && community.boundary) {
+                        coords = getCentroidFromGeoJson(community.boundary) || undefined;
+                    }
 
-                if (!coords) return; // Skip if no position resolves yet
+                    if (!coords) return; // Skip if no position resolves yet
 
-                const isActive = community.status === 'active' || (community.leaderCount || 0) > 0;
-                const isNoLeader = (community.leaderCount || 0) === 0;
+                    const isActive = community.status === 'active' || (community.leaderCount || 0) > 0;
+                    const isNoLeader = (community.leaderCount || 0) === 0;
 
-                const pinColor = isActive ? '#10b981' : isNoLeader ? '#f59e0b' : '#6b7280';
-                
-                const customIcon = L.divIcon({
-                    className: 'custom-community-marker',
-                    html: `
-                        <div style="background-color: ${pinColor}; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
-                            <div style="transform: rotate(45deg); width: 10px; height: 10px; background: white; border-radius: 50%;"></div>
+                    const pinColor = isActive ? '#10b981' : isNoLeader ? '#f59e0b' : '#6b7280';
+                    
+                    const customIcon = L.divIcon({
+                        className: 'custom-community-marker',
+                        html: `
+                            <div style="background-color: ${pinColor}; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+                                <div style="transform: rotate(45deg); width: 10px; height: 10px; background: white; border-radius: 50%;"></div>
+                            </div>
+                        `,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 30]
+                    });
+
+                    const marker = L.marker([coords.lat, coords.lng], { icon: customIcon });
+
+                    const popupContent = document.createElement('div');
+                    popupContent.className = 'p-1 min-w-[200px] text-slate-900';
+                    popupContent.innerHTML = `
+                        <div style="font-weight: 700; font-size: 15px; margin-bottom: 2px;">${community.name}</div>
+                        <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">${[community.region, community.state].filter(Boolean).join(', ')}</div>
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <span style="background: ${isActive ? '#ecfdf5' : '#fffbeb'}; color: ${isActive ? '#047857' : '#b45309'}; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600;">
+                                ${isActive ? 'Active Community' : 'Leader Role Available'}
+                            </span>
                         </div>
-                    `,
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 30]
+                        <div style="font-size: 12px; color: #475569; margin-bottom: 10px;">
+                            👥 <strong>${community.memberCount || 0}</strong> Members &bull; 👑 <strong>${community.leaderCount || 0}</strong> Leaders
+                        </div>
+                        <button id="btn-visit-${community.id}" style="width: 100%; background: #4f46e5; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer;">
+                            Visit Community Hub
+                        </button>
+                    `;
+
+                    popupContent.querySelector(`#btn-visit-${community.id}`)?.addEventListener('click', async () => {
+                        if (!user) {
+                            router.push('/signup');
+                            return;
+                        }
+                        if (typeof window !== 'undefined') {
+                            sessionStorage.setItem('visitedCommunityId', community.id);
+                        }
+                        const res = await updateUserCommunityAction({ userId: user.uid, communityId: community.id });
+                        if (res.success) {
+                            toast({ title: "Community Switched!", description: `Now viewing ${community.name}` });
+                            window.location.href = `/home?community=${community.id}`;
+                        } else {
+                            toast({ title: "Error", description: res.error || "Failed to switch community", variant: "destructive" });
+                        }
+                    });
+
+                    marker.bindPopup(popupContent);
+                    marker.on('click', () => onSelectCommunity(community.id));
+
+                    markersLayerRef.current?.addLayer(marker);
+                    markersMapRef.current.set(community.id, marker);
                 });
 
-                const marker = L.marker([coords.lat, coords.lng], { icon: customIcon });
-
-                const popupContent = document.createElement('div');
-                popupContent.className = 'p-1 min-w-[200px] text-slate-900';
-                popupContent.innerHTML = `
-                    <div style="font-weight: 700; font-size: 15px; margin-bottom: 2px;">${community.name}</div>
-                    <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">${[community.region, community.state].filter(Boolean).join(', ')}</div>
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                        <span style="background: ${isActive ? '#ecfdf5' : '#fffbeb'}; color: ${isActive ? '#047857' : '#b45309'}; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600;">
-                            ${isActive ? 'Active Community' : 'Leader Role Available'}
-                        </span>
-                    </div>
-                    <div style="font-size: 12px; color: #475569; margin-bottom: 10px;">
-                        👥 <strong>${community.memberCount || 0}</strong> Members &bull; 👑 <strong>${community.leaderCount || 0}</strong> Leaders
-                    </div>
-                    <button id="btn-visit-${community.id}" style="width: 100%; background: #4f46e5; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer;">
-                        Visit Community Hub
-                    </button>
-                `;
-
-                popupContent.querySelector(`#btn-visit-${community.id}`)?.addEventListener('click', async () => {
-                    if (!user) {
-                        router.push('/signup');
-                        return;
-                    }
-                    if (typeof window !== 'undefined') {
-                        sessionStorage.setItem('visitedCommunityId', community.id);
-                    }
-                    const res = await updateUserCommunityAction({ userId: user.uid, communityId: community.id });
-                    if (res.success) {
-                        toast({ title: "Community Switched!", description: `Now viewing ${community.name}` });
-                        window.location.href = `/home?community=${community.id}`;
-                    } else {
-                        toast({ title: "Error", description: res.error || "Failed to switch community", variant: "destructive" });
+                // Render GeoJSON boundary polygons across communities
+                const boundarySource = (allCommunities && allCommunities.length > 0) ? allCommunities : communities;
+                boundarySource.forEach(c => {
+                    if (c.boundary) {
+                        try {
+                            const geojson = JSON.parse(c.boundary);
+                            const isActive = c.status === 'active' || (c.leaderCount || 0) > 0;
+                            const polyColor = isActive ? '#10b981' : '#f59e0b';
+                            const poly = L.geoJSON(geojson, {
+                                style: {
+                                    color: polyColor,
+                                    weight: 2,
+                                    opacity: 0.8,
+                                    fillColor: polyColor,
+                                    fillOpacity: 0.15,
+                                    dashArray: '5, 5'
+                                }
+                            }).bindTooltip(`<b>${c.name}</b><br/>${c.region || ''}`, { permanent: false, direction: 'center' });
+                            markersLayerRef.current?.addLayer(poly);
+                        } catch (e) {
+                            // ignore malformed geojson
+                        }
                     }
                 });
+            }
 
-
-                marker.bindPopup(popupContent);
-                marker.on('click', () => onSelectCommunity(community.id));
-
-                markersLayerRef.current?.addLayer(marker);
-                markersMapRef.current.set(community.id, marker);
-            });
-
-            // Render ALL GeoJSON boundary polygons across all communities so no borders are lost
-            const boundarySource = (allCommunities && allCommunities.length > 0) ? allCommunities : communities;
-            boundarySource.forEach(c => {
-                if (c.boundary) {
-                    try {
-                        const geojson = JSON.parse(c.boundary);
-                        const isActive = c.status === 'active' || (c.leaderCount || 0) > 0;
-                        const polyColor = isActive ? '#10b981' : '#f59e0b';
-                        const poly = L.geoJSON(geojson, {
-                            style: {
-                                color: polyColor,
-                                weight: 2,
-                                opacity: 0.8,
-                                fillColor: polyColor,
-                                fillOpacity: 0.15,
-                                dashArray: '5, 5'
-                            }
-                        }).bindTooltip(`<b>${c.name}</b><br/>${c.region || ''}`, { permanent: false, direction: 'center' });
-                        markersLayerRef.current?.addLayer(poly);
-                    } catch (e) {
-                        // ignore malformed geojson
+            // 2. Render Regional Network Boundaries if enabled
+            if (showRegionalNetworks && regionalNetworks && regionalNetworks.length > 0) {
+                regionalNetworks.forEach(r => {
+                    if (r.regionalBoundary) {
+                        try {
+                            const geojson = JSON.parse(r.regionalBoundary);
+                            const poly = L.geoJSON(geojson, {
+                                style: {
+                                    color: '#6366f1', // Indigo purple for regional authority boundaries
+                                    weight: 3,
+                                    opacity: 0.85,
+                                    fillColor: '#818cf8',
+                                    fillOpacity: 0.1,
+                                    dashArray: '8, 6'
+                                }
+                            }).bindTooltip(`<b>🛡️ Regional Network</b><br/>${r.name}<br/><i>${r.region || ''}</i>`, { permanent: false, direction: 'center' });
+                            markersLayerRef.current?.addLayer(poly);
+                        } catch (e) {
+                            // ignore malformed geojson
+                        }
                     }
-                }
-            });
+                });
+            }
         };
 
         updateMarkers();
-    }, [isMapReady, communities, allCommunities, userLocation]);
+    }, [isMapReady, communities, allCommunities, regionalNetworks, showCommunityBoundaries, showRegionalNetworks, userLocation]);
 
     // Handle selection from list
     useEffect(() => {
@@ -303,12 +319,19 @@ export default function CommunitiesMapView({
                     <span className="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
                     <span>Leader Needed</span>
                 </div>
+                {showRegionalNetworks && (
+                    <div className="flex items-center gap-2">
+                        <span className="w-3.5 h-2.5 rounded-xs border-2 border-indigo-500 bg-indigo-500/20 inline-block"></span>
+                        <span>Regional Network Boundary</span>
+                    </div>
+                )}
                 {userLocation && (
                     <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
                         <span>Your Location (📍 You Are Here)</span>
                     </div>
                 )}
+
             </div>
         </div>
     );

@@ -666,3 +666,41 @@ export async function runSaveCommunityCentroid(communityId: string, centroid: { 
     }
 }
 
+export interface PublicRegionalNetworkData {
+    id: string;
+    name: string;
+    region?: string;
+    state?: string;
+    country?: string;
+    regionalBoundary?: string;
+}
+
+export async function runGetAllRegionalNetworks(): Promise<{ success: boolean; networks?: PublicRegionalNetworkData[]; error?: string }> {
+    try {
+        const { firestore } = initializeAdminApp();
+        const snapshot = await firestore.collection('users')
+            .where('accountType', '==', 'regional')
+            .get();
+
+        const networks: PublicRegionalNetworkData[] = snapshot.docs
+            .map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    name: data.organizationName || data.businessName || data.displayName || 'Regional Authority Network',
+                    region: data.region || data.state || '',
+                    state: data.state || '',
+                    country: data.country || '',
+                    regionalBoundary: data.regionalBoundary || data.boundary || undefined,
+                };
+            })
+            .filter(n => !!n.regionalBoundary);
+
+        return { success: true, networks };
+    } catch (error: any) {
+        console.error("Error fetching regional networks:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+

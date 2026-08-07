@@ -5,8 +5,11 @@ import dynamic from 'next/dynamic';
 import { 
     runGetAllPublicCommunities, 
     PublicCommunityData, 
-    runSaveCommunityCentroid 
+    runSaveCommunityCentroid,
+    runGetAllRegionalNetworks,
+    PublicRegionalNetworkData
 } from '@/lib/actions/communityActions';
+
 import { calculateDistanceMiles, getCentroidFromGeoJson } from '@/components/communities-map-view';
 import { updateUserCommunityAction } from '@/lib/actions/userActions';
 import { useUser, useFirestore } from '@/firebase';
@@ -60,7 +63,12 @@ export default function CommunitiesDiscoveryPage() {
     const db = useFirestore();
 
     const [communities, setCommunities] = useState<PublicCommunityData[]>([]);
+    const [regionalNetworks, setRegionalNetworks] = useState<PublicRegionalNetworkData[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Map Layer Checkbox Filter Toggles
+    const [showCommunityBoundaries, setShowCommunityBoundaries] = useState<boolean>(true);
+    const [showRegionalNetworks, setShowRegionalNetworks] = useState<boolean>(true);
 
     // GPS & Manual Location State
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -103,40 +111,50 @@ export default function CommunitiesDiscoveryPage() {
         setSelectedTargetCommunityId('all');
     };
 
-    const handleTargetCommunityChange = (commId: string) => {
-        setSelectedTargetCommunityId(commId);
-        if (commId !== 'all') {
-            const comm = communities.find(c => c.id === commId);
-            if (comm) {
-                let coords = comm.centroid;
-                if (!coords && comm.boundary) {
-                    coords = getCentroidFromGeoJson(comm.boundary) || undefined;
-                }
-                if (coords) {
-                    setUserLocation(coords);
-                    setLocationLabel(`${comm.name} (${[comm.region, comm.state].filter(Boolean).join(', ')})`);
-                    setSelectedCommunityId(comm.id);
+    const handleTargetCommunityChange = (communityId: string) => {
+        setSelectedTargetCommunityId(communityId);
+        if (communityId !== 'all') {
+            setSelectedCommunityId(communityId);
+        }
+    };
+
+    // Geocode unmapped communities
+    const geocodeUnmappedCommunities = async (commList: PublicCommunityData[]) => {
+        const unmapped = commList.filter(c => !c.centroid && c.boundary);
+        for (const comm of unmapped.slice(0, 5)) {
+            if (comm.boundary) {
+                const centroid = getCentroidFromGeoJson(comm.boundary);
+                if (centroid) {
+                    comm.centroid = centroid;
+                    runSaveCommunityCentroid(comm.id, centroid);
                 }
             }
         }
     };
 
-    // Fetch Communities
+    // Fetch Communities and Regional Networks
     useEffect(() => {
-        const fetchCommunities = async () => {
+        const fetchCommunitiesAndNetworks = async () => {
             setLoading(true);
-            const res = await runGetAllPublicCommunities();
-            if (res.success && res.communities) {
-                setCommunities(res.communities);
+            const [commRes, regRes] = await Promise.all([
+                runGetAllPublicCommunities(),
+                runGetAllRegionalNetworks()
+            ]);
 
-                // Asynchronously geocode top unmapped communities using Nominatim & save centroids
-                geocodeUnmappedCommunities(res.communities);
-            } else {
-                toast({ title: "Error", description: res.error || "Failed to load communities", variant: "destructive" });
+            if (commRes.success && commRes.communities) {
+                setCommunities(commRes.communities);
+                geocodeUnmappedCommunities(commRes.communities);
+            } else if (commRes.error) {
+                toast({ title: "Error", description: commRes.error || "Failed to load communities", variant: "destructive" });
             }
+
+            if (regRes.success && regRes.networks) {
+                setRegionalNetworks(regRes.networks);
+            }
+
             setLoading(false);
         };
-        fetchCommunities();
+        fetchCommunitiesAndNetworks();
     }, []);
 
     const [fetchedUserProfile, setFetchedUserProfile] = useState<any>(null);
@@ -740,6 +758,37 @@ export default function CommunitiesDiscoveryPage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Map Layer Overlay Checkbox Toggles */}
+                    <div className="pt-3 border-t flex flex-wrap items-center justify-between gap-4 text-xs">
+                        <div className="flex flex-wrap items-center gap-6">
+                            <span className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider">Map Layer Filters:</span>
+                            
+                            <div className="flex items-center space-x-2">
+                                <Checkbox 
+                                    id="show-community-layers" 
+                                    checked={showCommunityBoundaries} 
+                                    onCheckedChange={(checked) => setShowCommunityBoundaries(!!checked)} 
+                                />
+                                <Label htmlFor="show-community-layers" className="text-xs cursor-pointer font-medium flex items-center gap-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+                                    <span>Community Hubs & Boundaries</span>
+                                </Label>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <Checkbox 
+                                    id="show-regional-layers" 
+                                    checked={showRegionalNetworks} 
+                                    onCheckedChange={(checked) => setShowRegionalNetworks(!!checked)} 
+                                />
+                                <Label htmlFor="show-regional-layers" className="text-xs cursor-pointer font-medium flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300">
+                                    <span className="w-3 h-2 rounded-xs border border-indigo-500 bg-indigo-500/30 inline-block"></span>
+                                    <span>Regional Networks ({regionalNetworks.length})</span>
+                                </Label>
+                            </div>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -750,6 +799,9 @@ export default function CommunitiesDiscoveryPage() {
                     <CommunitiesMapView
                         communities={filteredCommunities}
                         allCommunities={processedCommunities}
+                        regionalNetworks={regionalNetworks}
+                        showCommunityBoundaries={showCommunityBoundaries}
+                        showRegionalNetworks={showRegionalNetworks}
                         userLocation={userLocation}
                         selectedCommunityId={selectedCommunityId}
                         onSelectCommunity={(id) => setSelectedCommunityId(id)}
@@ -757,6 +809,7 @@ export default function CommunitiesDiscoveryPage() {
                         isLocating={isLocating}
                     />
                 </div>
+
 
                 {/* Search Results List Column */}
                 <div className="lg:col-span-5 xl:col-span-4 space-y-4">
