@@ -12,7 +12,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { updateUserFavouriteCommunitiesAction } from '@/lib/actions/userActions';
+import { updateUserFavouriteCommunitiesAction, returnToHomeCommunityAction } from '@/lib/actions/userActions';
+
 import { type Notification } from '@/lib/types/notifications';
 import { Badge } from './ui/badge';
 
@@ -105,13 +106,17 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
     }
   };
 
-  const handleReturnHome = () => {
+  const handleReturnHome = async () => {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
     }
-    router.push('/home');
+    if (user) {
+      await returnToHomeCommunityAction({ userId: user.uid });
+    }
+    window.location.href = '/home';
   };
+
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

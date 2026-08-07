@@ -303,18 +303,19 @@ export default function ShoppingHeader() {
   const handleReturnHome = async () => {
     if (!user) return;
     setIsSwitching(true);
-    const result = await returnToHomeCommunityAction({ userId: user.uid });
-    if (result.success) {
+    if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
-      setVisitedCommunityId(null);
-      toast({ title: 'Returned Home' });
-      window.location.reload();
+    }
+    const result = await returnToHomeCommunityAction({ userId: user.uid });
+    setIsSwitching(false);
+    if (result.success) {
+      toast({ title: 'Returned Home', description: `You are now back in your home community.` });
+      window.location.href = '/home';
     } else {
       toast({ title: "Error Returning Home", description: result.error, variant: 'destructive' });
     }
-    setIsSwitching(false);
-  }
+  };
   
   const handleClaimLeadership = async () => {
     if (!user || !visitedCommunityIdEffective) {

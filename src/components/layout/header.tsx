@@ -262,14 +262,20 @@ export default function AppHeader() {
     router.push(`/home?community=${targetCommId}`);
   };
   
-  const handleReturnHome = () => {
+  const handleReturnHome = async () => {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
     }
+    if (user) {
+      setIsSwitching(true);
+      await returnToHomeCommunityAction({ userId: user.uid });
+      setIsSwitching(false);
+    }
     toast({ title: 'Returned Home', description: `Returned to your locked Home Community hub.` });
-    router.push('/home');
+    window.location.href = '/home';
   };
+
   
   const handleClaimLeadership = async () => {
     const vId = visitedCommunityIdEffective;

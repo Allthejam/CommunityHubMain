@@ -378,18 +378,21 @@ export default function AppHeader() {
   const handleReturnHome = async () => {
     if (!user) return;
     setIsSwitching(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('visitedCommunityId');
+      sessionStorage.removeItem('visitedCommunityName');
+    }
     const result = await returnToHomeCommunityAction({ userId: user.uid });
     setIsSwitching(false);
     if (result.success) {
-      sessionStorage.removeItem('visitedCommunityId');
-      sessionStorage.removeItem('visitedCommunityName');
       setVisitedCommunityId(null);
       showToast({ title: 'Returned Home', description: `You are now back in your home community.` });
-      window.location.reload();
+      window.location.href = '/home';
     } else {
       showToast({ title: "Error Returning Home", description: result.error, variant: 'destructive' });
     }
   }
+
   
   const handleClaimLeadership = async () => {
     if (!user || !visitedCommunityId) {

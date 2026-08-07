@@ -260,15 +260,20 @@ export function NoticeboardCard() {
   const handleReturnHome = async () => {
     if (!user) return;
     setIsReturning(true);
-    sessionStorage.removeItem('visitedCommunityId');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('visitedCommunityId');
+      sessionStorage.removeItem('visitedCommunityName');
+    }
     const res = await returnToHomeCommunityAction({ userId: user.uid });
     setIsReturning(false);
     if (res.success) {
         toast({ title: "Returned Home", description: `You are now back at your home community (${res.communityName}).` });
+        window.location.href = '/home';
     } else {
         toast({ title: "Error", description: res.error, variant: "destructive" });
     }
   };
+
 
   const handleToggleFavourite = async () => {
     if (!user || !userProfile?.communityId) return;
