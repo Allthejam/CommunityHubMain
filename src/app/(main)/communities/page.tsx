@@ -270,28 +270,7 @@ export default function CommunitiesDiscoveryPage() {
         }
     };
 
-    // Nominatim Lazy Geocoding Background Helper
-    const geocodeUnmappedCommunities = async (commList: PublicCommunityData[]) => {
-        const unmapped = commList.filter(c => !c.centroid && !c.boundary).slice(0, 15);
-        for (const comm of unmapped) {
-            const queryStr = [comm.name, comm.region, comm.state, comm.country].filter(Boolean).join(', ');
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryStr)}`);
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    const lat = parseFloat(data[0].lat);
-                    const lng = parseFloat(data[0].lon);
-                    const centroid = { lat, lng };
 
-                    setCommunities(prev => prev.map(c => c.id === comm.id ? { ...c, centroid } : c));
-                    runSaveCommunityCentroid(comm.id, centroid);
-                }
-            } catch (err) {
-                // Ignore rate limit or network errors silently
-            }
-            await new Promise(r => setTimeout(r, 600)); // Respect Nominatim rate limit (1 req per sec)
-        }
-    };
 
     const [dbCountries, setDbCountries] = useState<{ id: string; name: string }[]>([]);
     const [dbStates, setDbStates] = useState<{ id: string; name: string; parent?: string }[]>([]);
