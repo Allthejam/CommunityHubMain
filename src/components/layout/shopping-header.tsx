@@ -142,7 +142,18 @@ export default function ShoppingHeader() {
   }, [user, firestore]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const isVisiting = useMemo(() => !!(userProfile && userProfile.communityId !== userProfile.homeCommunityId), [userProfile]);
+  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId;
+  const currentActiveCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId;
+  
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && homeCommunityId && currentActiveCommunityId === homeCommunityId) {
+      sessionStorage.removeItem('visitedCommunityId');
+      sessionStorage.removeItem('visitedCommunityName');
+    }
+  }, [homeCommunityId, currentActiveCommunityId]);
+
+  const isVisiting = Boolean(userProfile && homeCommunityId && currentActiveCommunityId && currentActiveCommunityId !== homeCommunityId);
+
 
   const visitedCommunityIdEffective = useMemo(() => {
     if (typeof window !== 'undefined') {

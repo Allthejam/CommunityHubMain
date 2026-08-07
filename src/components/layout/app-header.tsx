@@ -336,8 +336,20 @@ export default function AppHeader() {
   }, [userProfile]);
 
   const CurrentAccountIcon = userProfile?.role ? accountTypeIcons[userProfile.role as keyof typeof accountTypeIcons] || UserIcon : UserIcon;
-  const isVisiting = userProfile && userProfile.communityId !== userProfile.homeCommunityId;
+  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId;
+  const currentActiveCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId;
+  
+  // Clear visited session storage if active community matches home community
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && homeCommunityId && currentActiveCommunityId === homeCommunityId) {
+      sessionStorage.removeItem('visitedCommunityId');
+      sessionStorage.removeItem('visitedCommunityName');
+    }
+  }, [homeCommunityId, currentActiveCommunityId]);
+
+  const isVisiting = Boolean(userProfile && homeCommunityId && currentActiveCommunityId && currentActiveCommunityId !== homeCommunityId);
   const visitedCommunityHasNoLeader = isVisiting && visitedCommunityData?.leaderCount === 0;
+
 
   const handleCommunitySwitch = async () => {
     if (!communitySelection?.community || communitySelection.community === 'other' || !user) {

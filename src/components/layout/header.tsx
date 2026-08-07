@@ -151,22 +151,33 @@ export default function AppHeader() {
   }, [user, firestore]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId;
 
   const visitedCommunityIdEffective = useMemo(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const urlComm = urlParams.get('community');
       if (urlComm) {
+        if (homeCommunityId && urlComm === homeCommunityId) {
+          sessionStorage.removeItem('visitedCommunityId');
+          return null;
+        }
         sessionStorage.setItem('visitedCommunityId', urlComm);
         return urlComm;
       }
-      return sessionStorage.getItem('visitedCommunityId') || homeCommunityId || null;
+      const storedVisited = sessionStorage.getItem('visitedCommunityId');
+      if (storedVisited && homeCommunityId && storedVisited === homeCommunityId) {
+        sessionStorage.removeItem('visitedCommunityId');
+        return null;
+      }
+      return storedVisited || null;
     }
-    return homeCommunityId || null;
+    return null;
   }, [homeCommunityId]);
 
-  const isVisiting = useMemo(() => !!(visitedCommunityIdEffective && homeCommunityId && visitedCommunityIdEffective !== homeCommunityId), [visitedCommunityIdEffective, homeCommunityId]);
+  const activeCommunityId = visitedCommunityIdEffective || userProfile?.communityId;
+  const isVisiting = Boolean(userProfile && homeCommunityId && activeCommunityId && activeCommunityId !== homeCommunityId);
+
 
   const visitedCommunityDataRef = useMemoFirebase(() => visitedCommunityIdEffective ? doc(firestore, 'communities', visitedCommunityIdEffective) : null, [visitedCommunityIdEffective, firestore]);
   const { data: visitedCommunityData } = useDoc(visitedCommunityDataRef);
