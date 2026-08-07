@@ -83,6 +83,33 @@ export function useGeofence(currentCommunityId: string | null, enabled: boolean 
     return inside;
   }, []);
 
+  // Helper to extract polygon coordinate loops from any valid GeoJSON object/string
+  const extractPolygons = React.useCallback((geoJsonStr: string): [number, number][][] => {
+    const result: [number, number][][] = [];
+    if (!geoJsonStr) return result;
+    try {
+      const data = typeof geoJsonStr === 'string' ? JSON.parse(geoJsonStr) : geoJsonStr;
+      if (data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+        data.features.forEach((f: any) => {
+          if (f.geometry?.type === 'Polygon' && Array.isArray(f.geometry.coordinates?.[0])) {
+            result.push(f.geometry.coordinates[0]);
+          } else if (f.geometry?.type === 'MultiPolygon' && Array.isArray(f.geometry.coordinates)) {
+            f.geometry.coordinates.forEach((p: any) => {
+              if (Array.isArray(p?.[0])) result.push(p[0]);
+            });
+          }
+        });
+      } else if (data.type === 'Feature' && data.geometry?.type === 'Polygon' && Array.isArray(data.geometry.coordinates?.[0])) {
+        result.push(data.geometry.coordinates[0]);
+      } else if (data.type === 'Polygon' && Array.isArray(data.coordinates?.[0])) {
+        result.push(data.coordinates[0]);
+      } else if (data.geometry?.type === 'Polygon' && Array.isArray(data.geometry.coordinates?.[0])) {
+        result.push(data.geometry.coordinates[0]);
+      }
+    } catch (e) {}
+    return result;
+  }, []);
+
   // Check current coordinates against all community boundaries
   const checkGeofences = React.useCallback((latitude: number, longitude: number) => {
     if (!effectiveCommunities || effectiveCommunities.length === 0) return;
@@ -91,37 +118,39 @@ export function useGeofence(currentCommunityId: string | null, enabled: boolean 
       if (!community.boundary) continue;
 
       try {
-        const geoJson = JSON.parse(community.boundary);
-        const polygon = geoJson?.geometry?.coordinates?.[0];
+        const polygons = extractPolygons(community.boundary);
 
-        if (Array.isArray(polygon)) {
-          const isInside = isPointInPolygon(latitude, longitude, polygon as [number, number][]);
-          
-          if (isInside) {
-            let isDismissedInSession = false;
-            if (typeof window !== 'undefined') {
-              try {
-                const storedDismissed = sessionStorage.getItem('dismissedGeofences');
-                if (storedDismissed) {
-                  const list = JSON.parse(storedDismissed);
-                  if (Array.isArray(list) && list.includes(community.id)) {
-                    isDismissedInSession = true;
+        for (const polygon of polygons) {
+          if (Array.isArray(polygon) && polygon.length > 0) {
+            const isInside = isPointInPolygon(latitude, longitude, polygon);
+            
+            if (isInside) {
+              let isDismissedInSession = false;
+              if (typeof window !== 'undefined') {
+                try {
+                  const storedDismissed = sessionStorage.getItem('dismissedGeofences');
+                  if (storedDismissed) {
+                    const list = JSON.parse(storedDismissed);
+                    if (Array.isArray(list) && list.includes(community.id)) {
+                      isDismissedInSession = true;
+                    }
                   }
-                }
-              } catch (e) {}
-            }
+                } catch (e) {}
+              }
 
-            if (community.id !== currentCommunityId && !isDismissedInSession) {
-              setEnteredCommunity({ id: community.id, name: community.name });
-              return;
+              if (community.id !== currentCommunityId && !isDismissedInSession) {
+                setEnteredCommunity({ id: community.id, name: community.name });
+                return;
+              }
             }
           }
         }
       } catch (err) {
-        console.error(`Error parsing boundary for community ${community.id}:`, err);
+        console.error(`Error checking geofence for community ${community.id}:`, err);
       }
     }
-  }, [effectiveCommunities, currentCommunityId, isPointInPolygon]);
+  }, [effectiveCommunities, currentCommunityId, isPointInPolygon, extractPolygons]);
+
 
   React.useEffect(() => {
     if (!enabled) {

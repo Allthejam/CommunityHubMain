@@ -182,15 +182,35 @@ export function NoticeboardCard() {
           for (const comm of mappedCommunities) {
             if (!comm.boundary) continue;
             try {
-              const geoJson = JSON.parse(comm.boundary);
-              const polygon = geoJson?.geometry?.coordinates?.[0];
-              if (Array.isArray(polygon) && isPointInPolygon(latitude, longitude, polygon as [number, number][])) {
-                foundMatch = { id: comm.id, name: comm.name };
-                break;
+              const data = typeof comm.boundary === 'string' ? JSON.parse(comm.boundary) : comm.boundary;
+              let polygons: [number, number][][] = [];
+
+              if (data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+                data.features.forEach((f: any) => {
+                  if (f.geometry?.type === 'Polygon' && Array.isArray(f.geometry.coordinates?.[0])) {
+                    polygons.push(f.geometry.coordinates[0]);
+                  }
+                });
+              } else if (data.type === 'Feature' && data.geometry?.type === 'Polygon' && Array.isArray(data.geometry.coordinates?.[0])) {
+                polygons.push(data.geometry.coordinates[0]);
+              } else if (data.type === 'Polygon' && Array.isArray(data.coordinates?.[0])) {
+                polygons.push(data.coordinates[0]);
+              } else if (data.geometry?.type === 'Polygon' && Array.isArray(data.geometry.coordinates?.[0])) {
+                polygons.push(data.geometry.coordinates[0]);
               }
+
+              for (const polygon of polygons) {
+                if (Array.isArray(polygon) && isPointInPolygon(latitude, longitude, polygon as [number, number][])) {
+                  foundMatch = { id: comm.id, name: comm.name };
+                  break;
+                }
+              }
+
+              if (foundMatch) break;
             } catch (e) {}
           }
         }
+
 
         setIsSyncingLocation(false);
 
