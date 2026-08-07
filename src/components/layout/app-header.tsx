@@ -336,19 +336,21 @@ export default function AppHeader() {
   }, [userProfile]);
 
   const CurrentAccountIcon = userProfile?.role ? accountTypeIcons[userProfile.role as keyof typeof accountTypeIcons] || UserIcon : UserIcon;
-  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId;
-  const currentActiveCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId;
+  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+  const visitedSessionId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
   
   // Clear visited session storage if active community matches home community
   React.useEffect(() => {
-    if (typeof window !== 'undefined' && homeCommunityId && currentActiveCommunityId === homeCommunityId) {
+    if (typeof window !== 'undefined' && homeCommunityId && visitedSessionId === homeCommunityId) {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
     }
-  }, [homeCommunityId, currentActiveCommunityId]);
+  }, [homeCommunityId, visitedSessionId]);
 
-  const isVisiting = Boolean(userProfile && homeCommunityId && currentActiveCommunityId && currentActiveCommunityId !== homeCommunityId);
+  const visitedCommunityId = visitedSessionId && visitedSessionId !== homeCommunityId ? visitedSessionId : null;
+  const isVisiting = Boolean(userProfile && visitedCommunityId);
   const visitedCommunityHasNoLeader = isVisiting && visitedCommunityData?.leaderCount === 0;
+
 
 
   const handleCommunitySwitch = async () => {

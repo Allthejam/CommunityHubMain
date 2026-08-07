@@ -151,7 +151,7 @@ export default function AppHeader() {
   }, [user, firestore]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId;
+  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
   const visitedCommunityIdEffective = useMemo(() => {
     if (typeof window !== 'undefined') {
@@ -170,13 +170,13 @@ export default function AppHeader() {
         sessionStorage.removeItem('visitedCommunityId');
         return null;
       }
-      return storedVisited || null;
+      return (storedVisited && storedVisited !== homeCommunityId) ? storedVisited : null;
     }
     return null;
   }, [homeCommunityId]);
 
-  const activeCommunityId = visitedCommunityIdEffective || userProfile?.communityId;
-  const isVisiting = Boolean(userProfile && homeCommunityId && activeCommunityId && activeCommunityId !== homeCommunityId);
+  const isVisiting = Boolean(userProfile && homeCommunityId && visitedCommunityIdEffective && visitedCommunityIdEffective !== homeCommunityId);
+
 
 
   const visitedCommunityDataRef = useMemoFirebase(() => visitedCommunityIdEffective ? doc(firestore, 'communities', visitedCommunityIdEffective) : null, [visitedCommunityIdEffective, firestore]);

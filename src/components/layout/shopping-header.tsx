@@ -142,17 +142,18 @@ export default function ShoppingHeader() {
   }, [user, firestore]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId;
-  const currentActiveCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId;
+  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+  const visitedSessionId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
   
   React.useEffect(() => {
-    if (typeof window !== 'undefined' && homeCommunityId && currentActiveCommunityId === homeCommunityId) {
+    if (typeof window !== 'undefined' && homeCommunityId && visitedSessionId === homeCommunityId) {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
     }
-  }, [homeCommunityId, currentActiveCommunityId]);
+  }, [homeCommunityId, visitedSessionId]);
 
-  const isVisiting = Boolean(userProfile && homeCommunityId && currentActiveCommunityId && currentActiveCommunityId !== homeCommunityId);
+  const isVisiting = Boolean(userProfile && homeCommunityId && visitedSessionId && visitedSessionId !== homeCommunityId);
+
 
 
   const visitedCommunityIdEffective = useMemo(() => {
