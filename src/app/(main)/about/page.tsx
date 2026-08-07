@@ -3,19 +3,50 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { Users, Building2, Crown, Megaphone, Siren, Activity, HeartHandshake, Briefcase, Search, Calendar, Telescope, FileText, Smartphone, SquareArrowUp, MoreVertical, ShieldCheck, ShoppingCart, Store, Zap, Truck, Shield, MessagesSquare } from "lucide-react";
+import { 
+    Users, 
+    Building2, 
+    Crown, 
+    Megaphone, 
+    Siren, 
+    Activity, 
+    HeartHandshake, 
+    Briefcase, 
+    Search, 
+    Calendar, 
+    Telescope, 
+    FileText, 
+    Smartphone, 
+    SquareArrowUp, 
+    MoreVertical, 
+    ShieldCheck, 
+    ShoppingCart, 
+    Store, 
+    Zap, 
+    Truck, 
+    Shield, 
+    MessagesSquare,
+    Radio,
+    Globe,
+    Compass,
+    MapPin,
+    Layers,
+    Navigation,
+    Info,
+    CheckCircle2
+} from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
   title: "About Community Hub | Rebuilding Local Communities",
-  description: "Learn about Community Hub's mission to reconnect and enrich local communities by providing an all-in-one platform for residents, businesses, and leaders.",
+  description: "Learn about Community Hub's mission to reconnect and enrich local communities with Regional Networks, Geofenced Maps, Broadcast Systems, and local commerce.",
   openGraph: {
     title: "About Community Hub | Rebuilding Local Communities",
-    description: "Learn how Community Hub is transforming local engagement, supporting small businesses, and empowering community leaders.",
+    description: "Learn how Community Hub is transforming local engagement, supporting small businesses, and empowering regional networks and community leaders.",
     images: [
         {
-            url: 'https://i.postimg.cc/Bnf3rtsn/about-us-2.jpg',
+            url: '/images/about/hero.jpg',
             width: 1200,
             height: 630,
             alt: 'A vibrant community event outdoors',
@@ -25,342 +56,389 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'About Community Hub | Rebuilding Local Communities',
-    description: "Learn how Community Hub is transforming local engagement, supporting small businesses, and empowering community leaders.",
-    images: ['https://i.postimg.cc/Bnf3rtsn/about-us-2.jpg'],
+    description: "Learn how Community Hub is transforming local engagement, supporting small businesses, and empowering regional networks and community leaders.",
+    images: ['/images/about/hero.jpg'],
   }
 };
 
-const features = [
+const mainFeatures = [
+    {
+        icon: <Radio className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />,
+        title: "Regional Networks & Broadcasts",
+        description: "Connect regional authorities and councils across multiple local hubs. Send verified broadcast announcements and non-dismissible alerts across an entire region."
+    },
+    {
+        icon: <Compass className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />,
+        title: "Interactive Geofenced Maps",
+        description: "Explore precise digital boundary maps for every community. Receive automatic welcome notifications when traveling into mapped community boundaries."
+    },
+    {
+        icon: <MapPin className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
+        title: "Live GPS & Location Detection",
+        description: "Instantly detect local community hubs near you using live mobile device GPS, manual postcode lookup, or town search."
+    },
     {
         icon: <Users className="h-6 w-6 text-primary" />,
         title: "Connect Your Community",
-        description: "Create a central, digital town square for news, events, discussions, and local business discovery, strengthening community bonds."
+        description: "A central digital town square for local news, events, noticeboards, and community discussions, strengthening neighborhood bonds."
     },
     {
         icon: <Building2 className="h-6 w-6 text-primary" />,
         title: "Support Local Businesses",
-        description: "Provide an affordable, dedicated platform for local businesses to advertise, post events, and connect directly with their customers."
+        description: "Provide an affordable, dedicated platform for local shops to advertise, post annual events, and connect directly with nearby residents."
     },
     {
-        icon: <Crown className="h-6 w-6 text-primary" />,
+        icon: <Crown className="h-6 w-6 text-amber-500" />,
         title: "Empower Community Leaders",
-        description: "Offer a unique opportunity for local leaders to generate revenue through a 40% profit share, funding community projects or creating a local business."
-    },
-    {
-        icon: <ShoppingCart className="h-6 w-6 text-primary" />,
-        title: "Launch a Local Storefront",
-        description: "Enable businesses to sell products directly to community members through a simple, integrated e-commerce platform."
+        description: "Local leaders earn a 40% revenue share from advertising subscriptions, funding local projects or creating a sustainable business."
     },
     {
         icon: <Store className="h-6 w-6 text-primary" />,
-        title: "Explore the Virtual Highstreet",
-        description: "Take a stroll down a digital highstreet, browse local shops, and discover unique products without leaving your home."
+        title: "Virtual High Street",
+        description: "Stroll down a digital high street, browse local storefronts, buy goods, and support independent town traders from home."
     },
     {
-        icon: <HeartHandshake className="h-6 w-6 text-primary" />,
-        title: "Boost the Local Economy",
-        description: "Every purchase made through the app directly supports local entrepreneurs, keeping money within the community."
+        icon: <Truck className="h-6 w-6 text-primary" />,
+        title: "Community Courier Service",
+        description: "Local couriers deliver Virtual High Street purchases straight from local business doors to nearby resident doorsteps."
     },
     {
-        icon: <Megaphone className="h-6 w-6 text-primary" />,
-        title: "Powerful Communication",
-        description: "Enable leaders to send standard announcements to their entire community, ensuring everyone stays informed about important updates."
-    },
-    {
-        icon: <Siren className="h-6 w-6 text-primary" />,
+        icon: <Siren className="h-6 w-6 text-red-500" />,
         title: "Emergency Broadcast System",
-        description: "Provide verified government and emergency services with a high-priority channel to deliver critical, non-dismissible alerts to targeted regions or the entire nation."
-    },
-    {
-        icon: <Activity className="h-6 w-6 text-primary" />,
-        title: "Dynamic & Engaging",
-        description: "Keep your community hub vibrant with dedicated sections for local news, job boards, lost & found, and a 'What's On' guide to local attractions."
+        description: "Government and emergency services hold high-priority channels to deliver non-dismissible, critical safety alerts when seconds count."
     }
 ];
 
-const keyFeatures = [
-    { icon: <FileText className="h-6 w-6 text-primary" />, title: "What's On Page", description: "A dedicated page with real-time information on local events, news, and activities." },
-    { icon: <Calendar className="h-6 w-6 text-primary" />, title: "Local Events Page", description: "A dedicated page with real-time information on local events upcoming throughout the year, easily shared to your personal calendar." },
-    { icon: <Building2 className="h-6 w-6 text-primary" />, title: "Local Business Listings", description: "A dedicated page for all local businesses to list their business and place advertising as well as publish 1 company event per year." },
-    { icon: <Briefcase className="h-6 w-6 text-primary" />, title: "Local Jobs", description: "A jobs board connecting local employers with job seekers." },
-    { icon: <Truck className="h-6 w-6 text-primary" />, title: "Community Courier", description: "A dedicated local courier for the Virtual Highstreet, ensuring fast and reliable delivery of goods from local businesses to your doorstep." },
-    { icon: <Shield className="h-6 w-6 text-primary" />, title: "Police Liaison", description: "Community leaders can appoint a dedicated Police Liaison to receive and handle crime-related reports, fostering a direct line of communication with local law enforcement." },
-    { icon: <MessagesSquare className="h-6 w-6 text-primary" />, title: "Community Chat", description: "Engage in private conversations or group chats with fellow community members, keeping your connections local and relevant." },
-    { icon: <Siren className="h-6 w-6 text-primary" />, title: "Emergency Broadcasts", description: "A critical system for receiving urgent alerts from local authorities." },
-    { icon: <Users className="h-6 w-6 text-primary" />, title: "Community Reporter System", description: "A way for local residents to volunteer and report on local news and sports." },
-    { icon: <Search className="h-6 w-6 text-primary" />, title: "A Lost and Found", description: "Dedicated options to post lost items and found items directly to the local community." },
-    { icon: <Calendar className="h-6 w-6 text-primary" />, title: "Your Personal Diary", description: "You can add your own events and set reminders to stay organised." },
-    { icon: <Telescope className="h-6 w-6 text-primary" />, title: "Tourist Information", description: "The app doubles as a digital guide to local attractions and events." },
-    { icon: <Users className="h-6 w-6 text-primary" />, title: "Community Visiting", description: "The ability to visit other communities using the app and see what's on in their areas as well as messages and announcements." },
-    { icon: <HeartHandshake className="h-6 w-6 text-primary" />, title: "Community Revenue Share", description: "Profits from advertising are shared directly back to the local community that set up the community group, at a 40% to 60% or more profit share." },
-    { icon: <Activity className="h-6 w-6 text-primary" />, title: "AI Assistant", description: "A helpful AI assistant that provides immediate, context-aware assistance and filters out keywords and images shared in the APP." },
+const keyFeaturesList = [
+    { icon: <Radio className="h-5 w-5 text-indigo-500" />, title: "Regional Broadcast System", description: "Regional authorities can broadcast announcements and alerts across every local hub within their jurisdiction." },
+    { icon: <Compass className="h-5 w-5 text-emerald-500" />, title: "Geofence Entry Detection", description: "Get notified when entering mapped community boundaries and switch views seamlessly." },
+    { icon: <MapPin className="h-5 w-5 text-blue-500" />, title: "Live GPS & Wi-Fi Triangulation", description: "Locate hubs instantly with mobile GPS or address/postcode lookup." },
+    { icon: <FileText className="h-5 w-5 text-primary" />, title: "What's On Guide", description: "Real-time guide to local news, attractions, events, and community activities." },
+    { icon: <Calendar className="h-5 w-5 text-primary" />, title: "Local Events Calendar", description: "Discover upcoming events and sync them directly to your device calendar." },
+    { icon: <Building2 className="h-5 w-5 text-primary" />, title: "Local Business Directory", description: "Explore verified local shops, services, and annual business showcases." },
+    { icon: <Briefcase className="h-5 w-5 text-primary" />, title: "Local Jobs Board", description: "Connect local employers with nearby jobseekers." },
+    { icon: <Truck className="h-5 w-5 text-primary" />, title: "Community Courier Network", description: "Dedicated local delivery from high street shops to resident doorsteps." },
+    { icon: <Shield className="h-5 w-5 text-primary" />, title: "Police Liaison Channel", description: "Direct line between designated community liaisons and local law enforcement." },
+    { icon: <MessagesSquare className="h-5 w-5 text-primary" />, title: "Community Chat", description: "Private and group messaging kept local, secure, and relevant." },
+    { icon: <Users className="h-5 w-5 text-primary" />, title: "Community Reporter System", description: "Local residents volunteer to report on sports, culture, and neighborhood news." },
+    { icon: <Search className="h-5 w-5 text-primary" />, title: "Lost & Found Board", description: "Reunite neighbors with lost pets and items quickly." },
+    { icon: <Telescope className="h-5 w-5 text-primary" />, title: "Digital Tourist Guide", description: "A comprehensive digital guide for visitors discovering local landmarks." },
+    { icon: <HeartHandshake className="h-5 w-5 text-primary" />, title: "40%+ Community Revenue Share", description: "40% to 60%+ of advertising revenue returns directly to community leaders." },
+    { icon: <Activity className="h-5 w-5 text-primary" />, title: "AI Moderation & Assistance", description: "Context-aware AI moderation keeps hub interactions safe and clean." },
 ];
 
 export default function AboutPage() {
-
-    const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id);
-
-    const communityEventImage = getImage('about-us-community-event');
-    const appOnPhoneImage = getImage('about-us-app-on-phone');
-    const touristInfoImage = getImage('about-us-tourist-info');
-    const privateHubImage = getImage('about-us-private-hub');
-    const highStreetImage = getImage('about-us-high-street');
-    const securityImage = getImage('about-us-security');
-    const iosInstructionsImage = getImage('about-us-ios-instructions');
-    const androidInstructionsImage = getImage('about-us-android-instructions');
-    const shortcutsImage = getImage('about-us-shortcuts');
-
-
     return (
-        <div className="space-y-16 py-12">
+        <div className="space-y-16 py-12 max-w-7xl mx-auto px-4">
             
-            <section className="text-center">
-                <h1 className="text-4xl md:text-5xl font-bold tracking-tight font-headline">
-                    Rebuilding Communities, One Hub at a Time
+            {/* Hero Section */}
+            <section className="text-center space-y-6">
+                <div className="flex justify-center">
+                    <Badge variant="outline" className="px-4 py-1.5 bg-primary/5 text-primary border-primary/20 text-xs font-semibold rounded-full gap-2">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                        Next-Generation Community Platform
+                    </Badge>
+                </div>
+                <h1 className="text-4xl md:text-6xl font-bold tracking-tight font-headline max-w-4xl mx-auto leading-tight">
+                    Rebuilding Local Communities, Regional Networks & High Streets
                 </h1>
-                <p className="mt-4 max-w-3xl mx-auto text-lg text-muted-foreground">
-                    Your Community Hub is a powerful, all-in-one platform designed to reconnect, empower, and enrich local communities by bringing residents, businesses, and leaders together.
+                <p className="max-w-3xl mx-auto text-lg text-muted-foreground leading-relaxed">
+                    Community Hub is an all-in-one digital platform designed to reconnect residents, empower local businesses, enable regional council broadcasts, and map out neighborhoods through interactive geofencing.
                 </p>
-                <div className="mt-8 flex justify-center">
-                    <Button asChild size="lg">
-                        <Link href="/signup">Join or Create a Hub</Link>
+                <div className="flex flex-wrap justify-center gap-4 pt-2">
+                    <Button asChild size="lg" className="font-semibold shadow-md">
+                        <Link href="/signup">Join or Create a Community Hub</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="lg" className="font-semibold">
+                        <Link href="/communities">Explore Community Map</Link>
                     </Button>
                 </div>
             </section>
 
-            <div className="relative w-full h-96 rounded-lg overflow-hidden shadow-lg">
-                {communityEventImage && (
-                    <Image 
-                        src={communityEventImage.imageUrl} 
-                        alt={communityEventImage.description}
-                        fill
-                        className="object-cover"
-                        data-ai-hint={communityEventImage.imageHint}
-                        priority
-                    />
-                )}
-                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            {/* Main Hero Image */}
+            <div className="relative w-full h-80 sm:h-[420px] rounded-3xl overflow-hidden shadow-2xl border">
+                <Image 
+                    src="/images/about/hero.jpg" 
+                    alt="Vibrant local community street festival with market stalls"
+                    fill
+                    className="object-cover"
+                    priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-6 sm:p-10">
+                    <div className="text-white space-y-1">
+                        <h3 className="text-xl sm:text-2xl font-bold">Hyper-Local Connection & Regional Reach</h3>
+                        <p className="text-xs sm:text-sm text-slate-200">Bringing residents, local councils, and high street traders into one unified digital square.</p>
+                    </div>
+                </div>
             </div>
 
-            <section className="text-center">
-                <h2 className="text-3xl font-bold font-headline">Our Mission: What We Do</h2>
-                 <p className="mt-2 max-w-3xl mx-auto text-muted-foreground">
-                    We provide the digital infrastructure for communities to thrive. From sharing local news to promoting small businesses and enabling critical alerts, our platform is the backbone of a connected and resilient community.
-                </p>
-                <div className="mt-8 grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {features.map(feature => (
-                        <Card key={feature.title} className="text-left">
-                            <CardHeader className="flex flex-row items-center gap-4">
-                                {feature.icon}
-                                <CardTitle className="text-lg">{feature.title}</CardTitle>
+            {/* Mission Section */}
+            <section className="text-center space-y-8">
+                <div className="space-y-3">
+                    <h2 className="text-3xl font-bold font-headline">Our Platform Capabilities</h2>
+                    <p className="max-w-3xl mx-auto text-muted-foreground">
+                        From individual neighborhood noticeboards to regional network broadcasts and GPS geofence mapping, our platform provides the complete digital infrastructure for local life.
+                    </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+                    {mainFeatures.map(feature => (
+                        <Card key={feature.title} className="hover:border-primary/50 transition-all duration-200 shadow-sm bg-card/60 backdrop-blur-md">
+                            <CardHeader className="flex flex-row items-start gap-4 pb-2">
+                                <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/10 shrink-0">
+                                    {feature.icon}
+                                </div>
+                                <CardTitle className="text-base font-bold pt-1">{feature.title}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-muted-foreground text-sm">{feature.description}</p>
+                                <p className="text-muted-foreground text-xs leading-relaxed">{feature.description}</p>
                             </CardContent>
                         </Card>
                     ))}
                 </div>
             </section>
 
-            <section className="grid md:grid-cols-2 gap-12 items-center">
-                <div className="space-y-4">
-                    <h2 className="text-3xl font-bold font-headline">A New Era of Community Connection</h2>
-                    <p className="text-muted-foreground">Discover how our community-driven app transforms how local residents connect, work, and stay informed, offering a powerful alternative to traditional social media.</p>
-                    <p className="text-muted-foreground">Unlike sprawling social media platforms, this app is dedicated to fostering a strong, local ecosystem. It aims to put the community first by providing features that directly benefit residents and local businesses. The platform is designed to be a one-stop shop for everything happening nearby, from news and events to job opportunities and emergency alerts.</p>
-                    <p className="text-muted-foreground">A key feature is the app's commitment to supporting the local economy. It offers a dedicated space for local businesses and attractions to promote themselves, helping residents discover and support the shops, restaurants, and services that make their community unique.</p>
-                    <p className="text-muted-foreground">Safety is also a top priority. The app features a critical Emergency Broadcast System, allowing local authorities to quickly and effectively communicate with residents during an emergency. This system provides a reliable and direct channel for crucial alerts, keeping everyone safe and informed when it matters most.</p>
+            <Separator />
+
+            {/* NEW SECTION 1: Regional Networks & Broadcast System */}
+            <section className="grid lg:grid-cols-2 gap-12 items-center">
+                <div className="space-y-5">
+                    <Badge variant="outline" className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-xs font-semibold gap-1.5">
+                        <Radio className="h-3.5 w-3.5 text-indigo-600" />
+                        New Feature
+                    </Badge>
+                    <h2 className="text-3xl font-bold font-headline leading-tight">
+                        Regional Networks & Multi-Hub Broadcast System
+                    </h2>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                        We have expanded the platform to empower **Regional Authorities, Local Councils, and District Organizations**. Regional accounts can claim oversight over entire geographic regions containing multiple local community hubs.
+                    </p>
+                    <div className="space-y-3 text-sm text-muted-foreground">
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                            <span><strong>Multi-Community Broadcasts:</strong> Issue verified regional updates, public notices, and announcements that reach every local community hub within your authority boundary simultaneously.</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                            <span><strong>Emergency Alert Channels:</strong> High-priority, non-dismissible alerts for critical weather, safety warnings, or road closures delivered instantly to residents' screens.</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                            <span><strong>Regional Jurisdiction Boundaries:</strong> Visualize regional coverage borders overlaid cleanly on top of local community maps.</span>
+                        </div>
+                    </div>
+                    <div className="pt-2">
+                        <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
+                            <Link href="/regional-networks">Explore Regional Networks Directory</Link>
+                        </Button>
+                    </div>
                 </div>
-                <div className="relative w-full h-96 rounded-lg overflow-hidden shadow-lg">
-                    {appOnPhoneImage && (
-                        <Image src={appOnPhoneImage.imageUrl} alt={appOnPhoneImage.description} fill className="object-cover" data-ai-hint={appOnPhoneImage.imageHint} />
-                    )}
+                <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border">
+                    <Image 
+                        src="/images/about/regional.jpg" 
+                        alt="Regional Network map dashboard with broadcast alerts" 
+                        fill 
+                        className="object-cover" 
+                    />
                 </div>
             </section>
-            
-            <section>
-                <h2 className="text-3xl font-bold font-headline text-center">Key Features at a Glance</h2>
-                 <p className="mt-2 max-w-3xl mx-auto text-muted-foreground text-center">
-                    The My Community App packs a wide range of powerful features into a simple, easy-to-use platform. Here are just a few of the things you'll find inside:
-                </p>
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {keyFeatures.map(feature => (
-                        <Card key={feature.title} className="text-left flex flex-col">
-                           <CardHeader className="flex-grow">
-                                <div className="flex items-center gap-4">
-                                    {feature.icon}
-                                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+
+            <Separator />
+
+            {/* NEW SECTION 2: Geofencing Maps & GPS Location */}
+            <section className="grid lg:grid-cols-2 gap-12 items-center">
+                <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border order-2 lg:order-1">
+                    <Image 
+                        src="/images/about/geofencing.jpg" 
+                        alt="Interactive geofencing map with community boundaries and GPS pin" 
+                        fill 
+                        className="object-cover" 
+                    />
+                </div>
+                <div className="space-y-5 order-1 lg:order-2">
+                    <Badge variant="outline" className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-xs font-semibold gap-1.5">
+                        <Compass className="h-3.5 w-3.5 text-emerald-600" />
+                        Spatial Technology
+                    </Badge>
+                    <h2 className="text-3xl font-bold font-headline leading-tight">
+                        Interactive Geofencing & Live GPS Detection
+                    </h2>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                        Every mapped community has custom GeoJSON boundary polygon coordinates drawn directly by local leaders. When residents travel across town borders, our geofencing engine works in real-time.
+                    </p>
+                    <div className="space-y-3 text-sm text-muted-foreground">
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span><strong>Automatic Entry Alerts:</strong> Cross into a mapped community and receive an instant prompt: <em>"Welcome to [Community Name]! Would you like to view local updates?"</em></span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span><strong>Live GPS & Address Search:</strong> Tap <em>Live GPS / Wi-Fi</em> to position the map on your exact coordinates, or search any UK town or postcode directly.</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span><strong>Clear Transparency:</strong> Built-in caveats clarify when Wi-Fi IP routing places users at distant data centers (e.g. Blackpool), guiding users to mobile GPS or manual town search for 100% accuracy.</span>
+                        </div>
+                    </div>
+                    <div className="pt-2">
+                        <Button asChild variant="outline" className="font-semibold border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50">
+                            <Link href="/communities">Try the Geofenced Map</Link>
+                        </Button>
+                    </div>
+                </div>
+            </section>
+
+            <Separator />
+
+            {/* Virtual High Street */}
+            <section className="grid lg:grid-cols-2 gap-12 items-center">
+                <div className="space-y-5">
+                    <Badge variant="outline" className="px-3 py-1 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-xs font-semibold gap-1.5">
+                        <Store className="h-3.5 w-3.5 text-amber-600" />
+                        Local Commerce
+                    </Badge>
+                    <h2 className="text-3xl font-bold font-headline leading-tight">
+                        The Digital High Street: Local Shopping & Delivery
+                    </h2>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                        Global online marketplaces often leave independent town shops behind. Our Virtual High Street brings local storefronts online, allowing residents to browse local products, order from town traders, and support independent businesses.
+                    </p>
+                    <div className="space-y-3 text-sm text-muted-foreground">
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                            <span><strong>Direct High Street Storefronts:</strong> Local shops can display products, offer online purchasing, and publish annual sales events.</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                            <span><strong>Community Courier Delivery:</strong> Dedicated local couriers pick up orders from high street shops and deliver them straight to nearby homes.</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                            <span><strong>40% Local Revenue Return:</strong> Profits from local business subscriptions return directly to community leaders to reinvest in the local area.</span>
+                        </div>
+                    </div>
+                    <div className="pt-2">
+                        <Button asChild size="lg" className="font-semibold">
+                            <Link href="/shopping">Explore Virtual High Street</Link>
+                        </Button>
+                    </div>
+                </div>
+                <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border">
+                    <Image 
+                        src="/images/about/highstreet.jpg" 
+                        alt="Digital High Street with local shops and shopping app interface" 
+                        fill 
+                        className="object-cover" 
+                    />
+                </div>
+            </section>
+
+            <Separator />
+
+            {/* Complete Key Features Grid */}
+            <section className="space-y-8">
+                <div className="text-center space-y-3">
+                    <h2 className="text-3xl font-bold font-headline">Comprehensive Platform Feature Set</h2>
+                    <p className="max-w-3xl mx-auto text-muted-foreground text-sm">
+                        Community Hub packs an unprecedented array of local tools into a single, intuitive application.
+                    </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {keyFeaturesList.map(feature => (
+                        <Card key={feature.title} className="text-left flex flex-col hover:border-primary/40 transition-colors bg-card/60">
+                           <CardHeader className="flex-grow pb-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-primary/5 border border-primary/10">
+                                        {feature.icon}
+                                    </div>
+                                    <CardTitle className="text-base font-semibold">{feature.title}</CardTitle>
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-sm text-muted-foreground">{feature.description}</p>
+                                <p className="text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
                             </CardContent>
                         </Card>
                     ))}
                 </div>
             </section>
 
-             <section className="grid md:grid-cols-2 gap-12 items-center">
-                 <div className="relative w-full h-96 rounded-lg overflow-hidden shadow-lg">
-                    {touristInfoImage && (
-                        <Image src={touristInfoImage.imageUrl} alt={touristInfoImage.description} fill className="object-cover" data-ai-hint={touristInfoImage.imageHint} />
-                    )}
-                </div>
-                <div className="space-y-4">
-                    <h2 className="text-3xl font-bold font-headline">Your Digital Tourist Information Centre in Your Pocket</h2>
-                    <p className="text-muted-foreground">The My Community App is the next best thing to a truly interactive tourist information centre. It is a comprehensive digital guide to your local area, designed to help you, and visitors discover and experience everything your community has to offer. The app's "What's On" page provides real-time information about events, local news, and activities, ensuring you're always in the know about the latest happenings.</p>
-                    <p className="text-muted-foreground">Whether you're looking for a local farmers' market, a charity event, or a one-off festival, the app makes it effortless to find what you're looking for. The content is curated and updated by the community leaders themselves, guaranteeing it's accurate and hyper-local.</p>
-                </div>
-            </section>
-            
             <Separator />
 
-            <section className="grid md:grid-cols-2 gap-12 items-center">
-                <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                        <ShieldCheck className="h-10 w-10 text-primary" />
-                        <h2 className="text-3xl font-bold font-headline">Exclusive Private Hubs</h2>
+            {/* Security & Private Hubs Section */}
+            <section className="grid lg:grid-cols-2 gap-12 items-center">
+                <div className="space-y-5">
+                    <div className="flex items-center gap-3">
+                        <ShieldCheck className="h-8 w-8 text-primary" />
+                        <h2 className="text-3xl font-bold font-headline">Security, Privacy & Private Hubs</h2>
                     </div>
-                    <p className="text-muted-foreground">
-                        In addition to public community hubs, we offer private, invitation-only spaces perfect for professional organizations, associations, clubs, and any group requiring its own confidential digital environment.
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                        Your safety and data privacy are foundational. Built on Google's enterprise infrastructure, Community Hub uses role-based access control, AI-driven content moderation, and encrypted database rules to protect every user.
                     </p>
-                    <p className="text-muted-foreground">
-                        These hubs are not discoverable through public search and ensure your conversations and content remain secure. To get started, create a personal account and then contact platform administration to request your private hub.
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                        Need an unlisted, confidential space? We offer <strong>Exclusive Private Hubs</strong> perfect for clubs, sports teams, associations, and professional groups. Private hubs do not appear in public searches.
                     </p>
                     <Button asChild size="lg">
                         <Link href="/report-issue?tab=platform&subject=Request%20a%20Private%20Hub">Request a Private Hub</Link>
                     </Button>
                 </div>
-                 <div className="relative w-full h-80 rounded-lg overflow-hidden shadow-lg">
-                    {privateHubImage && (
-                        <Image src={privateHubImage.imageUrl} alt={privateHubImage.description} fill className="object-cover" data-ai-hint={privateHubImage.imageHint} />
-                    )}
+                <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border">
+                    <Image 
+                        src="/images/about/security.jpg" 
+                        alt="Security and role-based encryption concept" 
+                        fill 
+                        className="object-cover" 
+                    />
                 </div>
             </section>
 
-            <Separator />
-
-            <section className="grid md:grid-cols-2 gap-12 items-center">
-                <div className="relative w-full h-96 rounded-lg overflow-hidden shadow-lg">
-                    {highStreetImage && (
-                        <Image src={highStreetImage.imageUrl} alt={highStreetImage.description} fill className="object-cover object-bottom" data-ai-hint={highStreetImage.imageHint} />
-                    )}
-                </div>
-                <div className="space-y-4">
-                    <h2 className="text-3xl font-bold font-headline">The Digital High Street: Local Shopping, Reimagined</h2>
-                    <p className="text-muted-foreground">In an age of global marketplaces, the unique character of local shops can get lost. We're bringing the high street back to the forefront with a dedicated, community-centric shopping experience.</p>
-                    <p className="text-muted-foreground">Our Virtual High Street provides a central place for residents to discover, browse, and support the independent businesses that make their community special. It's a global shopping experience with a powerful local focus, ensuring that every purchase contributes directly to the local economy.</p>
-                    <p className="text-muted-foreground">For business owners, it’s a direct line to your most passionate customers—your neighbours. For shoppers, it’s a way to find unique products and services while investing in the place you call home.</p>
-                    <Button asChild size="lg">
-                        <Link href="/shopping">Explore the High Street</Link>
-                    </Button>
-                </div>
-            </section>
-
-            <Separator />
-
-            <section className="grid md:grid-cols-2 gap-12 items-center">
-                <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                        <ShieldCheck className="h-10 w-10 text-primary" />
-                        <h2 className="text-3xl font-bold font-headline">Secure by Design</h2>
-                    </div>
-                    <p className="text-muted-foreground">Your safety and data privacy are foundational to our platform. We've built a secure environment from the ground up, leveraging Google's world-class infrastructure and advanced security protocols to protect your information.</p>
-                    <p className="text-muted-foreground">Our platform features AI-driven content moderation to proactively filter inappropriate content, ensuring a safe and positive space for everyone. Additionally, each account type—from Business Owner to National Advertiser—operates within its own secure back office, providing role-based access to ensure users only see the data and tools relevant to them. This compartmentalized approach minimizes risk and enhances security across the board.</p>
-                </div>
-                 <div className="relative w-full h-80 rounded-lg overflow-hidden shadow-lg">
-                    {securityImage && (
-                        <Image src={securityImage.imageUrl} alt={securityImage.description} fill className="object-cover" data-ai-hint={securityImage.imageHint} />
-                    )}
-                </div>
-            </section>
-
-            <section className="space-y-8 text-center">
+            {/* Progressive Web App Installation Guide */}
+            <section className="space-y-8 text-center pt-8 border-t">
                 <div className="flex items-center justify-center gap-4">
                     <Separator className="w-1/4" />
                     <Smartphone className="h-8 w-8 text-primary" />
                     <Separator className="w-1/4" />
                 </div>
-                <h2 className="text-3xl font-bold font-headline">Get The App</h2>
-                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                    How to Install the App on Your Device
+                <h2 className="text-3xl font-bold font-headline">Install The App On Your Device</h2>
+                <p className="text-muted-foreground max-w-3xl mx-auto text-sm">
+                    No app store downloads required! Community Hub is a Progressive Web App (PWA) that installs directly from your web browser for an instant app experience with push notifications.
                 </p>
-                <p className="max-w-3xl mx-auto text-muted-foreground">
-                    Forget the app stores! Our app is a Progressive Web App (PWA), which means you can install it directly from your web browser for a seamless, app-like experience.
-                </p>
-                <div className="grid md:grid-cols-2 gap-8 text-left">
-                     <Card>
+                <div className="grid md:grid-cols-2 gap-6 text-left max-w-4xl mx-auto">
+                     <Card className="bg-card/80">
                         <CardHeader>
-                            <CardTitle>On iOS (iPhone/iPad)</CardTitle>
-                            <p className="text-sm text-muted-foreground">Using the Safari browser:</p>
+                            <CardTitle className="text-lg">On iOS (iPhone / iPad)</CardTitle>
+                            <p className="text-xs text-muted-foreground">Using Safari Browser:</p>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-                                <li>Open the app's website in Safari.</li>
-                                <li>Tap the 'Share' button (<SquareArrowUp className="inline-block h-4 w-4 -mt-1 mx-1" />) in the toolbar.</li>
-                                <li>Scroll down and tap <span className="font-semibold">'Add to Home Screen'</span>.</li>
-                                <li>A preview will appear. You can change the name if you like, then tap 'Add'.</li>
+                        <CardContent className="space-y-3 text-xs text-muted-foreground">
+                            <ol className="list-decimal list-inside space-y-2 leading-relaxed">
+                                <li>Open <span className="font-semibold text-foreground">my-community-hub.co.uk</span> in Safari.</li>
+                                <li>Tap the <span className="font-semibold text-foreground">'Share'</span> button (<SquareArrowUp className="inline-block h-3.5 w-3.5 -mt-0.5 mx-0.5" />) in the bottom toolbar.</li>
+                                <li>Scroll down and tap <span className="font-semibold text-foreground">'Add to Home Screen'</span>.</li>
+                                <li>Tap <span className="font-semibold text-foreground">'Add'</span> in the top-right corner.</li>
                             </ol>
-                            <p className="text-sm font-semibold pt-2 border-t">Important: To receive push notifications on iOS, you must add the app to your Home Screen.</p>
+                            <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 pt-2 border-t">Note: iOS requires adding to Home Screen to enable push notifications.</p>
                         </CardContent>
                     </Card>
-                     <Card>
+
+                     <Card className="bg-card/80">
                         <CardHeader>
-                            <CardTitle>On Android</CardTitle>
-                             <p className="text-sm text-muted-foreground">Using the Chrome browser:</p>
+                            <CardTitle className="text-lg">On Android</CardTitle>
+                             <p className="text-xs text-muted-foreground">Using Chrome Browser:</p>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                             <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-                                <li>Open the app's website in Chrome.</li>
-                                <li>A small banner may appear asking you to "Add to Home Screen" or "Install." Tap it.</li>
-                                <li>If no banner appears, tap the three-dot menu (<MoreVertical className="inline-block h-4 w-4 -mt-1 mx-1" />) in the top-right corner.</li>
-                                <li>Tap <span className="font-semibold">'Install app'</span> or <span className="font-semibold">'Add to Home Screen'</span>.</li>
+                        <CardContent className="space-y-3 text-xs text-muted-foreground">
+                             <ol className="list-decimal list-inside space-y-2 leading-relaxed">
+                                <li>Open <span className="font-semibold text-foreground">my-community-hub.co.uk</span> in Chrome.</li>
+                                <li>Tap the <span className="font-semibold text-foreground">"Add to Home Screen"</span> banner if prompted.</li>
+                                <li>Or tap the three-dot menu (<MoreVertical className="inline-block h-3.5 w-3.5 -mt-0.5 mx-0.5" />) in top right.</li>
+                                <li>Tap <span className="font-semibold text-foreground">'Install app'</span> or <span className="font-semibold text-foreground">'Add to Home Screen'</span>.</li>
                             </ol>
                         </CardContent>
                     </Card>
                 </div>
-                 <Card className="mt-8 bg-secondary/50">
-                    <CardContent className="p-4 grid grid-cols-2 gap-4 justify-items-center">
-                        <div className="relative h-64 sm:h-80 w-full">
-                            {iosInstructionsImage && (
-                                <Image
-                                    src={iosInstructionsImage.imageUrl}
-                                    alt={iosInstructionsImage.description}
-                                    fill
-                                    style={{objectFit: 'contain'}}
-                                    data-ai-hint={iosInstructionsImage.imageHint}
-                                />
-                            )}
-                        </div>
-                        <div className="relative h-64 sm:h-80 w-full">
-                             {androidInstructionsImage && (
-                                 <Image
-                                    src={androidInstructionsImage.imageUrl}
-                                    alt={androidInstructionsImage.description}
-                                    fill
-                                    style={{objectFit: 'contain'}}
-                                    data-ai-hint={androidInstructionsImage.imageHint}
-                                />
-                             )}
-                        </div>
-                    </CardContent>
-                </Card>
             </section>
                 
-            <Separator className="!my-16" />
-
-            <section className="space-y-8 text-center">
-                <div className="relative h-64 sm:h-80 w-full max-w-sm mx-auto">
-                    {shortcutsImage && (
-                        <Image
-                            src={shortcutsImage.imageUrl}
-                            alt={shortcutsImage.description}
-                            fill
-                            style={{objectFit: 'contain'}}
-                            data-ai-hint={shortcutsImage.imageHint}
-                        />
-                    )}
-                </div>
-
+            {/* Direct Action Shortcuts Guide */}
+            <section className="space-y-6 text-center pt-8 border-t">
                 <div className="flex items-center justify-center gap-4">
                     <Separator className="w-1/4" />
                     <Zap className="h-8 w-8 text-primary" />
@@ -368,26 +446,13 @@ export default function AboutPage() {
                 </div>
 
                 <h2 className="text-3xl font-bold font-headline">Direct Action Shortcuts</h2>
-                <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-                    Stop digging through menus. Start doing. Conventional apps make you open them, wait for a splash screen, and then find your way to where you want to be. Our App is built differently. We’ve designed it with Direct Action Shortcuts so you can get exactly where you need to go in half the time.
+                <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                    Touch and hold our App icon on your mobile home screen to instantly open key shortcuts like <strong>Community Feed</strong>, <strong>Virtual High Street</strong>, or <strong>Community Chat</strong> without navigating through menus.
                 </p>
-
-                <Card className="text-left max-w-2xl mx-auto">
-                    <CardHeader>
-                        <CardTitle>How to use it:</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ol className="list-decimal list-inside space-y-4 text-lg">
-                            <li><span className="font-semibold text-foreground">Long-Press:</span> <span className="text-muted-foreground">Touch and hold our App icon on your home screen.</span></li>
-                            <li><span className="font-semibold text-foreground">Select:</span> <span className="text-muted-foreground">A menu will instantly appear.</span></li>
-                            <li><span className="font-semibold text-foreground">Go:</span> <span className="text-muted-foreground">Tap Community Feed, The Highstreet, or Community Chat to jump straight into the action.</span></li>
-                        </ol>
-                    </CardContent>
-                </Card>
             </section>
 
-            <div className="text-xs text-muted-foreground pt-12 text-left">
-                Last major update: 30/04/2026
+            <div className="text-xs text-muted-foreground pt-8 text-left border-t">
+                Last major update: 07/08/2026
             </div>
         </div>
     );
