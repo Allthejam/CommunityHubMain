@@ -1,195 +1,333 @@
-
 'use client';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/card';
-import { Button } from './ui/button';
-import Link from 'next/link';
-import Image from 'next/image';
-import { Badge } from './ui/badge';
-import { ArrowRight, Calendar, Clock, User, Loader2, CircleDot } from 'lucide-react';
-import { mockEvents } from '@/lib/mock-data';
+
+import * as React from 'react';
 import { format } from 'date-fns';
-import { Separator } from './ui/separator';
-import { cn } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import Link from 'next/link';
+import Image from 'next/image';
+import { ArrowRight, Calendar, Clock, Loader2, CircleDot, CalendarPlus, Download, Globe, ExternalLink } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import { ScrollArea } from './ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { downloadIcsFile, openGoogleCalendarUrl } from '@/lib/utils/calendar-export';
+import { addEventToUserCalendar } from '@/lib/actions/calendarActions';
+import { mockEvents } from '@/lib/mock-data';
+import { isEventLiveNow, isEventUpcoming, getAdvancedRepeatingEvent, parseEventDate } from '@/lib/utils/event-utils';
+import { updateEventAction } from '@/lib/actions/eventActions';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type CommunityEvent = {
-    id: string;
-    title: string;
-    category: string;
-    startDate: { toDate: () => Date };
-    endDate?: { toDate: () => Date };
-    image?: string;
-    dataAiHint?: string;
-    description: string;
-    authorName?: string;
-    businessName?: string;
+  id: string;
+  title: string;
+  category: string;
+  startDate: { toDate: () => Date } | Date | string;
+  endDate?: { toDate: () => Date } | Date | string | null;
+  repeat?: string | null;
+  repeatUntil?: { toDate: () => Date } | Date | string | null;
+  pastOccurrences?: Array<any>;
+  image?: string;
+  dataAiHint?: string;
+  description: string;
+  authorName?: string;
+  businessName?: string;
 };
 
-const EventDialogContent = ({ event }: { event: CommunityEvent }) => (
+type EventsFeedProps = {
+  communityId: string | null;
+};
+
+// ---------------------------------------------------------------------------
+// Event dialog content (popup)
+// ---------------------------------------------------------------------------
+
+const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
+  const { user } = useUser();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = React.useState(false);
+  const startDateObj = parseEventDate(event.startDate);
+  const endDateObj = parseEventDate(event.endDate);
+
+  const handleSaveToAppCalendar = async () => {
+    if (!user) {
+      toast({ title: 'Please log in', description: 'You must be logged in to save events to your calendar.', variant: 'destructive' });
+      return;
+    }
+    setIsSaving(true);
+    const res = await addEventToUserCalendar({
+      userId: user.uid,
+      event: {
+        title: event.title,
+        date: startDateObj ? startDateObj.toISOString() : new Date().toISOString(),
+        time: 'All Day',
+        type: event.category,
+        eventId: event.id,
+      },
+    });
+    setIsSaving(false);
+    if (res.success) {
+      toast({ title: 'Added to App Calendar!', description: `${event.title} saved to your profile calendar.` });
+    } else {
+      toast({ title: 'Error', description: res.error, variant: 'destructive' });
+    }
+  };
+
+  const handleDownloadIcs = () => {
+    downloadIcsFile({
+      title: event.title,
+      description: event.description,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      businessName: event.businessName,
+    });
+    toast({ title: 'Calendar File Downloaded', description: 'Import .ics into Apple Calendar, Outlook, or mobile.' });
+  };
+
+  const handleGoogleCalendar = () => {
+    openGoogleCalendarUrl({
+      title: event.title,
+      description: event.description,
+      startDate: event.startDate,
+      endDate: event.endDate,
+    });
+  };
+
+  return (
     <>
-        <DialogHeader className="p-6 pb-2">
-            {event.image && (
-                <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted mb-4">
-                    <Image
-                        src={event.image}
-                        alt={event.title}
-                        fill
-                        className="object-cover"
-                        priority
-                    />
-                </div>
-            )}
-            <Badge variant="secondary" className="mb-2 w-fit">{event.category}</Badge>
-            <DialogTitle className="text-2xl">{event.title}</DialogTitle>
-        </DialogHeader>
-        <div className="grid overflow-y-auto">
-            <ScrollArea className="max-h-[60vh] px-6">
-                <div className="space-y-4 pr-1 pb-4">
-                    <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            <span>
-                                {format(event.startDate.toDate(), "PPP")}
-                                {event.endDate && ` - ${format(event.endDate.toDate(), "PPP")}`}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            <span>Starts at 8:00 PM</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            <span>Hosted by {event.businessName && event.businessName !== 'Community' ? event.businessName : 'Community'}</span>
-                        </div>
-                    </div>
-                    <Separator />
-                    <div className="text-sm text-muted-foreground prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: event.description }} />
-                </div>
-            </ScrollArea>
-        </div>
-        <DialogFooter className="p-6 pt-4 border-t">
-            <Button asChild>
-                <Link href={`/events/${event.id}`}>
-                    View Full Details <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
+      <DialogHeader className="p-6 pb-2">
+        {event.image && (
+          <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted mb-4">
+            <Image src={event.image} alt={event.title} fill className="object-cover" priority />
+          </div>
+        )}
+        <Badge variant="secondary" className="mb-2 w-fit">{event.category}</Badge>
+        <DialogTitle className="text-2xl">{event.title}</DialogTitle>
+      </DialogHeader>
+
+      <div className="grid overflow-y-auto">
+        <ScrollArea className="max-h-[60vh] px-6">
+          <div className="space-y-4 pr-1 pb-4">
+            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                <span>
+                  {startDateObj ? format(startDateObj, 'PPP') : ''}
+                  {endDateObj && startDateObj && format(startDateObj, 'yyyy-MM-dd') !== format(endDateObj, 'yyyy-MM-dd')
+                    ? ` - ${format(endDateObj, 'PPP')}`
+                    : ''}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                <span>Starts at 8:00 PM</span>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h4 className="font-semibold text-foreground mb-1">About this event</h4>
+              <div
+                className="text-sm text-muted-foreground prose dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: event.description || '' }}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="text-xs text-muted-foreground">
+              <p>Hosted by {event.businessName || event.authorName || 'Community Member'}</p>
+            </div>
+          </div>
+        </ScrollArea>
+      </div>
+
+      <DialogFooter className="p-6 pt-4 border-t flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
+        {event.id ? (
+          <Button variant="outline" asChild className="w-full sm:w-auto font-medium">
+            <Link href={`/events/${event.id}`}>
+              See More / Full Details <ExternalLink className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        ) : null}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="w-full sm:w-auto" disabled={isSaving}>
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarPlus className="mr-2 h-4 w-4" />}
+              Add to Calendar
             </Button>
-        </DialogFooter>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuLabel>Add / Sync Options</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSaveToAppCalendar}>
+              <Calendar className="mr-2 h-4 w-4" /> Save to Profile Calendar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDownloadIcs}>
+              <Download className="mr-2 h-4 w-4" /> Download .ics File (Apple / Outlook)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleGoogleCalendar}>
+              <Globe className="mr-2 h-4 w-4" /> Open in Google Calendar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </DialogFooter>
+
     </>
-);
+  );
+};
 
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
-export function EventsFeed({ communityId }: { communityId: string | null }) {
+export function EventsFeed({ communityId }: EventsFeedProps) {
   const db = useFirestore();
   const [upcomingCount, setUpcomingCount] = React.useState(3);
 
+  // Only query when we have both db and communityId
   const eventsQuery = useMemoFirebase(() => {
-    if (!communityId || !db) {
-      return null;
-    }
+    if (!db || !communityId) return null;
     return query(
-      collection(db, "events"), 
-      where("communityId", "==", communityId),
-      where("status", "in", ["Live", "Upcoming"])
+      collection(db, 'events'),
+      where('communityId', '==', communityId),
+      where('status', 'in', ['Live', 'Upcoming'])
     );
   }, [db, communityId]);
-  
+
   const { data: liveEventsData, isLoading: eventsLoading } = useCollection<CommunityEvent>(eventsQuery);
 
-  const now = new Date();
-  
-  const eventsToDisplay = (liveEventsData && liveEventsData.length > 0) 
-    ? liveEventsData 
-    : mockEvents.map(e => ({...e, image: e.image?.imageUrl || '', description: e.description || '', startDate: { toDate: () => new Date(e.startDate) }, endDate: e.endDate ? { toDate: () => new Date(e.endDate) } : undefined }));
+  const now = React.useMemo(() => new Date(), []);
 
-  const liveEvents = eventsToDisplay.filter(event => {
-      const startDate = event.startDate.toDate();
-      const endDate = event.endDate?.toDate() || new Date(startDate);
-      const endOfDay = new Date(endDate);
-      endOfDay.setHours(23, 59, 59, 999);
-      return startDate <= now && now <= endOfDay;
-  }).sort((a, b) => a.startDate.toDate().getTime() - b.startDate.toDate().getTime());
+  const eventsToDisplay = React.useMemo(() => {
+    const rawList =
+      liveEventsData && liveEventsData.length > 0
+        ? liveEventsData
+        : mockEvents.map((e) => ({
+            ...e,
+            image: e.image?.imageUrl || '',
+            description: e.description || '',
+            startDate: new Date(e.startDate),
+            endDate: e.endDate ? new Date(e.endDate) : undefined,
+          }));
 
-  const upcomingEvents = eventsToDisplay.filter(event => {
-      const startDate = event.startDate.toDate();
-      return startDate > now;
-  }).sort((a, b) => a.startDate.toDate().getTime() - b.startDate.toDate().getTime());
-  
-  const isLoading = eventsLoading;
+    return rawList.map((event) => {
+      const { updatedEvent } = getAdvancedRepeatingEvent(event, now);
+      return updatedEvent;
+    });
+  }, [liveEventsData, now]);
 
-  if (isLoading) {
+  // Auto-advance repeating events in Firestore (side-effect only)
+  React.useEffect(() => {
+    if (!liveEventsData || liveEventsData.length === 0) return;
+    liveEventsData.forEach((event) => {
+      const { hasAdvanced, updatedEvent } = getAdvancedRepeatingEvent(event, now);
+      if (hasAdvanced && event.id) {
+        updateEventAction(event.id, {
+          startDate: updatedEvent.startDate,
+          endDate: updatedEvent.endDate,
+          pastOccurrences: updatedEvent.pastOccurrences,
+        });
+      }
+    });
+  }, [liveEventsData, now]);
+
+  const liveEvents = eventsToDisplay.filter((event) => isEventLiveNow(event, now));
+  const upcomingEvents = eventsToDisplay.filter((event) => isEventUpcoming(event, now));
+
+  // Only show spinner when we have a communityId and are genuinely waiting for data
+  if (communityId && eventsLoading) {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Community Events</CardTitle>
-                <CardDescription>What's happening in your community.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center items-center h-48">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Community Events</CardTitle>
+          <CardDescription>What&apos;s happening in your community.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center items-center h-48">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
     );
   }
 
   if (eventsToDisplay.length === 0) {
-    return null; // Don't show the card if there's no mock data and no real data.
+    return null;
   }
 
   return (
     <div className="space-y-8">
+      {/* Live Now section */}
       {liveEvents.length > 0 && (
-        <Card className={cn("transition-colors", "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800")}>
+        <Card className={cn('transition-colors', 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-3 text-green-800 dark:text-green-300">
               <CircleDot className="h-7 w-7 animate-pulse" />
               Live Now
             </CardTitle>
-            <CardDescription className="text-green-700 dark:text-green-400">These events are happening right now in your community.</CardDescription>
+            <CardDescription className="text-green-700 dark:text-green-400">
+              These events are happening right now in your community.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {liveEvents.slice(0, 3).map((event) => (
                 <Dialog key={event.id}>
-                    <DialogTrigger asChild>
-                         <Card className="flex flex-col overflow-hidden bg-background cursor-pointer hover:shadow-lg transition-shadow duration-300">
-                            <CardHeader className="p-0">
-                                <div className="relative w-full h-48">
-                                <Image
-                                    src={event.image || "https://picsum.photos/seed/event-live/600/400"}
-                                    alt={event.title}
-                                    fill
-                                    className="object-cover"
-                                    data-ai-hint={event.dataAiHint || "community event"}
-                                />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="p-4 flex-grow">
-                                <Badge variant="secondary" className="mb-2">{event.category}</Badge>
-                                <h3 className="font-semibold text-lg">{event.title}</h3>
-                                {event.endDate && <p className="text-sm text-muted-foreground mt-1">
-                                    Ends {format(event.endDate.toDate(), "PPP")}
-                                </p>}
-                            </CardContent>
-                            <CardFooter className="p-4 pt-0">
-                                <p className="text-sm font-medium text-primary w-full text-center">View Details</p>
-                            </CardFooter>
-                        </Card>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-xl p-0 grid grid-rows-[auto_minmax(0,1fr)_auto] max-h-[90vh]">
-                       <EventDialogContent event={event} />
-                    </DialogContent>
+                  <DialogTrigger asChild>
+                    <Card className="flex flex-col overflow-hidden bg-background cursor-pointer hover:shadow-lg transition-shadow duration-300">
+                      <CardHeader className="p-0">
+                        <div className="relative w-full h-48">
+                          <Image
+                            src={event.image || 'https://picsum.photos/seed/event-live/600/400'}
+                            alt={event.title}
+                            fill
+                            className="object-cover"
+                            data-ai-hint={event.dataAiHint || 'community event'}
+                          />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 flex-grow">
+                        <Badge variant="secondary" className="mb-2">{event.category}</Badge>
+                        <h3 className="font-semibold text-lg">{event.title}</h3>
+                        {event.endDate && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Ends {parseEventDate(event.endDate) ? format(parseEventDate(event.endDate)!, 'PPP') : ''}
+                          </p>
+                        )}
+                      </CardContent>
+                      <CardFooter className="p-4 pt-0">
+                        <p className="text-sm font-medium text-primary w-full text-center">View Details</p>
+                      </CardFooter>
+                    </Card>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-xl p-0 grid grid-rows-[auto_minmax(0,1fr)_auto] max-h-[90vh]">
+                    <EventDialogContent event={event} />
+                  </DialogContent>
                 </Dialog>
               ))}
             </div>
@@ -197,73 +335,74 @@ export function EventsFeed({ communityId }: { communityId: string | null }) {
         </Card>
       )}
 
+      {/* Upcoming Events section */}
       {upcomingEvents.length > 0 && (
         <>
           {liveEvents.length > 0 && <Separator />}
           <Card>
-            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <div>
-                    <CardTitle className="flex items-center gap-3">
-                        <Calendar className="h-7 w-7 text-primary" />
-                        Upcoming Events
-                    </CardTitle>
-                    <CardDescription>Check out what's coming up in your community.</CardDescription>
-                </div>
-                <div className="w-full sm:w-auto">
-                    <Select value={String(upcomingCount)} onValueChange={(value) => setUpcomingCount(Number(value))}>
-                        <SelectTrigger className="w-full sm:w-[120px]">
-                            <SelectValue placeholder="Show..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="3">Show 3</SelectItem>
-                            <SelectItem value="6">Show 6</SelectItem>
-                            <SelectItem value="9">Show 9</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle className="text-xl flex items-center gap-2 font-headline">Upcoming Events</CardTitle>
+                <CardDescription>Check out what&apos;s coming up in your community.</CardDescription>
+              </div>
+              <div className="w-full sm:w-auto">
+                <Select value={String(upcomingCount)} onValueChange={(value) => setUpcomingCount(Number(value))}>
+                  <SelectTrigger className="w-full sm:w-[120px]">
+                    <SelectValue placeholder="Show..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="3">Show 3</SelectItem>
+                    <SelectItem value="6">Show 6</SelectItem>
+                    <SelectItem value="9">Show 9</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {upcomingEvents.slice(0, upcomingCount).map((event) => (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {upcomingEvents.slice(0, upcomingCount).map((event) => {
+                  const startObj = parseEventDate(event.startDate);
+                  return (
                     <Dialog key={event.id}>
-                        <DialogTrigger asChild>
-                            <Card className="flex flex-col overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-300">
-                                <CardHeader className="p-0">
-                                    <div className="relative w-full aspect-[4/3]">
-                                        {event.image && (
-                                            <Image
-                                                src={event.image}
-                                                alt={event.title}
-                                                fill
-                                                className="object-cover"
-                                                data-ai-hint={event.dataAiHint || "local event"}
-                                            />
-                                        )}
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-4 flex-grow">
-                                    <Badge variant="secondary" className="mb-2">{event.category}</Badge>
-                                    <h3 className="font-semibold text-lg">{event.title}</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">{format(event.startDate.toDate(), "PPP")}</p>
-                                </CardContent>
-                                <CardFooter className="p-4 pt-0">
-                                     <p className="text-sm font-medium text-primary w-full text-center">View Details</p>
-                                </CardFooter>
-                            </Card>
-                         </DialogTrigger>
-                         <DialogContent className="sm:max-w-xl p-0 grid grid-rows-[auto_minmax(0,1fr)_auto] max-h-[90vh]">
-                            <EventDialogContent event={event} />
-                         </DialogContent>
+                      <DialogTrigger asChild>
+                        <Card className="flex flex-col overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-300">
+                          <CardHeader className="p-0">
+                            <div className="relative w-full aspect-[4/3]">
+                              {event.image && (
+                                <Image
+                                  src={event.image}
+                                  alt={event.title}
+                                  fill
+                                  className="object-cover"
+                                  data-ai-hint={event.dataAiHint || 'local event'}
+                                />
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-4 flex-grow">
+                            <Badge variant="secondary" className="mb-2">{event.category}</Badge>
+                            <h3 className="font-semibold text-lg">{event.title}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">{startObj ? format(startObj, 'PPP') : ''}</p>
+                          </CardContent>
+                          <CardFooter className="p-4 pt-0">
+                            <p className="text-sm font-medium text-primary w-full text-center">View Details</p>
+                          </CardFooter>
+                        </Card>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-xl p-0 grid grid-rows-[auto_minmax(0,1fr)_auto] max-h-[90vh]">
+                        <EventDialogContent event={event} />
+                      </DialogContent>
                     </Dialog>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
             <CardFooter>
-                <Button variant="outline" asChild>
-                    <Link href="/events">
-                        See All Events <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                </Button>
+              <Button variant="outline" asChild>
+                <Link href="/events">
+                  See All Events <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
             </CardFooter>
           </Card>
         </>

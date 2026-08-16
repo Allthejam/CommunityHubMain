@@ -14,12 +14,24 @@ import {
     Calendar,
     User,
     Clock,
-    CalendarPlus
+    CalendarPlus,
+    Download,
+    Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { addEventToUserCalendar } from "@/lib/actions/calendarActions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { downloadIcsFile, openGoogleCalendarUrl } from "@/lib/utils/calendar-export";
+
 
 type CommunityEvent = {
     id: string;
@@ -146,11 +158,46 @@ export default function EventDetailPage() {
                     />
 
                     <div className="mt-8 pt-8 border-t">
-                        <Button onClick={handleAddToCalendar} disabled={isAdding}>
-                            {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarPlus className="mr-2 h-4 w-4" />}
-                            Add to My Calendar
-                        </Button>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button disabled={isAdding}>
+                                    {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarPlus className="mr-2 h-4 w-4" />}
+                                    Add to Calendar
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-64">
+                                <DropdownMenuLabel>Add / Sync Options</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleAddToCalendar}>
+                                  <Calendar className="mr-2 h-4 w-4" /> Save to Profile Calendar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  downloadIcsFile({
+                                    title: event.title,
+                                    description: event.description,
+                                    startDate: event.startDate,
+                                    endDate: event.endDate,
+                                    businessName: event.businessName,
+                                  });
+                                  toast({ title: "Calendar File Downloaded", description: "Import .ics into Apple Calendar, Outlook, or mobile." });
+                                }}>
+                                  <Download className="mr-2 h-4 w-4" /> Download .ics File (Apple / Outlook)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  openGoogleCalendarUrl({
+                                    title: event.title,
+                                    description: event.description,
+                                    startDate: event.startDate,
+                                    endDate: event.endDate,
+                                  });
+                                }}>
+                                  <Globe className="mr-2 h-4 w-4" /> Open in Google Calendar
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
+
                 </article>
             </main>
         </div>

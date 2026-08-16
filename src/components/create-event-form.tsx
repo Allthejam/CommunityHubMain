@@ -6,8 +6,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Image from "next/image";
-import { Loader2, Upload, Camera, X, Save, Search } from "lucide-react";
-import { addWeeks, addMonths, addYears } from 'date-fns';
+import { Loader2, Upload, Camera, X, Save, Search, History, Sparkles } from "lucide-react";
+import { addWeeks, addMonths, addYears, format } from 'date-fns';
+import { parseEventDate, getAdvancedRepeatingEvent } from '@/lib/utils/event-utils';
+
+
 
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +42,8 @@ import { Separator } from "./ui/separator";
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
 import { Textarea } from "./ui/textarea";
+import { Badge } from "./ui/badge";
+
 
 
 const eventFormSchema = z.object({
@@ -48,6 +53,7 @@ const eventFormSchema = z.object({
   description: z.string().min(10, "Description is too short."),
   startDate: z.date({ required_error: "A start date is required." }),
   endDate: z.date().optional(),
+  repeatUntil: z.date().optional(),
   startTime: z.string().optional(),
   image: z.string().optional().nullable(),
   metaTitle: z.string().max(70, "Meta title should be 70 characters or less.").optional(),
@@ -55,34 +61,55 @@ const eventFormSchema = z.object({
   repeat: z.string().optional(),
 });
 
+
 type Business = { id: string; businessName: string };
 
 const eventCategories = ["Music", "Food & Drink", "Arts & Culture", "Charity", "Sports", "Family", "Workshop", "Other"];
 
 export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveSuccess?: () => void }) {
-  const { user, isUserLoading: authLoading } = useUser();
+  const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
-  const [image, setImage] = React.useState<string | null>(null);
+  
+  const [image, setImage] = React.useState<string | null>(event?.image || null);
   const [showOtherCategory, setShowOtherCategory] = React.useState(false);
   const [customCategory, setCustomCategory] = React.useState('');
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isCameraOpen, setIsCameraOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   
-  const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
+  const userProfileRef = useMemoFirebase(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
   const { data: userProfile } = useDoc(userProfileRef);
+
+  const { hasAdvanced, updatedEvent } = React.useMemo(() => {
+    if (!event) return { hasAdvanced: false, updatedEvent: null };
+    return getAdvancedRepeatingEvent(event);
+  }, [event]);
+
+  const activeEvent = updatedEvent || event;
+
+  React.useEffect(() => {
+    if (hasAdvanced && activeEvent && event?.id) {
+      updateEventAction(event.id, {
+        startDate: activeEvent.startDate,
+        endDate: activeEvent.endDate,
+        pastOccurrences: activeEvent.pastOccurrences,
+      });
+    }
+  }, [hasAdvanced, activeEvent, event?.id]);
 
   const form = useForm<z.infer<typeof eventFormSchema>>({
     resolver: zodResolver(eventFormSchema),
-    defaultValues: event ? {
-      ...event,
-      startDate: event.startDate?.toDate(),
-      endDate: event.endDate?.toDate(),
-      startTime: event.startTime || '',
-      repeat: event.repeat || 'none',
+    defaultValues: activeEvent ? {
+      ...activeEvent,
+      startDate: parseEventDate(activeEvent.startDate) || undefined,
+      endDate: parseEventDate(activeEvent.endDate) || undefined,
+      repeatUntil: parseEventDate(activeEvent.repeatUntil) || undefined,
+      startTime: activeEvent.startTime || '',
+      repeat: activeEvent.repeat || 'none',
     } : {
       title: "",
       category: "",
@@ -124,43 +151,28 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
   const showBusinessSelector = businesses && businesses.length > 0;
   
   React.useEffect(() => {
-    if (event) {
-        const isCustomCategory = !eventCategories.includes(event.category);
+    if (activeEvent) {
+        const parsedStart = parseEventDate(activeEvent.startDate);
+        const parsedEnd = parseEventDate(activeEvent.endDate);
+        if (parsedStart) form.setValue('startDate', parsedStart);
+        if (parsedEnd) form.setValue('endDate', parsedEnd);
+        
+        const isCustomCategory = !eventCategories.includes(activeEvent.category);
         if (isCustomCategory) {
             setShowOtherCategory(true);
-            setCustomCategory(event.category);
+            setCustomCategory(activeEvent.category);
             form.setValue('category', 'Other');
         } else {
-            form.setValue('category', event.category);
+            form.setValue('category', activeEvent.category);
         }
-        setImage(event.image);
-        form.setValue('repeat', event.repeat || 'none');
+        setImage(activeEvent.image);
+        form.setValue('repeat', activeEvent.repeat || 'none');
+        if (activeEvent.repeatUntil) {
+          form.setValue('repeatUntil', parseEventDate(activeEvent.repeatUntil) || undefined);
+        }
     }
-  }, [event, form]);
+  }, [activeEvent, form]);
 
-  React.useEffect(() => {
-    if (!startDate || !repeat || repeat === 'none') {
-        return;
-    }
-    let newEndDate: Date;
-    switch (repeat) {
-        case 'weekly':
-            newEndDate = addWeeks(startDate, 1);
-            break;
-        case 'bi-weekly':
-            newEndDate = addWeeks(startDate, 2);
-            break;
-        case 'monthly':
-            newEndDate = addMonths(startDate, 1);
-            break;
-        case 'yearly':
-            newEndDate = addYears(startDate, 1);
-            break;
-        default:
-            return;
-    }
-    form.setValue('endDate', newEndDate);
-  }, [startDate, repeat, form]);
 
   React.useEffect(() => {
     if (isCameraOpen) {
@@ -235,12 +247,16 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
     const isCommunityEvent = values.businessId === 'community_event';
     const selectedBusiness = !isCommunityEvent && values.businessId ? businesses?.find(b => b.id === values.businessId) : null;
 
+    const finalEndDate = values.endDate && values.endDate >= values.startDate ? values.endDate : values.startDate;
+
     const eventDataForAction = { 
         ...values,
         businessId: isCommunityEvent ? undefined : values.businessId,
         businessName: selectedBusiness ? selectedBusiness.businessName : (isLeader ? 'Community' : userProfile.name),
         image, 
         category: finalCategory,
+        endDate: finalEndDate,
+        repeatUntil: values.repeatUntil || undefined,
     };
     
     const result = event?.id 
@@ -367,15 +383,44 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
                 />
                 <FormField
                   control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>End Date (Event Duration)</FormLabel>
+                      <DatePicker
+                        date={field.value}
+                        setDate={field.onChange}
+                      />
+                      <FormDescription className="text-xs">
+                        Date this event occurrence ends (e.g. same day for a 1-day event).
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="repeat"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col pt-1.5">
-                      <FormLabel>Repeat</FormLabel>
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Repeat Pattern</FormLabel>
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
-                          if (value === 'none') {
-                            form.setValue('endDate', undefined);
+                          const currentStart = form.getValues('startDate');
+                          if (currentStart && value !== 'none') {
+                            let predictedNext: Date | undefined;
+                            if (value === 'weekly') predictedNext = addWeeks(currentStart, 1);
+                            else if (value === 'bi-weekly') predictedNext = addWeeks(currentStart, 2);
+                            else if (value === 'monthly') predictedNext = addMonths(currentStart, 1);
+                            else if (value === 'yearly') predictedNext = addYears(currentStart, 1);
+                            
+                            if (predictedNext) {
+                              toast({
+                                title: "Recurrence Pattern Selected",
+                                description: `Next predicted date: ${format(predictedNext, "dd/MM/yyyy")}. You can freely edit or change any dates below.`
+                              });
+                            }
                           }
                         }}
                         value={field.value || 'none'}
@@ -393,29 +438,64 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
                           <SelectItem value="yearly">Yearly</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>End Date</FormLabel>
-                      <DatePicker
-                        date={field.value}
-                        setDate={field.onChange}
-                        disabled={repeat !== 'none'}
-                      />
                       <FormDescription className="text-xs">
-                        Auto-calculated if event repeats.
+                        Select if this event recurs. All date fields remain 100% editable.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+
+              {repeat && repeat !== 'none' && (
+                <FormField
+                  control={form.control}
+                  name="repeatUntil"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col max-w-sm">
+                      <FormLabel>Repeat Until (Optional)</FormLabel>
+                      <DatePicker date={field.value} setDate={field.onChange} />
+                      <FormDescription className="text-xs">
+                        Date after which this event stops repeating (leave blank for indefinite).
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Leader Audit Trail: Past Occurrences History */}
+              {activeEvent && Array.isArray(activeEvent.pastOccurrences) && activeEvent.pastOccurrences.length > 0 && (
+                <Card className="border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                      <History className="h-4 w-4" /> Past Event Occurrences & Audit Trail (Leader View Only)
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Past event dates are stored for your administrative audit record and hidden from the public. Only current and future dates are published to user calendars.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-xs">
+                    <div className="divide-y divide-border/60">
+                      {activeEvent.pastOccurrences.map((occ: any, index: number) => {
+                        const occStart = parseEventDate(occ.startDate);
+                        const occEnd = parseEventDate(occ.endDate);
+
+                        return (
+                          <div key={index} className="py-2 flex items-center justify-between">
+                            <div>
+                              <span className="font-semibold text-foreground">Occurrence #{index + 1}:</span> {occStart ? format(occStart, "PPP") : 'N/A'} {occEnd && occStart && format(occStart, "yyyy-MM-dd") !== format(occEnd, "yyyy-MM-dd") ? ` to ${format(occEnd, "PPP")}` : ''}
+                            </div>
+                            <Badge variant="outline" className="text-[10px] bg-background">Passed & Archived</Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+
               <FormField
                 control={form.control}
                 name="startTime"

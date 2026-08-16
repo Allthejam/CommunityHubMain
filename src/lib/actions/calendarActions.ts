@@ -1,5 +1,7 @@
-
 'use server';
+
+import { initializeAdminApp } from "@/firebase/admin-app";
+import { Timestamp } from "firebase-admin/firestore";
 
 type ActionResponse = {
   success: boolean;
@@ -11,27 +13,59 @@ type CalendarEvent = {
   date: string;
   time: string;
   type: string;
-}
+  eventId?: string;
+};
 
 export async function addEventToUserCalendar(params: {
   userId: string;
   event: CalendarEvent;
 }): Promise<ActionResponse> {
-    const { userId, event } = params;
-    console.log(`Adding event for user ${userId}:`, event);
+  const { userId, event } = params;
 
-    // In a real application, you would add this event to a 'user_calendars' collection in Firestore
-    // or integrate with a third-party calendar service like Google Calendar API.
-    
-    // For now, we will simulate a successful operation.
-    if (!userId || !event) {
-        return { success: false, error: "User and event information is required." };
-    }
+  if (!userId || !event) {
+    return { success: false, error: "User and event information is required." };
+  }
 
-    try {
-        // Mock success
-        return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+  try {
+    const { firestore } = initializeAdminApp();
+    await firestore.collection('user_calendars').add({
+      userId,
+      title: event.title,
+      date: event.date,
+      time: event.time,
+      type: event.type,
+      eventId: event.eventId || null,
+      addedAt: Timestamp.now(),
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error adding event to user calendar:", error);
+    return { success: false, error: error.message || "Failed to add event to calendar." };
+  }
+}
+
+export async function deleteUserCalendarEvent(params: {
+  userId: string;
+  docId: string;
+  sourceCollection?: 'user_calendars' | 'calendarEvents';
+}): Promise<ActionResponse> {
+  const { userId, docId, sourceCollection = 'user_calendars' } = params;
+
+  if (!userId || !docId) {
+    return { success: false, error: "User and document ID are required." };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    if (sourceCollection === 'calendarEvents') {
+      await firestore.collection('users').doc(userId).collection('calendarEvents').doc(docId).delete();
+    } else {
+      await firestore.collection('user_calendars').doc(docId).delete();
     }
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error deleting calendar event:", error);
+    return { success: false, error: error.message || "Failed to delete event." };
+  }
 }

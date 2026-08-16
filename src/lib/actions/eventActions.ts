@@ -75,7 +75,8 @@ export async function createEventAction(data: EventData): Promise<ActionResponse
             createdAt: Timestamp.now(),
             submittedAt: Timestamp.now(),
             startDate: Timestamp.fromDate(startDate),
-            endDate: data.endDate ? Timestamp.fromDate(new Date(data.endDate)) : null,
+            endDate: data.endDate ? Timestamp.fromDate(new Date(data.endDate)) : Timestamp.fromDate(startDate),
+            repeatUntil: data.repeatUntil ? Timestamp.fromDate(new Date(data.repeatUntil)) : null,
         };
 
         const newEventRef = await firestore.collection('events').add(eventToCreate);
@@ -133,8 +134,6 @@ export async function updateEventAction(eventId: string, data: Partial<EventData
     const updateData: any = { 
         ...data,
         updatedAt: Timestamp.now(),
-        status: 'Pending Approval', // Re-submit for approval on edit
-        submittedAt: Timestamp.now(),
     };
 
     if (data.startDate) {
@@ -142,9 +141,11 @@ export async function updateEventAction(eventId: string, data: Partial<EventData
     }
     if (data.endDate) {
       updateData.endDate = Timestamp.fromDate(new Date(data.endDate));
-    } else {
-        updateData.endDate = null; // Ensure endDate is explicitly set to null if undefined
     }
+    if (data.repeatUntil) {
+      updateData.repeatUntil = Timestamp.fromDate(new Date(data.repeatUntil));
+    }
+
 
     await eventRef.update(updateData);
     

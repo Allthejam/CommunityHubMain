@@ -150,3 +150,48 @@ export async function deleteGalleryImageAction(params: {
     return { success: false, error: "Could not delete the image." };
   }
 }
+
+export async function updateBusinessGalleryImageDescriptionAction(params: {
+  businessId: string;
+  imageUrl: string;
+  description: string;
+}): Promise<ActionResponse> {
+  const { businessId, imageUrl, description } = params;
+
+  if (!businessId || !imageUrl) {
+    return { success: false, error: "Business ID and image URL are required." };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const bizDocRef = firestore.collection('businesses').doc(businessId);
+    const bizDoc = await bizDocRef.get();
+
+    if (!bizDoc.exists) {
+      return { success: false, error: "Business not found." };
+    }
+
+    const existingGallery: any[] = bizDoc.data()?.gallery || [];
+    const updatedGallery = existingGallery.map((item: any) => {
+      if (item.url === imageUrl) {
+        return {
+          ...item,
+          description: description || '',
+          updatedAt: Timestamp.now(),
+        };
+      }
+      return item;
+    });
+
+    await bizDocRef.update({
+      gallery: updatedGallery,
+      updatedAt: Timestamp.now(),
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating image description:", error);
+    return { success: false, error: error.message || "Failed to update image description." };
+  }
+}
+

@@ -19,15 +19,20 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
+import { isEventLiveNow } from '@/lib/utils/event-utils';
+
 type CommunityEvent = {
   id: string;
   title: string;
   category: string;
-  startDate: { toDate: () => Date };
-  endDate?: { toDate: () => Date };
+  startDate: { toDate: () => Date } | Date | string;
+  endDate?: { toDate: () => Date } | Date | string | null;
+  repeat?: string | null;
+  repeatUntil?: { toDate: () => Date } | Date | string | null;
   image: string;
   dataAiHint?: string;
 };
+
 
 const EventCard = ({ event }: { event: CommunityEvent }) => (
     <Card className="flex flex-col overflow-hidden">
