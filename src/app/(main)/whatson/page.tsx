@@ -8,8 +8,9 @@ import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Globe, Mail, Phone, Share2, Clock, MapPin, LayoutGrid, List, ArrowRight } from "lucide-react";
+import { Loader2, Globe, Mail, Phone, Share2, Clock, MapPin, LayoutGrid, List, ArrowRight, ExternalLink } from "lucide-react";
 import { collection, query, where, doc } from "firebase/firestore";
+
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { mockWhatsOn } from "@/lib/mock-data";
 
@@ -112,13 +113,28 @@ const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => (
                 </div>
             </ScrollArea>
         </div>
-        <DialogFooter className="p-6 pt-4 border-t">
-             <Button asChild>
-                <Link href="#">View on Map</Link>
+        <DialogFooter className="p-6 pt-4 border-t flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
+          {item.id ? (
+            <Button variant="default" asChild className="w-full sm:w-auto font-medium">
+              <Link href={`/whatson/${item.id}`}>
+                See More / Full Details <ExternalLink className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
+          ) : null}
+
+          <Button variant="outline" asChild className="w-full sm:w-auto gap-2">
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address || item.title)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <MapPin className="h-4 w-4 text-primary" /> View on Google Maps
+            </a>
+          </Button>
         </DialogFooter>
     </>
 );
+
 
 const WhatsonRow = ({ item }: { item: WhatsonItem }) => (
     <Dialog>
