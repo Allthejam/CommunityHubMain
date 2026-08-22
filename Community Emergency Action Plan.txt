@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Emergency Action Plan Digitiser</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            orange: '#FF5722',
+                            red: '#DC2626',
+                            amber: '#D97706',
+                            cyan: '#0891B2',
+                            emerald: '#059669',
+                            purple: '#7C3AED',
+                            blue: '#2563EB',
+                            slate: '#0F172A',
+                            darkCard: '#1E293B'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0F172A;
+            color: #F8FAFC;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .event-tab.active {
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+            border-bottom-width: 4px;
+        }
+        .failover-active {
+            animation: pulse-border 2s infinite;
+            border-color: #EF4444 !important;
+            background: rgba(239, 68, 68, 0.15) !important;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        /* Scrollbar formatting */
+        ::-webkit-scrollbar { height: 6px; width: 6px; }
+        ::-webkit-scrollbar-track { background: #0F172A; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        @media print {
+            header, nav, #failoverTester, .no-print, button {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .tab-content {
+                display: block !important;
+            }
+            .glass-panel, .glass-card {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                color: black !important;
+                box-shadow: none !important;
+            }
+            input, textarea, select {
+                border: none !important;
+                background: transparent !important;
+                color: black !important;
+                font-weight: bold;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-700/60 px-4 lg:px-8 py-3.5">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-red-600 text-white p-2.5 rounded-xl shadow-lg shadow-red-950/50">
+                    <i class="fa-solid fa-clipboard-list text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-black text-xl tracking-tight text-white">Community Action Plan Digitiser</h1>
+                        <span class="bg-slate-800 text-[10px] text-amber-400 font-mono px-2 py-0.5 rounded border border-amber-500/30">Official Statutory Format</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Event-Driven Priority Action Framework for Civil Contingencies & Council Submission</p>
+                </div>
+            </div>
+
+            <!-- Global Jurisdiction Controls -->
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 flex items-center gap-2 text-xs">
+                    <i class="fa-solid fa-location-dot text-red-500"></i>
+                    <span class="text-slate-400">Jurisdiction:</span>
+                    <select id="townshipSelector" onchange="app.switchTownship(this.value)" class="bg-transparent text-white font-bold outline-none cursor-pointer">
+                        <option value="grantown" class="bg-slate-900">Grantown-on-Spey & Strathspey</option>
+                        <option value="aviemore" class="bg-slate-900">Aviemore & Speyside</option>
+                        <option value="kingussie" class="bg-slate-900">Kingussie & Badenoch</option>
+                        <option value="custom" class="bg-slate-900">+ Custom Township</option>
+                    </select>
+                </div>
+
+                <button onclick="app.exportPlan()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-white px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-pdf text-cyan-400"></i> Print / Export Living Plan
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto w-full px-4 lg:px-8 py-6 flex-grow space-y-6">
+
+        <div id="failoverTester" class="glass-panel rounded-2xl p-4 border-l-4 border-amber-500 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-start gap-3">
+                <div class="p-2 bg-amber-500/10 text-amber-400 rounded-lg mt-0.5">
+                    <i class="fa-solid fa-arrows-split-up-and-left text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="font-bold text-sm text-white flex items-center gap-2">
+                        Infrastructure Failover Simulator
+                        <span class="text-xs font-normal text-slate-400">(Simulate hazard blocking primary facility or route)</span>
+                    </h2>
+                    <p class="text-xs text-slate-300 mt-0.5">Toggle primary statuses to test dynamic fallback to secondary facilities and emergency broadcast updates.</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="app.toggleFailover('command')" id="btnFailoverCommand" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-xl font-medium transition flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400" id="dotCommand"></span> Primary HQ
+                </button>
+                <button onclick="app.toggleFailover('hub')" id="btnFailoverHub" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-xl font-medium transition flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400" id="dotHub"></span> Primary Refuge
+                </button>
+                <button onclick="app.toggleFailover('route')" id="btnFailoverRoute" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-xl font-medium transition flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400" id="dotRoute"></span> Primary Route
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto pb-1">
+            <div class="flex space-x-2 border-b border-slate-800 min-w-max pb-2" id="eventNav">
+                <button onclick="app.switchEvent('wildfire')" id="tab-wildfire" class="event-tab active bg-red-950/40 text-red-400 border-red-500 px-4 py-2.5 rounded-xl text-xs font-bold border border-slate-700 transition flex items-center gap-2">
+                    <i class="fa-solid fa-fire text-red-500"></i> Wildfire Action Plan
+                </button>
+                <button onclick="app.switchEvent('urbanfire')" id="tab-urbanfire" class="event-tab text-slate-400 hover:text-white hover:bg-slate-800 border-transparent px-4 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-2">
+                    <i class="fa-solid fa-building-fire text-orange-400"></i> Urban Fire Plan
+                </button>
+                <button onclick="app.switchEvent('flood')" id="tab-flood" class="event-tab text-slate-400 hover:text-white hover:bg-slate-800 border-transparent px-4 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-2">
+                    <i class="fa-solid fa-water text-cyan-400"></i> Flood & Surge Plan
+                </button>
+                <button onclick="app.switchEvent('power')" id="tab-power" class="event-tab text-slate-400 hover:text-white hover:bg-slate-800 border-transparent px-4 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-2">
+                    <i class="fa-solid fa-bolt text-amber-400"></i> Power Outage Plan
+                </button>
+                <button onclick="app.switchEvent('drought')" id="tab-drought" class="event-tab text-slate-400 hover:text-white hover:bg-slate-800 border-transparent px-4 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-2">
+                    <i class="fa-solid fa-faucet-drip text-blue-400"></i> Water Shortage & Drought
+                </button>
+                <button onclick="app.switchEvent('unrest')" id="tab-unrest" class="event-tab text-slate-400 hover:text-white hover:bg-slate-800 border-transparent px-4 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-2">
+                    <i class="fa-solid fa-shield-cat text-purple-400"></i> Civil Unrest Plan
+                </button>
+                <button onclick="app.switchEvent('defence')" id="tab-defence" class="event-tab text-slate-400 hover:text-white hover:bg-slate-800 border-transparent px-4 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-2">
+                    <i class="fa-solid fa-person-military-rifle text-emerald-400"></i> Civil Defence Plan
+                </button>
+                <button onclick="app.switchEvent('submission')" id="tab-submission" class="event-tab text-amber-300 bg-amber-500/10 border-amber-500/50 px-4 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-contract"></i> Living Master Plan View
+                </button>
+            </div>
+        </div>
+
+        <div id="priorityBanner" class="glass-panel rounded-2xl p-5 border border-slate-700/80 space-y-3">
+            <div class="flex justify-between items-center border-b border-slate-700/60 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <span id="bannerBadge" class="bg-red-500/20 text-red-400 text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider">ANNEX A</span>
+                    <h3 id="bannerTitle" class="font-black text-base text-white">Rural Wildfire Action Plan</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-amber-400 font-semibold bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20"><i class="fa-solid fa-pen-to-square"></i> Priorities Editable</span>
+                    <button onclick="app.openBroadcastModal()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-bullhorn"></i> Test Broadcast Payload
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="priorityCards">
+                <!-- Priority 1 Card -->
+                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-700/60 space-y-2">
+                    <span class="text-[10px] font-black uppercase text-red-400 tracking-wider flex items-center gap-1">
+                        <i class="fa-solid fa-1"></i> Critical Priority #1
+                    </span>
+                    <input type="text" id="p1Title" oninput="app.savePriority('p1', 'title', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold focus:border-amber-400 outline-none" placeholder="Priority #1 Title">
+                    <textarea id="p1Desc" oninput="app.savePriority('p1', 'desc', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-300 resize-none h-16 focus:border-amber-400 outline-none" placeholder="Priority #1 Operational Instructions"></textarea>
+                </div>
+
+                <!-- Priority 2 Card -->
+                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-700/60 space-y-2">
+                    <span class="text-[10px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-1">
+                        <i class="fa-solid fa-2"></i> Critical Priority #2
+                    </span>
+                    <input type="text" id="p2Title" oninput="app.savePriority('p2', 'title', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold focus:border-amber-400 outline-none" placeholder="Priority #2 Title">
+                    <textarea id="p2Desc" oninput="app.savePriority('p2', 'desc', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-300 resize-none h-16 focus:border-amber-400 outline-none" placeholder="Priority #2 Operational Instructions"></textarea>
+                </div>
+
+                <!-- Priority 3 Card -->
+                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-700/60 space-y-2">
+                    <span class="text-[10px] font-black uppercase text-cyan-400 tracking-wider flex items-center gap-1">
+                        <i class="fa-solid fa-3"></i> Critical Priority #3
+                    </span>
+                    <input type="text" id="p3Title" oninput="app.savePriority('p3', 'title', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold focus:border-amber-400 outline-none" placeholder="Priority #3 Title">
+                    <textarea id="p3Desc" oninput="app.savePriority('p3', 'desc', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-300 resize-none h-16 focus:border-amber-400 outline-none" placeholder="Priority #3 Operational Instructions"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div id="eventFormsContainer" class="space-y-6">
+
+            <!-- EVENT 1: WILDFIRE FORM -->
+            <div id="form-wildfire" class="event-form space-y-6">
+                <!-- Location & Environmental Hazard Controls -->
+                <div class="glass-panel rounded-2xl p-5 space-y-4">
+                    <h3 class="font-bold text-sm text-white flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                        <i class="fa-solid fa-tree text-emerald-400"></i> Environmental Fuel Profile & Escapes
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2 space-y-1">
+                            <label class="text-xs font-bold text-slate-300">High-Risk Vegetation Fuel Belt</label>
+                            <input type="text" id="wf_fuels" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. Anagach Pinewoods (1000ha mature Scots Pine) & Estate Moorlands">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Prevailing Wind Threat Corridor</label>
+                            <input type="text" id="wf_wind" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. East / South-East pinewoods towards town">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <!-- Primary Escape Road -->
+                        <div id="boxPrimaryEscape" class="glass-card p-4 rounded-xl border border-slate-700 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-extrabold text-emerald-400">PRIMARY ESCAPE HIGHWAY</span>
+                                <span id="badgePrimaryEscape" class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">CLEAR</span>
+                            </div>
+                            <input type="text" id="wf_escape_primary" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold" placeholder="e.g. A95 Northbound towards Aviemore / A9">
+                        </div>
+
+                        <!-- Secondary Escape Road -->
+                        <div id="boxSecondaryEscape" class="glass-card p-4 rounded-xl border border-slate-700 space-y-2 bg-slate-900/40">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-extrabold text-amber-400">SECONDARY FAILOVER HIGHWAY</span>
+                                <span id="badgeSecondaryEscape" class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold">STANDBY</span>
+                            </div>
+                            <input type="text" id="wf_escape_secondary" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold" placeholder="e.g. A939 towards Nairn (Clear of pine belt)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Water & Agricultural Infrastructure -->
+                <div class="glass-panel rounded-2xl p-5 space-y-4">
+                    <h3 class="font-bold text-sm text-white flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                        <i class="fa-solid fa-droplet text-cyan-400"></i> SFRS Hydrants, Open Water & Livestock
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">SFRS Water Hydrant Locations</label>
+                            <input type="text" id="wf_hydrants" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="High Street / The Square main hydrants">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Open Water Draw Point (Tenders)</label>
+                            <input type="text" id="wf_water" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="River Spey access at old Spey bridge hardstanding">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Livestock Holding Grounds</label>
+                            <input type="text" id="wf_livestock" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="Spey Valley Showgrounds Field 4">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EVENT 2: URBAN FIRE FORM -->
+            <div id="form-urbanfire" class="event-form hidden space-y-6">
+                <div class="glass-panel rounded-2xl p-5 space-y-4">
+                    <h3 class="font-bold text-sm text-white flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                        <i class="fa-solid fa-building-circle-exclamation text-orange-400"></i> Structural Risk & Cordon Clearance
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2 space-y-1">
+                            <label class="text-xs font-bold text-slate-300">High-Risk Structural Blocks / Tenements</label>
+                            <input type="text" id="uf_risk_blocks" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="High Street Historic Tenements, Timber Hotels, Fuel Depot">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Volunteer Cordon Distance (Metres)</label>
+                            <input type="number" id="uf_cordon_dist" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="150">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Traffic Bypass Route for Appliances</label>
+                            <input type="text" id="uf_bypass_route" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="Bypass via Castle Grant estate road & Seafield avenue">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Temporary Short-Term Warmth Assembly</label>
+                            <input type="text" id="uf_warmth_hub" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="RBLS Legion Main Hall / Strathspey Church Hall">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EVENT 3: FLOOD & SURGE FORM -->
+            <div id="form-flood" class="event-form hidden space-y-6">
+                <div class="glass-panel rounded-2xl p-5 space-y-4">
+                    <h3 class="font-bold text-sm text-white flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                        <i class="fa-solid fa-water text-cyan-400"></i> SEPA Flood Target & Sandbag Mitigation
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Primary Watercourse Threat</label>
+                            <input type="text" id="fl_river" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="River Spey & Kylintra Burn spate">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">SEPA Target Flood Warning Area Name & Code</label>
+                            <input type="text" id="fl_sepa_code" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="Speyside - Grantown Flood Warning Zone (023314)">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Sandbag Depot Location</label>
+                            <input type="text" id="fl_sandbag_loc" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="Council Depot, Burnfield Car Park">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Sandbag Depot Keyholder Contact</label>
+                            <input type="text" id="fl_sandbag_tel" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="07700 900888 (Highland Roads Team)">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">High Ground Evacuation Refuge</label>
+                            <input type="text" id="fl_high_ground" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="Grantown Grammar School (Above 220m contour line)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EVENT 4: POWER OUTAGE FORM -->
+            <div id="form-power" class="event-form hidden space-y-6">
+                <div class="glass-panel rounded-2xl p-5 space-y-4">
+                    <h3 class="font-bold text-sm text-white flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                        <i class="fa-solid fa-bolt text-amber-400"></i> Warm Space & Auxiliary Power Activation
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Outage Trigger Threshold (Hours)</label>
+                            <input type="number" id="po_trigger_hrs" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="4">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Warm Space Canteen Operating Hours</label>
+                            <input type="text" id="po_warm_hours" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="08:00 - 22:00 Daily">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Off-Grid PMR446 Radio Channel / Mast</label>
+                            <input type="text" id="po_radio_repeater" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="Anagach Hill Mast / PMR446 Channel 7 Sub 11">
+                        </div>
+                    </div>
+
+                    <div class="space-y-1 pt-2">
+                        <label class="text-xs font-bold text-slate-300">Generator & Charging Bank Specifications</label>
+                        <input type="text" id="po_generator_specs" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="25kVA Dual-Fuel Diesel Generator (Powers Canteen, Heat & Phone Charging Banks)">
+                    </div>
+                </div>
+            </div>
+
+            <!-- EVENT 5: WATER SHORTAGE & DROUGHT FORM -->
+            <div id="form-drought" class="event-form hidden space-y-6">
+                <div class="glass-panel rounded-2xl p-5 space-y-4">
+                    <h3 class="font-bold text-sm text-white flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                        <i class="fa-solid fa-faucet-drip text-blue-400"></i> Rural Private Water Supplies (PWS) & Tanker Bowsers
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Properties on Private Water Supplies (PWS)</label>
+                            <input type="text" id="dr_pws_count" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 120 Rural Steadings (Hill Springs / Wells Dried Up)">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Scottish Water Tanker Refill Bowser Location</label>
+                            <input type="text" id="dr_bowser_loc" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. Burnfield Car Park (Heavy Tanker Access)">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Tanker Standpipe & Coupling Specs</label>
+                            <input type="text" id="dr_hose_type" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 2.5 Inch Storz & Scottish Water Instantaneous">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Potable Bottled Water Rationing Hub</label>
+                            <input type="text" id="dr_bottled_hub" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="RBLS Legion Main Hall (10L Containers per Household/Day)">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Agricultural & Livestock Trough Supply Point</label>
+                            <input type="text" id="dr_livestock_water" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="Spey Valley Showgrounds 5000L Mobile Bowser Tank">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EVENT 6: CIVIL UNREST FORM -->
+            <div id="form-unrest" class="event-form hidden space-y-6">
+                <div class="glass-panel rounded-2xl p-5 space-y-4">
+                    <h3 class="font-bold text-sm text-white flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                        <i class="fa-solid fa-shield-cat text-purple-400"></i> Police Liaison & Avoidance Perimeter
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Affected Sector / Avoidance Perimeter</label>
+                            <input type="text" id="cu_avoid_area" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="High Street / Town Square Central Core">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Police Scotland Control Liaison Contact</label>
+                            <input type="text" id="cu_police_liaison" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="Police Scotland Control Desk 101 / Local Duty Inspector">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EVENT 7: CIVIL DEFENCE FORM -->
+            <div id="form-defence" class="event-form hidden space-y-6">
+                <div class="glass-panel rounded-2xl p-5 space-y-4">
+                    <h3 class="font-bold text-sm text-white flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                        <i class="fa-solid fa-person-military-rifle text-emerald-400"></i> Self-Sufficiency Rations & Subterranean Shelters
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Emergency Potable Water Borehole / Spring</label>
+                            <input type="text" id="cd_water_spring" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="Castle Grant Estate Spring Borehole Tank 1">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-300">Reinforced Subterranean Shelter Location</label>
+                            <input type="text" id="cd_shelter_loc" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="Grantown Grammar School Reinforced Basement Complex">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MASTER FULL SUBMISSION VIEW TAB -->
+            <div id="form-submission" class="event-form hidden space-y-6">
+                <div class="glass-panel rounded-2xl p-6 space-y-4 border border-amber-500/40">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <div>
+                            <span class="bg-amber-500/20 text-amber-300 text-[10px] font-black px-2.5 py-1 rounded-full uppercase">Submission Output</span>
+                            <h3 class="font-black text-lg text-white mt-1">Living Emergency Action Plan</h3>
+                        </div>
+                        <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-white px-3.5 py-2 rounded-xl transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-print"></i> Print Living Document
+                        </button>
+                    </div>
+
+                    <div id="livingPlanPreview" class="bg-slate-950 p-6 rounded-2xl border border-slate-800 text-xs text-slate-300 font-mono leading-relaxed space-y-4 overflow-y-auto max-h-[600px]">
+                        <!-- Dynamic output compiled here -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="timelineContainer" class="glass-panel rounded-2xl p-5 space-y-4">
+            <h3 class="font-bold text-sm text-white flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Event-Specific Operational Timeline (0–6 Hours)
+                </span>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"><i class="fa-solid fa-pen-to-square"></i> Timeline Steps Editable</span>
+                    <span id="timelineEventLabel" class="text-xs bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded border border-slate-700">Wildfire Response</span>
+                </div>
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs" id="timelineCards">
+                <!-- T+0m -->
+                <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-700 space-y-2">
+                    <span class="font-black text-red-400">T+00 Minutes</span>
+                    <input type="text" id="t0Title" oninput="app.saveTimeline('t0', 'title', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white font-bold focus:border-amber-400 outline-none" placeholder="T+00 Action Title">
+                    <textarea id="t0Desc" oninput="app.saveTimeline('t0', 'desc', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-slate-300 resize-none h-16 focus:border-amber-400 outline-none" placeholder="T+00 Instructions"></textarea>
+                </div>
+
+                <!-- T+15m -->
+                <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-700 space-y-2">
+                    <span class="font-black text-amber-400">T+15 Minutes</span>
+                    <input type="text" id="t15Title" oninput="app.saveTimeline('t15', 'title', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white font-bold focus:border-amber-400 outline-none" placeholder="T+15 Action Title">
+                    <textarea id="t15Desc" oninput="app.saveTimeline('t15', 'desc', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-slate-300 resize-none h-16 focus:border-amber-400 outline-none" placeholder="T+15 Instructions"></textarea>
+                </div>
+
+                <!-- T+30m -->
+                <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-700 space-y-2">
+                    <span class="font-black text-cyan-400">T+30 Minutes</span>
+                    <input type="text" id="t30Title" oninput="app.saveTimeline('t30', 'title', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white font-bold focus:border-amber-400 outline-none" placeholder="T+30 Action Title">
+                    <textarea id="t30Desc" oninput="app.saveTimeline('t30', 'desc', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-slate-300 resize-none h-16 focus:border-amber-400 outline-none" placeholder="T+30 Instructions"></textarea>
+                </div>
+
+                <!-- T+60m -->
+                <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-700 space-y-2">
+                    <span class="font-black text-emerald-400">T+60 Minutes</span>
+                    <input type="text" id="t60Title" oninput="app.saveTimeline('t60', 'title', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white font-bold focus:border-amber-400 outline-none" placeholder="T+60 Action Title">
+                    <textarea id="t60Desc" oninput="app.saveTimeline('t60', 'desc', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-slate-300 resize-none h-16 focus:border-amber-400 outline-none" placeholder="T+60 Instructions"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW DEEP-DIVE SECTION 1: Community Skill, Asset & Equipment Inventory -->
+        <div class="glass-panel rounded-2xl p-5 space-y-4">
+            <h3 class="font-bold text-sm text-white flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-truck-monster text-amber-400"></i> Community Asset, Volunteer Equipment & Skill Register
+                </span>
+                <span class="text-xs text-slate-400">Capability Audit</span>
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">4x4 Vehicles & Winches Count</label>
+                    <input type="text" id="ast_4x4_count" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 14 Land Rovers / Pickups on Call">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Accredited Chainsaw Team Leads</label>
+                    <input type="text" id="ast_chainsaws" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 6 NPTC Certified Forestry Volunteers">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Mobile Diesel Generators (kVA)</label>
+                    <input type="text" id="ast_generators" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 1x 25kVA, 3x Honda 8kVA Portable">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Off-Grid PMR446 / HAM Operators</label>
+                    <input type="text" id="ast_radios" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 8 Licensed PMR446 Mesh Operators">
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW DEEP-DIVE SECTION 2: Heavy Agricultural Machinery & Estate Assets -->
+        <div class="glass-panel rounded-2xl p-5 space-y-4">
+            <h3 class="font-bold text-sm text-white flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-tractor text-emerald-400"></i> Heavy Agricultural & Estate Machinery Register (Outside-the-Box Firebreaks & Evac)
+                </span>
+                <span class="text-xs text-slate-400">Moorland & Firebreak Assets</span>
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Heavy Tractors w/ Mowers/Ploughs (Firebreaks)</label>
+                    <input type="text" id="ast_heavy_tractors" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 4x John Deere / Massey Tractors w/ Ploughs & Mowers (Castle Grant Estate)">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Argo-Cats, 8-Wheelers & Estate Quad Fleets</label>
+                    <input type="text" id="ast_argocats_quads" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 6x Argo-Cats & 10x Estate Quads w/ Tow Trailers for Moorland Evac">
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW DEEP-DIVE SECTION 3: Communications Redundancy & "Black Start" Comms -->
+        <div class="glass-panel rounded-2xl p-5 space-y-4">
+            <h3 class="font-bold text-sm text-white flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-walkie-talkie text-cyan-400"></i> Communications Redundancy & "Black Start" Comms
+                </span>
+                <span class="text-xs text-slate-400">Cellular Blackout Protocols</span>
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Off-Grid PMR446 Channels & HAM Radio Call Signs</label>
+                    <input type="text" id="comms_ham_pmr_freq" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. PMR446 Channel 7 / Sub 11 | HAM 2M Call Sign 2M0XYZ (145.500MHz)">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Physical Poster Drop Weatherproof Noticeboard Locations</label>
+                    <input type="text" id="comms_poster_noticeboards" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. Post Office Window, High Street Pharmacy Board, RBLS Outer Door, Village Hall Board">
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW DEEP-DIVE SECTION 4: Inter-Township Mutual Aid (Cluster Resilience) -->
+        <div class="glass-panel rounded-2xl p-5 space-y-4">
+            <h3 class="font-bold text-sm text-white flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-handshake-angle text-purple-400"></i> Inter-Township Mutual Aid & Cluster Resilience
+                </span>
+                <span class="text-xs text-slate-400">Neighboring Failover Links</span>
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Neighboring Township Cluster Partners</label>
+                    <input type="text" id="aid_neighbor_townships" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. Aviemore Community Hub & Kingussie & Badenoch Resilience Team">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Shared Emergency Resources & Bedding Failover Protocol</label>
+                    <input type="text" id="aid_shared_resources" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 5000L Mobile Bowser from Aviemore | 100x Camp Beds from Kingussie Hub">
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW DEEP-DIVE SECTION 5: Vulnerable Households & Medical Dependency Audit -->
+        <div class="glass-panel rounded-2xl p-5 space-y-4">
+            <h3 class="font-bold text-sm text-white flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-heart-pulse text-red-400"></i> Vulnerable Household Sector Audit (Anonymised Care Matrix)
+                </span>
+                <span class="text-xs text-slate-400">Door-to-Door Street Captain Register</span>
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Mains Oxygen / Stairlift Dependent Count</label>
+                    <input type="text" id="vul_oxygen_count" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 18 Oxygen Users across Sectors 1-4">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Infant Formula & Special Care Households</label>
+                    <input type="text" id="vul_infant_count" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. 12 Households requiring warm formula/diapers">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Emergency Prescription Pickup Hub</label>
+                    <input type="text" id="vul_pharmacy_hub" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. High Street Pharmacy / RBLS Command Desk">
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW DEEP-DIVE SECTION 6: Post-Event Recovery (T+24h to T+72h) -->
+        <div class="glass-panel rounded-2xl p-5 space-y-4">
+            <h3 class="font-bold text-sm text-white flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-kit-medical text-blue-400"></i> Post-Event Recovery & Psychological Welfare (T+24h to T+72h)
+                </span>
+                <span class="text-xs text-slate-400">Long-Term Relief Desk</span>
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Property Damage Photo Logging & Insurance Terminal</label>
+                    <input type="text" id="rec_damage_logging" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. Community App Photo Evidence Desk & RBLS Damage Assessment Terminal">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-300">Psychological Welfare & Temporary Housing Liaison Hub</label>
+                    <input type="text" id="rec_psych_housing_hub" oninput="app.updateData()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" placeholder="e.g. Strathspey Church Hall Recovery Desk (Highland Council Housing & NHS Mental Health)">
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-panel rounded-2xl p-5 space-y-4">
+            <h3 class="font-bold text-sm text-white flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-building-flag text-cyan-400"></i> Operational Facilities Configuration (Primary & Secondary Backups)
+                </span>
+                <span class="text-xs text-slate-400">Editable Infrastructure Directory</span>
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <!-- Command HQ Config (Primary & Secondary Inputs) -->
+                <div id="cardCommand" class="bg-slate-900/80 p-4 rounded-xl border border-slate-700 space-y-3">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                        <span class="font-extrabold uppercase text-xs text-slate-300">COMMAND POST (HQ) SETUP</span>
+                        <span id="badgeHQ" class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">PRIMARY OPERATIONAL</span>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <span class="text-[10px] font-bold text-emerald-400 uppercase">Primary Command HQ</span>
+                        <input type="text" id="primary_hq" oninput="app.updateData()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold" placeholder="Primary HQ Facility Name">
+                        <input type="text" id="primary_hq_addr" oninput="app.updateData()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-300" placeholder="Primary HQ Address">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="primary_hq_w3w" oninput="app.updateData()" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-amber-300 font-mono" placeholder="///What3Words">
+                            <input type="text" id="primary_hq_power" oninput="app.updateData()" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-300" placeholder="Power Source Specs">
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-slate-800/80">
+                        <span class="text-[10px] font-bold text-amber-400 uppercase">Secondary Failover HQ (If Primary Blocked)</span>
+                        <input type="text" id="secondary_hq" oninput="app.updateData()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold" placeholder="Secondary Backup HQ Name">
+                        <input type="text" id="secondary_hq_addr" oninput="app.updateData()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-300" placeholder="Secondary HQ Address">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="secondary_hq_w3w" oninput="app.updateData()" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-amber-300 font-mono" placeholder="///What3Words">
+                            <input type="text" id="secondary_hq_power" oninput="app.updateData()" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-300" placeholder="Backup Generator Specs">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evacuation Refuge Hub Config (Primary & Secondary Inputs) -->
+                <div id="cardHub" class="bg-slate-900/80 p-4 rounded-xl border border-slate-700 space-y-3">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                        <span class="font-extrabold uppercase text-xs text-slate-300">EVACUATION REFUGE HUB SETUP</span>
+                        <span id="badgeHub" class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">PRIMARY OPERATIONAL</span>
+                    </div>
+
+                    <div class="space-y-2">
+                        <span class="text-[10px] font-bold text-emerald-400 uppercase">Primary Evacuation Refuge</span>
+                        <input type="text" id="primary_hub" oninput="app.updateData()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold" placeholder="Primary Refuge Hub Name">
+                        <input type="text" id="primary_hub_addr" oninput="app.updateData()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-300" placeholder="Primary Refuge Address">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="primary_hub_w3w" oninput="app.updateData()" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-amber-300 font-mono" placeholder="///What3Words">
+                            <input type="text" id="primary_hub_cap" oninput="app.updateData()" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-300" placeholder="Capacity (e.g. 600 Persons)">
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-slate-800/80">
+                        <span class="text-[10px] font-bold text-amber-400 uppercase">Secondary Failover Refuge (If Primary Blocked)</span>
+                        <input type="text" id="secondary_hub" oninput="app.updateData()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold" placeholder="Secondary Refuge Name">
+                        <input type="text" id="secondary_hub_addr" oninput="app.updateData()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-300" placeholder="Secondary Refuge Address">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="secondary_hub_w3w" oninput="app.updateData()" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-amber-300 font-mono" placeholder="///What3Words">
+                            <input type="text" id="secondary_hub_cap" oninput="app.updateData()" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-300" placeholder="Backup Capacity (e.g. 350 Persons)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="broadcastModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div class="bg-slate-900 border-2 border-slate-700 w-full max-w-lg rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                    <span id="modalLevelBadge" class="bg-red-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase">Level 3 Emergency</span>
+                    <span class="text-xs text-slate-400 font-mono">Priority Broadcast Payload</span>
+                </div>
+                <button onclick="app.closeBroadcastModal()" class="text-slate-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="modalCard" class="bg-slate-950 border border-red-500/50 rounded-2xl p-5 space-y-3">
+                <div class="flex items-center gap-3">
+                    <div id="modalIcon" class="text-3xl text-red-500">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h4 id="modalTitle" class="font-extrabold text-sm text-white">EVENT ALERT BROADCAST</h4>
+                        <p id="modalTownship" class="text-xs text-slate-400">Jurisdiction: Grantown-on-Spey</p>
+                    </div>
+                </div>
+                <div id="modalBody" class="text-xs text-slate-200 leading-relaxed font-mono bg-slate-900 p-3 rounded-xl border border-slate-800 whitespace-pre-line">
+                    <!-- Dynamic Text Injected Here -->
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-2">
+                <span class="text-[10px] text-slate-500">Auto-Cached to Residents' Smartphones</span>
+                <button onclick="app.closeBroadcastModal()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-5 py-2 rounded-xl">
+                    Acknowledge Payload
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="glass-panel border-t border-slate-800 py-6 text-center text-xs text-slate-500 mt-8">
+        <div class="max-w-7xl mx-auto px-4">
+            <p class="font-bold text-slate-400 mb-1">Community Action Plan Digitiser Engine</p>
+            <p>© 2026 Ready Scotland & Highland Resilience Partnership Compliant Framework.</p>
+        </div>
+    </footer>
+
+    <script>
+        const app = {
+            currentEvent: 'wildfire',
+            currentTownship: 'grantown',
+            failovers: {
+                command: false,
+                hub: false,
+                route: false
+            },
+
+            // Township Presets Data
+            data: {
+                grantown: {
+                    township_name: "Grantown-on-Spey & Strathspey Communities",
+                    primary_hq: "Royal British Legion Scotland Strathspey",
+                    primary_hq_addr: "The Square, Grantown-on-Spey, PH26 3HG",
+                    primary_hq_w3w: "///unravel.baffled.skirt",
+                    primary_hq_power: "20kVA Dual-Fuel Generator",
+
+                    secondary_hq: "Strathspey YMCA Community Centre",
+                    secondary_hq_addr: "High Street, Grantown-on-Spey",
+                    secondary_hq_w3w: "///sofa.gliding.paving",
+                    secondary_hq_power: "Solar Battery Storage + Honda 8kVA",
+
+                    primary_hub: "Grantown Grammar School",
+                    primary_hub_addr: "Cromdale Road, Grantown-on-Spey, PH26 3HU",
+                    primary_hub_w3w: "///fading.strikers.blotted",
+                    primary_hub_cap: "600 Persons",
+
+                    secondary_hub: "Grantown Primary School",
+                    secondary_hub_addr: "South Street, Grantown-on-Spey",
+                    secondary_hub_w3w: "///subtle.crisps.shuffled",
+                    secondary_hub_cap: "350 Persons",
+
+                    // Assets
+                    ast_4x4_count: "14 Land Rovers / Pickups on Call",
+                    ast_chainsaws: "6 NPTC Certified Forestry Volunteers",
+                    ast_generators: "1x 25kVA, 3x Honda 8kVA Portable",
+                    ast_radios: "8 Licensed PMR446 Mesh Operators",
+
+                    // Heavy Agricultural Machinery
+                    ast_heavy_tractors: "4x John Deere / Massey Tractors w/ Ploughs & Mowers (Castle Grant)",
+                    ast_argocats_quads: "6x Argo-Cats & 10x Estate Quads w/ Tow Trailers for Moorland Evac",
+
+                    // Comms Redundancy & Poster Noticeboards
+                    comms_ham_pmr_freq: "PMR446 Channel 7 / Sub 11 | HAM 2M Call Sign 2M0XYZ (145.500MHz)",
+                    comms_poster_noticeboards: "Post Office Window, High Street Pharmacy Board, RBLS Outer Door, Village Hall Board",
+
+                    // Inter-Township Cluster Aid
+                    aid_neighbor_townships: "Aviemore Community Hub & Kingussie & Badenoch Resilience Team",
+                    aid_shared_resources: "5000L Mobile Bowser from Aviemore | 100x Camp Beds from Kingussie Hub",
+
+                    // Vulnerable
+                    vul_oxygen_count: "18 Oxygen Users across Sectors 1-4",
+                    vul_infant_count: "12 Households requiring warm formula/diapers",
+                    vul_pharmacy_hub: "High Street Pharmacy / RBLS Command Desk",
+
+                    // Post-Event Recovery
+                    rec_damage_logging: "Community App Photo Evidence Desk & RBLS Damage Assessment Terminal",
+                    rec_psych_housing_hub: "Strathspey Church Hall Recovery Desk (Highland Council Housing & NHS Mental Health)",
+
+                    // Wildfire
+                    wf_fuels: "Anagach Pinewoods (1000ha Scots Pine) & Estate Moorlands",
+                    wf_wind: "East / South-East pinewoods towards town",
+                    wf_escape_primary: "A95 Northbound towards Aviemore / A9",
+                    wf_escape_secondary: "A939 towards Nairn (Clear of pine belt)",
+                    wf_hydrants: "High Street hydrants (SEPA/Scottish Water Ref: H-402)",
+                    wf_water: "River Spey access at old Spey bridge hardstanding",
+                    wf_livestock: "Spey Valley Showgrounds Field 4",
+
+                    // Urban Fire
+                    uf_risk_blocks: "High Street Historic Tenements, Timber Hotels, Fuel Depot",
+                    uf_cordon_dist: "150",
+                    uf_bypass_route: "Bypass via Castle Grant estate road & Seafield avenue",
+                    uf_warmth_hub: "RBLS Legion Main Hall / Strathspey Church Hall",
+
+                    // Flood
+                    fl_river: "River Spey & Kylintra Burn spate",
+                    fl_sepa_code: "Speyside - Grantown Flood Warning Zone (023314)",
+                    fl_sandbag_loc: "Council Depot, Burnfield Car Park",
+                    fl_sandbag_tel: "07700 900888 (Highland Roads Team)",
+                    fl_high_ground: "Grantown Grammar School (Above 220m contour line)",
+
+                    // Power
+                    po_trigger_hrs: "4",
+                    po_warm_hours: "08:00 - 22:00 Daily",
+                    po_radio_repeater: "Anagach Hill Mast / PMR446 Channel 7 Sub 11",
+                    po_generator_specs: "25kVA Dual-Fuel Diesel Generator (Canteen, Heat & Phone Charging)",
+
+                    // Drought (Water Shortage)
+                    dr_pws_count: "120 Rural Steadings (Hill Springs / Wells Dried Up)",
+                    dr_bowser_loc: "Burnfield Car Park (Heavy Tanker Access)",
+                    dr_hose_type: "2.5 Inch Storz & Scottish Water Instantaneous",
+                    dr_bottled_hub: "RBLS Legion Main Hall (10L Containers per Household/Day)",
+                    dr_livestock_water: "Spey Valley Showgrounds 5000L Mobile Bowser Tank",
+
+                    // Civil Unrest
+                    cu_avoid_area: "High Street / Town Square Central Core",
+                    cu_police_liaison: "Police Scotland Control Desk 101 / Local Duty Inspector",
+
+                    // Civil Defence
+                    cd_water_spring: "Castle Grant Estate Spring Borehole Tank 1",
+                    cd_shelter_loc: "Grantown Grammar School Reinforced Basement Complex"
+                }
+            },
+
+            // Priorities Meta for each hazard event
+            eventMeta: {
+                wildfire: {
+                    badge: "ANNEX A: WILDFIRE",
+                    title: "Rural Wildfire Emergency Action Plan",
+                    label: "Wildfire Response Priorities",
+                    p1: { title: "Life Preservation & Fast Evacuation", desc: "Secure life corridors clear of pinewood/gorse smoke plumes before roads become impassable." },
+                    p2: { title: "SFRS Open Water & Hydrant Access", desc: "Provide emergency water tender hardstanding and open river draw points for Scottish Fire & Rescue." },
+                    p3: { title: "Livestock & Pet Holding Paddocks", desc: "Coordinate safe holding pens clear of Eastern pine belt fuel loads for domestic pets and agricultural stock." },
+                    t0: { title: "Detection & Threat Verification", desc: "Verify fire sector, smoke plume trajectory, and prevailing wind direction toward town." },
+                    t15: { title: "Command HQ Setup", desc: "Activate Operations HQ at Legion. Establish radio contact with Fire Watch Commander." },
+                    t30: { title: "Refuge Hub Warmup", desc: "Keyholder opens Grammar School Refuge Hub. Warm up canteen and assembly halls." },
+                    t60: { title: "Red Broadcast & Street Captains", desc: "Issue Level 3 Red Evacuation Broadcast. Deploy Street Captains for vulnerable residents." }
+                },
+                urbanfire: {
+                    badge: "ANNEX B: URBAN FIRE",
+                    title: "Urban & Structural Fire Action Plan",
+                    label: "Structural Fire Priorities",
+                    p1: { title: "Safety Perimeter Cordon (150m)", desc: "Establish volunteer cordons to keep narrow High Street corridors clear for SFRS Aerial Appliances." },
+                    p2: { title: "Gas (SGN) & Power (SSEN) Isolation", desc: "Request rapid emergency isolation of gas mains and high-voltage power lines along affected sector." },
+                    p3: { title: "Displaced Resident Headcount & Warmth", desc: "Direct displaced tenement residents immediately to temporary warmth hub for headcount and triage." },
+                    t0: { title: "Structural Alarm Sight", desc: "SFRS on scene. Establish 150m perimeter around High Street tenements." },
+                    t15: { title: "Traffic Bypass Activation", desc: "Divert all town traffic via Castle Grant estate road to prevent congestion." },
+                    t30: { title: "Short-Term Assembly Point Open", desc: "Open Legion Hall / Church Hall for temporary shelter and hot drinks." },
+                    t60: { title: "Utility Isolation Verification", desc: "Confirm SGN and SSEN gas/power isolations for damaged buildings." }
+                },
+                flood: {
+                    badge: "ANNEX C: FLOOD & SURGE",
+                    title: "Flood & Coastal Storm Surge Plan",
+                    label: "Flood Mitigation Priorities",
+                    p1: { title: "Sandbag Staging & Vulnerable Doorstep Delivery", desc: "Mobilise community depot sandbags directly to vulnerable households on flood plain register." },
+                    p2: { title: "Critical Culvert & Drain Clearance", desc: "Deploy volunteer teams to clear Kylintra Burn inlet grates and High Street storm drains prior to peak spate." },
+                    p3: { title: "STRICT Zero Water Entry Mandate", desc: "Strictly enforce land-based operations; no community volunteers enter swift-flowing floodwater." },
+                    t0: { title: "SEPA Warning Received", desc: "Alert keyholders. Inspect Kylintra Burn and Spey water gauges." },
+                    t15: { title: "Sandbag Depot Open", desc: "Open Burnfield Council Depot. Begin filling and staging sandbags." },
+                    t30: { title: "Drain & Culvert Clearing", desc: "Clear debris from critical storm grates before river spate peaks." },
+                    t60: { title: "High Ground Relocation", desc: "Move residents from flood plain to Grammar School High Ground Refuge." }
+                },
+                power: {
+                    badge: "ANNEX D: POWER OUTAGE",
+                    title: "Power & Infrastructure Outage Plan",
+                    label: "Power Outage Priorities",
+                    p1: { title: "Resilience Warm Space Activation (>4 hrs)", desc: "Auto-start dual-fuel generator at Refuge Hub to power heating, canteen, and device charging banks." },
+                    p2: { title: "Off-Grid PMR446 Radio Mesh Deployment", desc: "Deploy off-grid radio operators to Anagach Hill mast to bridge comms with outlying farms." },
+                    p3: { title: "Medical Oxygen & Stairlift Welfare Checks", desc: "Street Captains conduct door-to-door checks on residents relying on powered medical apparatus." },
+                    t0: { title: "Grid Loss Assessment", desc: "Confirm SSEN priority outage scope and estimated restoration time." },
+                    t15: { title: "Generator Warmup", desc: "Check fuel levels and start 25kVA generator at Refuge Hub." },
+                    t30: { title: "Radio Mesh Online", desc: "Establish PMR446 Channel 7 comms between Command HQ and outlying sectors." },
+                    t60: { title: "Warm Space Open", desc: "Open canteen for hot soup, warming, and mobile phone charging." }
+                },
+                drought: {
+                    badge: "ANNEX E: WATER SHORTAGE & DROUGHT",
+                    title: "Water Shortage & Drought Action Plan",
+                    label: "Water Shortage Priorities",
+                    p1: { title: "Scottish Water Bowser Deployment & Hardstanding", desc: "Coordinate emergency water tanker bowser placement for properties with dried-up Private Water Supplies (PWS)." },
+                    p2: { title: "Bottled Potable Water Distribution Hub", desc: "Establish RBLS Legion Hall as 10L container rationing point with 4x4 delivery runners for outlying farms." },
+                    p3: { title: "Agricultural Trough & Livestock Hydration", desc: "Deploy mobile 5000L bowsers to agricultural showground paddocks for livestock welfare." },
+                    t0: { title: "PWS Drying Alert Received", desc: "Identify dried-up hill springs; request Scottish Water Tanker Bowser deployment." },
+                    t15: { title: "Bowser Hardstanding Clear", desc: "Clear Burnfield car park for heavy tanker bowser hookup and 2.5'' Storz couplings." },
+                    t30: { title: "Rationing Hub Open", desc: "Open Legion Hall for 10L bottled water distribution to PWS residents." },
+                    t60: { title: "4x4 Farm Delivery Runners Active", desc: "Dispatch 4x4 teams to deliver bottled water to isolated elderly residents." }
+                },
+                unrest: {
+                    badge: "ANNEX F: CIVIL UNREST",
+                    title: "Major Crime & Civil Unrest Plan",
+                    label: "Public Safety Priorities",
+                    p1: { title: "Police Scotland Tactical Command Conduit", desc: "Act strictly as official information conduit cross-referenced with Police Media Office." },
+                    p2: { title: "Sector Avoidance Perimeter Broadcasting", desc: "Issue Urgent App Broadcasts instructing residents to avoid central core and stay indoors." },
+                    p3: { title: "Refuge & Command Facility Lockdown", desc: "Secure all community facilities to prevent vandalism, unauthorized entry, or crowd intrusion." },
+                    t0: { title: "Incident Notification", desc: "Establish direct line with Police Scotland Control Desk 101." },
+                    t15: { title: "Avoidance Broadcast", desc: "Send Urgent Broadcast advising residents to avoid Town Square." },
+                    t30: { title: "Facility Lockdown", desc: "Lock down Grammar School and Command Post facilities." },
+                    t60: { title: "Verified Comms Sync", desc: "Publish verified updates strictly sourced from Police Scotland." }
+                },
+                defence: {
+                    badge: "ANNEX G: CIVIL DEFENCE",
+                    title: "Civil Defence & National Emergency Plan",
+                    label: "State Crisis Priorities",
+                    p1: { title: "Potable Spring / Borehole Water Security", desc: "Secure Castle Grant estate spring water borehole and deploy community water bowsers." },
+                    p2: { title: "Rations & Essential Supply Distribution", desc: "Transition Refuge Hub into Community Distribution Centre for emergency food parcels." },
+                    p3: { title: "Subterranean Shelter Access Verification", desc: "Prepare reinforced basement shelter complexes for state-level emergency disruption." },
+                    t0: { title: "State Alert Received", desc: "COBR / SGRR national emergency protocol activated." },
+                    t15: { title: "Water Spring Access", desc: "Inspect borehole water pumps and deploy community bowsers." },
+                    t30: { title: "Distribution Hub Setup", desc: "Convert Grammar School into emergency food and medicine hub." },
+                    t60: { title: "Shelter Clearance", desc: "Unlock and inspect subterranean shelter spaces." }
+                }
+            },
+
+            init: function() {
+                this.loadFormData();
+                this.updateUI();
+            },
+
+            switchTownship: function(val) {
+                this.currentTownship = val;
+                this.loadFormData();
+                this.updateUI();
+            },
+
+            switchEvent: function(evt) {
+                this.currentEvent = evt;
+                
+                // Active tab class styling
+                document.querySelectorAll('.event-tab').forEach(t => {
+                    t.classList.remove('active', 'bg-red-950/40', 'text-red-400', 'border-red-500', 'bg-slate-800');
+                    t.classList.add('text-slate-400', 'border-transparent');
+                });
+
+                const activeTab = document.getElementById(`tab-${evt}`);
+                if (activeTab) {
+                    activeTab.classList.add('active', 'bg-red-950/40', 'text-red-400', 'border-red-500');
+                    activeTab.classList.remove('text-slate-400', 'border-transparent');
+                }
+
+                // Show corresponding form
+                document.querySelectorAll('.event-form').forEach(f => f.classList.add('hidden'));
+                const targetForm = document.getElementById(`form-${evt}`);
+                if (targetForm) targetForm.classList.remove('hidden');
+
+                this.updateUI();
+            },
+
+            loadFormData: function() {
+                const data = this.data[this.currentTownship] || this.data['grantown'];
+                Object.keys(data).forEach(key => {
+                    const el = document.getElementById(key);
+                    if (el) el.value = data[key];
+                });
+            },
+
+            updateData: function() {
+                if (this.currentEvent === 'submission') {
+                    this.renderLivingDocument();
+                }
+            },
+
+            savePriority: function(pKey, field, val) {
+                if (!this.eventMeta[this.currentEvent]) return;
+                this.eventMeta[this.currentEvent][pKey][field] = val;
+                if (this.currentEvent === 'submission') this.renderLivingDocument();
+            },
+
+            saveTimeline: function(tKey, field, val) {
+                if (!this.eventMeta[this.currentEvent]) return;
+                this.eventMeta[this.currentEvent][tKey][field] = val;
+                if (this.currentEvent === 'submission') this.renderLivingDocument();
+            },
+
+            toggleFailover: function(type) {
+                this.failovers[type] = !this.failovers[type];
+
+                // Command Failover Visuals
+                const dotCmd = document.getElementById('dotCommand');
+                const badgeHQ = document.getElementById('badgeHQ');
+
+                if (this.failovers.command) {
+                    dotCmd.classList.replace('bg-emerald-400', 'bg-red-500');
+                    badgeHQ.innerText = "FAILOVER ACTIVE";
+                    badgeHQ.classList.replace('bg-emerald-500/20', 'bg-amber-500/30');
+                    badgeHQ.classList.replace('text-emerald-300', 'text-amber-200');
+                } else {
+                    dotCmd.classList.replace('bg-red-500', 'bg-emerald-400');
+                    badgeHQ.innerText = "PRIMARY OPERATIONAL";
+                    badgeHQ.classList.replace('bg-amber-500/30', 'bg-emerald-500/20');
+                    badgeHQ.classList.replace('text-amber-200', 'text-emerald-300');
+                }
+
+                // Hub Failover Visuals
+                const dotHub = document.getElementById('dotHub');
+                const badgeHub = document.getElementById('badgeHub');
+
+                if (this.failovers.hub) {
+                    dotHub.classList.replace('bg-emerald-400', 'bg-red-500');
+                    badgeHub.innerText = "FAILOVER ACTIVE";
+                    badgeHub.classList.replace('bg-emerald-500/20', 'bg-amber-500/30');
+                    badgeHub.classList.replace('text-emerald-300', 'text-amber-200');
+                } else {
+                    dotHub.classList.replace('bg-red-500', 'bg-emerald-400');
+                    badgeHub.innerText = "PRIMARY OPERATIONAL";
+                    badgeHub.classList.replace('bg-amber-500/30', 'bg-emerald-500/20');
+                    badgeHub.classList.replace('text-amber-200', 'text-emerald-300');
+                }
+
+                // Route Failover Visuals
+                const dotRoute = document.getElementById('dotRoute');
+                const badgeEscape = document.getElementById('badgePrimaryEscape');
+                const badgeSecEscape = document.getElementById('badgeSecondaryEscape');
+
+                if (badgeEscape && badgeSecEscape) {
+                    if (this.failovers.route) {
+                        dotRoute.classList.replace('bg-emerald-400', 'bg-red-500');
+                        badgeEscape.innerText = "HAZARD BLOCKED";
+                        badgeEscape.classList.replace('bg-emerald-500/20', 'bg-red-500/30');
+                        badgeEscape.classList.replace('text-emerald-300', 'text-red-300');
+
+                        badgeSecEscape.innerText = "PRIMARY ESCAPE CORRIDOR";
+                        badgeSecEscape.classList.replace('bg-slate-800', 'bg-amber-500/30');
+                        badgeSecEscape.classList.replace('text-slate-400', 'text-amber-200');
+                    } else {
+                        dotRoute.classList.replace('bg-red-500', 'bg-emerald-400');
+                        badgeEscape.innerText = "CLEAR";
+                        badgeEscape.classList.replace('bg-red-500/30', 'bg-emerald-500/20');
+                        badgeEscape.classList.replace('text-red-300', 'text-emerald-300');
+
+                        badgeSecEscape.innerText = "STANDBY";
+                        badgeSecEscape.classList.replace('bg-amber-500/30', 'bg-slate-800');
+                        badgeSecEscape.classList.replace('text-amber-200', 'text-slate-400');
+                    }
+                }
+
+                if (this.currentEvent === 'submission') {
+                    this.renderLivingDocument();
+                }
+            },
+
+            getValue: function(id) {
+                const el = document.getElementById(id);
+                return (el && el.value.trim() !== '') ? el.value : `[${id.toUpperCase()}]`;
+            },
+
+            updateUI: function() {
+                if (this.currentEvent === 'submission') {
+                    this.renderLivingDocument();
+                    return;
+                }
+
+                const meta = this.eventMeta[this.currentEvent];
+                if (!meta) return;
+
+                document.getElementById('bannerBadge').innerText = meta.badge;
+                document.getElementById('bannerTitle').innerText = meta.title;
+                document.getElementById('timelineEventLabel').innerText = meta.label;
+
+                document.getElementById('p1Title').value = meta.p1.title;
+                document.getElementById('p1Desc').value = meta.p1.desc;
+
+                document.getElementById('p2Title').value = meta.p2.title;
+                document.getElementById('p2Desc').value = meta.p2.desc;
+
+                document.getElementById('p3Title').value = meta.p3.title;
+                document.getElementById('p3Desc').value = meta.p3.desc;
+
+                document.getElementById('t0Title').value = meta.t0.title;
+                document.getElementById('t0Desc').value = meta.t0.desc;
+
+                document.getElementById('t15Title').value = meta.t15.title;
+                document.getElementById('t15Desc').value = meta.t15.desc;
+
+                document.getElementById('t30Title').value = meta.t30.title;
+                document.getElementById('t30Desc').value = meta.t30.desc;
+
+                document.getElementById('t60Title').value = meta.t60.title;
+                document.getElementById('t60Desc').value = meta.t60.desc;
+            },
+
+            renderLivingDocument: function() {
+                const out = document.getElementById('livingPlanPreview');
+                if (!out) return;
+
+                const township = this.getValue('township_name');
+                let hq = this.getValue('primary_hq');
+                let hqAddr = this.getValue('primary_hq_addr');
+                let hqW3W = this.getValue('primary_hq_w3w');
+
+                if (this.failovers.command) {
+                    hq = `${this.getValue('secondary_hq')} [FAILOVER HQ ACTIVE]`;
+                    hqAddr = this.getValue('secondary_hq_addr');
+                    hqW3W = this.getValue('secondary_hq_w3w');
+                }
+
+                let hub = this.getValue('primary_hub');
+                let hubAddr = this.getValue('primary_hub_addr');
+                let hubW3W = this.getValue('primary_hub_w3w');
+
+                if (this.failovers.hub) {
+                    hub = `${this.getValue('secondary_hub')} [FAILOVER REFUGE ACTIVE]`;
+                    hubAddr = this.getValue('secondary_hub_addr');
+                    hubW3W = this.getValue('secondary_hub_w3w');
+                }
+
+                let road = this.getValue('wf_escape_primary');
+                if (this.failovers.route) {
+                    road = `${this.getValue('wf_escape_secondary')} [PRIMARY ROAD BLOCKED]`;
+                }
+
+                // Render all event priorities and timeline entries
+                let annexesHTML = '';
+                Object.keys(this.eventMeta).forEach(evtKey => {
+                    const m = this.eventMeta[evtKey];
+                    annexesHTML += `
+                    <div class="mt-3 pt-2 border-t border-slate-800">
+                        <h3 class="text-amber-400 font-bold uppercase text-xs">${m.badge}: ${m.title}</h3>
+                        <p class="text-slate-400 mt-1"><span class="text-white font-bold">1. ${m.p1.title}:</span> ${m.p1.desc}</p>
+                        <p class="text-slate-400"><span class="text-white font-bold">2. ${m.p2.title}:</span> ${m.p2.desc}</p>
+                        <p class="text-slate-400"><span class="text-white font-bold">3. ${m.p3.title}:</span> ${m.p3.desc}</p>
+                        <p class="text-slate-500 text-[11px] mt-1"><span class="text-slate-300 font-semibold">0-6h Timeline:</span> T+0m: ${m.t0.title} | T+15m: ${m.t15.title} | T+30m: ${m.t30.title} | T+60m: ${m.t60.title}</p>
+                    </div>`;
+                });
+
+                out.innerHTML = `
+<div class="border-b border-slate-800 pb-3 mb-4">
+    <h1 class="text-base font-black text-amber-400 uppercase">🚨 COMMUNITY EMERGENCY ACTION PLAN (LIVING MASTER DOCUMENT)</h1>
+    <p class="text-slate-400">Jurisdiction: <span class="text-white font-bold">${township}</span> | Statutory Civil Contingency Alignment</p>
+</div>
+
+<div class="space-y-4">
+    <div>
+        <h2 class="font-bold text-white uppercase text-xs text-red-400 border-b border-slate-800 pb-1">1. Active Facilities & Failover Infrastructure Status</h2>
+        <p class="mt-1"><span class="text-slate-500">Active Incident Command Post:</span> <span class="text-emerald-400 font-bold">${hq}</span> | Addr: ${hqAddr} | W3W: ${hqW3W}</p>
+        <p><span class="text-slate-500">Active Evacuation Refuge Hub:</span> <span class="text-emerald-400 font-bold">${hub}</span> | Addr: ${hubAddr} | W3W: ${hubW3W}</p>
+        <p><span class="text-slate-500">Active Evacuation Escape Route:</span> <span class="text-emerald-400 font-bold">${road}</span></p>
+    </div>
+
+    <div>
+        <h2 class="font-bold text-white uppercase text-xs text-red-400 border-b border-slate-800 pb-1 mt-3">2. Community Equipment, Agricultural Assets & Comms Redundancy</h2>
+        <p class="mt-1"><span class="text-slate-500">4x4 Vehicles & Winches:</span> ${this.getValue('ast_4x4_count')} | <span class="text-slate-500">Chainsaw Team:</span> ${this.getValue('ast_chainsaws')}</p>
+        <p><span class="text-slate-500">Heavy Firebreak Machinery:</span> ${this.getValue('ast_heavy_tractors')} | <span class="text-slate-500">Argo-Cats & Quads:</span> ${this.getValue('ast_argocats_quads')}</p>
+        <p><span class="text-slate-500">Black Start Comms & Call Signs:</span> ${this.getValue('comms_ham_pmr_freq')} | <span class="text-slate-500">Poster Noticeboards:</span> ${this.getValue('comms_poster_noticeboards')}</p>
+        <p><span class="text-slate-500">Inter-Township Cluster Aid:</span> Partners: ${this.getValue('aid_neighbor_townships')} | Shared Resources: ${this.getValue('aid_shared_resources')}</p>
+        <p><span class="text-slate-500">Generators:</span> ${this.getValue('ast_generators')} | <span class="text-slate-500">Off-Grid PMR Radios:</span> ${this.getValue('ast_radios')}</p>
+        <p><span class="text-slate-500">Vulnerable Oxygen/Stairlift Count:</span> ${this.getValue('vul_oxygen_count')} | <span class="text-slate-500">Infant Formula Care:</span> ${this.getValue('vul_infant_count')}</p>
+        <p><span class="text-slate-500">Emergency Pharmacy Hub:</span> ${this.getValue('vul_pharmacy_hub')} | <span class="text-slate-500">Damage Logging & Rehousing Desk:</span> ${this.getValue('rec_damage_logging')} / ${this.getValue('rec_psych_housing_hub')}</p>
+    </div>
+
+    <div>
+        <h2 class="font-bold text-white uppercase text-xs text-red-400 border-b border-slate-800 pb-1 mt-3">3. Event Priorities & Operational Protocols</h2>
+        ${annexesHTML}
+    </div>
+
+    <div>
+        <h2 class="font-bold text-white uppercase text-xs text-red-400 border-b border-slate-800 pb-1 mt-3">4. Local Hazard Specific Parameters</h2>
+        <p class="mt-1"><span class="text-slate-500">Wildfire Fuels & Wind:</span> ${this.getValue('wf_fuels')} | Prevailing: ${this.getValue('wf_wind')}</p>
+        <p><span class="text-slate-500">SFRS Water Sources:</span> Hydrants: ${this.getValue('wf_hydrants')} | River Access: ${this.getValue('wf_water')}</p>
+        <p><span class="text-slate-500">Urban Fire Risks:</span> Buildings: ${this.getValue('uf_risk_blocks')} | Safety Cordon: ${this.getValue('uf_cordon_dist')}m | Bypass: ${this.getValue('uf_bypass_route')}</p>
+        <p><span class="text-slate-500">Flood Warning Area:</span> Watercourse: ${this.getValue('fl_river')} | SEPA Code: ${this.getValue('fl_sepa_code')} | Sandbags: ${this.getValue('fl_sandbag_loc')}</p>
+        <p><span class="text-slate-500">Power Outage Threshold:</span> Trigger: ${this.getValue('po_trigger_hrs')} hrs | Generator Specs: ${this.getValue('po_generator_specs')} | Off-Grid Radio: ${this.getValue('po_radio_repeater')}</p>
+        <p><span class="text-slate-500">Water Shortage & Drought:</span> Properties on PWS: ${this.getValue('dr_pws_count')} | Scottish Water Bowser Point: ${this.getValue('dr_bowser_loc')} | Coupling: ${this.getValue('dr_hose_type')} | Bottled Water Hub: ${this.getValue('dr_bottled_hub')} | Livestock Water: ${this.getValue('dr_livestock_water')}</p>
+        <p><span class="text-slate-500">Civil Unrest Sector:</span> Avoidance Zone: ${this.getValue('cu_avoid_area')} | Police Liaison: ${this.getValue('cu_police_liaison')}</p>
+        <p><span class="text-slate-500">Civil Defence Facilities:</span> Potable Spring: ${this.getValue('cd_water_spring')} | Subterranean Shelter: ${this.getValue('cd_shelter_loc')}</p>
+    </div>
+</div>
+                `;
+            },
+
+            openBroadcastModal: function() {
+                const modal = document.getElementById('broadcastModal');
+                const title = document.getElementById('modalTitle');
+                const body = document.getElementById('modalBody');
+                const township = document.getElementById('modalTownship');
+
+                const townshipName = this.getValue('township_name');
+                township.innerText = `Jurisdiction: ${townshipName}`;
+
+                let hub = this.getValue('primary_hub');
+                if (this.failovers.hub) hub = `${this.getValue('secondary_hub')} [FAILOVER]`;
+
+                let road = this.getValue('wf_escape_primary');
+                if (this.failovers.route) road = `${this.getValue('wf_escape_secondary')} [SECONDARY BYPASS]`;
+
+                if (this.currentEvent === 'wildfire') {
+                    title.innerText = "WILDFIRE EMERGENCY EVACUATION";
+                    body.innerText = `[LEVEL 3 EMERGENCY BROADCAST]\n\n"WILDFIRE ALERT: Active fire threatening ${townshipName}.\n\nPrimary Escape Route: ${road}.\nEvacuating residents proceed to Refuge Hub: ${hub}.\nCommand Post operational at: ${this.getValue('primary_hq')}."`;
+                } else if (this.currentEvent === 'urbanfire') {
+                    title.innerText = "URBAN STRUCTURAL FIRE CORDON";
+                    body.innerText = `[LEVEL 3 EMERGENCY BROADCAST]\n\n"STRUCTURAL FIRE: Incident at ${this.getValue('uf_risk_blocks')}.\n\nSafety Cordon ${this.getValue('uf_cordon_dist')}m clear. Traffic divert via ${this.getValue('uf_bypass_route')}.\nWarmth assembly at ${this.getValue('uf_warmth_hub')}."`;
+                } else if (this.currentEvent === 'flood') {
+                    title.innerText = "SEPA FLOOD WARNING ALERT";
+                    body.innerText = `[LEVEL 2 URGENT BROADCAST]\n\n"FLOOD WARNING: Heavy spate on ${this.getValue('fl_river')}.\n\nSandbag depot active at ${this.getValue('fl_sandbag_loc')} (Keyholder: ${this.getValue('fl_sandbag_tel')}).\nHigh Ground Refuge at ${this.getValue('fl_high_ground')}."`;
+                } else if (this.currentEvent === 'power') {
+                    title.innerText = "POWER OUTAGE WARM SPACE";
+                    body.innerText = `[LEVEL 2 URGENT BROADCAST]\n\n"POWER OUTAGE EXCEEDS ${this.getValue('po_trigger_hrs')} HOURS.\n\nWarm Space active at ${hub} (${this.getValue('po_warm_hours')}).\nGenerator heating, canteen, and device charging operational."`;
+                } else if (this.currentEvent === 'drought') {
+                    title.innerText = "WATER SHORTAGE & BOTTLED WATER ALERT";
+                    body.innerText = `[LEVEL 2 URGENT BROADCAST]\n\n"WATER SHORTAGE ALERT: Private Water Supplies (PWS) dried up for ${this.getValue('dr_pws_count')}.\n\nScottish Water bowser hardstanding active at ${this.getValue('dr_bowser_loc')}.\nBottled water distribution point open at ${this.getValue('dr_bottled_hub')} (10L/person/day).\n4x4 delivery runners dispatched for vulnerable households."`;
+                } else if (this.currentEvent === 'unrest') {
+                    title.innerText = "PUBLIC SAFETY NOTICE";
+                    body.innerText = `[LEVEL 2 URGENT BROADCAST]\n\n"PUBLIC SAFETY ALERT: Avoid ${this.getValue('cu_avoid_area')}.\n\nResidents stay indoors. Official channel sync via Police Scotland Liaison ${this.getValue('cu_police_liaison')}."`;
+                } else if (this.currentEvent === 'defence') {
+                    title.innerText = "STATE EMERGENCY DISTRIBUTION";
+                    body.innerText = `[LEVEL 3 EMERGENCY BROADCAST]\n\n"STATE EMERGENCY: Distribution Hub active at ${hub}.\n\nPotable water spring active at ${this.getValue('cd_water_spring')}.\nSubterranean shelter ready at ${this.getValue('cd_shelter_loc')}."`;
+                }
+
+                modal.classList.remove('hidden');
+            },
+
+            closeBroadcastModal: function() {
+                document.getElementById('broadcastModal').classList.add('hidden');
+            },
+
+            exportPlan: function() {
+                this.switchEvent('submission');
+                setTimeout(() => {
+                    window.print();
+                }, 300);
+            }
+        };
+
+        // Initialize App on DOM Load
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>

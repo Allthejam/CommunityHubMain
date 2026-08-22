@@ -1,4 +1,3 @@
-
 'use client';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { doc, collection, query, where, limit } from 'firebase/firestore';
@@ -6,7 +5,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
-import { User as UserIcon, Bell, BellOff, Globe, Heart, BadgeHelp, Compass, MapPin, Home as HomeIcon, Hotel, Utensils, Ticket, ShoppingBag, Sparkles, Target } from 'lucide-react';
+import {
+  User as UserIcon,
+  Bell,
+  BellOff,
+  Globe,
+  Heart,
+  BadgeHelp,
+  Compass,
+  MapPin,
+  Home as HomeIcon,
+  Hotel,
+  Utensils,
+  Ticket,
+  ShoppingBag,
+  Sparkles,
+  Target,
+  Vote,
+  ShieldAlert,
+  AlertTriangle
+} from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -44,6 +62,13 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
   const effectiveCommunityName = activeCommunity?.name || (effectiveCommunityId === homeCommunityId ? homeCommunityName : 'Visiting Community');
   
   const isVisiting = Boolean(effectiveCommunityId && homeCommunityId && effectiveCommunityId !== homeCommunityId);
+
+  // Real-time Emergency Plan Subscription for Active Alert Status
+  const emergencyPlanRef = useMemoFirebase(() => {
+    if (!effectiveCommunityId || !firestore) return null;
+    return doc(firestore, `communities/${effectiveCommunityId}/emergency_plan/main`);
+  }, [effectiveCommunityId, firestore]);
+  const { data: emergencyPlan } = useDoc<any>(emergencyPlanRef);
 
   const pollsQuery = useMemoFirebase(() => {
     if (!effectiveCommunityId || !firestore) return null;
@@ -97,122 +122,105 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
     const result = await updateUserFavouriteCommunitiesAction({
         userId: user.uid,
         communityId: effectiveCommunityId,
-        isFavourited: !!isFavourited
+        isFavourited: !isFavourited
     });
     if (result.success) {
-        toast({ title: 'Favourites Updated' });
+        toast({
+            title: isFavourited ? 'Removed from Favourites' : 'Added to Favourites',
+            description: isFavourited ? `Removed ${effectiveCommunityName} from your favourite communities.` : `Added ${effectiveCommunityName} to your favourite communities.`
+        });
     } else {
-        toast({ title: 'Error', description: result.error, variant: 'destructive' });
+        toast({ title: 'Error', description: result.error || 'Failed to update favourites.', variant: 'destructive' });
     }
   };
 
   const handleReturnHome = async () => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('visitedCommunityId');
-      sessionStorage.removeItem('visitedCommunityName');
+    if (!user || !homeCommunityId) return;
+    const result = await returnToHomeCommunityAction({ userId: user.uid, homeCommunityId });
+    if (result.success) {
+      toast({ title: 'Welcome Home!', description: `Returned to ${homeCommunityName}.` });
+      router.refresh();
     }
-    if (user) {
-      await returnToHomeCommunityAction({ userId: user.uid });
-    }
-    window.location.href = '/home';
   };
 
+  const hasActiveParticipation = Boolean(activePolls && activePolls.length > 0) || Boolean(activePetitions && activePetitions.length > 0);
+
+  // Emergency Alert Properties
+  const threatStatus = emergencyPlan?.currentThreatStatus || 'normal';
+  const isEmergencyPublic = emergencyPlan?.isPublicOnAboutPage !== false;
+  const isRedAlert = isEmergencyPublic && threatStatus === 'incident';
+  const isAmberAlert = isEmergencyPublic && threatStatus === 'advisory';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left Card: Welcome & Notifications */}
-      <Card className="border-0 md:border rounded-none md:rounded-lg flex flex-col">
-        <CardContent className="p-4 md:p-6 flex items-center gap-4 flex-grow">
-          {isLoading ? (
-            <Skeleton className="h-14 w-14 rounded-full" />
-          ) : (
-            <Avatar className="h-14 w-14 border">
-              <AvatarImage
-                src={userProfile?.avatar}
-                alt={userProfile?.name || 'User Avatar'}
-              />
-              <AvatarFallback>
-                {userProfile?.name ? userProfile.name.split(' ').map((n: string) => n[0]).join('') : <UserIcon />}
-              </AvatarFallback>
-            </Avatar>
-          )}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+      {/* Left Card: Welcome / Profile Card */}
+      <Card className="border-0 md:border rounded-none md:rounded-lg flex flex-col justify-between">
+        <CardHeader className="p-4 md:p-6 pb-2 flex-row items-center gap-3 space-y-0">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={userProfile?.photoURL || ''} />
+            <AvatarFallback>
+              <UserIcon className="h-5 w-5" />
+            </AvatarFallback>
+          </Avatar>
           <div className="flex-1">
-            {isLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-4 w-2/3" />
-              </div>
-            ) : (
-              <>
-                <p className="text-xl font-semibold">
-                  Welcome back, {userProfile?.firstName || userProfile?.name?.split(' ')[0] || 'Member'}!
-                </p>
-                 {isNationalAdvertiser ? (
-                    <div className="text-sm text-muted-foreground mt-1">
-                      <p>As a National Advertiser, this page is a preview of how your adverts appear in a live community.</p>
-                      <p>Use the user menu to visit other communities.</p>
-                    </div>
-                 ) : notificationsAllowed ? (
-                    <div className="text-sm text-muted-foreground mt-1 flex items-center">
-                        <Bell className="h-4 w-4 mr-1.5 shrink-0" />
-                        {notificationCount > 0
-                            ? `You have ${notificationCount} unread notification${notificationCount > 1 ? 's' : ''}.`
-                            : "You have no unread notifications."
-                        }
-                    </div>
-                 ) : (
-                    <div className="mt-2 text-sm text-muted-foreground flex items-center">
-                        <BellOff className="h-4 w-4 mr-1.5 shrink-0" />
-                       <span>Notifications are currently disabled.</span>
-                        <Button size="sm" variant="link" className="p-1 h-auto" asChild>
-                            <Link href="/settings">Manage Settings</Link>
-                        </Button>
-                    </div>
-                )}
-              </>
-            )}
+            <CardTitle className="text-xl font-bold font-headline">
+              Welcome, {userProfile?.name || 'Neighbour'}!
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {effectiveCommunityName}
+            </CardDescription>
           </div>
+        </CardHeader>
+        <CardContent className="p-4 md:p-6 pt-2 space-y-3">
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Stay informed with local news, events, announcements, and local services in <strong>{effectiveCommunityName}</strong>.
+              </p>
+              
+              {/* Notification Status Summary */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                {notificationsAllowed ? (
+                  <Badge variant="outline" className="text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 gap-1 font-medium">
+                    <Bell className="h-3 w-3" /> Live Notifications Enabled
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 gap-1 font-medium">
+                    <BellOff className="h-3 w-3" /> Notifications Muted
+                  </Badge>
+                )}
+                {notificationCount > 0 && (
+                  <Badge className="bg-primary text-primary-foreground text-xs font-bold">
+                    {notificationCount} New
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
-          {!isLoading && ((activePolls && activePolls.length > 0) || (activePetitions && activePetitions.length > 0)) && (
-            <CardFooter className="p-4 md:p-6 pt-0 border-t mt-4">
-                <div className="w-full space-y-3">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <BadgeHelp className="h-5 w-5 text-indigo-600 dark:text-indigo-400"/>
-                            <h4 className="font-bold text-sm text-foreground">Have Your Say!</h4>
-                        </div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-                          Civic Action
-                        </span>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground">
-                        {activePolls && activePolls.length > 0 && activePetitions && activePetitions.length > 0
-                          ? "New community polls & local petitions are active and waiting for your participation."
-                          : activePolls && activePolls.length > 0
-                          ? "There's a new community poll waiting for your vote."
-                          : "There's an active local petition waiting for your support."}
-                    </p>
-
-                    <div className={cn(
-                      "grid gap-2",
-                      activePolls && activePolls.length > 0 && activePetitions && activePetitions.length > 0
-                        ? "grid-cols-1 sm:grid-cols-2"
-                        : "grid-cols-1"
-                    )}>
+        {hasActiveParticipation && (
+            <CardFooter className="p-4 md:p-6 pt-0">
+                <div className="w-full p-3 rounded-lg bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                    <span className="font-semibold text-primary flex items-center gap-1.5">
+                      <BadgeHelp className="h-4 w-4 shrink-0" /> Your voice matters in this community:
+                    </span>
+                    <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                       {activePolls && activePolls.length > 0 && (
-                        <Button asChild className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs">
-                          <Link href="/polls" className="flex items-center justify-center gap-1.5">
-                            <BadgeHelp className="h-4 w-4" />
-                            <span>View & Vote Polls</span>
+                        <Button variant="default" size="sm" asChild className="h-7 text-xs gap-1.5 flex-1 sm:flex-initial">
+                          <Link href={`/community/${effectiveCommunityId}/polls`}>
+                            <Vote className="h-4 w-4" />
+                            <span>Vote in Active Poll</span>
                           </Link>
                         </Button>
                       )}
-
                       {activePetitions && activePetitions.length > 0 && (
-                        <Button asChild className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs">
-                          <Link href="/campaigns" className="flex items-center justify-center gap-1.5">
+                        <Button variant="outline" size="sm" asChild className="h-7 text-xs gap-1.5 flex-1 sm:flex-initial">
+                          <Link href={`/community/${effectiveCommunityId}/petitions`}>
                             <Target className="h-4 w-4" />
                             <span>View & Sign Petitions</span>
                           </Link>
@@ -224,7 +232,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
         )}
       </Card>
 
-      {/* Right Card: Visitor Guide (if visiting another community) OR Your Home Community */}
+      {/* Right Card: Visitor Guide OR Your Home Community */}
       {isVisiting ? (
         <Card className="border-0 md:border rounded-none md:rounded-lg border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm flex flex-col justify-between">
           <CardHeader className="p-4 md:p-6 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -234,9 +242,25 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                 Visitor Guide & Overview
               </CardTitle>
             </div>
-            <Badge variant="outline" className="w-fit bg-emerald-100 text-emerald-800 border-emerald-300 text-xs font-semibold">
-              🌐 Visiting Mode
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              {isRedAlert && (
+                <Button size="sm" asChild className="h-6 px-2 text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white gap-1 animate-pulse shadow-sm">
+                  <Link href={`/community/${effectiveCommunityId}/emergency`}>
+                    <ShieldAlert className="h-3 w-3" /> See Alert
+                  </Link>
+                </Button>
+              )}
+              {isAmberAlert && (
+                <Button size="sm" asChild className="h-6 px-2 text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 gap-1 shadow-sm">
+                  <Link href={`/community/${effectiveCommunityId}/emergency`}>
+                    <AlertTriangle className="h-3 w-3" /> See Alert
+                  </Link>
+                </Button>
+              )}
+              <Badge variant="outline" className="w-fit bg-emerald-100 text-emerald-800 border-emerald-300 text-xs font-semibold">
+                🌐 Visiting Mode
+              </Badge>
+            </div>
           </CardHeader>
           <CardContent className="p-4 md:p-6 pt-2 space-y-4 flex-1 flex flex-col justify-between">
             <div className="space-y-3">
@@ -317,16 +341,33 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-0 md:border rounded-none md:rounded-lg">
+        <Card className="border-0 md:border rounded-none md:rounded-lg flex flex-col justify-between">
           <CardHeader className="p-4 md:p-6 pb-2 flex-row items-center justify-between">
             <CardTitle className="text-xl font-bold font-headline">
               {isNationalAdvertiser ? "National Advertiser View" : "Your Home Community"}
             </CardTitle>
-            {!isNationalAdvertiser && (
-              <Button variant="ghost" size="icon" onClick={handleToggleFavourite}>
-                <Heart className={cn("h-6 w-6 text-muted-foreground transition-colors", isFavourited && "fill-red-500 text-red-500")} />
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Discrete Alert Tab / Badge if Red or Amber */}
+              {isRedAlert && (
+                <Button size="sm" asChild className="h-6 px-2.5 text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white gap-1 animate-pulse shadow-sm">
+                  <Link href={`/community/${effectiveCommunityId || userProfile?.communityId}/emergency`}>
+                    <ShieldAlert className="h-3 w-3" /> See Alert
+                  </Link>
+                </Button>
+              )}
+              {isAmberAlert && (
+                <Button size="sm" asChild className="h-6 px-2.5 text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 gap-1 shadow-sm">
+                  <Link href={`/community/${effectiveCommunityId || userProfile?.communityId}/emergency`}>
+                    <AlertTriangle className="h-3 w-3" /> See Alert
+                  </Link>
+                </Button>
+              )}
+              {!isNationalAdvertiser && (
+                <Button variant="ghost" size="icon" onClick={handleToggleFavourite}>
+                  <Heart className={cn("h-6 w-6 text-muted-foreground transition-colors", isFavourited && "fill-red-500 text-red-500")} />
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-4 md:p-6 pt-0">
             {isLoading ? (
@@ -355,4 +396,3 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
     </div>
   );
 }
-    

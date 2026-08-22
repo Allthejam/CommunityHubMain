@@ -25,6 +25,7 @@ import {
     Zap, 
     Truck, 
     Shield, 
+    ShieldAlert,
     MessagesSquare,
     Radio,
     Globe,
@@ -34,7 +35,10 @@ import {
     Navigation,
     Info,
     CheckCircle2,
-    Sparkles
+    Sparkles,
+    Flame,
+    Waves,
+    Droplets
 } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
@@ -42,7 +46,7 @@ import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
   title: "About Community Hub | Rebuilding Local Communities",
-  description: "Learn about Community Hub's mission to reconnect and enrich local communities with Regional Networks, Geofenced Maps, Broadcast Systems, and local commerce.",
+  description: "Learn about Community Hub's mission to reconnect and enrich local communities with Regional Networks, Geofenced Maps, Broadcast Systems, Emergency Resilience, and local commerce.",
   openGraph: {
     title: "About Community Hub | Rebuilding Local Communities",
     description: "Learn how Community Hub is transforming local engagement, supporting small businesses, and empowering regional networks and community leaders.",
@@ -75,6 +79,11 @@ const mainFeatures = [
         description: "Explore precise digital boundary maps for every community. Receive automatic welcome notifications when traveling into mapped community boundaries."
     },
     {
+        icon: <ShieldAlert className="h-6 w-6 text-red-500" />,
+        title: "Emergency & Civil Resilience Engine",
+        description: "A statutory multi-hazard emergency management platform with real-time failover routing, live amber/red threat alert broadcasts, official situation noticeboards, and volunteer asset rosters."
+    },
+    {
         icon: <MapPin className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
         title: "Live GPS & Location Detection",
         description: "Instantly detect local community hubs near you using live mobile device GPS, manual postcode lookup, or town search."
@@ -103,21 +112,18 @@ const mainFeatures = [
         icon: <Truck className="h-6 w-6 text-primary" />,
         title: "Community Courier Service",
         description: "Local couriers deliver Virtual High Street purchases straight from local business doors to nearby resident doorsteps."
-    },
-    {
-        icon: <Siren className="h-6 w-6 text-red-500" />,
-        title: "Emergency Broadcast System",
-        description: "Government and emergency services hold high-priority channels to deliver non-dismissible, critical safety alerts when seconds count."
     }
 ];
 
 const keyFeaturesList = [
     { icon: <Radio className="h-5 w-5 text-indigo-500" />, title: "Regional Broadcast System", description: "Regional authorities can broadcast announcements and alerts across every local hub within their jurisdiction." },
+    { icon: <ShieldAlert className="h-5 w-5 text-red-500" />, title: "Community Emergency Action Plan (CEAP)", description: "Event-driven disaster protocols across Wildfire, Flood, Grid Outages, Water Shortages, and Civil Defence with failover refuges and verified situation bulletins." },
     { icon: <Compass className="h-5 w-5 text-emerald-500" />, title: "Geofence Entry Detection", description: "Get notified when entering mapped community boundaries and switch views seamlessly." },
     { icon: <MapPin className="h-5 w-5 text-blue-500" />, title: "Live GPS & Wi-Fi Triangulation", description: "Locate hubs instantly with mobile GPS or address/postcode lookup." },
     { icon: <FileText className="h-5 w-5 text-primary" />, title: "What's On Guide", description: "Real-time guide to local news, attractions, events, and community activities." },
     { icon: <Calendar className="h-5 w-5 text-primary" />, title: "Local Events Calendar", description: "Discover upcoming events and sync them directly to your device calendar." },
     { icon: <Building2 className="h-5 w-5 text-primary" />, title: "Local Business Directory", description: "Explore verified local shops, services, and annual business showcases." },
+    { icon: <HeartHandshake className="h-5 w-5 text-emerald-500" />, title: "Resilience Volunteer & Asset Registry", description: "Register local 4x4 vehicles, diesel generators, chainsaws, and licensed radio operators ready to deploy during extreme weather." },
     { icon: <Briefcase className="h-5 w-5 text-primary" />, title: "Local Jobs Board", description: "Connect local employers with nearby jobseekers." },
     { icon: <Truck className="h-5 w-5 text-primary" />, title: "Community Courier Network", description: "Dedicated local delivery from high street shops to resident doorsteps." },
     { icon: <Shield className="h-5 w-5 text-primary" />, title: "Police Liaison Channel", description: "Direct line between designated community liaisons and local law enforcement." },
@@ -125,7 +131,7 @@ const keyFeaturesList = [
     { icon: <Users className="h-5 w-5 text-primary" />, title: "Community Reporter System", description: "Local residents volunteer to report on sports, culture, and neighborhood news." },
     { icon: <Search className="h-5 w-5 text-primary" />, title: "Lost & Found Board", description: "Reunite neighbors with lost pets and items quickly." },
     { icon: <Telescope className="h-5 w-5 text-primary" />, title: "Digital Tourist Guide", description: "A comprehensive digital guide for visitors discovering local landmarks." },
-    { icon: <HeartHandshake className="h-5 w-5 text-primary" />, title: "40%+ Community Revenue Share", description: "40% to 60%+ of advertising revenue returns directly to community leaders." },
+    { icon: <Crown className="h-5 w-5 text-amber-500" />, title: "40%+ Community Revenue Share", description: "40% to 60%+ of advertising revenue returns directly to community leaders." },
     { icon: <Activity className="h-5 w-5 text-primary" />, title: "AI Moderation & Assistance", description: "Context-aware AI moderation keeps hub interactions safe and clean." },
 ];
 
@@ -145,7 +151,7 @@ export default function AboutPage() {
                     Rebuilding Local Communities, Regional Networks & High Streets
                 </h1>
                 <p className="max-w-3xl mx-auto text-lg text-muted-foreground leading-relaxed">
-                    Community Hub is an all-in-one digital platform designed to reconnect residents, empower local businesses, enable regional council broadcasts, and map out neighborhoods through interactive geofencing.
+                    Community Hub is an all-in-one digital platform designed to reconnect residents, empower local businesses, enable regional council broadcasts, manage emergency resilience, and map out neighborhoods through interactive geofencing.
                 </p>
                 <div className="flex flex-wrap justify-center gap-4 pt-2">
                     <Button asChild size="lg" className="font-semibold shadow-md">
@@ -169,7 +175,7 @@ export default function AboutPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-6 sm:p-10">
                     <div className="text-white space-y-1">
                         <h3 className="text-xl sm:text-2xl font-bold">Hyper-Local Connection & Regional Reach</h3>
-                        <p className="text-xs sm:text-sm text-slate-200">Bringing residents, local councils, and high street traders into one unified digital square.</p>
+                        <p className="text-xs sm:text-sm text-slate-200">Bringing residents, local councils, emergency teams, and high street traders into one unified digital square.</p>
                     </div>
                 </div>
             </div>
@@ -179,7 +185,7 @@ export default function AboutPage() {
                 <div className="space-y-3">
                     <h2 className="text-3xl font-bold font-headline">Our Platform Capabilities</h2>
                     <p className="max-w-3xl mx-auto text-muted-foreground">
-                        From individual neighborhood noticeboards to regional network broadcasts and GPS geofence mapping, our platform provides the complete digital infrastructure for local life.
+                        From individual neighborhood noticeboards to regional network broadcasts, emergency resilience planning, and GPS geofence mapping, our platform provides the complete digital infrastructure for local life.
                     </p>
                 </div>
 
@@ -207,7 +213,7 @@ export default function AboutPage() {
                 <div className="space-y-5">
                     <Badge variant="outline" className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-xs font-semibold gap-1.5">
                         <Radio className="h-3.5 w-3.5 text-indigo-600" />
-                        New Feature
+                        Regional Networks
                     </Badge>
                     <h2 className="text-3xl font-bold font-headline leading-tight">
                         Regional Networks & Multi-Hub Broadcast System
@@ -222,7 +228,7 @@ export default function AboutPage() {
                         </div>
                         <div className="flex items-start gap-3">
                             <CheckCircle2 className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
-                            <span><strong>Emergency Alert Channels:</strong> High-priority, non-dismissible alerts for critical weather, safety warnings, or road closures delivered instantly to residents' screens.</span>
+                            <span><strong>Emergency Alert Channels:</strong> High-priority, non-dismissible alerts for critical weather, safety warnings, or road closures delivered instantly to residents&apos; screens.</span>
                         </div>
                         <div className="flex items-start gap-3">
                             <CheckCircle2 className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
@@ -271,7 +277,7 @@ export default function AboutPage() {
                     <div className="space-y-3 text-sm text-muted-foreground">
                         <div className="flex items-start gap-3">
                             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-                            <span><strong>Automatic Entry Alerts:</strong> Cross into a mapped community and receive an instant prompt: <em>"Welcome to [Community Name]! Would you like to view local updates?"</em></span>
+                            <span><strong>Automatic Entry Alerts:</strong> Cross into a mapped community and receive an instant prompt: <em>&ldquo;Welcome to [Community Name]! Would you like to view local updates?&rdquo;</em></span>
                         </div>
                         <div className="flex items-start gap-3">
                             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
@@ -279,7 +285,7 @@ export default function AboutPage() {
                         </div>
                         <div className="flex items-start gap-3">
                             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-                            <span><strong>Clear Transparency:</strong> Built-in caveats clarify when Wi-Fi IP routing places users at distant data centers (e.g. Blackpool), guiding users to mobile GPS or manual town search for 100% accuracy.</span>
+                            <span><strong>Clear Transparency:</strong> Built-in caveats clarify when Wi-Fi IP routing places users at distant data centers, guiding users to mobile GPS or manual town search for 100% accuracy.</span>
                         </div>
                     </div>
                     <div className="pt-2">
@@ -337,6 +343,54 @@ export default function AboutPage() {
 
             <Separator />
 
+            {/* NEW SECTION 3: Emergency & Civil Resilience Engine (Image Left, Text Right) */}
+            <section className="grid lg:grid-cols-2 gap-12 items-center">
+                <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border order-2 lg:order-1">
+                    <Image 
+                        src="/images/about/emergency.jpg" 
+                        alt="Community Emergency Resilience operations center with failover maps and volunteer coordination" 
+                        fill 
+                        className="object-cover" 
+                    />
+                </div>
+                <div className="space-y-5 order-1 lg:order-2">
+                    <Badge variant="outline" className="px-3 py-1 bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 text-xs font-semibold gap-1.5">
+                        <ShieldAlert className="h-3.5 w-3.5 text-red-600" />
+                        Civil Contingencies & Resilience
+                    </Badge>
+                    <h2 className="text-3xl font-bold font-headline leading-tight">
+                        Statutory Emergency Planning & Real-Time Incident Response
+                    </h2>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                        When extreme weather, power cuts, wildfires, or flooding strike, rural and urban communities need clear, coordinated action. Community Hub equips local councils and community leaders with a living <strong>Statutory Emergency Action Plan</strong> and dynamic crisis command tools.
+                    </p>
+                    <div className="space-y-3 text-sm text-muted-foreground">
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                            <span><strong>Dynamic Infrastructure Failovers:</strong> If primary command posts, warm spaces, or escape routes become compromised, leaders can divert residents to secondary failovers in real time.</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                            <span><strong>One-Way Verified Situation Noticeboard:</strong> Cut through open chat noise and rumors with direct, authoritative bulletins pinned to public screens during amber and red alerts.</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                            <span><strong>Volunteer Skills & Equipment Mobilisation:</strong> Maintain an active inventory of local 4x4s, portable generators, chainsaws, water bowsers, and off-grid radio mesh operators ready to respond.</span>
+                        </div>
+                    </div>
+                    <div className="pt-2 flex items-center gap-3 flex-wrap">
+                        <Button asChild size="lg" className="bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md">
+                            <Link href="/leader/emergency-plan">Leader Emergency Console</Link>
+                        </Button>
+                        <Button asChild variant="outline" size="lg" className="font-semibold">
+                            <Link href="/communities">Explore Community Hubs</Link>
+                        </Button>
+                    </div>
+                </div>
+            </section>
+
+            <Separator />
+
             {/* Complete Key Features Grid */}
             <section className="space-y-8">
                 <div className="text-center space-y-3">
@@ -375,7 +429,7 @@ export default function AboutPage() {
                         <h2 className="text-3xl font-bold font-headline">Security, Privacy & Private Hubs</h2>
                     </div>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                        Your safety and data privacy are foundational. Built on Google's enterprise infrastructure, Community Hub uses role-based access control, AI-driven content moderation, and encrypted database rules to protect every user.
+                        Your safety and data privacy are foundational. Built on Google&apos;s enterprise infrastructure, Community Hub uses role-based access control, AI-driven content moderation, and encrypted database rules to protect every user.
                     </p>
                     <p className="text-muted-foreground text-sm leading-relaxed">
                         Need an unlisted, confidential space? We offer <strong>Exclusive Private Hubs</strong> perfect for clubs, sports teams, associations, and professional groups. Private hubs do not appear in public searches.
@@ -414,9 +468,9 @@ export default function AboutPage() {
                         <CardContent className="space-y-3 text-xs text-muted-foreground">
                             <ol className="list-decimal list-inside space-y-2 leading-relaxed">
                                 <li>Open <span className="font-semibold text-foreground">my-community-hub.co.uk</span> in Safari.</li>
-                                <li>Tap the <span className="font-semibold text-foreground">'Share'</span> button (<SquareArrowUp className="inline-block h-3.5 w-3.5 -mt-0.5 mx-0.5" />) in the bottom toolbar.</li>
-                                <li>Scroll down and tap <span className="font-semibold text-foreground">'Add to Home Screen'</span>.</li>
-                                <li>Tap <span className="font-semibold text-foreground">'Add'</span> in the top-right corner.</li>
+                                <li>Tap the <span className="font-semibold text-foreground">&apos;Share&apos;</span> button (<SquareArrowUp className="inline-block h-3.5 w-3.5 -mt-0.5 mx-0.5" />) in the bottom toolbar.</li>
+                                <li>Scroll down and tap <span className="font-semibold text-foreground">&apos;Add to Home Screen&apos;</span>.</li>
+                                <li>Tap <span className="font-semibold text-foreground">&apos;Add&apos;</span> in the top-right corner.</li>
                             </ol>
                             <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 pt-2 border-t">Note: iOS requires adding to Home Screen to enable push notifications.</p>
                         </CardContent>
@@ -430,9 +484,9 @@ export default function AboutPage() {
                         <CardContent className="space-y-3 text-xs text-muted-foreground">
                              <ol className="list-decimal list-inside space-y-2 leading-relaxed">
                                 <li>Open <span className="font-semibold text-foreground">my-community-hub.co.uk</span> in Chrome.</li>
-                                <li>Tap the <span className="font-semibold text-foreground">"Add to Home Screen"</span> banner if prompted.</li>
+                                <li>Tap the <span className="font-semibold text-foreground">&ldquo;Add to Home Screen&rdquo;</span> banner if prompted.</li>
                                 <li>Or tap the three-dot menu (<MoreVertical className="inline-block h-3.5 w-3.5 -mt-0.5 mx-0.5" />) in top right.</li>
-                                <li>Tap <span className="font-semibold text-foreground">'Install app'</span> or <span className="font-semibold text-foreground">'Add to Home Screen'</span>.</li>
+                                <li>Tap <span className="font-semibold text-foreground">&apos;Install app&apos;</span> or <span className="font-semibold text-foreground">&apos;Add to Home Screen&apos;</span>.</li>
                             </ol>
                         </CardContent>
                     </Card>
@@ -454,7 +508,7 @@ export default function AboutPage() {
             </section>
 
             <div className="text-xs text-muted-foreground pt-8 text-left border-t">
-                Last major update: 07/08/2026
+                Last major update: 22/08/2026
             </div>
         </div>
     );

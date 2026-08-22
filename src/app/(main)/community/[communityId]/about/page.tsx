@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -16,6 +15,8 @@ import {
     User,
     Mail,
     Shield,
+    ShieldAlert,
+    ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,7 +27,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
-
 
 type CommunityProfileData = {
     headline?: string;
@@ -72,10 +72,11 @@ export default function CommunityAboutPage() {
     const router = useRouter();
     const communityId = params.communityId as string;
     const db = useFirestore();
-    
+
     const [aboutData, setAboutData] = React.useState<CommunityProfileData | null>(null);
     const [communityName, setCommunityName] = React.useState("");
     const [loading, setLoading] = React.useState(true);
+    const [isEmergencyPublic, setIsEmergencyPublic] = React.useState(false);
     
     const faqsQuery = useMemoFirebase(() => {
         if (!communityId || !db) return null;
@@ -105,6 +106,14 @@ export default function CommunityAboutPage() {
                         }
                     }
                 }
+
+                // Check if Emergency Action Plan is public
+                const planRef = doc(db, 'communities', communityId as string, 'emergency_plan', 'main');
+                const planSnap = await getDoc(planRef);
+                if (planSnap.exists()) {
+                    const planData = planSnap.data();
+                    setIsEmergencyPublic(planData?.isPublicOnAboutPage === true);
+                }
             } catch (error) {
                 console.error("Failed to fetch community data:", error);
             } finally {
@@ -114,7 +123,11 @@ export default function CommunityAboutPage() {
         fetchAboutData();
     }, [communityId, db]);
     
-     if (loading || faqsLoading) {
+    const handleScrollToFaq = () => {
+        document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    if (loading || faqsLoading) {
         return (
             <div className="flex justify-center items-center h-96">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -133,56 +146,70 @@ export default function CommunityAboutPage() {
             </div>
         );
     }
-    
-    const handleScrollToFaq = () => {
-        document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' });
-    }
 
     return (
-        <div className="container mx-auto bg-card p-4 sm:p-6 lg:p-8 rounded-lg shadow-sm border">
-            <div className="flex justify-between items-center mb-6">
-                <Button variant="ghost" onClick={() => router.back()}>
+        <div className="container mx-auto bg-card p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border space-y-8">
+            {/* Top Navigation & Fast Links */}
+            <div className="flex flex-wrap justify-between items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => router.back()}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                 </Button>
-                 {faqs && faqs.length > 0 && (
-                    <Button variant="outline" onClick={handleScrollToFaq}>
-                        <HelpCircle className="mr-2 h-4 w-4" />
-                        FAQs
-                    </Button>
-                )}
+                
+                <div className="flex items-center gap-2 flex-wrap">
+                    {isEmergencyPublic && (
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="bg-red-500/10 border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/20 font-bold gap-2 shadow-sm"
+                        >
+                            <Link href={`/community/${communityId}/emergency`}>
+                                <ShieldAlert className="h-4 w-4 text-red-500" />
+                                Emergency & Resilience
+                            </Link>
+                        </Button>
+                    )}
+                    {faqs && faqs.length > 0 && (
+                        <Button variant="outline" size="sm" onClick={handleScrollToFaq}>
+                            <HelpCircle className="mr-2 h-4 w-4" />
+                            FAQs
+                        </Button>
+                    )}
+                </div>
             </div>
             
             <div className="space-y-12">
                 <div className="text-center">
-                    <h1 className="text-4xl font-bold font-headline">{aboutData.headline || `About ${communityName}`}</h1>
+                    <h1 className="text-3xl sm:text-4xl font-bold font-headline">{aboutData.headline || `About ${communityName}`}</h1>
                     {aboutData.introduction && (
                         <div 
-                            className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto prose dark:prose-invert"
+                            className="mt-4 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto prose dark:prose-invert"
                             dangerouslySetInnerHTML={{ __html: aboutData.introduction }} 
                         />
                     )}
                 </div>
 
                 {aboutData.bannerImage && (
-                    <div className="relative w-full h-80 rounded-lg overflow-hidden shadow-lg border">
+                    <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden shadow-lg border">
                         <Image src={aboutData.bannerImage} alt="Community Banner" fill className="object-cover" priority />
                     </div>
                 )}
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                    <Card><CardHeader><CardTitle>{aboutData.population || "N/A"}</CardTitle><CardContent className="p-0"><p className="text-sm text-muted-foreground">Population</p></CardContent></CardHeader></Card>
-                    <Card><CardHeader><CardTitle>{aboutData.area || "N/A"}</CardTitle><CardContent className="p-0"><p className="text-sm text-muted-foreground">Area</p></CardContent></CardHeader></Card>
-                    <Card><CardHeader><CardTitle>{aboutData.yearEstablished || "N/A"}</CardTitle><CardContent className="p-0"><p className="text-sm text-muted-foreground">Established</p></CardContent></CardHeader></Card>
+                    <Card><CardHeader className="p-4"><CardTitle className="text-xl">{aboutData.population || "N/A"}</CardTitle><CardContent className="p-0"><p className="text-xs text-muted-foreground">Population</p></CardContent></CardHeader></Card>
+                    <Card><CardHeader className="p-4"><CardTitle className="text-xl">{aboutData.area || "N/A"}</CardTitle><CardContent className="p-0"><p className="text-xs text-muted-foreground">Area</p></CardContent></CardHeader></Card>
+                    <Card><CardHeader className="p-4"><CardTitle className="text-xl">{aboutData.yearEstablished || "N/A"}</CardTitle><CardContent className="p-0"><p className="text-xs text-muted-foreground">Established</p></CardContent></CardHeader></Card>
                 </div>
 
                 {aboutData.mainContent && (
                     <div 
-                        className="prose dark:prose-invert max-w-none"
+                        className="prose dark:prose-invert max-w-none leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: aboutData.mainContent }} 
                     />
                 )}
 
+                {/* Useful Contacts */}
                 {aboutData.usefulInformation && aboutData.usefulInformation.length > 0 && (
                     <div className="pt-8 border-t">
                         <h2 className="text-2xl font-bold font-headline mb-6 flex items-center gap-2 text-primary"><Phone className="h-6 w-6"/> Useful Contacts</h2>
@@ -202,6 +229,7 @@ export default function CommunityAboutPage() {
                     </div>
                 )}
 
+                {/* Police Contact */}
                 {aboutData.policeContact?.stationName && (
                      <div className="pt-8 border-t">
                          <h2 className="text-2xl font-bold font-headline mb-6 flex items-center gap-2 text-primary"><Shield className="h-6 w-6"/> Police & Community Safety</h2>
@@ -226,6 +254,7 @@ export default function CommunityAboutPage() {
                      </div>
                 )}
 
+                {/* Images */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {aboutData.imageOne && (
                         <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-md border">
@@ -249,6 +278,7 @@ export default function CommunityAboutPage() {
                     </div>
                 )}
                 
+                {/* FAQs */}
                 {faqs && faqs.length > 0 && (
                     <div id="faq-section" className="pt-8 border-t">
                         <h2 className="text-2xl font-bold font-headline mb-6 flex items-center gap-2 text-primary"><HelpCircle className="h-6 w-6" /> Frequently Asked Questions</h2>
@@ -265,6 +295,7 @@ export default function CommunityAboutPage() {
                     </div>
                 )}
 
+                {/* Community Leadership */}
                 {aboutData.showLeadershipOnAboutPage !== false && aboutData.communityInformation && aboutData.communityInformation.length > 0 && (
                     <div className="pt-8 border-t">
                         <h2 className="text-2xl font-bold font-headline mb-6 flex items-center gap-2 text-primary"><User className="h-6 w-6"/> Community Leadership</h2>

@@ -67,7 +67,9 @@ import { useToast } from '@/hooks/use-toast';
 const mainLeaderNavItems = [
   { href: '/leader/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'viewDashboard' },
   { href: '/leader/members', label: 'Members', icon: UsersIcon, permission: 'viewUsers' },
+  { href: '/leader/emergency-plan', label: 'Emergency Plan', icon: ShieldAlert, permission: 'viewEmergency' },
 ];
+
 
 const reviewSubItems = [
     { href: '/leader/reports', label: 'Reports', icon: FileText, permission: 'viewReports' },
