@@ -7,8 +7,6 @@ import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
 import {
   User as UserIcon,
-  Bell,
-  BellOff,
   Globe,
   Heart,
   BadgeHelp,
@@ -31,8 +29,6 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserFavouriteCommunitiesAction, returnToHomeCommunityAction } from '@/lib/actions/userActions';
-
-import { type Notification } from '@/lib/types/notifications';
 import { Badge } from './ui/badge';
 
 interface WelcomeCardsProps {
@@ -45,8 +41,6 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
-  
-  const [notificationsAllowed, setNotificationsAllowed] = React.useState(true);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -90,26 +84,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
   }, [effectiveCommunityId, firestore]);
   const { data: activePetitions, isLoading: petitionsLoading } = useCollection(petitionsQuery);
 
-  const notificationsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(
-        collection(firestore, "notifications"), 
-        where("recipientId", "==", user.uid),
-        where("status", "==", "new")
-    );
-  }, [user, firestore]);
-  const { data: newNotifications, isLoading: notificationsLoading } = useCollection<Notification>(notificationsQuery);
-
-  React.useEffect(() => {
-    if (userProfile) {
-        const mailingLists = (userProfile as any)?.mailingLists || {};
-        const pushEnabled = 'Notification' in window && Notification.permission === 'granted';
-        setNotificationsAllowed((mailingLists.standard !== false || mailingLists.emergency !== false) && pushEnabled);
-    }
-  }, [userProfile]);
-
-  const isLoading = isUserLoading || isProfileLoading || pollsLoading || petitionsLoading || notificationsLoading;
-  const notificationCount = newNotifications?.length || 0;
+  const isLoading = isUserLoading || isProfileLoading || pollsLoading || petitionsLoading;
   const isNationalAdvertiser = userProfile?.accountType === 'national';
   
   const isFavourited = userProfile?.favouriteCommunities?.includes(effectiveCommunityId);
@@ -145,11 +120,14 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
 
   const hasActiveParticipation = Boolean(activePolls && activePolls.length > 0) || Boolean(activePetitions && activePetitions.length > 0);
 
-  // Emergency Alert Properties
+  // Emergency Alert Properties: Only active when status is amber/red AND there is a published notice/message
   const threatStatus = emergencyPlan?.currentThreatStatus || 'normal';
   const isEmergencyPublic = emergencyPlan?.isPublicOnAboutPage !== false;
-  const isRedAlert = isEmergencyPublic && threatStatus === 'incident';
-  const isAmberAlert = isEmergencyPublic && threatStatus === 'advisory';
+  const hasActiveNotice = emergencyPlan?.officialNotice?.isActive && Boolean(emergencyPlan?.officialNotice?.headline || emergencyPlan?.officialNotice?.message);
+  
+  const isRedAlert = isEmergencyPublic && threatStatus === 'incident' && hasActiveNotice;
+  const isAmberAlert = isEmergencyPublic && threatStatus === 'advisory' && hasActiveNotice;
+  const activeAlertHeadline = emergencyPlan?.officialNotice?.headline || (isRedAlert ? 'Active Incident Alert' : 'Resilience Advisory');
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -178,29 +156,9 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
               <Skeleton className="h-4 w-2/3" />
             </div>
           ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Stay informed with local news, events, announcements, and local services in <strong>{effectiveCommunityName}</strong>.
-              </p>
-              
-              {/* Notification Status Summary */}
-              <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
-                {notificationsAllowed ? (
-                  <Badge variant="outline" className="text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 gap-1 font-medium">
-                    <Bell className="h-3 w-3" /> Live Notifications Enabled
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 gap-1 font-medium">
-                    <BellOff className="h-3 w-3" /> Notifications Muted
-                  </Badge>
-                )}
-                {notificationCount > 0 && (
-                  <Badge className="bg-primary text-primary-foreground text-xs font-bold">
-                    {notificationCount} New
-                  </Badge>
-                )}
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Stay informed with local news, events, announcements, and local services in <strong>{effectiveCommunityName}</strong>.
+            </p>
           )}
         </CardContent>
         {hasActiveParticipation && (
@@ -347,7 +305,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
               {isNationalAdvertiser ? "National Advertiser View" : "Your Home Community"}
             </CardTitle>
             <div className="flex items-center gap-2">
-              {/* Discrete Alert Tab / Badge if Red or Amber */}
+              {/* Discrete Alert Button if Red or Amber Alert with Active Notice */}
               {isRedAlert && (
                 <Button size="sm" asChild className="h-6 px-2.5 text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white gap-1 animate-pulse shadow-sm">
                   <Link href={`/community/${effectiveCommunityId || userProfile?.communityId}/emergency`}>
@@ -369,7 +327,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
               )}
             </div>
           </CardHeader>
-          <CardContent className="p-4 md:p-6 pt-0">
+          <CardContent className="p-4 md:p-6 pt-0 space-y-3">
             {isLoading ? (
               <div className="space-y-3">
                 <Skeleton className="h-5 w-4/5" />
@@ -385,6 +343,36 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                 <p className="text-muted-foreground text-sm">
                   You are currently in your locked Home Community: <span className="font-bold text-foreground">{homeCommunityName}</span>.
                 </p>
+
+                {/* Visible Alert Strip on Your Home Community Card if Red or Amber Alert with Message is Active */}
+                {(isRedAlert || isAmberAlert) && (
+                  <div className={cn(
+                    "w-full p-3 rounded-xl border flex items-center justify-between gap-3 text-xs shadow-sm",
+                    isRedAlert ? "bg-red-950/20 border-red-500/60 text-red-300" : "bg-amber-950/20 border-amber-500/60 text-amber-300"
+                  )}>
+                    <div className="flex items-center gap-2 truncate">
+                      {isRedAlert ? (
+                        <ShieldAlert className="h-4 w-4 text-red-500 animate-pulse shrink-0" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                      )}
+                      <span className="font-bold truncate text-foreground">{activeAlertHeadline}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      asChild
+                      className={cn(
+                        "h-7 px-3 text-xs font-bold shrink-0",
+                        isRedAlert ? "bg-red-600 hover:bg-red-500 text-white" : "bg-amber-500 hover:bg-amber-600 text-slate-950"
+                      )}
+                    >
+                      <Link href={`/community/${effectiveCommunityId || userProfile?.communityId}/emergency`}>
+                        View Bulletin
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+
                 <Button variant="outline" size="sm" asChild className="text-xs font-semibold">
                   <Link href={`/community/${effectiveCommunityId || userProfile?.communityId}/about`}>About {homeCommunityName}</Link>
                 </Button>
