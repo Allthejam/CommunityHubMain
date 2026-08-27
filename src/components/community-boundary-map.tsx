@@ -10,7 +10,7 @@ import { runSaveCommunityBoundary, runCheckBoundaryOverlap, runGetAllBoundaries,
 import { cn } from "@/lib/utils";
 import Link from 'next/link';
 
-import { Loader2, Search, AlertTriangle, Flag, Info, Check, Sparkles, Lock, Unlock } from 'lucide-react';
+import { Loader2, Search, AlertTriangle, Flag, Info, Check, Sparkles, Lock, Unlock, Maximize2, Minimize2, Expand, Shrink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from './ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -32,6 +32,7 @@ interface CommunityBoundaryMapProps {
     initialBoundaryData?: string | null;
     initialIsLocked?: boolean;
     onLockChange?: (isLocked: boolean, boundaryGeoJson?: string | null) => void;
+    showPresets?: boolean;
 }
 
 const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({ 
@@ -40,7 +41,8 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({
     height,
     initialBoundaryData = null,
     initialIsLocked = false,
-    onLockChange
+    onLockChange,
+    showPresets = false
 }) => {
     const mapContainerRef = React.useRef<HTMLDivElement>(null);
     const mapInstanceRef = React.useRef<Map | null>(null);
@@ -60,6 +62,8 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({
     const [isFetchingAll, setIsFetchingAll] = React.useState(false);
     const [isMapReady, setIsMapReady] = React.useState(false);
     const [isLocked, setIsLocked] = React.useState<boolean>(initialIsLocked);
+    const [isFullscreen, setIsFullscreen] = React.useState(false);
+    const [isTallMode, setIsTallMode] = React.useState(false);
 
     // Sync initial props if loaded asynchronously from Firestore
     React.useEffect(() => {
@@ -73,6 +77,27 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({
             setIsLocked(initialIsLocked);
         }
     }, [initialIsLocked]);
+
+    // Handle Escape key to exit fullscreen
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isFullscreen) {
+                setIsFullscreen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isFullscreen]);
+
+    // Invalidate Leaflet map size on fullscreen or height toggle
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current.invalidateSize();
+            }
+        }, 180);
+        return () => clearTimeout(timer);
+    }, [isFullscreen, isTallMode]);
 
     const { user } = useUser();
     const db = useFirestore();
@@ -518,31 +543,95 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({
     };
 
     const containerStyle: React.CSSProperties = React.useMemo(() => {
+        if (isFullscreen) return { height: '100%', width: '100%', minHeight: '520px' };
         if (height) return { height, width: '100%' };
         if (aspectRatio === 'square') return { width: '100%', aspectRatio: '1 / 1', minHeight: '550px' };
-        if (aspectRatio === 'large') return { height: '650px', width: '100%' };
-        return { height: '400px', width: '100%' };
-    }, [height, aspectRatio]);
+        if (aspectRatio === 'large') return { height: isTallMode ? '820px' : '650px', width: '100%' };
+        return { height: isTallMode ? '780px' : '560px', width: '100%' };
+    }, [height, aspectRatio, isFullscreen, isTallMode]);
 
     return (
-        <div className="space-y-4">
-            <div className="space-y-2">
-                <form onSubmit={handleSearch} className="flex gap-2">
-                    <Input 
-                        type="text"
-                        placeholder="Search boundary or region (e.g. Cairngorms National Park, Highland Region)..."
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        disabled={disabled}
-                    />
-                    <Button type="submit" disabled={isSearching || !address || disabled}>
-                        {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        <Search className="mr-2 h-4 w-4" />
-                        Search & Draw
-                    </Button>
-                </form>
+        <div className={cn(
+            "space-y-4 transition-all duration-200",
+            isFullscreen && "fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-md p-4 sm:p-6 overflow-y-auto flex flex-col justify-between text-white"
+        )}>
+            <div className="space-y-2 shrink-0">
+                {isFullscreen && (
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                        <div>
+                            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                <Search className="h-5 w-5 text-emerald-400" />
+                                Interactive Full-Screen Boundary Editor
+                            </h2>
+                            <p className="text-xs text-slate-400">
+                                Use the polygon/rectangle draw tools on the left of the map to mark out your boundary. Press Esc or click Exit when done.
+                            </p>
+                        </div>
+                        <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setIsFullscreen(false)} 
+                            className="bg-slate-800 hover:bg-slate-700 text-white border-slate-700 text-xs font-semibold"
+                        >
+                            <Minimize2 className="h-4 w-4 mr-1.5 text-sky-400" />
+                            Exit Full Screen (Esc)
+                        </Button>
+                    </div>
+                )}
 
-                {!isLocked ? (
+                <div className="flex flex-wrap items-center gap-2">
+                    <form onSubmit={handleSearch} className="flex-1 min-w-[260px] flex gap-2">
+                        <Input 
+                            type="text"
+                            placeholder={showPresets ? "Search boundary or region (e.g. Cairngorms National Park, Highland Region)..." : "Search boundary or township (e.g. Grantown-on-Spey, Aviemore)..."}
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            disabled={disabled}
+                            className={cn(isFullscreen && "bg-slate-900 border-slate-700 text-white placeholder:text-slate-500")}
+                        />
+                        <Button type="submit" disabled={isSearching || !address || disabled} className="shrink-0 font-semibold">
+                            {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            <Search className="mr-2 h-4 w-4" />
+                            Search & Draw
+                        </Button>
+                    </form>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                        {!isFullscreen && (
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => setIsTallMode(!isTallMode)} 
+                                className="h-10 text-xs font-semibold border-slate-300 dark:border-slate-700"
+                                title="Toggle between standard and extra tall map height"
+                            >
+                                {isTallMode ? <Shrink className="h-3.5 w-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400" /> : <Expand className="h-3.5 w-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400" />}
+                                {isTallMode ? 'Standard (560px)' : 'Expand Height (780px)'}
+                            </Button>
+                        )}
+
+                        <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setIsFullscreen(!isFullscreen)} 
+                            className={cn(
+                                "h-10 text-xs font-semibold shadow-sm",
+                                isFullscreen 
+                                    ? "bg-slate-800 text-white border-slate-700 hover:bg-slate-700" 
+                                    : "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800"
+                            )}
+                            title={isFullscreen ? "Exit full screen view" : "Open expansive full screen map editor"}
+                        >
+                            {isFullscreen ? <Minimize2 className="h-4 w-4 mr-1.5 text-sky-400" /> : <Maximize2 className="h-4 w-4 mr-1.5 text-emerald-600 dark:text-emerald-400" />}
+                            {isFullscreen ? 'Exit Full Screen' : 'Full Screen Map'}
+                        </Button>
+                    </div>
+                </div>
+
+                {showPresets && (!isLocked ? (
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
                         <div className="flex flex-wrap items-center gap-1.5">
                             <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
@@ -607,10 +696,14 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({
                             <Unlock className="mr-1 h-3 w-3" /> Unlock Presets
                         </Button>
                     </div>
-                )}
+                ))}
             </div>
-            <div className={cn("relative z-[1]", disabled && "pointer-events-none opacity-70")}>
-                <div ref={mapContainerRef} style={containerStyle} className="rounded-lg border bg-muted" />
+            <div className={cn(
+                "relative z-[1]", 
+                disabled && "pointer-events-none opacity-70",
+                isFullscreen && "flex-1 min-h-[450px] my-2"
+            )}>
+                <div ref={mapContainerRef} style={containerStyle} className="rounded-lg border bg-muted shadow-inner" />
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Info className="h-4 w-4 shrink-0" />

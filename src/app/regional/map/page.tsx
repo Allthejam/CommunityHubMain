@@ -287,6 +287,7 @@ export default function RegionalMapSetupPage() {
                   initialBoundaryData={userProfile?.regionalBoundary || null}
                   initialIsLocked={!!userProfile?.regionalBoundaryLocked}
                   onLockChange={handleLockChange} 
+                  showPresets={true}
                 />
               </CardContent>
             </Card>

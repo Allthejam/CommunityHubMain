@@ -23,7 +23,8 @@ import {
   CheckCircle2,
   Calendar,
   Target,
-  Flame
+  Flame,
+  ShieldAlert
 } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, orderBy, limit } from 'firebase/firestore';
@@ -37,6 +38,17 @@ export function CommunityNoticeboardCarousel() {
   const { data: userProfile } = useDoc(userProfileRef);
   
   const activeCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+
+  // 0. Live Emergency Incident Bulletin query (Single Latest Bulletin)
+  const emergencyMessagesQuery = useMemoFirebase(() => {
+    if (!activeCommunityId || !db) return null;
+    return query(
+      collection(db, 'communities', activeCommunityId, 'emergency_messages'),
+      orderBy('createdAt', 'desc'),
+      limit(1)
+    );
+  }, [db, activeCommunityId]);
+  const { data: emergencyMessages } = useCollection<any>(emergencyMessagesQuery);
 
   // 1. Live Polls query
   const pollsQuery = useMemoFirebase(() => {
@@ -102,6 +114,77 @@ export function CommunityNoticeboardCarousel() {
       badgeColorClass: string;
       buttonColorClass: string;
     }> = [];
+
+    // Slide: Latest Emergency Incident Bulletin (Single latest bulletin to eliminate clutter)
+    if (emergencyMessages && emergencyMessages.length > 0) {
+      const msg = emergencyMessages[0];
+      const isCritical = msg.level === 'critical';
+      const isWarning = msg.level === 'warning';
+      const isAdvisory = msg.level === 'advisory';
+      const isAllClear = msg.level === 'allclear';
+
+      const badgeLabel = msg.isActive
+        ? isCritical
+          ? '🔴 Critical Emergency Alert'
+          : isWarning
+          ? '🟠 Incident Threat Warning'
+          : isAdvisory
+          ? '🟡 Local Safety Advisory'
+          : isAllClear
+          ? '🟢 All-Clear / Normalized'
+          : 'ℹ️ Official Situation Bulletin'
+        : 'Archived Situation Bulletin';
+
+      const badgeColor = isCritical
+        ? 'bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/40 font-bold animate-pulse'
+        : isWarning
+        ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40 font-bold'
+        : isAdvisory
+        ? 'bg-yellow-500/20 text-yellow-800 dark:text-yellow-300 border-yellow-500/40 font-bold'
+        : isAllClear
+        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 font-bold'
+        : 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/40 font-bold';
+
+      const buttonColor = isCritical
+        ? 'bg-red-600 hover:bg-red-700 text-white font-bold shadow-md'
+        : isWarning
+        ? 'bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-md'
+        : 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md';
+
+      list.push({
+        id: `emergency-${msg.id}`,
+        badge: badgeLabel,
+        icon: ShieldAlert,
+        title: msg.title || 'Official Incident Situation Notice',
+        content: (
+          <div className="space-y-2">
+            <div className={`p-3 rounded-xl border leading-relaxed ${
+              msg.isActive 
+                ? isCritical 
+                  ? 'bg-red-950/20 border-red-500/30 text-red-950 dark:text-red-200' 
+                  : 'bg-amber-950/20 border-amber-500/30 text-amber-950 dark:text-amber-200'
+                : 'bg-muted/20 border-border/40 text-muted-foreground'
+            }`}>
+              <p className="text-xs font-medium line-clamp-3 whitespace-pre-wrap">
+                {msg.body}
+              </p>
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground flex-wrap gap-1">
+              <span>Issued by: <strong className="text-foreground">{msg.authorName || 'Incident Lead'}</strong> {msg.authorRole ? `(${msg.authorRole})` : ''}</span>
+              {msg.isActive && (
+                <Badge variant="outline" className="text-[9px] border-emerald-500/50 text-emerald-600 dark:text-emerald-400">
+                  Live Broadcast
+                </Badge>
+              )}
+            </div>
+          </div>
+        ),
+        link: `/community/${activeCommunityId}/emergency`,
+        linkText: '🚨 View Official Emergency Page & Full Plan',
+        badgeColorClass: badgeColor,
+        buttonColorClass: buttonColor
+      });
+    }
 
     // Slide: Live Polls
     if (polls && polls.length > 0) {
@@ -305,7 +388,7 @@ export function CommunityNoticeboardCarousel() {
     });
 
     return list;
-  }, [polls, charities, announcements, events]);
+  }, [emergencyMessages, polls, campaigns, charities, announcements, events, activeCommunityId]);
 
   const [activeSlide, setActiveSlide] = React.useState(0);
   const [isPaused, setIsPaused] = React.useState(false);

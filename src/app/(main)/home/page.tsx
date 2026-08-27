@@ -118,25 +118,36 @@ function HomePageContent() {
       return;
     }
 
-    if (urlCommunityId) {
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('visitedCommunityId', urlCommunityId);
+    const syncHomeCommunity = () => {
+      if (urlCommunityId) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('visitedCommunityId', urlCommunityId);
+        }
+        setActiveCommunityId(urlCommunityId);
+        return;
       }
-      setActiveCommunityId(urlCommunityId);
-      return;
-    }
 
-    const visitedSession = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
-    const lockedHomeId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId;
+      const visitedSession = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
+      const lockedHomeId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
-    if (visitedSession) {
-      setActiveCommunityId(visitedSession);
-    } else if (lockedHomeId) {
-      setActiveCommunityId(lockedHomeId);
-    } else if (userProfile?.communityId) {
-      setActiveCommunityId(userProfile.communityId);
-    } else {
-      setActiveCommunityId(null);
+      if (visitedSession) {
+        setActiveCommunityId(visitedSession);
+      } else if (lockedHomeId) {
+        setActiveCommunityId(lockedHomeId);
+      } else {
+        setActiveCommunityId(null);
+      }
+    };
+
+    syncHomeCommunity();
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('community-change', syncHomeCommunity);
+      window.addEventListener('storage', syncHomeCommunity);
+      return () => {
+        window.removeEventListener('community-change', syncHomeCommunity);
+        window.removeEventListener('storage', syncHomeCommunity);
+      };
     }
   }, [userProfile, profileLoading, router, urlCommunityId, isRegionalUser]);
   

@@ -258,20 +258,19 @@ export function NoticeboardCard() {
   };
 
   const handleReturnHome = async () => {
-    if (!user) return;
-    setIsReturning(true);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
+      window.dispatchEvent(new Event('community-change'));
     }
-    const res = await returnToHomeCommunityAction({ userId: user.uid });
-    setIsReturning(false);
-    if (res.success) {
-        toast({ title: "Returned Home", description: `You are now back at your home community (${res.communityName}).` });
-        window.location.href = '/home';
-    } else {
-        toast({ title: "Error", description: res.error, variant: "destructive" });
+    if (user) {
+      setIsReturning(true);
+      returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
+      setIsReturning(false);
     }
+    toast({ title: "Returned Home", description: `You are now back at your home community hub.` });
+    router.push('/home');
+    router.refresh();
   };
 
 

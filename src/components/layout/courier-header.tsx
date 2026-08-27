@@ -108,13 +108,8 @@ export default function CourierHeader() {
   }, [user, userProfile, toast]);
   
   const handleAdvertiserDashboardClick = useCallback(() => {
-    const email = user?.email || userProfile?.email;
-    if (!email) {
-      toast({ title: "Error", description: "Could not retrieve email.", variant: "destructive" });
-      return;
-    }
-    window.location.href = `https://www.advertiser.my-community-hub.co.uk/?email=${encodeURIComponent(email)}`;
-  }, [user, userProfile, toast]);
+    router.push('/national/dashboard');
+  }, [router]);
   
   const handleCourierDashboardClick = useCallback(() => {
     const email = user?.email || userProfile?.email;
@@ -164,7 +159,7 @@ export default function CourierHeader() {
     }
 
     if (userProfile.accountType === 'advertiser' || userProfile.accountType === 'national') {
-      availableDashboards.push({ onClick: handleAdvertiserDashboardClick, label: 'Advertiser', icon: Star });
+      availableDashboards.push({ href: '/national/dashboard', label: 'Advertiser', icon: Star });
     }
 
     if (userProfile.role === 'reporter') {

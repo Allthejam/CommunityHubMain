@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
   ShieldAlert,
@@ -49,7 +50,29 @@ import {
   MessageSquareText,
   FileText,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Plus,
+  Trash2,
+  Edit3,
+  UserPlus,
+  HeartHandshake,
+  KeyRound,
+  Key,
+  History,
+  Search,
+  Filter,
+  Download,
+  AlertCircle,
+  Calendar,
+  FileCheck,
+  ListChecks,
+  CheckSquare2,
+  Square,
+  PlusCircle,
+  RotateCcw,
+  ArrowUpRight,
+  ExternalLink,
+  BookmarkCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,14 +93,166 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RichTextEditor } from '@/components/rich-text-editor';
+import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, deleteDoc, query, orderBy, limit } from 'firebase/firestore';
 import {
   publishCommunityEmergencyBroadcastAction,
   updateLiveThreatStatusAction,
+  certifyEmergencyPlanAction,
+  publishEmergencyMessageAction,
+  retractEmergencyMessageAction,
+  logEmergencyAuditAction,
+  EmergencyMessage,
+  EmergencyAuditLogEntry,
+  EmergencyMessageLevel,
   ScenarioFacilitiesMap,
-  ScenarioFacilityItem
+  ScenarioFacilityItem,
+  WildfireHazardArea,
+  WildfireAssetItem,
+  WildfireContactItem,
+  WildfireTimelineStage,
+  WildfireSafeguardingItem,
+  KeyholderItem,
+  ScenarioLiaisonItem,
+  ScenarioLiaisonsMap,
+  ScenarioTimelineStage,
+  ScenarioTimelinesMap
 } from '@/lib/actions/emergencyPlanActions';
+import {
+  IncidentSopPhase,
+  IncidentSopTask,
+  ScenarioSopsMap,
+  DEFAULT_SCENARIO_SOPS
+} from '@/lib/types/emergencySop';
 
-type HazardType = 'wildfire' | 'urbanfire' | 'flood' | 'power' | 'drought' | 'unrest' | 'defence' | 'submission';
+type HazardType = 'wildfire' | 'urbanfire' | 'flood' | 'power' | 'drought' | 'unrest' | 'defence' | 'submission' | 'messages' | 'audit';
+
+const DEFAULT_SCENARIO_LIAISONS: ScenarioLiaisonsMap = {
+  wildfire: [
+    { id: 'wf-1', role: 'Community Wildfire Lead', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'wf-2', role: 'SFRS Fire Station Liaison', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'wf-3', role: 'Estate Factor / Land Manager', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'wf-4', role: 'Head Gamekeeper / Moorland Lead', agencyOrName: '', telephone: '', notes: '' }
+  ],
+  flood: [
+    { id: 'fl-1', role: 'Community Flood Warden', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'fl-2', role: 'SEPA Flood Warning Liaison', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'fl-3', role: 'Local Council Roads & Sandbags', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'fl-4', role: 'River Bailiff / Fishery Board', agencyOrName: '', telephone: '', notes: '' }
+  ],
+  power: [
+    { id: 'po-1', role: 'Community Power & Warmth Lead', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'po-2', role: 'Electricity Network Liaison', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'po-3', role: 'Care Home & Vulnerable Lead', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'po-4', role: 'Telecoms & Off-Grid Radio Lead', agencyOrName: '', telephone: '', notes: '' }
+  ],
+  urbanfire: [
+    { id: 'uf-1', role: 'Urban Resilience & Rest Hub Lead', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'uf-2', role: 'SFRS Incident Command Liaison', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'uf-3', role: 'Local Council Housing / Homeless', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'uf-4', role: 'Property Factors / Landlords', agencyOrName: '', telephone: '', notes: '' }
+  ],
+  drought: [
+    { id: 'dr-1', role: 'Community Water Resilience Lead', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'dr-2', role: 'Scottish Water Emergency Response', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'dr-3', role: 'Private Water Supplies (PWS) Rep', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'dr-4', role: 'Agricultural Livestock Water Lead', agencyOrName: '', telephone: '', notes: '' }
+  ],
+  unrest: [
+    { id: 'cu-1', role: 'Community Council Chair', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'cu-2', role: 'Police Scotland Area Inspector', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'cu-3', role: 'Youth & Community Liaison', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'cu-4', role: 'High Street Merchants Lead', agencyOrName: '', telephone: '', notes: '' }
+  ],
+  defence: [
+    { id: 'cd-1', role: 'Community Resilience Gold Lead', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'cd-2', role: 'Local Council Emergency Planning', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'cd-3', role: 'Emergency Shelter Operations Lead', agencyOrName: '', telephone: '', notes: '' },
+    { id: 'cd-4', role: 'Emergency Communications (RAYNET/HAM)', agencyOrName: '', telephone: '', notes: '' }
+  ]
+};
+
+const DEFAULT_KEYHOLDERS: KeyholderItem[] = [
+  {
+    id: 'kh-1',
+    facilityOrAsset: '',
+    category: 'Emergency Shelter / Warmth Hub',
+    primaryName: '',
+    primaryPhone: '',
+    backupName: '',
+    backupPhone: '',
+    keyLocationNotes: ''
+  },
+  {
+    id: 'kh-2',
+    facilityOrAsset: '',
+    category: 'Hydrants & Water Infrastructure',
+    primaryName: '',
+    primaryPhone: '',
+    backupName: '',
+    backupPhone: '',
+    keyLocationNotes: ''
+  },
+  {
+    id: 'kh-3',
+    facilityOrAsset: '',
+    category: 'Estate Gates & Heavy Machinery Access',
+    primaryName: '',
+    primaryPhone: '',
+    backupName: '',
+    backupPhone: '',
+    keyLocationNotes: ''
+  },
+  {
+    id: 'kh-4',
+    facilityOrAsset: '',
+    category: 'Flood Defence & Equipment Depot',
+    primaryName: '',
+    primaryPhone: '',
+    backupName: '',
+    backupPhone: '',
+    keyLocationNotes: ''
+  }
+];
+
+const VOLUNTEER_SKILL_OPTIONS = [
+  { id: '4x4', label: '4x4 Vehicle with Winch / Tow Bar' },
+  { id: 'tractor', label: 'Agricultural Tractor / Heavy Machinery' },
+  { id: 'chainsaw', label: 'NPTC Certified Chainsaw Operator' },
+  { id: 'generator', label: 'Portable Generator / Power Equipment' },
+  { id: 'radio', label: 'HAM / PMR446 Radio Communications' },
+  { id: 'firstaid', label: 'First Aid / Medical / Nursing Background' },
+  { id: 'canteen', label: 'Community Canteen / Food Prep Lead' },
+  { id: 'marshal', label: 'Evacuation Marshal / Door-to-Door Lead' }
+];
+
+const DEFAULT_WILDFIRE_ASSETS: WildfireAssetItem[] = [
+  {
+    id: 'asset-1',
+    category: 'Firebreaks',
+    name: '',
+    description: ''
+  },
+  {
+    id: 'asset-2',
+    category: 'Water Abstraction',
+    name: '',
+    description: ''
+  },
+  {
+    id: 'asset-3',
+    category: 'All-Terrain Transport',
+    name: '',
+    description: ''
+  },
+  {
+    id: 'asset-4',
+    category: 'Temporary Livestock Holding',
+    name: '',
+    description: ''
+  }
+];
 
 interface PriorityItem {
   title: string;
@@ -89,27 +264,109 @@ interface TimelineItem {
   desc: string;
 }
 
+const DEFAULT_WILDFIRE_AREAS: WildfireHazardArea[] = [
+  {
+    id: 'area-1',
+    title: '',
+    fuelType: '',
+    windThreat: ''
+  }
+];
+
+const DEFAULT_WILDFIRE_CONTACTS: WildfireContactItem[] = [
+  {
+    id: 'c-1',
+    role: 'Community Resilience Coordinator',
+    name: '',
+    telephone: '',
+    notes: ''
+  },
+  {
+    id: 'c-2',
+    role: 'SFRS Fire Station Incident Lead',
+    name: '',
+    telephone: '',
+    notes: ''
+  },
+  {
+    id: 'c-3',
+    role: 'Local Estates Office / Land Factor',
+    name: '',
+    telephone: '',
+    notes: ''
+  },
+  {
+    id: 'c-4',
+    role: 'Head Gamekeeper / Moorland Patrol',
+    name: '',
+    telephone: '',
+    notes: ''
+  }
+];
+
+const DEFAULT_WILDFIRE_STAGES: WildfireTimelineStage[] = [
+  {
+    id: 'stage-1',
+    timeTag: 'T+0 MINS',
+    title: 'Activate Incident Command & 999 Callout',
+    desc: 'Notify Community Council leads, unlock Active HQ, and check SFRS liaison status.'
+  },
+  {
+    id: 'stage-2',
+    timeTag: 'T+15 MINS',
+    title: 'Broadcast Level 3 Alert & Firebreaks',
+    desc: 'Issue emergency push broadcast with escape route. Contact estate tractor operators for firebreak deployment.'
+  },
+  {
+    id: 'stage-3',
+    timeTag: 'T+30 MINS',
+    title: 'Open Refuge Hub & Mobilise 4x4 Teams',
+    desc: 'Hall keyholder turns on generators; volunteer 4x4 drivers muster for mobility-impaired resident pick-ups.'
+  },
+  {
+    id: 'stage-4',
+    timeTag: 'T+60 MINS',
+    title: 'Joint Handover with SFRS Commander',
+    desc: 'Brief incoming SFRS Incident Commander on community assets, open water draft points, and evacuated headcount.'
+  }
+];
+
+const DEFAULT_WILDFIRE_SAFEGUARDING: WildfireSafeguardingItem[] = [
+  {
+    id: 'sg-1',
+    title: 'Priority Evacuation List Protocol',
+    description: 'Community Resilience Volunteers maintain a confidential priority check-in list for elderly, wheelchair-bound, or off-grid residents living along forested fringes. In a Level 3 Wildfire event, 4x4 volunteer teams are dispatched immediately to assist with early evacuation before smoke limits road visibility.',
+    category: 'protocol'
+  },
+  {
+    id: 'sg-2',
+    title: 'Free Home Fire Safety Visit (HFSV) Referrals',
+    description: 'Under SFRS Priority 3, community leaders can refer vulnerable households for free Home Fire Safety Visits, where firefighters fit long-life interlinked smoke alarms, test heating appliances, and assess perimeter vegetation clearance.',
+    category: 'hfsv'
+  }
+];
+
 const DEFAULT_SCENARIO_FACILITIES: ScenarioFacilitiesMap = {
   wildfire: {
     f1: {
       name: 'Evacuation Corridor / Escape Highway',
       category: 'route',
-      primary: 'A95 Northbound towards Aviemore / A9',
-      secondary: 'A939 towards Nairn / Coast (Clear of pine belt)',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f2: {
       name: 'Evacuation Refuge & Shelter Hub',
       category: 'hub',
-      primary: 'Grantown Grammar School Sports Complex',
-      secondary: 'Inverallan Church Hall & Canteen',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f3: {
       name: 'Incident Command Post',
       category: 'command',
-      primary: 'The Town Hall, The Square',
-      secondary: 'Royal British Legion Hall (RBLS), The Square',
+      primary: '',
+      secondary: '',
       isFailover: false
     }
   },
@@ -117,22 +374,22 @@ const DEFAULT_SCENARIO_FACILITIES: ScenarioFacilitiesMap = {
     f1: {
       name: 'Traffic Bypass & Cordon Corridor',
       category: 'route',
-      primary: 'Bypass via Castle Grant Estate Road & Seafield Avenue',
-      secondary: 'Relief Route via Old Spey Bridge & B9102',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f2: {
       name: 'Immediate Warmth & Family Assembly Hub',
       category: 'hub',
-      primary: 'RBLS Legion Main Hall, The Square',
-      secondary: 'Strathspey Church Hall & Kitchen',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f3: {
       name: 'Forward Fire & Rescue Appliance Staging',
       category: 'command',
-      primary: 'The Square Central Staging Area',
-      secondary: 'Burnfield Car Park Hardstanding',
+      primary: '',
+      secondary: '',
       isFailover: false
     }
   },
@@ -140,22 +397,22 @@ const DEFAULT_SCENARIO_FACILITIES: ScenarioFacilitiesMap = {
     f1: {
       name: 'High-Ground Evacuation Refuge (>220m Contour)',
       category: 'hub',
-      primary: 'Grantown Grammar School (Above 220m contour)',
-      secondary: 'Spey Valley Golf Clubhouse (High Ground)',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f2: {
       name: 'Council Sandbag Collection Depot',
       category: 'depot',
-      primary: 'Highland Council Depot, Burnfield Car Park',
-      secondary: 'Strathspey Roads Yard & Salt Shed',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f3: {
       name: 'Emergency Flood Warden Command Desk',
       category: 'command',
-      primary: 'Burnfield Command Portacabin',
-      secondary: 'Town Hall Lower Meeting Room',
+      primary: '',
+      secondary: '',
       isFailover: false
     }
   },
@@ -163,22 +420,22 @@ const DEFAULT_SCENARIO_FACILITIES: ScenarioFacilitiesMap = {
     f1: {
       name: 'Warm Space Hub & Soup Canteen (Generator Powered)',
       category: 'warmth',
-      primary: 'Community Hub Hall (25kVA Generator, Heating & Kitchen)',
-      secondary: 'Inverallan Church Canteen & Warm Room',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f2: {
       name: 'Device Charging & Thermal Blanket Bank',
       category: 'charging',
-      primary: 'Grammar School Sports Tech Suite (Multi-Socket Bank)',
-      secondary: 'Legion Lounge Power Station',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f3: {
       name: 'Off-Grid Mesh Radio Net & Welfare Check Station',
       category: 'radio',
-      primary: 'Anagach Hill Repeater / PMR Channel 7',
-      secondary: 'High School Mast Net Controller',
+      primary: '',
+      secondary: '',
       isFailover: false
     }
   },
@@ -186,22 +443,22 @@ const DEFAULT_SCENARIO_FACILITIES: ScenarioFacilitiesMap = {
     f1: {
       name: 'Scottish Water Bowser Tanker Station',
       category: 'bowser',
-      primary: 'Burnfield Car Park (Heavy Tanker Access Hardstanding)',
-      secondary: 'Showgrounds Agricultural Bowser Stand',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f2: {
       name: 'Potable Bottled Water Rationing Hub',
       category: 'bottled',
-      primary: 'RBLS Legion Main Hall (10L / person / day ration)',
-      secondary: 'Town Hall Distribution Desk',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f3: {
       name: 'Agricultural & Livestock Water Draw Point',
       category: 'livestock',
-      primary: 'Spey Valley Showgrounds 5000L Mobile Bowser Tank',
-      secondary: 'River Spey Dedicated Mobile Pump Point',
+      primary: '',
+      secondary: '',
       isFailover: false
     }
   },
@@ -209,22 +466,22 @@ const DEFAULT_SCENARIO_FACILITIES: ScenarioFacilitiesMap = {
     f1: {
       name: 'Public Safety Safe Haven & Sanctuary',
       category: 'sanctuary',
-      primary: 'Town Hall Reinforced Complex & Secure Rooms',
-      secondary: 'Legion Inner Hall Sanctuary',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f2: {
       name: 'Pedestrian & Traffic Avoidance Bypass',
       category: 'route',
-      primary: 'Bypass High Street via Grant Road & Woodside',
-      secondary: 'Outer Perimeter Ring Road',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f3: {
       name: 'Police Scotland Liaison Command Link',
       category: 'police',
-      primary: 'Aviemore Police Command Control 101 Priority Line',
-      secondary: 'Duty Inspector Mobile Command Post',
+      primary: '',
+      secondary: '',
       isFailover: false
     }
   },
@@ -232,22 +489,22 @@ const DEFAULT_SCENARIO_FACILITIES: ScenarioFacilitiesMap = {
     f1: {
       name: 'Subterranean Reinforced Shelter',
       category: 'shelter',
-      primary: 'Grantown Grammar School Reinforced Basement Complex',
-      secondary: 'Castle Grant Vaulted Cellars',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f2: {
       name: 'Potable Spring & Gravity-Fed Water Borehole',
       category: 'spring',
-      primary: 'Castle Grant Estate Gravity-Fed Spring Tank 1',
-      secondary: 'Hillhead Borehole Pump Station',
+      primary: '',
+      secondary: '',
       isFailover: false
     },
     f3: {
       name: 'Civil Resilience Command Bunker',
       category: 'command',
-      primary: 'Grammar School Operations Suite',
-      secondary: 'Town Hall Secure Meeting Room',
+      primary: '',
+      secondary: '',
       isFailover: false
     }
   }
@@ -291,49 +548,49 @@ const DEFAULT_PRIORITIES: Record<string, { p1: PriorityItem; p2: PriorityItem; p
   }
 };
 
-const DEFAULT_TIMELINES: Record<string, { t0: TimelineItem; t15: TimelineItem; t30: TimelineItem; t60: TimelineItem }> = {
-  wildfire: {
-    t0: { title: 'Activate Incident Command & Alert Keyholders', desc: 'Notify Community Council leads, unlock Active HQ, and check SFRS liaison status.' },
-    t15: { title: 'Broadcast Level 3 Evacuation Alert', desc: 'Issue emergency push broadcast with designated escape route and designated refuge hub.' },
-    t30: { title: 'Open Active Refuge & Mobilise 4x4 Teams', desc: 'Hall keyholder turns on generators; volunteer drivers muster for mobility-impaired pick-ups.' },
-    t60: { title: 'Moorland Firebreak & Estate Machinery Staging', desc: 'Coordinate tractors with heavy mowers/ploughs to create perimeter buffer breaks.' }
-  },
-  urbanfire: {
-    t0: { title: 'Establish Safe Cordon', desc: 'Assist police/fire in keeping public 150m back from structure.' },
-    t15: { title: 'Open Warmth Sanctuary', desc: 'Unlock designated warmth hall, set up kettle boilers, and begin roll-call registration.' },
-    t30: { title: 'Appliance Traffic Flow', desc: 'Set up temporary bypass signs to prevent vehicle gridlock on High Street.' },
-    t60: { title: 'Emergency Housing Coordination', desc: 'Liaise with local B&Bs and council housing for displaced family accommodation.' }
-  },
-  flood: {
-    t0: { title: 'Receive SEPA Alert & Inspect Watercourses', desc: 'Check river gauges and notify volunteer flood wardens.' },
-    t15: { title: 'Unlock Sandbag Depot', desc: 'Highland Roads keyholder releases sandbags; dispatch pallets to vulnerable doors.' },
-    t30: { title: 'High-Ground Shelter Open', desc: 'Designated high-ground canteen operational with emergency rations.' },
-    t60: { title: 'Check Vulnerable Water Ingress', desc: 'Wardens verify all ground-floor elderly residents have moved upstairs or evacuated.' }
-  },
-  power: {
-    t0: { title: 'Monitor SSEN Outage Map & Grid Status', desc: 'Track estimated restore time. If >4 hrs in sub-zero temps, initiate Warm Space.' },
-    t15: { title: 'Start Diesel Generator & Connect Heaters', desc: 'Fire up backup generator at Active Refuge Hub; verify power to charging hub and kitchen.' },
-    t30: { title: 'Open Warm Space Canteen', desc: 'Provide hot food, device charging, and welfare support to residents without power.' },
-    t60: { title: 'Off-Grid Radio Net Check', desc: 'Radio operators conduct 60-minute check on PMR Channel 7 to log remote household welfare.' }
-  },
-  drought: {
-    t0: { title: 'Log Affected PWS Springs', desc: 'Collate registry of households whose private water wells have run dry.' },
-    t15: { title: 'Liaise with Scottish Water', desc: 'Confirm delivery time for static bowser and pallets of bottled water.' },
-    t30: { title: 'Open Bottled Distribution Hub', desc: 'Volunteers set up drive-through rationing point at designated distribution car park.' },
-    t60: { title: 'Mobile Bowser Farm Deliveries', desc: '4x4 tankers begin runs to outlying livestock holdings.' }
-  },
-  unrest: {
-    t0: { title: 'Police Scotland Channel Sync', desc: 'Establish communication with Local Area Commander on 101 priority line.' },
-    t15: { title: 'Issue Safety Notice', desc: 'Send app alert advising locals to stay indoors and keep businesses secured.' },
-    t30: { title: 'Secure Community Assets', desc: 'Ensure public halls and facilities are locked to prevent vandalism.' },
-    t60: { title: 'Community Welfare Monitoring', desc: 'Check in on shop owners and vulnerable residents in adjacent perimeter.' }
-  },
-  defence: {
-    t0: { title: 'Civil Contingency Net Setup', desc: 'Community resilience team convenes at primary bunker / command room.' },
-    t15: { title: 'Inspect Potable Springs & Gravity Lines', desc: 'Verify water valves and gravity pressure from hill boreholes.' },
-    t30: { title: 'Subterranean Shelter Unlocked', desc: 'Check ventilation systems, emergency lighting, and medical inventory.' },
-    t60: { title: 'Rationing & Security Shift Allocation', desc: 'Assign 12-hour volunteer security and welfare shifts.' }
-  }
+const DEFAULT_TIMELINES_MAP: ScenarioTimelinesMap = {
+  wildfire: [
+    { id: 'wf-t0', timeTag: 'T+00 MINS', title: 'Activate Incident Command & Alert Keyholders', desc: 'Notify Community Council leads, unlock Active HQ, and check SFRS liaison status.' },
+    { id: 'wf-t15', timeTag: 'T+15 MINS', title: 'Broadcast Level 3 Evacuation Alert', desc: 'Issue emergency push broadcast with designated escape route and designated refuge hub.' },
+    { id: 'wf-t30', timeTag: 'T+30 MINS', title: 'Open Active Refuge & Mobilise 4x4 Teams', desc: 'Hall keyholder turns on generators; volunteer drivers muster for mobility-impaired pick-ups.' },
+    { id: 'wf-t60', timeTag: 'T+60 MINS', title: 'Moorland Firebreak & Estate Machinery Staging', desc: 'Coordinate tractors with heavy mowers/ploughs to create perimeter buffer breaks.' }
+  ],
+  urbanfire: [
+    { id: 'uf-t0', timeTag: 'T+00 MINS', title: 'Establish Safe Cordon', desc: 'Assist police/fire in keeping public 150m back from structure.' },
+    { id: 'uf-t15', timeTag: 'T+15 MINS', title: 'Open Warmth Sanctuary', desc: 'Unlock designated warmth hall, set up kettle boilers, and begin roll-call registration.' },
+    { id: 'uf-t30', timeTag: 'T+30 MINS', title: 'Appliance Traffic Flow', desc: 'Set up temporary bypass signs to prevent vehicle gridlock on High Street.' },
+    { id: 'uf-t60', timeTag: 'T+60 MINS', title: 'Emergency Housing Coordination', desc: 'Liaise with local B&Bs and council housing for displaced family accommodation.' }
+  ],
+  flood: [
+    { id: 'fl-t0', timeTag: 'T+00 MINS', title: 'Receive SEPA Alert & Inspect Watercourses', desc: 'Check river gauges and notify volunteer flood wardens.' },
+    { id: 'fl-t15', timeTag: 'T+15 MINS', title: 'Unlock Sandbag Depot', desc: 'Highland Roads keyholder releases sandbags; dispatch pallets to vulnerable doors.' },
+    { id: 'fl-t30', timeTag: 'T+30 MINS', title: 'High-Ground Shelter Open', desc: 'Designated high-ground canteen operational with emergency rations.' },
+    { id: 'fl-t60', timeTag: 'T+60 MINS', title: 'Check Vulnerable Water Ingress', desc: 'Wardens verify all ground-floor elderly residents have moved upstairs or evacuated.' }
+  ],
+  power: [
+    { id: 'po-t0', timeTag: 'T+00 MINS', title: 'Monitor SSEN Outage Map & Grid Status', desc: 'Track estimated restore time. If >4 hrs in sub-zero temps, initiate Warm Space.' },
+    { id: 'po-t15', timeTag: 'T+15 MINS', title: 'Start Diesel Generator & Connect Heaters', desc: 'Fire up backup generator at Active Refuge Hub; verify power to charging hub and kitchen.' },
+    { id: 'po-t30', timeTag: 'T+30 MINS', title: 'Open Warm Space Canteen', desc: 'Provide hot food, device charging, and welfare support to residents without power.' },
+    { id: 'po-t60', timeTag: 'T+60 MINS', title: 'Off-Grid Radio Net Check', desc: 'Radio operators conduct 60-minute check on PMR Channel 7 to log remote household welfare.' }
+  ],
+  drought: [
+    { id: 'dr-t0', timeTag: 'T+00 MINS', title: 'Log Affected PWS Springs', desc: 'Collate registry of households whose private water wells have run dry.' },
+    { id: 'dr-t15', timeTag: 'T+15 MINS', title: 'Liaise with Scottish Water', desc: 'Confirm delivery time for static bowser and pallets of bottled water.' },
+    { id: 'dr-t30', timeTag: 'T+30 MINS', title: 'Open Bottled Distribution Hub', desc: 'Volunteers set up drive-through rationing point at designated distribution car park.' },
+    { id: 'dr-t60', timeTag: 'T+60 MINS', title: 'Mobile Bowser Farm Deliveries', desc: '4x4 tankers begin runs to outlying livestock holdings.' }
+  ],
+  unrest: [
+    { id: 'cu-t0', timeTag: 'T+00 MINS', title: 'Police Scotland Channel Sync', desc: 'Establish communication with Local Area Commander on 101 priority line.' },
+    { id: 'cu-t15', timeTag: 'T+15 MINS', title: 'Issue Safety Notice', desc: 'Send app alert advising locals to stay indoors and keep businesses secured.' },
+    { id: 'cu-t30', timeTag: 'T+30 MINS', title: 'Secure Community Assets', desc: 'Ensure public halls and facilities are locked to prevent vandalism.' },
+    { id: 'cu-t60', timeTag: 'T+60 MINS', title: 'Community Welfare Monitoring', desc: 'Check in on shop owners and vulnerable residents in adjacent perimeter.' }
+  ],
+  defence: [
+    { id: 'cd-t0', timeTag: 'T+00 MINS', title: 'Civil Contingency Net Setup', desc: 'Community resilience team convenes at primary bunker / command room.' },
+    { id: 'cd-t15', timeTag: 'T+15 MINS', title: 'Inspect Potable Springs & Gravity Lines', desc: 'Verify water valves and gravity pressure from hill boreholes.' },
+    { id: 'cd-t30', timeTag: 'T+30 MINS', title: 'Subterranean Shelter Unlocked', desc: 'Check ventilation systems, emergency lighting, and medical inventory.' },
+    { id: 'cd-t60', timeTag: 'T+60 MINS', title: 'Rationing & Security Shift Allocation', desc: 'Assign 12-hour volunteer security and welfare shifts.' }
+  ]
 };
 
 export default function LeaderEmergencyPlanPage() {
@@ -350,6 +607,52 @@ export default function LeaderEmergencyPlanPage() {
     return impersonating?.communityId || userProfile.communityId;
   }, [userProfile]);
 
+  // Real-time Community Doc for ownership check
+  const communityDocRef = useMemoFirebase(() => (activeCommunityId && db ? doc(db, 'communities', activeCommunityId) : null), [activeCommunityId, db]);
+  const { data: communityDoc } = useDoc<any>(communityDocRef);
+
+  // Granular Role-Based Permissions Resolution
+  const isUnrestrictedLeader = useMemo(() => {
+    if (!user || !userProfile) return false;
+    if (userProfile.isPresident || (userProfile as any)?.permissions?.isCommunityCreator) return true;
+    if (communityDoc?.creatorId === user.uid || communityDoc?.presidentId === user.uid) return true;
+    return false;
+  }, [user, userProfile, communityDoc]);
+
+  const permissions = useMemo(() => {
+    if (isUnrestrictedLeader) {
+      return {
+        canViewPlan: true,
+        canEditPlan: true,
+        canSendMessages: true,
+        canViewAudit: true,
+        canUpdateCertification: true,
+      };
+    }
+    const commPerms = (userProfile as any)?.communityRoles?.[activeCommunityId]?.permissions || (userProfile as any)?.permissions || {};
+    return {
+      canViewPlan: commPerms.emergencyCanViewPlan ?? true,
+      canEditPlan: commPerms.emergencyCanEditPlan ?? commPerms.actionManageCommunities ?? false,
+      canSendMessages: commPerms.emergencyCanSendMessages ?? commPerms.canSendEmergencyBroadcast ?? false,
+      canViewAudit: commPerms.emergencyCanViewAudit ?? commPerms.viewAuditLog ?? false,
+      canUpdateCertification: commPerms.emergencyCanUpdateCertification ?? commPerms.actionManageCommunities ?? false,
+    };
+  }, [isUnrestrictedLeader, userProfile, activeCommunityId]);
+
+  // Real-time Messages Collection Listener
+  const messagesQuery = useMemoFirebase(() => {
+    if (!activeCommunityId || !db) return null;
+    return query(collection(db, `communities/${activeCommunityId}/emergency_messages`), orderBy('createdAt', 'desc'), limit(50));
+  }, [activeCommunityId, db]);
+  const { data: emergencyMessagesList } = useCollection<EmergencyMessage>(messagesQuery);
+
+  // Real-time Audit Logs Collection Listener
+  const auditQuery = useMemoFirebase(() => {
+    if (!activeCommunityId || !db) return null;
+    return query(collection(db, `communities/${activeCommunityId}/emergency_audit_logs`), orderBy('timestamp', 'desc'), limit(100));
+  }, [activeCommunityId, db]);
+  const { data: auditLogsList } = useCollection<EmergencyAuditLogEntry>(auditQuery);
+
   const [activeHazard, setActiveHazard] = useState<HazardType>('wildfire');
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
@@ -357,6 +660,22 @@ export default function LeaderEmergencyPlanPage() {
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [hasCopiedPayload, setHasCopiedPayload] = useState(false);
   const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
+
+  // Live Situation Message Composer State
+  const [msgTitle, setMsgTitle] = useState('');
+  const [msgBody, setMsgBody] = useState('');
+  const [msgLevel, setMsgLevel] = useState<EmergencyMessageLevel>('warning');
+  const [msgCategory, setMsgCategory] = useState<string>('general');
+  const [msgAuthorName, setMsgAuthorName] = useState('');
+  const [msgAuthorRole, setMsgAuthorRole] = useState('Incident Commander / Lead');
+  const [isPublishingMessage, setIsPublishingMessage] = useState(false);
+  const [isRetractingMessage, setIsRetractingMessage] = useState(false);
+  const [retractReasonInput, setRetractReasonInput] = useState('');
+  const [isRetractDialogOpen, setIsRetractDialogOpen] = useState(false);
+
+  // Audit Search & Filter State
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditFilterType, setAuditFilterType] = useState<string>('ALL');
 
   // Visibility & Public Portal Link
   const [isPublicOnAboutPage, setIsPublicOnAboutPage] = useState(false);
@@ -372,67 +691,360 @@ export default function LeaderEmergencyPlanPage() {
   const [noticeIssuedBy, setNoticeIssuedBy] = useState('');
 
   // Township Area Name
-  const [townshipName, setTownshipName] = useState('Grantown-on-Spey & Strathspey');
+  const [townshipName, setTownshipName] = useState('Local Community');
 
   // Scenario-Specific Facilities Map (Unique per Annexe)
   const [scenarioFacilities, setScenarioFacilities] = useState<ScenarioFacilitiesMap>(DEFAULT_SCENARIO_FACILITIES);
 
-  // Editable Hazard Priorities & Timelines
+  // Editable Hazard Priorities & Dynamic Timelines Map
   const [priorities, setPriorities] = useState(DEFAULT_PRIORITIES);
-  const [timelines, setTimelines] = useState(DEFAULT_TIMELINES);
+  const [timelinesMap, setTimelinesMap] = useState<ScenarioTimelinesMap>(DEFAULT_TIMELINES_MAP);
 
-  // Hazard 1: Wildfire
-  const [wfFuels, setWfFuels] = useState('Anagach Pinewoods (1000ha mature Scots Pine) & Estate Moorlands');
-  const [wfWind, setWfWind] = useState('East / South-East pinewoods towards town core');
-  const [wfHydrants, setWfHydrants] = useState('High Street / The Square main high-pressure hydrants');
-  const [wfWater, setWfWater] = useState('River Spey access at Old Spey Bridge hardstanding (Tender Draft Point)');
-  const [wfLivestock, setWfLivestock] = useState('Spey Valley Showgrounds Field 4 & Castle Grant Paddocks');
+  // Living Plan Certification & Audit Lifecycle
+  const [lastReviewedAt, setLastReviewedAt] = useState<any>(null);
+  const [reviewedByName, setReviewedByName] = useState<string>('');
+  const [reviewedByRole, setReviewedByRole] = useState<string>('Community Leader / Resilience Lead');
+  const [nextReviewDueAt, setNextReviewDueAt] = useState<any>(null);
+  const [lsoEndorsement, setLsoEndorsement] = useState<any>(null);
+  const [isCertifyModalOpen, setIsCertifyModalOpen] = useState(false);
+  const [isCertifying, setIsCertifying] = useState(false);
+  const [certifierNameInput, setCertifierNameInput] = useState('');
+  const [certifierRoleInput, setCertifierRoleInput] = useState('Community Resilience Coordinator');
+
+  // Hazard 1: Wildfire Core Data
+  const [wfFuels, setWfFuels] = useState('');
+  const [wfWind, setWfWind] = useState('');
+  const [wfHydrants, setWfHydrants] = useState('');
+  const [wfWater, setWfWater] = useState('');
+  const [wfLivestock, setWfLivestock] = useState('');
+
+  // Dynamic Wildfire Arrays (with + Add and Delete)
+  const [wfHazardAreas, setWfHazardAreas] = useState<WildfireHazardArea[]>(DEFAULT_WILDFIRE_AREAS);
+  const [wfContactList, setWfContactList] = useState<WildfireContactItem[]>(DEFAULT_WILDFIRE_CONTACTS);
+  const [wfTimelineStages, setWfTimelineStages] = useState<WildfireTimelineStage[]>(DEFAULT_WILDFIRE_STAGES);
+  const [wfSafeguardingList, setWfSafeguardingList] = useState<WildfireSafeguardingItem[]>(DEFAULT_WILDFIRE_SAFEGUARDING);
+
+  // Wildfire Contacts Matrix (Fallback / Single Lead)
+  const [wfCoordName, setWfCoordName] = useState('');
+  const [wfCoordTel, setWfCoordTel] = useState('');
+  const [wfEstateName, setWfEstateName] = useState('');
+  const [wfEstateTel, setWfEstateTel] = useState('');
+  const [wfKeeperName, setWfKeeperName] = useState('');
+  const [wfKeeperTel, setWfKeeperTel] = useState('');
+  const [wfStationName, setWfStationName] = useState('');
+  const [wfStationTel, setWfStationTel] = useState('');
+
+  // Scenario-Specific Multi-Agency Liaisons State & Handlers
+  const [scenarioLiaisons, setScenarioLiaisons] = useState<ScenarioLiaisonsMap>(DEFAULT_SCENARIO_LIAISONS);
+
+  const currentLiaisons = useMemo(() => {
+    return scenarioLiaisons[activeHazard] || DEFAULT_SCENARIO_LIAISONS[activeHazard] || [];
+  }, [scenarioLiaisons, activeHazard]);
+
+  const handleAddScenarioLiaison = (hazard: string) => {
+    const newLiaison: ScenarioLiaisonItem = {
+      id: `liaison-${Date.now()}`,
+      role: 'Agency / Community Specialist',
+      agencyOrName: '',
+      telephone: '',
+      notes: ''
+    };
+    setScenarioLiaisons((prev) => ({
+      ...prev,
+      [hazard]: [...(prev[hazard] || DEFAULT_SCENARIO_LIAISONS[hazard] || []), newLiaison]
+    }));
+  };
+
+  const handleUpdateScenarioLiaison = (hazard: string, id: string, field: keyof ScenarioLiaisonItem, value: string) => {
+    setScenarioLiaisons((prev) => ({
+      ...prev,
+      [hazard]: (prev[hazard] || DEFAULT_SCENARIO_LIAISONS[hazard] || []).map((l) =>
+        l.id === id ? { ...l, [field]: value } : l
+      )
+    }));
+  };
+
+  const handleDeleteScenarioLiaison = (hazard: string, id: string) => {
+    setScenarioLiaisons((prev) => ({
+      ...prev,
+      [hazard]: (prev[hazard] || DEFAULT_SCENARIO_LIAISONS[hazard] || []).filter((l) => l.id !== id)
+    }));
+  };
+
+  // Keyholders & Infrastructure Access Register State & Handlers
+  const [keyholdersList, setKeyholdersList] = useState<KeyholderItem[]>(DEFAULT_KEYHOLDERS);
+
+  const handleAddKeyholder = () => {
+    const newKh: KeyholderItem = {
+      id: `kh-${Date.now()}`,
+      facilityOrAsset: 'New Community Facility / Access Gate / Hydrant Cache',
+      category: 'Building / Shelter',
+      primaryName: '',
+      primaryPhone: '',
+      backupName: '',
+      backupPhone: '',
+      keyLocationNotes: ''
+    };
+    setKeyholdersList((prev) => [...prev, newKh]);
+  };
+
+  const handleUpdateKeyholder = (id: string, field: keyof KeyholderItem, value: string) => {
+    setKeyholdersList((prev) =>
+      prev.map((k) => (k.id === id ? { ...k, [field]: value } : k))
+    );
+  };
+
+  const handleDeleteKeyholder = (id: string) => {
+    setKeyholdersList((prev) => prev.filter((k) => k.id !== id));
+  };
+
+  // SFRS Community Asset Register (Dynamic List + Fallback)
+  const [wfAssetList, setWfAssetList] = useState<WildfireAssetItem[]>(DEFAULT_WILDFIRE_ASSETS);
+  const [wfAssetTractors, setWfAssetTractors] = useState('');
+  const [wfAssetWater, setWfAssetWater] = useState('');
+  const [wfAssetBowsers, setWfAssetBowsers] = useState('');
+  const [wfAssetPastures, setWfAssetPastures] = useState('');
+
+  // Section 2: Dynamic Wildfire Assets Handlers
+  const handleAddAssetItem = () => {
+    const newAsset: WildfireAssetItem = {
+      id: `asset-${Date.now()}`,
+      category: 'Machinery / Equipment',
+      name: 'New Community Machinery / Water Point',
+      description: ''
+    };
+    setWfAssetList((prev) => [...prev, newAsset]);
+  };
+
+  const handleUpdateAssetItem = (id: string, field: keyof WildfireAssetItem, value: string) => {
+    setWfAssetList((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, [field]: value } : a))
+    );
+  };
+
+  const handleDeleteAssetItem = (id: string) => {
+    setWfAssetList((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  // Volunteer Manual Management State & Handlers
+  const [isAddVolModalOpen, setIsAddVolModalOpen] = useState(false);
+  const [volNameInput, setVolNameInput] = useState('');
+  const [volOperatorInput, setVolOperatorInput] = useState('');
+  const [volPhoneInput, setVolPhoneInput] = useState('');
+  const [volSelectedSkills, setVolSelectedSkills] = useState<string[]>([]);
+  const [volNotesInput, setVolNotesInput] = useState('');
+  const [isSavingVol, setIsSavingVol] = useState(false);
+
+  const handleToggleVolSkill = (skillLabel: string) => {
+    setVolSelectedSkills((prev) =>
+      prev.includes(skillLabel) ? prev.filter((s) => s !== skillLabel) : [...prev, skillLabel]
+    );
+  };
+
+  const handleManualSaveVolunteer = async () => {
+    if (!db || !activeCommunityId) return;
+    if (!volNameInput.trim()) {
+      toast({ title: 'Contact Name Required', description: 'Please enter the primary contact name.', variant: 'destructive' });
+      return;
+    }
+
+    setIsSavingVol(true);
+    try {
+      await addDoc(collection(db, 'communities', activeCommunityId, 'resilience_volunteers'), {
+        userName: volNameInput.trim(),
+        contactName: volNameInput.trim(),
+        operatorName: volOperatorInput.trim(),
+        phone: volPhoneInput.trim(),
+        skills: volSelectedSkills,
+        equipmentNotes: volNotesInput.trim(),
+        registeredAt: serverTimestamp(),
+        source: 'leader_manual'
+      });
+
+      toast({
+        title: 'Volunteer Added to Register',
+        description: `${volNameInput} has been added to the community resilience register.`
+      });
+
+      setVolNameInput('');
+      setVolOperatorInput('');
+      setVolPhoneInput('');
+      setVolSelectedSkills([]);
+      setVolNotesInput('');
+      setIsAddVolModalOpen(false);
+    } catch (e: any) {
+      console.error('Error adding volunteer:', e);
+      toast({ title: 'Error', description: e.message || 'Failed to add volunteer.', variant: 'destructive' });
+    } finally {
+      setIsSavingVol(false);
+    }
+  };
+
+  const handleDeleteVolunteer = async (volId: string, volName: string) => {
+    if (!db || !activeCommunityId || !volId) return;
+    try {
+      await deleteDoc(doc(db, 'communities', activeCommunityId, 'resilience_volunteers', volId));
+      toast({
+        title: 'Volunteer Removed',
+        description: `${volName || 'Volunteer'} was removed from the register.`
+      });
+    } catch (e: any) {
+      console.error('Error removing volunteer:', e);
+      toast({ title: 'Error', description: e.message || 'Failed to remove volunteer.', variant: 'destructive' });
+    }
+  };
+
+  // Section 1: Dynamic Hazard Areas Handlers
+  const handleAddHazardArea = () => {
+    const newArea: WildfireHazardArea = {
+      id: `area-${Date.now()}`,
+      title: 'New High-Risk Fuel Belt / Moorland Zone',
+      fuelType: '',
+      windThreat: ''
+    };
+    setWfHazardAreas((prev) => [...prev, newArea]);
+  };
+
+  const handleUpdateHazardArea = (id: string, field: keyof WildfireHazardArea, value: string) => {
+    setWfHazardAreas((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, [field]: value } : a))
+    );
+  };
+
+  const handleDeleteHazardArea = (id: string) => {
+    setWfHazardAreas((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  // Section 3: Dynamic Coordinator Contacts Handlers
+  const handleAddContact = () => {
+    const newContact: WildfireContactItem = {
+      id: `c-${Date.now()}`,
+      role: 'Emergency Liaison / Specialist',
+      name: '',
+      telephone: '',
+      notes: ''
+    };
+    setWfContactList((prev) => [...prev, newContact]);
+  };
+
+  const handleUpdateContact = (id: string, field: keyof WildfireContactItem, value: string) => {
+    setWfContactList((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, [field]: value } : c))
+    );
+  };
+
+  const handleDeleteContact = (id: string) => {
+    setWfContactList((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  // Section 4: Dynamic Timeline Stages Handlers
+  const handleAddTimelineStage = () => {
+    const newStage: WildfireTimelineStage = {
+      id: `stage-${Date.now()}`,
+      timeTag: `T+${(wfTimelineStages.length + 1) * 30} MINS`,
+      title: 'Follow-Up Operational Phase',
+      desc: 'Operational actions executed during this stage.'
+    };
+    setWfTimelineStages((prev) => [...prev, newStage]);
+  };
+
+  const handleUpdateTimelineStage = (id: string, field: keyof WildfireTimelineStage, value: string) => {
+    setWfTimelineStages((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, [field]: value } : s))
+    );
+  };
+
+  const handleDeleteTimelineStage = (id: string) => {
+    setWfTimelineStages((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  // Section 5: Dynamic Safeguarding Handlers
+  const handleAddSafeguardingItem = () => {
+    const newItem: WildfireSafeguardingItem = {
+      id: `sg-${Date.now()}`,
+      title: 'New Vulnerable Safeguarding Protocol',
+      description: '',
+      category: 'custom'
+    };
+    setWfSafeguardingList((prev) => [...prev, newItem]);
+  };
+
+  const handleUpdateSafeguardingItem = (id: string, field: keyof WildfireSafeguardingItem, value: string) => {
+    setWfSafeguardingList((prev) =>
+      prev.map((sg) => (sg.id === id ? { ...sg, [field]: value } : sg))
+    );
+  };
+
+  const handleDeleteSafeguardingItem = (id: string) => {
+    setWfSafeguardingList((prev) => prev.filter((sg) => sg.id !== id));
+  };
 
   // Hazard 2: Urban Fire
-  const [ufRiskBlocks, setUfRiskBlocks] = useState('High Street Historic Stone & Timber Tenements, Petrol Depot, Heritage Hotels');
+  const [ufRiskBlocks, setUfRiskBlocks] = useState('');
   const [ufCordonDist, setUfCordonDist] = useState('150');
-  const [ufBypassRoute, setUfBypassRoute] = useState('Bypass via Castle Grant Estate Road & Seafield Avenue');
-  const [ufWarmthHub, setUfWarmthHub] = useState('RBLS Legion Main Hall / Strathspey Church Hall');
+  const [ufBypassRoute, setUfBypassRoute] = useState('');
+  const [ufWarmthHub, setUfWarmthHub] = useState('');
 
   // Hazard 3: Flood & Surge
-  const [flRiver, setFlRiver] = useState('River Spey & Kylintra Burn spate');
-  const [flSepaCode, setFlSepaCode] = useState('Speyside - Grantown Flood Warning Zone (023314)');
-  const [flSandbagLoc, setFlSandbagLoc] = useState('Highland Council Depot, Burnfield Car Park');
-  const [flSandbagTel, setFlSandbagTel] = useState('07700 900888 (Highland Roads Duty Team)');
-  const [flHighGround, setFlHighGround] = useState('Grantown Grammar School (Above 220m contour line)');
+  const [flRiver, setFlRiver] = useState('');
+  const [flSepaCode, setFlSepaCode] = useState('');
+  const [flSandbagLoc, setFlSandbagLoc] = useState('');
+  const [flSandbagTel, setFlSandbagTel] = useState('');
+  const [flHighGround, setFlHighGround] = useState('');
 
   // Hazard 4: Power Outage
   const [poTriggerHours, setPoTriggerHours] = useState('4');
-  const [poWarmHours, setPoWarmHours] = useState('08:00 - 22:00 Daily');
-  const [poRadioRepeater, setPoRadioRepeater] = useState('Anagach Hill Mast / PMR446 Channel 7 Sub 11');
-  const [poGeneratorSpecs, setPoGeneratorSpecs] = useState('25kVA Dual-Fuel Diesel Generator (Powers Canteen, Heating & Charging Banks)');
+  const [poWarmHours, setPoWarmHours] = useState('');
+  const [poRadioRepeater, setPoRadioRepeater] = useState('');
+  const [poGeneratorSpecs, setPoGeneratorSpecs] = useState('');
 
   // Hazard 5: Water Shortage & Drought
-  const [drPwsCount, setDrPwsCount] = useState('120 Rural Steadings (Hill Springs & Wells Dried Up)');
-  const [drBowserLoc, setDrBowserLoc] = useState('Burnfield Car Park (Heavy Tanker Access Hardstanding)');
-  const [drHoseType, setDrHoseType] = useState('2.5 Inch Storz & Scottish Water Instantaneous Standpipes');
-  const [drBottledHub, setDrBottledHub] = useState('RBLS Legion Main Hall (10L Containers per Household/Day)');
-  const [drLivestockWater, setDrLivestockWater] = useState('Spey Valley Showgrounds 5000L Mobile Bowser Tank');
+  const [drPwsCount, setDrPwsCount] = useState('');
+  const [drBowserLoc, setDrBowserLoc] = useState('');
+  const [drHoseType, setDrHoseType] = useState('');
+  const [drBottledHub, setDrBottledHub] = useState('');
+  const [drLivestockWater, setDrLivestockWater] = useState('');
 
   // Hazard 6: Civil Unrest
-  const [cuAvoidArea, setCuAvoidArea] = useState('High Street & Town Square Central Core');
-  const [cuPoliceLiaison, setCuPoliceLiaison] = useState('Police Scotland Control Desk 101 / Duty Inspector (Aviemore Command)');
+  const [cuAvoidArea, setCuAvoidArea] = useState('');
+  const [cuPoliceLiaison, setCuPoliceLiaison] = useState('');
 
   // Hazard 7: Civil Defence
-  const [cdWaterSpring, setCdWaterSpring] = useState('Castle Grant Estate Gravity-Fed Spring Tank 1');
-  const [cdShelterLoc, setCdShelterLoc] = useState('Grantown Grammar School Reinforced Basement Complex');
+  const [cdWaterSpring, setCdWaterSpring] = useState('');
+  const [cdShelterLoc, setCdShelterLoc] = useState('');
 
   // Community Capability, Asset & Equipment Inventory
-  const [ast4x4, setAst4x4] = useState('14 Land Rovers / Pickups on Call with Winches');
-  const [astChainsaws, setAstChainsaws] = useState('6 NPTC Certified Forestry Volunteers w/ Chainsaws & PPE');
-  const [astGenerators, setAstGenerators] = useState('1x 25kVA Skid, 3x Honda 8kVA Portable Generators');
-  const [astRadios, setAstRadios] = useState('8 Licensed PMR446 Mesh & HAM Radio Operators');
-  const [astHeavyTractors, setAstHeavyTractors] = useState('4x John Deere / Massey Tractors w/ Ploughs & Heavy Mowers (Firebreaks)');
-  const [astArgocatsQuads, setAstArgocatsQuads] = useState('6x Argo-Cats & 10x Estate Quads w/ Tow Trailers for Moorland Evac');
+  const [ast4x4, setAst4x4] = useState('');
+  const [astChainsaws, setAstChainsaws] = useState('');
+  const [astGenerators, setAstGenerators] = useState('');
+  const [astRadios, setAstRadios] = useState('');
+  const [astHeavyTractors, setAstHeavyTractors] = useState('');
+  const [astArgocatsQuads, setAstArgocatsQuads] = useState('');
 
   // Communications
-  const [commsHamFreq, setCommsHamFreq] = useState('PMR446 Channel 7 / CTCSS 11 | HAM 2M Call Sign 2M0XYZ (145.500MHz)');
-  const [commsNoticeboards, setCommsNoticeboards] = useState('Post Office Window, Pharmacy Outer Board, RBLS Outer Door, Village Hall Board');
+  const [commsHamFreq, setCommsHamFreq] = useState('');
+  const [commsNoticeboards, setCommsNoticeboards] = useState('');
+
+  // Scenario-Specific Operational Notes & Guidance (Unique per scenario)
+  const [scenarioNotes, setScenarioNotes] = useState<Record<string, string>>({
+    wildfire: '',
+    urbanfire: '',
+    flood: '',
+    power: '',
+    drought: '',
+    unrest: '',
+    defence: ''
+  });
+
+  const handleUpdateScenarioNotes = (hazard: string, contentHtml: string) => {
+    setScenarioNotes((prev) => ({
+      ...prev,
+      [hazard]: contentHtml
+    }));
+  };
+
+  // Scenario-Specific Incident Response SOPs Map
+  const [sopsMap, setSopsMap] = useState<ScenarioSopsMap>(DEFAULT_SCENARIO_SOPS);
 
   // Registered Volunteers subcollection query
   const volunteersQuery = useMemoFirebase(() => {
@@ -476,7 +1088,91 @@ export default function LeaderEmergencyPlanPage() {
           }
 
           if (data.priorities) setPriorities((prev) => ({ ...prev, ...data.priorities }));
-          if (data.timelines) setTimelines((prev) => ({ ...prev, ...data.timelines }));
+          
+          // Load Dynamic Timeline Stages per Hazard
+          if (data.timelinesMap) {
+            setTimelinesMap((prev) => ({ ...prev, ...data.timelinesMap }));
+          } else if (data.timelines) {
+            const converted: ScenarioTimelinesMap = {};
+            Object.entries(data.timelines).forEach(([scen, val]: [string, any]) => {
+              if (val && val.t0) {
+                converted[scen] = [
+                  { id: `${scen}-t0`, timeTag: 'T+00 MINS', title: val.t0.title || '', desc: val.t0.desc || '' },
+                  { id: `${scen}-t15`, timeTag: 'T+15 MINS', title: val.t15.title || '', desc: val.t15.desc || '' },
+                  { id: `${scen}-t30`, timeTag: 'T+30 MINS', title: val.t30.title || '', desc: val.t30.desc || '' },
+                  { id: `${scen}-t60`, timeTag: 'T+60 MINS', title: val.t60.title || '', desc: val.t60.desc || '' }
+                ];
+              }
+            });
+            setTimelinesMap((prev) => ({ ...prev, ...converted }));
+          }
+
+          if (data.lastReviewedAt) setLastReviewedAt(data.lastReviewedAt);
+          if (data.reviewedByName) setReviewedByName(data.reviewedByName);
+          if (data.reviewedByRole) setReviewedByRole(data.reviewedByRole);
+          if (data.nextReviewDueAt) setNextReviewDueAt(data.nextReviewDueAt);
+          if (data.lsoEndorsement) setLsoEndorsement(data.lsoEndorsement);
+          
+          // Load Scenario-Specific Operational Notes
+          if (data.scenarioNotes) {
+            setScenarioNotes((prev) => ({
+              ...prev,
+              ...data.scenarioNotes
+            }));
+          } else if (typeof data.additionalNotesHtml === 'string' && data.additionalNotesHtml) {
+            setScenarioNotes((prev) => ({
+              ...prev,
+              wildfire: data.additionalNotesHtml
+            }));
+          }
+
+          // Load Dynamic Keyholders & Access Register
+          if (Array.isArray(data.keyholdersList) && data.keyholdersList.length > 0) {
+            setKeyholdersList(data.keyholdersList);
+          }
+
+          // Load Scenario-Specific Multi-Agency Liaisons
+          if (data.scenarioLiaisons) {
+            setScenarioLiaisons((prev) => ({
+              ...prev,
+              ...data.scenarioLiaisons
+            }));
+          }
+
+          // Load Dynamic Wildfire Arrays
+          if (Array.isArray(data.wildfireHazardAreas) && data.wildfireHazardAreas.length > 0) {
+            setWfHazardAreas(data.wildfireHazardAreas);
+          }
+          if (Array.isArray(data.wildfireAssetList) && data.wildfireAssetList.length > 0) {
+            setWfAssetList(data.wildfireAssetList);
+          }
+          if (Array.isArray(data.wildfireContactList) && data.wildfireContactList.length > 0) {
+            setWfContactList(data.wildfireContactList);
+          }
+          if (Array.isArray(data.wildfireTimelineStages) && data.wildfireTimelineStages.length > 0) {
+            setWfTimelineStages(data.wildfireTimelineStages);
+          }
+          if (Array.isArray(data.wildfireSafeguardingList) && data.wildfireSafeguardingList.length > 0) {
+            setWfSafeguardingList(data.wildfireSafeguardingList);
+          }
+
+          if (data.wildfireContacts) {
+            if (data.wildfireContacts.coordinatorName) setWfCoordName(data.wildfireContacts.coordinatorName);
+            if (data.wildfireContacts.coordinatorTel) setWfCoordTel(data.wildfireContacts.coordinatorTel);
+            if (data.wildfireContacts.estateManagerName) setWfEstateName(data.wildfireContacts.estateManagerName);
+            if (data.wildfireContacts.estateManagerTel) setWfEstateTel(data.wildfireContacts.estateManagerTel);
+            if (data.wildfireContacts.headKeeperName) setWfKeeperName(data.wildfireContacts.headKeeperName);
+            if (data.wildfireContacts.headKeeperTel) setWfKeeperTel(data.wildfireContacts.headKeeperTel);
+            if (data.wildfireContacts.fireStationName) setWfStationName(data.wildfireContacts.fireStationName);
+            if (data.wildfireContacts.fireStationTel) setWfStationTel(data.wildfireContacts.fireStationTel);
+          }
+
+          if (data.wildfireAssets) {
+            if (data.wildfireAssets.firebreakTractors) setWfAssetTractors(data.wildfireAssets.firebreakTractors);
+            if (data.wildfireAssets.waterAbstractionPoints) setWfAssetWater(data.wildfireAssets.waterAbstractionPoints);
+            if (data.wildfireAssets.bowsersAndATVs) setWfAssetBowsers(data.wildfireAssets.bowsersAndATVs);
+            if (data.wildfireAssets.livestockPastures) setWfAssetPastures(data.wildfireAssets.livestockPastures);
+          }
 
           if (data.wildfire) {
             setWfFuels(data.wildfire.fuels || wfFuels);
@@ -539,6 +1235,13 @@ export default function LeaderEmergencyPlanPage() {
             setCommsHamFreq(data.comms.hamPmrFreq || commsHamFreq);
             setCommsNoticeboards(data.comms.noticeboardLocs || commsNoticeboards);
           }
+
+          if (data.incidentSops && typeof data.incidentSops === 'object') {
+            setSopsMap((prev) => ({
+              ...DEFAULT_SCENARIO_SOPS,
+              ...data.incidentSops
+            }));
+          }
         }
       } catch (err: any) {
         console.error('Error fetching emergency plan:', err);
@@ -549,6 +1252,13 @@ export default function LeaderEmergencyPlanPage() {
 
     fetchPlan();
   }, [db, activeCommunityId]);
+
+  // Synchronize townshipName with the active community name if no plan was saved yet
+  useEffect(() => {
+    if (communityDoc?.name) {
+      setTownshipName((prev) => (!prev || prev === 'Local Community' || prev === 'Grantown-on-Spey & Strathspey') ? communityDoc.name : prev);
+    }
+  }, [communityDoc?.name]);
 
   // Handler to update scenario-specific facilities
   const handleScenarioFacilityChange = (
@@ -573,6 +1283,43 @@ export default function LeaderEmergencyPlanPage() {
     });
   };
 
+  // Certify and Stamp Plan as Reviewed Current
+  const handleCertifyPlan = async () => {
+    if (!activeCommunityId || !certifierNameInput.trim()) {
+      toast({ title: 'Name Required', description: 'Please enter your name to certify this plan.', variant: 'destructive' });
+      return;
+    }
+
+    setIsCertifying(true);
+    try {
+      const res = await certifyEmergencyPlanAction({
+        communityId: activeCommunityId,
+        reviewerName: certifierNameInput.trim(),
+        reviewerRole: certifierRoleInput.trim(),
+        userId: user?.uid || 'leader'
+      });
+
+      if (res.success) {
+        setLastReviewedAt(new Date(res.reviewedAt!));
+        setReviewedByName(certifierNameInput.trim());
+        setReviewedByRole(certifierRoleInput.trim());
+        setNextReviewDueAt(new Date(res.nextReviewDueAt!));
+        setIsCertifyModalOpen(false);
+        toast({
+          title: '🟢 Plan Certified & Stamped Current!',
+          description: `Certified by ${certifierNameInput}. Next statutory review scheduled in 6 months.`
+        });
+      } else {
+        toast({ title: 'Certification Failed', description: res.error || 'Could not certify plan.', variant: 'destructive' });
+      }
+    } catch (e: any) {
+      console.error('Error certifying plan:', e);
+      toast({ title: 'Error', description: e.message || 'Failed to certify plan.', variant: 'destructive' });
+    } finally {
+      setIsCertifying(false);
+    }
+  };
+
   // 1. INDEPENDENT ACTION: Save Living Statutory Emergency Plan Document
   const handleSavePlan = async () => {
     if (!db || !activeCommunityId) {
@@ -591,7 +1338,33 @@ export default function LeaderEmergencyPlanPage() {
           isPublicOnAboutPage,
           scenarioFacilities,
           priorities,
-          timelines,
+          timelinesMap,
+          additionalNotesHtml: scenarioNotes.wildfire || '',
+          keyholdersList,
+          scenarioLiaisons,
+          scenarioNotes,
+          incidentSops: sopsMap,
+          wildfireHazardAreas: wfHazardAreas,
+          wildfireAssetList: wfAssetList,
+          wildfireContactList: wfContactList,
+          wildfireTimelineStages: wfTimelineStages,
+          wildfireSafeguardingList: wfSafeguardingList,
+          wildfireContacts: {
+            coordinatorName: wfCoordName,
+            coordinatorTel: wfCoordTel,
+            estateManagerName: wfEstateName,
+            estateManagerTel: wfEstateTel,
+            headKeeperName: wfKeeperName,
+            headKeeperTel: wfKeeperTel,
+            fireStationName: wfStationName,
+            fireStationTel: wfStationTel
+          },
+          wildfireAssets: {
+            firebreakTractors: wfAssetTractors,
+            waterAbstractionPoints: wfAssetWater,
+            bowsersAndATVs: wfAssetBowsers,
+            livestockPastures: wfAssetPastures
+          },
           wildfire: {
             fuels: wfFuels,
             windThreat: wfWind,
@@ -653,6 +1426,19 @@ export default function LeaderEmergencyPlanPage() {
         { merge: true }
       );
 
+      // Record in Emergency Audit Log
+      await logEmergencyAuditAction({
+        communityId: activeCommunityId,
+        actionType: 'PLAN_SAVE',
+        category: activeHazard.toUpperCase(),
+        actorName: (userProfile as any)?.name || user?.displayName || 'Community Leader',
+        actorEmail: user?.email || '',
+        actorRole: (userProfile as any)?.role || 'Community Resilience Leader',
+        actorId: user?.uid || 'leader',
+        summary: `Saved Statutory Resilience Plan (${activeHazard.toUpperCase()} Annexe / General Settings)`,
+        details: { activeHazard, townshipName }
+      });
+
       toast({
         title: 'Emergency Plan Document Saved',
         description: 'Statutory Plan, Facilities & Inventory saved successfully.'
@@ -666,6 +1452,95 @@ export default function LeaderEmergencyPlanPage() {
       });
     } finally {
       setIsSavingPlan(false);
+    }
+  };
+
+  // Live Situation Message Publish Handler
+  const handlePublishMessage = async () => {
+    if (!activeCommunityId || !user) {
+      toast({ title: 'Error', description: 'Leader authentication required.', variant: 'destructive' });
+      return;
+    }
+    if (!msgTitle.trim() || !msgBody.trim()) {
+      toast({ title: 'Missing Information', description: 'Please enter a bulletin headline and message body.', variant: 'destructive' });
+      return;
+    }
+
+    setIsPublishingMessage(true);
+    try {
+      const author = msgAuthorName.trim() || (userProfile as any)?.name || user.displayName || 'Incident Commander';
+      const role = msgAuthorRole.trim() || 'Community Resilience Leader';
+
+      const res = await publishEmergencyMessageAction({
+        communityId: activeCommunityId,
+        title: msgTitle.trim(),
+        body: msgBody.trim(),
+        level: msgLevel,
+        hazardCategory: msgCategory,
+        authorName: author,
+        authorRole: role,
+        authorId: user.uid,
+        authorEmail: user.email || '',
+      });
+
+      if (res.success) {
+        toast({
+          title: 'Live Bulletin Published 📢',
+          description: `Bulletin "${msgTitle}" is now live on the Public Community Portal.`
+        });
+        setMsgTitle('');
+        setMsgBody('');
+        setIsNoticeActive(true);
+        setNoticeHeadline(msgTitle);
+        setNoticeMessage(msgBody);
+        setNoticeIssuedBy(`${author} (${role})`);
+      } else {
+        toast({ title: 'Publishing Failed', description: res.error, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsPublishingMessage(false);
+    }
+  };
+
+  // Live Situation Message Retract Handler
+  const handleRetractMessage = async (messageId?: string) => {
+    if (!activeCommunityId || !user) {
+      toast({ title: 'Error', description: 'Leader authentication required.', variant: 'destructive' });
+      return;
+    }
+
+    setIsRetractingMessage(true);
+    try {
+      const author = (userProfile as any)?.name || user.displayName || 'Incident Commander';
+      const res = await retractEmergencyMessageAction({
+        communityId: activeCommunityId,
+        messageId,
+        authorName: author,
+        authorRole: 'Community Resilience Leader',
+        authorId: user.uid,
+        authorEmail: user.email || '',
+        reason: retractReasonInput.trim() || 'Situation normalized.',
+      });
+
+      if (res.success) {
+        toast({
+          title: 'Bulletin Retracted',
+          description: 'Active emergency bulletin has been cleared from the public portal.'
+        });
+        setIsNoticeActive(false);
+        setNoticeHeadline('');
+        setNoticeMessage('');
+        setIsRetractDialogOpen(false);
+        setRetractReasonInput('');
+      } else {
+        toast({ title: 'Retract Failed', description: res.error, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsRetractingMessage(false);
     }
   };
 
@@ -694,6 +1569,19 @@ export default function LeaderEmergencyPlanPage() {
       });
 
       if (res.success) {
+        // Record in Emergency Audit Log
+        await logEmergencyAuditAction({
+          communityId: activeCommunityId,
+          actionType: 'THREAT_CHANGE',
+          category: 'Threat Status',
+          actorName: (userProfile as any)?.name || user?.displayName || 'Community Leader',
+          actorEmail: user?.email || '',
+          actorRole: 'Community Resilience Leader',
+          actorId: user.uid,
+          summary: `Updated Community Threat Level to ${targetStatus.toUpperCase()}`,
+          details: { previousStatus: currentThreatStatus, newStatus: targetStatus, activeHazardScenario }
+        });
+
         if (targetStatus === 'incident') {
           setCurrentThreatStatus('incident');
           setIsNoticeActive(true);
@@ -740,24 +1628,74 @@ export default function LeaderEmergencyPlanPage() {
     }));
   };
 
-  // Helper to update timelines
-  const handleTimelineChange = (
-    hazard: string,
-    key: 't0' | 't15' | 't30' | 't60',
-    field: 'title' | 'desc',
-    value: string
-  ) => {
-    setTimelines((prev) => ({
+  // Dynamic Timeline Milestone Helpers
+  const handleAddDynamicTimelineStage = (hazard: string) => {
+    const current = timelinesMap[hazard] || DEFAULT_TIMELINES_MAP[hazard] || [];
+    const nextCount = current.length + 1;
+    const minutes = nextCount * 30;
+    const timeTag = minutes >= 120 
+      ? `T+${Math.floor(minutes / 60)} HOURS` 
+      : minutes >= 60 
+      ? `T+${Math.floor(minutes / 60)} HOUR` 
+      : `T+${minutes} MINS`;
+
+    const newStage: ScenarioTimelineStage = {
+      id: `stage-${Date.now()}`,
+      timeTag,
+      title: 'New Operational Response Action',
+      desc: ''
+    };
+
+    setTimelinesMap((prev) => ({
       ...prev,
-      [hazard]: {
-        ...prev[hazard],
-        [key]: {
-          ...prev[hazard]?.[key],
-          [field]: value
-        }
-      }
+      [hazard]: [...(prev[hazard] || DEFAULT_TIMELINES_MAP[hazard] || []), newStage]
     }));
   };
+
+  const handleUpdateDynamicTimelineStage = (
+    hazard: string,
+    id: string,
+    field: keyof ScenarioTimelineStage,
+    value: string
+  ) => {
+    setTimelinesMap((prev) => ({
+      ...prev,
+      [hazard]: (prev[hazard] || DEFAULT_TIMELINES_MAP[hazard] || []).map((s) =>
+        s.id === id ? { ...s, [field]: value } : s
+      )
+    }));
+  };
+
+  const handleDeleteDynamicTimelineStage = (hazard: string, id: string) => {
+    setTimelinesMap((prev) => ({
+      ...prev,
+      [hazard]: (prev[hazard] || DEFAULT_TIMELINES_MAP[hazard] || []).filter((s) => s.id !== id)
+    }));
+  };
+
+  // Living Plan Certification Status Calculations
+  const isPlanCurrent = useMemo(() => {
+    if (!lastReviewedAt) return false;
+    const reviewedDate = lastReviewedAt?.toDate ? lastReviewedAt.toDate() : new Date(lastReviewedAt);
+    if (isNaN(reviewedDate.getTime())) return false;
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return reviewedDate >= sixMonthsAgo;
+  }, [lastReviewedAt]);
+
+  const formattedLastReviewed = useMemo(() => {
+    if (!lastReviewedAt) return null;
+    const d = lastReviewedAt?.toDate ? lastReviewedAt.toDate() : new Date(lastReviewedAt);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }, [lastReviewedAt]);
+
+  const formattedNextDue = useMemo(() => {
+    if (!nextReviewDueAt) return null;
+    const d = nextReviewDueAt?.toDate ? nextReviewDueAt.toDate() : new Date(nextReviewDueAt);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }, [nextReviewDueAt]);
 
   // Active scenario facilities currently viewed
   const currentScenarioKey = activeHazard === 'submission' ? 'wildfire' : activeHazard;
@@ -904,7 +1842,123 @@ export default function LeaderEmergencyPlanPage() {
   };
 
   const currentPriorities = priorities[activeHazard] || DEFAULT_PRIORITIES.wildfire;
-  const currentTimeline = timelines[activeHazard] || DEFAULT_TIMELINES.wildfire;
+  const currentTimelineStages = timelinesMap[activeHazard] || DEFAULT_TIMELINES_MAP[activeHazard] || [];
+
+  const renderScenarioLiaisonsCard = (hazardKey: string, hazardTitle: string) => {
+    const liaisons = scenarioLiaisons[hazardKey] || DEFAULT_SCENARIO_LIAISONS[hazardKey] || [];
+    return (
+      <Card className="border shadow-md bg-card/70">
+        <CardHeader className="bg-muted/30 border-b pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
+                <Users2 className="h-4 w-4 text-cyan-500" />
+                {hazardTitle} Multi-Agency Liaisons & Service Contacts
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Specialist control rooms, agency officers, and community coordinators for this scenario.
+              </CardDescription>
+            </div>
+            <Button
+              onClick={() => handleAddScenarioLiaison(hazardKey)}
+              size="sm"
+              className="bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-extrabold text-xs gap-1.5 h-8 whitespace-nowrap shadow-sm border-0"
+            >
+              <Plus className="h-4 w-4 text-slate-950" /> Add Agency Liaison
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 md:p-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            {liaisons.map((liaison, idx) => (
+              <div
+                key={liaison.id || idx}
+                className="p-3.5 rounded-xl border bg-card space-y-2 text-xs relative group transition-all hover:border-cyan-500/40 shadow-sm"
+              >
+                <div className="flex items-center justify-between border-b pb-1.5">
+                  <Input
+                    value={liaison.role}
+                    onChange={(e) => handleUpdateScenarioLiaison(hazardKey, liaison.id, 'role', e.target.value)}
+                    placeholder="Role / Title"
+                    className="bg-transparent border-none text-xs font-bold text-cyan-600 dark:text-cyan-400 p-0 h-auto focus-visible:ring-0 focus-visible:bg-muted/40 flex-grow mr-1"
+                  />
+                  <Button
+                    onClick={() => handleDeleteScenarioLiaison(hazardKey, liaison.id)}
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded"
+                    title="Delete contact"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                  </Button>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Agency / Contact Name</Label>
+                  <Input
+                    value={liaison.agencyOrName}
+                    onChange={(e) => handleUpdateScenarioLiaison(hazardKey, liaison.id, 'agencyOrName', e.target.value)}
+                    placeholder="Agency / Contact Name"
+                    className="h-7 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">24/7 Telephone</Label>
+                  <Input
+                    value={liaison.telephone}
+                    onChange={(e) => handleUpdateScenarioLiaison(hazardKey, liaison.id, 'telephone', e.target.value)}
+                    placeholder="24/7 Telephone"
+                    className="h-7 text-xs font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Operational Notes</Label>
+                  <Input
+                    value={liaison.notes || ''}
+                    onChange={(e) => handleUpdateScenarioLiaison(hazardKey, liaison.id, 'notes', e.target.value)}
+                    placeholder="Operational notes / radio channel..."
+                    className="h-7 text-[11px]"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderScenarioNotesCard = (hazardKey: string, hazardTitle: string, sectionNumber?: string) => {
+    return (
+      <Card className="border shadow-md bg-card">
+        <CardHeader className="bg-muted/30 border-b pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4 text-emerald-500" />
+              {sectionNumber ? `${sectionNumber}. ` : ''}Additional {hazardTitle} Information & Operational Notes
+            </CardTitle>
+            <Badge variant="outline" className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 border-emerald-500/30 uppercase">
+              {hazardKey} Plan Specific
+            </Badge>
+          </div>
+          <CardDescription className="text-xs">
+            Add custom operational notes, landowner agreements, muster points, staging locations, or local instructions strictly for {hazardTitle}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 md:p-6 space-y-2">
+          <div className="bg-card rounded-xl border p-1 shadow-sm">
+            <RichTextEditor
+              value={scenarioNotes[hazardKey] || ''}
+              onChange={(val) => handleUpdateScenarioNotes(hazardKey, val)}
+              placeholder={`Type bespoke operational instructions, staging details, landowner agreements, or equipment notes for ${hazardTitle} here...`}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (isLoadingData) {
     return (
@@ -999,6 +2053,144 @@ export default function LeaderEmergencyPlanPage() {
               aria-label="Toggle Public Visibility"
             />
           </div>
+        </div>
+
+        {/* Living Statutory Plan Verification & Certification Status Bar */}
+        <div className="mt-4 pt-4 border-t border-slate-700/60 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-slate-950/80 p-4 rounded-2xl border border-slate-800 text-xs">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Badge className={
+                isPlanCurrent 
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[11px] font-mono uppercase px-2.5 py-1 flex items-center gap-1.5'
+                  : lastReviewedAt
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 text-[11px] font-mono uppercase px-2.5 py-1 flex items-center gap-1.5'
+                  : 'bg-slate-700/50 text-slate-300 border-slate-600 text-[11px] font-mono uppercase px-2.5 py-1 flex items-center gap-1.5'
+              }>
+                {isPlanCurrent ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />}
+                {isPlanCurrent ? '🟢 Verified Current' : lastReviewedAt ? '🟡 Statutory Review Due' : '⚪ Draft / Uncertified'}
+              </Badge>
+              <Badge variant="outline" className="border-cyan-500/40 text-cyan-300 text-[11px] font-mono">
+                SFRS 2026–2029 Aligned (Priority 2 & 7)
+              </Badge>
+            </div>
+
+            <div className="text-slate-300 text-[11px] space-y-0.5">
+              <p>
+                <strong>Last Verified:</strong> {formattedLastReviewed ? `${formattedLastReviewed} by ${reviewedByName || 'Community Lead'} (${reviewedByRole || 'Lead'})` : 'Never certified'}
+                {formattedNextDue && <span className="text-slate-400 ml-2">• <strong>Next Statutory Review Due:</strong> {formattedNextDue}</span>}
+              </p>
+            </div>
+          </div>
+
+          <Dialog open={isCertifyModalOpen} onOpenChange={setIsCertifyModalOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-2 text-xs shadow-md shadow-emerald-950/60 whitespace-nowrap">
+                <CheckCircle2 className="h-4 w-4" /> Certify Plan Current
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md bg-slate-950 border-slate-800 text-white">
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 uppercase font-mono">
+                    Statutory Certification
+                  </Badge>
+                </div>
+                <DialogTitle className="text-lg font-bold text-white pt-1">
+                  Certify Community Emergency Resilience Plan
+                </DialogTitle>
+                <DialogDescription className="text-slate-400 text-xs">
+                  By certifying, you confirm this emergency plan has been reviewed against local hazard profiles, contact numbers are verified, and resources are up to date for <strong>{townshipName}</strong>.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-300 font-bold">Certifying Officer / Leader Full Name</Label>
+                  <Input
+                    value={certifierNameInput}
+                    onChange={(e) => setCertifierNameInput(e.target.value)}
+                    placeholder="e.g. Cllr. Graham Mackenzie / Dr. M. Ross"
+                    className="bg-slate-900 border-slate-700 text-white text-xs font-semibold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-300 font-bold">Resilience Role / Appointment</Label>
+                  <Input
+                    value={certifierRoleInput}
+                    onChange={(e) => setCertifierRoleInput(e.target.value)}
+                    placeholder="e.g. Community Council Resilience Lead"
+                    className="bg-slate-900 border-slate-700 text-white text-xs"
+                  />
+                </div>
+                <div className="p-3 bg-slate-900/90 rounded-xl border border-slate-800 text-[11px] text-slate-300 space-y-1">
+                  <p className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                    <Clock className="h-3.5 w-3.5" /> 6-Month Active Validity Cycle
+                  </p>
+                  <p className="text-slate-400">
+                    Stamps today's date into the public and council register. The system will automatically notify you before the 6-month cycle expires.
+                  </p>
+                </div>
+              </div>
+              <DialogFooter className="gap-2 sm:justify-between">
+                <Button variant="outline" size="sm" onClick={() => setIsCertifyModalOpen(false)} className="bg-slate-900 border-slate-700 text-white hover:bg-slate-800">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCertifyPlan}
+                  disabled={isCertifying || !certifierNameInput.trim()}
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-2"
+                >
+                  {isCertifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Sign & Certify Today
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* INCIDENT SOP QUICK-START ACTION BAR */}
+      <div className="p-4 md:p-5 rounded-3xl bg-gradient-to-r from-sky-950/40 via-slate-900 to-indigo-950/40 border border-sky-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 rounded-2xl bg-sky-500/10 border border-sky-500/30 text-sky-400 shrink-0">
+            <ListChecks className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-black uppercase tracking-wider text-sky-400 font-headline">
+                {activeHazard.toUpperCase()} Incident Response Standard Operating Procedure (SOP)
+              </span>
+              <Badge variant="outline" className="text-[10px] font-mono border-sky-500/40 text-sky-300">
+                {sopsMap[activeHazard]?.filter((p) => p.tasks?.every((t) => t.isCompleted))?.length || 0} / {sopsMap[activeHazard]?.length || 5} Phases Active
+              </Badge>
+            </div>
+            <p className="text-xs text-slate-300">
+              5-phase operational action plan with multi-agency escalation, volunteer deployment, and 1-page pocket grab-bag checklist for {activeHazard.toUpperCase()}.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+          <Link href={`/leader/emergency-plan/sop?hazard=${activeHazard}`}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="bg-slate-900 border-sky-500/40 text-sky-300 hover:bg-sky-950/60 font-bold text-xs h-9 gap-1.5 shadow-sm"
+            >
+              <Printer className="h-4 w-4 text-sky-400" /> Print Pocket Card
+            </Button>
+          </Link>
+
+          <Link href={`/leader/emergency-plan/sop?hazard=${activeHazard}`}>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs h-9 gap-1.5 shadow-lg shadow-sky-950/60 cursor-pointer"
+            >
+              <ListChecks className="h-4 w-4" /> Open Action Checklist
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -1256,7 +2448,7 @@ export default function LeaderEmergencyPlanPage() {
 
       {/* HAZARD NAVIGATION TABS */}
       <div className="space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-2 pb-2">
+        <div id="incident-sop-section" className="flex items-center justify-between flex-wrap gap-2 pb-2 scroll-mt-6">
           <h2 className="text-lg font-bold tracking-tight flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             Statutory Action Annexes & Facility Infrastructure
@@ -1322,11 +2514,72 @@ export default function LeaderEmergencyPlanPage() {
               >
                 <FileSpreadsheet className="h-4 w-4" /> Living Master Plan
               </TabsTrigger>
+
+              <TabsTrigger
+                value="messages"
+                className="gap-2 data-[state=active]:bg-pink-600 data-[state=active]:text-white font-semibold text-xs py-2 px-3.5 rounded-xl transition-all"
+              >
+                <MessageSquareText className="h-4 w-4 text-pink-400 data-[state=active]:text-white" /> Live Bulletins
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="audit"
+                className="gap-2 data-[state=active]:bg-violet-600 data-[state=active]:text-white font-semibold text-xs py-2 px-3.5 rounded-xl transition-all"
+              >
+                <History className="h-4 w-4 text-violet-400 data-[state=active]:text-white" /> Audit & Event Log
+              </TabsTrigger>
             </TabsList>
           </div>
 
+          {/* DYNAMIC SCENARIO-SPECIFIC INCIDENT SOP CARD */}
+          {['wildfire', 'urbanfire', 'flood', 'power', 'drought', 'unrest', 'defence'].includes(activeHazard) && (
+            <div className="my-5 p-4 md:p-5 rounded-3xl bg-gradient-to-r from-sky-950/40 via-slate-900 to-indigo-950/40 border border-sky-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+              <div className="flex items-center gap-3.5">
+                <div className="p-3 rounded-2xl bg-sky-500/10 border border-sky-500/30 text-sky-400 shrink-0">
+                  <ListChecks className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black uppercase tracking-wider text-sky-400 font-headline">
+                      {activeHazard.toUpperCase()} Incident Response Standard Operating Procedure (SOP)
+                    </span>
+                    <Badge variant="outline" className="text-[10px] font-mono border-sky-500/40 text-sky-300">
+                      {sopsMap[activeHazard]?.filter((p) => p.tasks?.every((t) => t.isCompleted))?.length || 0} / {sopsMap[activeHazard]?.length || 5} Phases Active
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    5-phase tactical action checklist tailored for <strong>{activeHazard.toUpperCase()}</strong> with multi-agency protocols, volunteer dispatch, and printable grab-bag reference card.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                <Link href={`/leader/emergency-plan/sop?hazard=${activeHazard}`}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="bg-slate-900 border-sky-500/40 text-sky-300 hover:bg-sky-950/60 font-bold text-xs h-9 gap-1.5 shadow-sm"
+                  >
+                    <Printer className="h-4 w-4 text-sky-400" /> Print Pocket Card
+                  </Button>
+                </Link>
+
+                <Link href={`/leader/emergency-plan/sop?hazard=${activeHazard}`}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs h-9 gap-1.5 shadow-lg shadow-sky-950/60 cursor-pointer"
+                  >
+                    <ListChecks className="h-4 w-4" /> Open {activeHazard.toUpperCase()} Action Checklist →
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* DYNAMIC SCENARIO-SPECIFIC INFRASTRUCTURE FAILOVER SIMULATOR */}
-          {activeHazard !== 'submission' && (
+          {['wildfire', 'urbanfire', 'flood', 'power', 'drought', 'unrest', 'defence'].includes(activeHazard) && (
             <Card className="my-6 border-amber-500/50 bg-gradient-to-r from-amber-950/30 via-slate-900 to-slate-950 shadow-xl overflow-hidden">
               <CardHeader className="pb-4 border-b border-slate-800/80 bg-slate-950/40">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1622,7 +2875,7 @@ export default function LeaderEmergencyPlanPage() {
           )}
 
           {/* EDITABLE PRIORITIES CARDS (P1, P2, P3) */}
-          {activeHazard !== 'submission' && (
+          {['wildfire', 'urbanfire', 'flood', 'power', 'drought', 'unrest', 'defence'].includes(activeHazard) && (
             <div className="space-y-4 my-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
@@ -1652,7 +2905,7 @@ export default function LeaderEmergencyPlanPage() {
                       onChange={(e) => handlePriorityChange(activeHazard, 'p1', 'desc', e.target.value)}
                       placeholder="Operational instructions..."
                       rows={3}
-                      className="text-xs resize-none"
+                      className="text-xs resize-y min-h-[70px]"
                     />
                   </CardContent>
                 </Card>
@@ -1677,7 +2930,7 @@ export default function LeaderEmergencyPlanPage() {
                       onChange={(e) => handlePriorityChange(activeHazard, 'p2', 'desc', e.target.value)}
                       placeholder="Operational instructions..."
                       rows={3}
-                      className="text-xs resize-none"
+                      className="text-xs resize-y min-h-[70px]"
                     />
                   </CardContent>
                 </Card>
@@ -1702,7 +2955,7 @@ export default function LeaderEmergencyPlanPage() {
                       onChange={(e) => handlePriorityChange(activeHazard, 'p3', 'desc', e.target.value)}
                       placeholder="Operational instructions..."
                       rows={3}
-                      className="text-xs resize-none"
+                      className="text-xs resize-y min-h-[70px]"
                     />
                   </CardContent>
                 </Card>
@@ -1710,62 +2963,411 @@ export default function LeaderEmergencyPlanPage() {
             </div>
           )}
 
-          {/* TAB CONTENT: 1. WILDFIRE */}
+          {/* TAB CONTENT: 1. WILDFIRE (MASTER LIVING TEMPLATE - SFRS 2026-2029 ALIGNED) */}
           <TabsContent value="wildfire" className="space-y-6 mt-4">
-            <Card className="border-red-500/30 shadow-md">
-              <CardHeader className="bg-gradient-to-r from-red-950/40 via-background to-background border-b pb-4">
-                <CardTitle className="text-lg flex items-center gap-2 text-red-500">
-                  <Flame className="h-5 w-5" /> Annex A: Rural Wildfire & Moorland Escape Plan
-                </CardTitle>
-                <CardDescription>
-                  Pinewood fuels, wind corridors, SFRS draft points, and holding zones for livestock.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold">High-Risk Vegetation & Fuel Belt</Label>
-                    <Input
-                      value={wfFuels}
-                      onChange={(e) => setWfFuels(e.target.value)}
-                      placeholder="e.g. Anagach Pinewoods (1000ha Scots Pine)"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold">Prevailing Wind Threat Corridor</Label>
-                    <Input
-                      value={wfWind}
-                      onChange={(e) => setWfWind(e.target.value)}
-                      placeholder="e.g. East / South-East pinewoods towards town"
-                    />
-                  </div>
+            {/* SFRS Statutory Alignment Banner */}
+            <div className="bg-gradient-to-r from-red-950/60 via-slate-900 to-slate-950 p-5 rounded-2xl border border-red-500/40 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className="bg-red-600 text-white text-xs font-bold font-mono uppercase px-2 py-0.5">
+                    SFRS Priority 2 & 7
+                  </Badge>
+                  <span className="text-xs font-bold text-red-300">
+                    Scottish Fire & Rescue Service — Local Fire and Rescue Plan 2026–2029
+                  </span>
                 </div>
+                <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-red-500" />
+                  Wildfire & Climate Emergency Resilience Plan
+                </h2>
+                <p className="text-xs text-slate-300">
+                  Living statutory plan for wildfire prevention, early community notification, agricultural firebreak coordination, and evacuation corridors.
+                </p>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold">SFRS Water Hydrant Locations</Label>
-                    <Input
-                      value={wfHydrants}
-                      onChange={(e) => setWfHydrants(e.target.value)}
-                      placeholder="High Street & The Square hydrants"
-                    />
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleSavePlan}
+                  disabled={isSavingPlan}
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-2 text-xs shadow-md shadow-emerald-950/40"
+                >
+                  {isSavingPlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save Wildfire Plan
+                </Button>
+              </div>
+            </div>
+
+            {/* SECTION 1: HAZARD ASSESSMENT & FUEL PROFILE (DYNAMIC LIST WITH + ADD / DELETE) */}
+            <Card className="border-red-500/30 shadow-md bg-slate-950/80">
+              <CardHeader className="bg-gradient-to-r from-red-950/40 via-slate-900 to-slate-950 border-b border-slate-800 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-red-400 flex items-center gap-2">
+                      <TreePine className="h-4 w-4" /> 1. Wildfire Hazard Assessment & Fuel Profile
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-400">
+                      Identify local fuel types, terrain risks, and wind corridors that threaten homes and infrastructure.
+                    </CardDescription>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold">Open Water Draw Point (River Spey/Loch)</Label>
-                    <Input
-                      value={wfWater}
-                      onChange={(e) => setWfWater(e.target.value)}
-                      placeholder="River Spey old bridge hardstanding"
-                    />
+                  <Button
+                    onClick={handleAddHazardArea}
+                    size="sm"
+                    className="bg-red-400 hover:bg-red-300 text-slate-950 font-extrabold text-xs gap-1.5 h-8 whitespace-nowrap shadow-sm border-0"
+                  >
+                    <Plus className="h-4 w-4 text-slate-950" /> Add Hazard / Fuel Area
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4 text-xs">
+                {wfHazardAreas.map((area, idx) => (
+                  <div
+                    key={area.id || idx}
+                    className="p-4 rounded-xl bg-slate-900 border border-slate-800 relative group transition-all hover:border-red-500/40 space-y-3"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                      <div className="flex items-center gap-2 flex-grow mr-2">
+                        <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] font-mono">
+                          ZONE #{idx + 1}
+                        </Badge>
+                        <Input
+                          value={area.title}
+                          onChange={(e) => handleUpdateHazardArea(area.id, 'title', e.target.value)}
+                          placeholder="Zone / Area Name (e.g. Anagach Pinewoods Corridor)"
+                          className="bg-transparent border-none text-xs font-bold text-white p-0 h-auto focus-visible:ring-0 focus-visible:bg-slate-950/60"
+                        />
+                      </div>
+                      <Button
+                        onClick={() => handleDeleteHazardArea(area.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg"
+                        title="Delete this Hazard Area"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-400" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-300">High-Risk Vegetation & Fuel Belt</Label>
+                        <Input
+                          value={area.fuelType}
+                          onChange={(e) => handleUpdateHazardArea(area.id, 'fuelType', e.target.value)}
+                          placeholder="e.g. 1,000ha mature Scots Pine plantation, heavy needle duff, and heather"
+                          className="bg-slate-950 border-slate-700 text-white text-xs h-8"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-300">Prevailing Wind Threat & Vulnerable Boundaries</Label>
+                        <Input
+                          value={area.windThreat}
+                          onChange={(e) => handleUpdateHazardArea(area.id, 'windThreat', e.target.value)}
+                          placeholder="e.g. East / South-East winds blowing flame and ember shower towards town"
+                          className="bg-slate-950 border-slate-700 text-white text-xs h-8"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold">Livestock & Horse Holding Grounds</Label>
-                    <Input
-                      value={wfLivestock}
-                      onChange={(e) => setWfLivestock(e.target.value)}
-                      placeholder="Spey Valley Showgrounds Field 4"
-                    />
+                ))}
+
+                <div className="p-3.5 bg-slate-900/90 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-300">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-cyan-400 flex-shrink-0" />
+                    <span>
+                      <strong>SFRS Wildfire Danger Assessment:</strong> Monitor Met Office Fire Severity Index (FSI) & Scottish Fire Danger warnings during dry spring/summer spells.
+                    </span>
                   </div>
+                  <Badge variant="outline" className="border-amber-500/40 text-amber-300 text-[10px] whitespace-nowrap">
+                    Active Vigilance
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SECTION 2: SFRS COMMUNITY ASSET REGISTER (DYNAMIC WITH + ADD / DELETE) */}
+            <Card className="border-amber-500/30 shadow-md bg-slate-950/80">
+              <CardHeader className="bg-gradient-to-r from-amber-950/30 via-slate-900 to-slate-950 border-b border-slate-800 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                        <Tractor className="h-4 w-4" /> 2. SFRS Community Asset Register (Machinery & Water Abstraction)
+                      </CardTitle>
+                      <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] font-mono uppercase">
+                        Priority 7 Aligned
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-xs text-slate-400">
+                      Catalog local farm tractors, water abstraction draft points, bowsers, and holding areas identified in SFRS statutory plans.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={handleAddAssetItem}
+                    size="sm"
+                    className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs gap-1.5 h-8 whitespace-nowrap shadow-sm border-0"
+                  >
+                    <Plus className="h-4 w-4 text-slate-950" /> Add SFRS Asset / Water Point
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {wfAssetList.map((asset, idx) => (
+                    <div
+                      key={asset.id || idx}
+                      className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2.5 relative group transition-all hover:border-amber-500/40"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <Input
+                          value={asset.name}
+                          onChange={(e) => handleUpdateAssetItem(asset.id, 'name', e.target.value)}
+                          placeholder="Asset / Resource Name (e.g. Heavy Agricultural Tractors & Ploughs)"
+                          className="bg-transparent border-none text-xs font-bold text-amber-300 p-0 h-auto focus-visible:ring-0 focus-visible:bg-slate-950/60 flex-grow mr-2"
+                        />
+                        <Button
+                          onClick={() => handleDeleteAssetItem(asset.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg"
+                          title="Delete this asset"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-400" />
+                        </Button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-slate-400">Resource Category / Tactical Tag</Label>
+                        <Input
+                          value={asset.category}
+                          onChange={(e) => handleUpdateAssetItem(asset.id, 'category', e.target.value)}
+                          placeholder="e.g. Firebreaks, Water Abstraction, All-Terrain Transport, Livestock Holding"
+                          className="bg-slate-950 border-slate-700 text-white text-xs h-7"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-slate-400">Specifications, Capacity & Access Location</Label>
+                        <Textarea
+                          value={asset.description}
+                          onChange={(e) => handleUpdateAssetItem(asset.id, 'description', e.target.value)}
+                          placeholder="e.g. 4x Heavy 4WD agricultural tractors with subsoil ploughs on call..."
+                          rows={2}
+                          className="text-[11px] leading-relaxed resize-y min-h-[60px] bg-slate-950 border-slate-700 text-slate-300"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SECTION 3: EMERGENCY COORDINATOR & ESTATE NETWORK (DYNAMIC LIST WITH + ADD / DELETE) */}
+            <Card className="border-cyan-500/30 shadow-md bg-slate-950/80">
+              <CardHeader className="bg-gradient-to-r from-cyan-950/30 via-slate-900 to-slate-950 border-b border-slate-800 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-cyan-400 flex items-center gap-2">
+                      <Users2 className="h-4 w-4" /> 3. Wildfire Coordinator & Multi-Agency Network
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-400">
+                      Key contacts for community leadership, estate gamekeepers, and emergency service liaisons.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={handleAddContact}
+                    size="sm"
+                    className="bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-extrabold text-xs gap-1.5 h-8 whitespace-nowrap shadow-sm border-0"
+                  >
+                    <Plus className="h-4 w-4 text-slate-950" /> Add Coordinator / Contact
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {wfContactList.map((contact, idx) => (
+                    <div
+                      key={contact.id || idx}
+                      className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2.5 relative group transition-all hover:border-cyan-500/40"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <Input
+                          value={contact.role}
+                          onChange={(e) => handleUpdateContact(contact.id, 'role', e.target.value)}
+                          placeholder="Role / Title (e.g. Community Resilience Lead)"
+                          className="bg-transparent border-none text-xs font-bold text-cyan-300 p-0 h-auto focus-visible:ring-0 focus-visible:bg-slate-950/60 flex-grow"
+                        />
+                        <Button
+                          onClick={() => handleDeleteContact(contact.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg ml-2"
+                          title="Delete this contact"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-400" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] text-slate-400">Name / Organisation</Label>
+                          <Input
+                            value={contact.name}
+                            onChange={(e) => handleUpdateContact(contact.id, 'name', e.target.value)}
+                            placeholder="Contact Name"
+                            className="bg-slate-950 border-slate-700 text-white text-xs h-8"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] text-slate-400">24/7 Telephone</Label>
+                          <Input
+                            value={contact.telephone}
+                            onChange={(e) => handleUpdateContact(contact.id, 'telephone', e.target.value)}
+                            placeholder="Phone / VHF"
+                            className="bg-slate-950 border-slate-700 text-white text-xs h-8 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-slate-400">Operational Notes (Optional)</Label>
+                        <Input
+                          value={contact.notes || ''}
+                          onChange={(e) => handleUpdateContact(contact.id, 'notes', e.target.value)}
+                          placeholder="e.g. 24/7 Duty Mobile / Estate Radio Channel"
+                          className="bg-slate-950 border-slate-700 text-slate-300 text-xs h-7"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SECTION 4: 0-60 MINUTE OPERATIONAL RESPONSE TIMELINE (DYNAMIC WITH + ADD / DELETE) */}
+            <Card className="border-slate-700 shadow-md bg-slate-950/80">
+              <CardHeader className="bg-slate-900/60 border-b border-slate-800 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-emerald-400" /> 4. Operational 0–60 Minute Response Timeline
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-400">
+                      Step-by-step actions executed from initial detection through to joint SFRS command handover.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={handleAddTimelineStage}
+                    size="sm"
+                    className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold text-xs gap-1.5 h-8 whitespace-nowrap shadow-sm border-0"
+                  >
+                    <Plus className="h-4 w-4 text-slate-950" /> Add Response Stage
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {wfTimelineStages.map((stage, idx) => (
+                    <div
+                      key={stage.id || idx}
+                      className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2 relative group transition-all hover:border-emerald-500/40 flex flex-col justify-between"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Input
+                            value={stage.timeTag}
+                            onChange={(e) => handleUpdateTimelineStage(stage.id, 'timeTag', e.target.value)}
+                            placeholder="e.g. T+0 MINS"
+                            className="bg-red-500/10 text-red-400 border border-red-500/30 text-[10px] font-mono font-bold h-6 px-1.5 py-0 w-24 rounded"
+                          />
+                          <Button
+                            onClick={() => handleDeleteTimelineStage(stage.id)}
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg"
+                            title="Delete stage"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                          </Button>
+                        </div>
+
+                        <Input
+                          value={stage.title}
+                          onChange={(e) => handleUpdateTimelineStage(stage.id, 'title', e.target.value)}
+                          placeholder="Stage Title"
+                          className="font-bold text-xs h-7 bg-slate-950 border-slate-700 text-white"
+                        />
+
+                        <Textarea
+                          value={stage.desc}
+                          onChange={(e) => handleUpdateTimelineStage(stage.id, 'desc', e.target.value)}
+                          placeholder="Action instructions..."
+                          rows={3}
+                          className="text-[11px] resize-y min-h-[60px] bg-slate-950 border-slate-700 text-slate-300"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SECTION 5: VULNERABLE RESIDENTS & SAFEGUARDING (DYNAMIC WITH + ADD / DELETE & FULLY EDITABLE) */}
+            <Card className="border-slate-800 shadow-md bg-slate-950/80">
+              <CardHeader className="bg-slate-900/60 border-b border-slate-800 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-emerald-400" /> 5. Vulnerable Resident Evacuation & Safeguarding (SFRS Priority 3)
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-400">
+                      Fully customizable safeguarding protocols for isolated elderly residents and support for SFRS Home Fire Safety Visits (HFSVs).
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={handleAddSafeguardingItem}
+                    size="sm"
+                    className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold text-xs gap-1.5 h-8 whitespace-nowrap shadow-sm border-0"
+                  >
+                    <Plus className="h-4 w-4 text-slate-950" /> Add Safeguarding Action
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4 text-xs text-slate-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {wfSafeguardingList.map((item, idx) => (
+                    <div
+                      key={item.id || idx}
+                      className="p-4 bg-slate-900 rounded-xl border border-slate-800 space-y-2.5 relative group transition-all hover:border-emerald-500/40"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <Input
+                          value={item.title}
+                          onChange={(e) => handleUpdateSafeguardingItem(item.id, 'title', e.target.value)}
+                          placeholder="Protocol Title (e.g. Priority Evacuation List Protocol)"
+                          className="bg-transparent border-none text-xs font-bold text-white p-0 h-auto focus-visible:ring-0 focus-visible:bg-slate-950/60 flex-grow mr-2"
+                        />
+                        <Button
+                          onClick={() => handleDeleteSafeguardingItem(item.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg"
+                          title="Delete item"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                        </Button>
+                      </div>
+
+                      <Textarea
+                        value={item.description}
+                        onChange={(e) => handleUpdateSafeguardingItem(item.id, 'description', e.target.value)}
+                        placeholder="Detailed safeguarding protocol instructions..."
+                        rows={4}
+                        className="text-[11px] leading-relaxed resize-y min-h-[80px] bg-slate-950 border-slate-700 text-slate-300"
+                      />
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -1775,12 +3377,23 @@ export default function LeaderEmergencyPlanPage() {
           <TabsContent value="urbanfire" className="space-y-6 mt-4">
             <Card className="border-orange-500/30 shadow-md">
               <CardHeader className="bg-gradient-to-r from-orange-950/40 via-background to-background border-b pb-4">
-                <CardTitle className="text-lg flex items-center gap-2 text-orange-500">
-                  <Building className="h-5 w-5" /> Annex B: Urban Structural Fire & Historic Building Plan
-                </CardTitle>
-                <CardDescription>
-                  Tenement risk zones, safety cordons, traffic bypasses, and temporary warmth shelters.
-                </CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2 text-orange-500">
+                      <Building className="h-5 w-5" /> Annex B: Urban Structural Fire & Historic Building Plan
+                    </CardTitle>
+                    <CardDescription>
+                      Tenement risk zones, safety cordons, traffic bypasses, and temporary warmth shelters.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => handleUpdateLiveThreatStatus('incident')}
+                    size="sm"
+                    className="bg-orange-500 hover:bg-orange-400 text-slate-950 font-extrabold text-xs gap-1.5 h-8 shadow-sm border-0"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-slate-950" /> Activate Incident (Urban Fire)
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1822,18 +3435,32 @@ export default function LeaderEmergencyPlanPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Urban Fire Liaisons */}
+            {renderScenarioLiaisonsCard('urbanfire', 'Urban Fire & Structural')}
           </TabsContent>
 
           {/* TAB CONTENT: 3. FLOOD & SURGE */}
           <TabsContent value="flood" className="space-y-6 mt-4">
             <Card className="border-cyan-500/30 shadow-md">
               <CardHeader className="bg-gradient-to-r from-cyan-950/40 via-background to-background border-b pb-4">
-                <CardTitle className="text-lg flex items-center gap-2 text-cyan-500">
-                  <Waves className="h-5 w-5" /> Annex C: River Flooding & Coastal Surge Plan
-                </CardTitle>
-                <CardDescription>
-                  Watercourses, SEPA flood codes, sandbag depots & keyholders, and high ground refuges.
-                </CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2 text-cyan-500">
+                      <Waves className="h-5 w-5" /> Annex C: River Flooding & Coastal Surge Plan
+                    </CardTitle>
+                    <CardDescription>
+                      Watercourses, SEPA flood codes, sandbag depots & keyholders, and high ground refuges.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => handleUpdateLiveThreatStatus('incident')}
+                    size="sm"
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs gap-1.5 h-8 shadow-sm border-0"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-slate-950" /> Activate Incident (Flood)
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1883,18 +3510,32 @@ export default function LeaderEmergencyPlanPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Flood Liaisons */}
+            {renderScenarioLiaisonsCard('flood', 'Flood & River Surge')}
           </TabsContent>
 
           {/* TAB CONTENT: 4. POWER OUTAGE */}
           <TabsContent value="power" className="space-y-6 mt-4">
             <Card className="border-amber-500/30 shadow-md">
               <CardHeader className="bg-gradient-to-r from-amber-950/40 via-background to-background border-b pb-4">
-                <CardTitle className="text-lg flex items-center gap-2 text-amber-500">
-                  <Zap className="h-5 w-5" /> Annex D: Prolonged Power Outage & Grid Failure Plan
-                </CardTitle>
-                <CardDescription>
-                  Trigger hours, Warm Space canteen hours, diesel generator specs, and PMR446 mesh radio check-ins.
-                </CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2 text-amber-500">
+                      <Zap className="h-5 w-5" /> Annex D: Prolonged Power Outage & Grid Failure Plan
+                    </CardTitle>
+                    <CardDescription>
+                      Trigger hours, Warm Space canteen hours, diesel generator specs, and PMR446 mesh radio check-ins.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => handleUpdateLiveThreatStatus('incident')}
+                    size="sm"
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs gap-1.5 h-8 shadow-sm border-0"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-slate-950" /> Activate Incident (Power Cut)
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1934,18 +3575,32 @@ export default function LeaderEmergencyPlanPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Power Liaisons */}
+            {renderScenarioLiaisonsCard('power', 'Power Outage & Grid Blackout')}
           </TabsContent>
 
           {/* TAB CONTENT: 5. WATER SHORTAGE & DROUGHT */}
           <TabsContent value="drought" className="space-y-6 mt-4">
             <Card className="border-blue-500/30 shadow-md">
               <CardHeader className="bg-gradient-to-r from-blue-950/40 via-background to-background border-b pb-4">
-                <CardTitle className="text-lg flex items-center gap-2 text-blue-500">
-                  <Droplets className="h-5 w-5" /> Annex E: Water Shortage & Private Water Supplies (PWS)
-                </CardTitle>
-                <CardDescription>
-                  PWS property count, Scottish Water bowser refill points, bottled water rationing, and livestock tanks.
-                </CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2 text-blue-500">
+                      <Droplets className="h-5 w-5" /> Annex E: Water Shortage & Private Water Supplies (PWS)
+                    </CardTitle>
+                    <CardDescription>
+                      PWS property count, Scottish Water bowser refill points, bottled water rationing, and livestock tanks.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => handleUpdateLiveThreatStatus('incident')}
+                    size="sm"
+                    className="bg-blue-500 hover:bg-blue-400 text-slate-950 font-extrabold text-xs gap-1.5 h-8 shadow-sm border-0"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-slate-950" /> Activate Incident (Drought)
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1995,18 +3650,32 @@ export default function LeaderEmergencyPlanPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Drought Liaisons */}
+            {renderScenarioLiaisonsCard('drought', 'Water Shortage & PWS Contingency')}
           </TabsContent>
 
           {/* TAB CONTENT: 6. CIVIL UNREST */}
           <TabsContent value="unrest" className="space-y-6 mt-4">
             <Card className="border-purple-500/30 shadow-md">
               <CardHeader className="bg-gradient-to-r from-purple-950/40 via-background to-background border-b pb-4">
-                <CardTitle className="text-lg flex items-center gap-2 text-purple-500">
-                  <ShieldCheck className="h-5 w-5" /> Annex F: Civil Unrest & Police Scotland Liaison
-                </CardTitle>
-                <CardDescription>
-                  Avoidance perimeters, safe sanctuaries, and direct police control room channels.
-                </CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2 text-purple-500">
+                      <ShieldCheck className="h-5 w-5" /> Annex F: Civil Unrest & Police Scotland Liaison
+                    </CardTitle>
+                    <CardDescription>
+                      Avoidance perimeters, safe sanctuaries, and direct police control room channels.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => handleUpdateLiveThreatStatus('incident')}
+                    size="sm"
+                    className="bg-purple-500 hover:bg-purple-400 text-slate-950 font-extrabold text-xs gap-1.5 h-8 shadow-sm border-0"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-slate-950" /> Activate Incident (Unrest)
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2029,18 +3698,32 @@ export default function LeaderEmergencyPlanPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Unrest Liaisons */}
+            {renderScenarioLiaisonsCard('unrest', 'Civil Unrest & Police Scotland Liaison')}
           </TabsContent>
 
           {/* TAB CONTENT: 7. CIVIL DEFENCE */}
           <TabsContent value="defence" className="space-y-6 mt-4">
             <Card className="border-emerald-500/30 shadow-md">
               <CardHeader className="bg-gradient-to-r from-emerald-950/40 via-background to-background border-b pb-4">
-                <CardTitle className="text-lg flex items-center gap-2 text-emerald-500">
-                  <Award className="h-5 w-5" /> Annex G: Civil Defence & State Emergency Distribution
-                </CardTitle>
-                <CardDescription>
-                  Gravity-fed hill springs, reinforced subterranean shelters, and bulk food rationing.
-                </CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2 text-emerald-500">
+                      <Award className="h-5 w-5" /> Annex G: Civil Defence & State Emergency Distribution
+                    </CardTitle>
+                    <CardDescription>
+                      Gravity-fed hill springs, reinforced subterranean shelters, and bulk food rationing.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => handleUpdateLiveThreatStatus('incident')}
+                    size="sm"
+                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs gap-1.5 h-8 shadow-sm border-0"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-slate-950" /> Activate Incident (Civil Defence)
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2063,6 +3746,9 @@ export default function LeaderEmergencyPlanPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Defence Liaisons */}
+            {renderScenarioLiaisonsCard('defence', 'Civil Defence & Emergency Distribution')}
           </TabsContent>
 
           {/* TAB CONTENT: 8. MASTER STATUTORY PRINT VIEW */}
@@ -2112,140 +3798,735 @@ export default function LeaderEmergencyPlanPage() {
                     {Object.entries(scenarioFacilities).map(([key, facs]) => (
                       <div key={key} className="pl-2 border-l-2 border-primary/40 space-y-0.5">
                         <p className="font-bold uppercase text-primary">• {key.toUpperCase()}:</p>
-                        <p className="pl-2">1. {facs.f1.name}: {facs.f1.isFailover ? facs.f1.secondary + ' [FAILOVER]' : facs.f1.primary}</p>
-                        <p className="pl-2">2. {facs.f2.name}: {facs.f2.isFailover ? facs.f2.secondary + ' [FAILOVER]' : facs.f2.primary}</p>
-                        <p className="pl-2">3. {facs.f3.name}: {facs.f3.isFailover ? facs.f3.secondary + ' [FAILOVER]' : facs.f3.primary}</p>
+                        <p className="pl-2">1. {facs.f1.name || 'Primary Facility'}: {facs.f1.isFailover ? (facs.f1.secondary || '— [Failover not set]') + ' [FAILOVER]' : (facs.f1.primary || '— [Not specified]')}</p>
+                        <p className="pl-2">2. {facs.f2.name || 'Secondary Facility'}: {facs.f2.isFailover ? (facs.f2.secondary || '— [Failover not set]') + ' [FAILOVER]' : (facs.f2.primary || '— [Not specified]')}</p>
+                        <p className="pl-2">3. {facs.f3.name || 'Tertiary Facility'}: {facs.f3.isFailover ? (facs.f3.secondary || '— [Failover not set]') + ' [FAILOVER]' : (facs.f3.primary || '— [Not specified]')}</p>
                       </div>
                     ))}
                   </div>
 
                   <div className="space-y-2">
                     <h4 className="font-bold text-foreground border-b pb-1">2. CRITICAL HAZARD OPERATIONAL PROTOCOLS</h4>
-                    <p>• Wildfire Fuel Belt: {wfFuels} | Water Draw: {wfWater} | Livestock: {wfLivestock}</p>
-                    <p>• Structural Urban Fire Cordon: {ufCordonDist}m | Bypass: {ufBypassRoute} | Warmth: {ufWarmthHub}</p>
-                    <p>• River & Flood Spate: {flRiver} ({flSepaCode}) | Sandbags: {flSandbagLoc} (Tel: {flSandbagTel}) | High Ground: {flHighGround}</p>
-                    <p>• Grid Outage Warm Space: {scenarioFacilities.power?.f1?.primary} ({poWarmHours}) | Generator: {poGeneratorSpecs} | Net: {poRadioRepeater}</p>
-                    <p>• Water Shortage: {drPwsCount} | Bowser: {drBowserLoc} | Bottled Hub: {drBottledHub}</p>
-                    <p>• Public Safety: Avoid {cuAvoidArea} | Police Scotland Liaison: {cuPoliceLiaison}</p>
-                    <p>• Civil Defence: Spring: {cdWaterSpring} | Shelter: {cdShelterLoc}</p>
+                    <p>• Wildfire Fuel Belt: {wfFuels || '—'} | Water Draw: {wfWater || '—'} | Livestock: {wfLivestock || '—'}</p>
+                    <p>• Structural Urban Fire Cordon: {ufCordonDist ? `${ufCordonDist}m` : '—'} | Bypass: {ufBypassRoute || '—'} | Warmth: {ufWarmthHub || '—'}</p>
+                    <p>• River & Flood Spate: {flRiver || '—'} {flSepaCode ? `(${flSepaCode})` : ''} | Sandbags: {flSandbagLoc || '—'} {flSandbagTel ? `(Tel: ${flSandbagTel})` : ''} | High Ground: {flHighGround || '—'}</p>
+                    <p>• Grid Outage Warm Space: {scenarioFacilities.power?.f1?.primary || '—'} {poWarmHours ? `(${poWarmHours})` : ''} | Generator: {poGeneratorSpecs || '—'} | Net: {poRadioRepeater || '—'}</p>
+                    <p>• Water Shortage: {drPwsCount || '—'} | Bowser: {drBowserLoc || '—'} | Bottled Hub: {drBottledHub || '—'}</p>
+                    <p>• Public Safety: Avoid {cuAvoidArea || '—'} | Police Scotland Liaison: {cuPoliceLiaison || '—'}</p>
+                    <p>• Civil Defence: Spring: {cdWaterSpring || '—'} | Shelter: {cdShelterLoc || '—'}</p>
                   </div>
 
                   <div className="space-y-2">
-                    <h4 className="font-bold text-foreground border-b pb-1">3. COMMUNITY ASSET & CAPABILITY REGISTER</h4>
-                    <p>• 4x4 Vehicles & Winches: {ast4x4}</p>
-                    <p>• Forestry Chainsaw Teams: {astChainsaws}</p>
-                    <p>• Mobile Diesel Generators: {astGenerators}</p>
-                    <p>• PMR446 / HAM Operators: {astRadios}</p>
-                    <p>• Heavy Agricultural Tractors & Ploughs: {astHeavyTractors}</p>
-                    <p>• Estate Argo-Cats & Quads: {astArgocatsQuads}</p>
+                    <h4 className="font-bold text-foreground border-b pb-1">3. KEYHOLDERS & EMERGENCY INFRASTRUCTURE ACCESS REGISTER</h4>
+                    {keyholdersList.map((kh, idx) => (
+                      <p key={kh.id || idx}>
+                        • <strong>{kh.facilityOrAsset || 'Facility / Asset'}</strong> ({kh.category}): Primary: {kh.primaryName || '________________'} ({kh.primaryPhone || '__________'}){kh.backupName ? ` | Backup: ${kh.backupName} (${kh.backupPhone || '__________'})` : ''} | Notes: {kh.keyLocationNotes || '—'}
+                      </p>
+                    ))}
                   </div>
 
                   <div className="space-y-2">
-                    <h4 className="font-bold text-foreground border-b pb-1">4. COMMUNICATIONS & CELLULAR BLACKOUT NET</h4>
-                    <p>• Radio Net Frequencies: {commsHamFreq}</p>
-                    <p>• Weatherproof Physical Noticeboards: {commsNoticeboards}</p>
+                    <h4 className="font-bold text-foreground border-b pb-1">4. COMMUNITY ASSET & CAPABILITY REGISTER</h4>
+                    <p>• 4x4 Vehicles & Winches: {ast4x4 || '—'}</p>
+                    <p>• Forestry Chainsaw Teams: {astChainsaws || '—'}</p>
+                    <p>• Mobile Diesel Generators: {astGenerators || '—'}</p>
+                    <p>• PMR446 / HAM Operators: {astRadios || '—'}</p>
+                    <p>• Heavy Agricultural Tractors & Ploughs: {astHeavyTractors || '—'}</p>
+                    <p>• Estate Argo-Cats & Quads: {astArgocatsQuads || '—'}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-bold text-foreground border-b pb-1">5. COMMUNICATIONS & CELLULAR BLACKOUT NET</h4>
+                    <p>• Radio Net Frequencies: {commsHamFreq || '—'}</p>
+                    <p>• Weatherproof Physical Noticeboards: {commsNoticeboards || '—'}</p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 9: LIVE SITUATION MESSAGES & PUBLIC BULLETINS */}
+          <TabsContent value="messages" className="space-y-6 mt-4">
+            {/* Header Banner */}
+            <div className="p-5 rounded-2xl border bg-gradient-to-r from-pink-950/40 via-slate-900 to-slate-950 border-pink-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-pink-500/20 text-pink-300 border-pink-500/40 text-[10px] font-mono uppercase px-2 py-0.5">
+                    Live Incident Communications
+                  </Badge>
+                  {isNoticeActive ? (
+                    <Badge className="bg-red-600 text-white font-bold animate-pulse text-[10px] uppercase font-mono tracking-wider">
+                      ● Active Public Notice
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-[10px] font-mono uppercase">
+                      ✓ Normal (No Active Emergency)
+                    </Badge>
+                  )}
+                </div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <MessageSquareText className="h-5 w-5 text-pink-400" />
+                  Live Situation Bulletins & Public Emergency Messaging
+                </h3>
+                <p className="text-xs text-slate-300 max-w-2xl">
+                  Broadcast verified real-time situation updates, road closures, sandbag arrivals, and refuge notices directly to the public community emergency page.
+                </p>
+              </div>
+
+              {isNoticeActive && (
+                <Button
+                  onClick={() => setIsRetractDialogOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="bg-red-950/40 border-red-500/60 text-red-300 hover:bg-red-900/60 text-xs font-bold gap-2 shrink-0"
+                >
+                  <XCircle className="h-4 w-4 text-red-400" /> Retract / Clear Active Notice
+                </Button>
+              )}
+            </div>
+
+            {/* Currently Active Live Notice Card */}
+            {isNoticeActive && (
+              <Card className="border-red-500/50 bg-red-950/20 shadow-xl">
+                <CardHeader className="p-4 bg-red-950/40 border-b border-red-500/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-red-400 animate-bounce" />
+                      <CardTitle className="text-sm font-bold text-red-200">
+                        Active Public Emergency Bulletin (Live on Portal)
+                      </CardTitle>
+                    </div>
+                    <Badge variant="outline" className="border-red-500/50 text-red-300 font-mono text-[10px]">
+                      Live Now
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 space-y-2 text-xs">
+                  <p className="text-sm font-extrabold text-white">{noticeHeadline || 'Emergency Situation Notice'}</p>
+                  <p className="text-slate-200 whitespace-pre-wrap leading-relaxed bg-slate-950/60 p-3 rounded-lg border border-red-500/20">
+                    {noticeMessage}
+                  </p>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                    <span>Issued By: <strong className="text-slate-200">{noticeIssuedBy || 'Incident Commander'}</strong></span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Bulletin Composer */}
+            <Card className="border-slate-800 bg-slate-950/80 shadow-md">
+              <CardHeader className="p-4 md:p-5 bg-muted/20 border-b border-slate-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                      <Megaphone className="h-4 w-4 text-pink-400" /> Draft & Dispatch New Public Bulletin
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Compose official community emergency bulletin. Requires Leader / Incident Commander authorization.
+                    </CardDescription>
+                  </div>
+                  {!permissions.canSendMessages && (
+                    <Badge variant="outline" className="border-amber-500/50 text-amber-400 text-[10px]">
+                      🔒 Read-Only Access
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 md:p-6 space-y-4">
+                {!permissions.canSendMessages ? (
+                  <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs flex items-center gap-3">
+                    <Lock className="h-5 w-5 text-amber-400 shrink-0" />
+                    <p>You have view-only access to emergency communications. Publishing bulletins requires the <strong>"Action: Publish & Retract Live Public Bulletins"</strong> permission from the community leader in Settings.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                      <div className="space-y-1.5 md:col-span-2">
+                        <Label className="font-bold text-slate-200">Bulletin Headline / Title *</Label>
+                        <Input
+                          value={msgTitle}
+                          onChange={(e) => setMsgTitle(e.target.value)}
+                          placeholder="e.g. URGENT: High Street Cordon Active - Divert Traffic via Old Spey Bridge"
+                          className="bg-slate-900 border-slate-700 text-white font-semibold text-xs h-9"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="font-bold text-slate-200">Severity Level</Label>
+                        <Select value={msgLevel} onValueChange={(val: any) => setMsgLevel(val)}>
+                          <SelectTrigger className="bg-slate-900 border-slate-700 text-white text-xs h-9 font-semibold">
+                            <SelectValue placeholder="Severity" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-950 border-slate-800 text-white">
+                            <SelectItem value="critical">🔴 Critical Emergency (Red)</SelectItem>
+                            <SelectItem value="warning">🟠 Amber Threat Warning</SelectItem>
+                            <SelectItem value="advisory">🟡 Community Advisory (Yellow)</SelectItem>
+                            <SelectItem value="allclear">🟢 All-Clear / Stood Down</SelectItem>
+                            <SelectItem value="info">ℹ️ General Resilience Info</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                      <div className="space-y-1.5">
+                        <Label className="font-bold text-slate-200">Hazard / Incident Category</Label>
+                        <Select value={msgCategory} onValueChange={(val) => setMsgCategory(val)}>
+                          <SelectTrigger className="bg-slate-900 border-slate-700 text-white text-xs h-9">
+                            <SelectValue placeholder="Category" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-950 border-slate-800 text-white">
+                            <SelectItem value="general">🌐 General Emergency</SelectItem>
+                            <SelectItem value="wildfire">🌲 Wildfire & Moorland</SelectItem>
+                            <SelectItem value="urbanfire">🏢 Urban & Building Fire</SelectItem>
+                            <SelectItem value="flood">🌊 River Flood & Surge</SelectItem>
+                            <SelectItem value="power">⚡ Grid Power Outage</SelectItem>
+                            <SelectItem value="drought">💧 Water Shortage / Drought</SelectItem>
+                            <SelectItem value="unrest">🛡️ Civil Unrest / Public Safety</SelectItem>
+                            <SelectItem value="defence">🎖️ Civil Defence / Contingency</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="font-bold text-slate-200">Author Name</Label>
+                        <Input
+                          value={msgAuthorName}
+                          onChange={(e) => setMsgAuthorName(e.target.value)}
+                          placeholder={(userProfile as any)?.name || user?.displayName || 'Incident Lead'}
+                          className="bg-slate-900 border-slate-700 text-white text-xs h-9"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="font-bold text-slate-200">Author Official Role</Label>
+                        <Input
+                          value={msgAuthorRole}
+                          onChange={(e) => setMsgAuthorRole(e.target.value)}
+                          placeholder="e.g. Incident Commander / Resilience Lead"
+                          className="bg-slate-900 border-slate-700 text-white text-xs h-9"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="font-bold text-slate-200">Official Situation Notice & Verified Action Directions *</Label>
+                        <span className="text-[10px] text-slate-400">Displayed in full on public emergency page</span>
+                      </div>
+                      <Textarea
+                        value={msgBody}
+                        onChange={(e) => setMsgBody(e.target.value)}
+                        placeholder="Provide clear, verified facts: e.g. exact road closures, location of sandbag depots, shelter opening times, generator status, water tanker locations, and 999/101 instructions..."
+                        rows={4}
+                        className="bg-slate-900 border-slate-700 text-white text-xs leading-relaxed resize-y"
+                      />
+                    </div>
+
+                    <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800">
+                      <p className="text-[11px] text-slate-400">
+                        Publishing immediately updates the live public emergency portal for <strong>{townshipName}</strong>.
+                      </p>
+                      <Button
+                        onClick={handlePublishMessage}
+                        disabled={isPublishingMessage}
+                        className="w-full sm:w-auto bg-pink-600 hover:bg-pink-500 text-white font-bold gap-2 text-xs shadow-lg shadow-pink-950/60"
+                      >
+                        {isPublishingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        📢 Publish Live Bulletin to Public Portal
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Historical Emergency Bulletins Stream */}
+            <Card className="border-slate-800 bg-slate-950/80 shadow-md">
+              <CardHeader className="p-4 bg-muted/20 border-b border-slate-800">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                      <History className="h-4 w-4 text-primary" /> Emergency Bulletins History ({emergencyMessagesList?.length || 0})
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Chronological log of all situation notices published for this community.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 md:p-6 space-y-3">
+                {emergencyMessagesList && emergencyMessagesList.length > 0 ? (
+                  <div className="space-y-3">
+                    {emergencyMessagesList.map((msg: any) => (
+                      <div
+                        key={msg.id}
+                        className={`p-4 rounded-xl border transition-all space-y-2 text-xs ${
+                          msg.isActive
+                            ? 'bg-slate-900/80 border-pink-500/50 shadow-md'
+                            : 'bg-slate-900/30 border-slate-800 text-slate-400'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge
+                              className={`text-[10px] font-mono uppercase ${
+                                msg.level === 'critical'
+                                  ? 'bg-red-600 text-white'
+                                  : msg.level === 'warning'
+                                  ? 'bg-amber-500 text-slate-950 font-bold'
+                                  : msg.level === 'allclear'
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-blue-600 text-white'
+                              }`}
+                            >
+                              {msg.level}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px] uppercase font-mono border-slate-700 text-slate-300">
+                              {msg.hazardCategory || 'General'}
+                            </Badge>
+                            <span className="font-bold text-white text-sm">{msg.title}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {msg.isActive ? (
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-[10px]">
+                                Active On Portal
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-slate-700 text-slate-500 text-[10px]">
+                                Archived / Retracted
+                              </Badge>
+                            )}
+                            {msg.isActive && permissions.canSendMessages && (
+                              <Button
+                                onClick={() => handleRetractMessage(msg.id)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-[11px] text-red-400 hover:bg-red-500/10 hover:text-red-300 px-2"
+                              >
+                                Retract
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className="text-slate-200 whitespace-pre-wrap leading-relaxed">{msg.body}</p>
+
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                          <span>Issued by: <strong className="text-slate-300">{msg.authorName}</strong> ({msg.authorRole})</span>
+                          <span>
+                            {msg.createdAt?.toDate
+                              ? msg.createdAt.toDate().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                              : 'Recent'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-xl border border-dashed border-slate-800 text-center space-y-1 text-xs text-slate-400">
+                    <p className="font-bold text-white">No emergency bulletins issued yet.</p>
+                    <p>Use the composer above to broadcast real-time messages to residents during weather or emergency events.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Retract Dialog */}
+            <Dialog open={isRetractDialogOpen} onOpenChange={setIsRetractDialogOpen}>
+              <DialogContent className="sm:max-w-md bg-slate-950 border-slate-800 text-white">
+                <DialogHeader>
+                  <DialogTitle className="text-sm font-bold flex items-center gap-2 text-red-400">
+                    <XCircle className="h-4 w-4" /> Retract Active Emergency Bulletin
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-400">
+                    This will clear the active emergency notice from the public community portal and return threat readiness to Normal (Green).
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 py-2 text-xs">
+                  <Label className="font-bold text-slate-200">Retraction / Stand-Down Reason (Optional)</Label>
+                  <Input
+                    value={retractReasonInput}
+                    onChange={(e) => setRetractReasonInput(e.target.value)}
+                    placeholder="e.g. Threat mitigated, fire extinguished, roads reopened."
+                    className="bg-slate-900 border-slate-700 text-white text-xs h-9"
+                  />
+                </div>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setIsRetractDialogOpen(false)} className="bg-slate-900 border-slate-700 text-slate-300">
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => handleRetractMessage()}
+                    disabled={isRetractingMessage}
+                    size="sm"
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold text-xs"
+                  >
+                    {isRetractingMessage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Confirm Retraction'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+
+          {/* TAB 10: AUDIT & COMPLIANCE EVENT LOG */}
+          <TabsContent value="audit" className="space-y-6 mt-4">
+            {/* Header Banner */}
+            <div className="p-5 rounded-2xl border bg-gradient-to-r from-violet-950/40 via-slate-900 to-slate-950 border-violet-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/40 text-[10px] font-mono uppercase px-2 py-0.5">
+                    Statutory Compliance Log
+                  </Badge>
+                  <Badge variant="outline" className="border-slate-700 text-slate-300 text-[10px] font-mono">
+                    {auditLogsList?.length || 0} Recorded Actions
+                  </Badge>
+                </div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <History className="h-5 w-5 text-violet-400" />
+                  Statutory Resilience Audit & Incident Event Log
+                </h3>
+                <p className="text-xs text-slate-300 max-w-2xl">
+                  Immutable, tamper-evident chronological audit trail of all resilience plan updates, public emergency bulletins, facility failovers, and 6-monthly statutory certifications.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handlePrint}
+                  variant="outline"
+                  size="sm"
+                  className="bg-slate-900 border-slate-700 text-white hover:bg-slate-800 text-xs font-bold gap-2"
+                >
+                  <Printer className="h-4 w-4 text-violet-400" /> Export / Print Audit Report
+                </Button>
+              </div>
+            </div>
+
+            {/* Audit Filter & Search Bar */}
+            <Card className="border-slate-800 bg-slate-950/80 shadow-md">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+                  <div className="relative w-full md:w-80">
+                    <Search className="h-4 w-4 absolute left-3 top-2.5 text-slate-400" />
+                    <Input
+                      value={auditSearch}
+                      onChange={(e) => setAuditSearch(e.target.value)}
+                      placeholder="Search actor, summary, category..."
+                      className="pl-9 bg-slate-900 border-slate-700 text-white text-xs h-9"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1.5 flex-wrap w-full md:w-auto overflow-x-auto pb-1">
+                    {[
+                      { key: 'ALL', label: 'All Events' },
+                      { key: 'PLAN_SAVE', label: 'Plan Saves' },
+                      { key: 'BULLETIN_PUBLISH', label: 'Bulletins' },
+                      { key: 'BULLETIN_RETRACT', label: 'Retractions' },
+                      { key: 'FAILOVER_TOGGLE', label: 'Failovers' },
+                      { key: 'CERTIFICATION_SIGN', label: 'Certifications' },
+                      { key: 'THREAT_CHANGE', label: 'Threat Changes' },
+                    ].map((f) => (
+                      <Button
+                        key={f.key}
+                        type="button"
+                        variant={auditFilterType === f.key ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setAuditFilterType(f.key)}
+                        className={`text-[11px] h-7 px-2.5 rounded-lg ${
+                          auditFilterType === f.key
+                            ? 'bg-violet-600 hover:bg-violet-500 text-white font-bold'
+                            : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        {f.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Audit Records Stream */}
+            <Card className="border-slate-800 bg-slate-950/80 shadow-md">
+              <CardHeader className="p-4 bg-muted/20 border-b border-slate-800">
+                <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                  <FileCheck className="h-4 w-4 text-violet-400" /> Official Audit Activity Stream
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 md:p-6 space-y-3">
+                {!permissions.canViewAudit ? (
+                  <div className="p-6 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs flex items-center gap-3">
+                    <Lock className="h-6 w-6 text-amber-400 shrink-0" />
+                    <p>Access to the statutory audit log is restricted to authorized community leaders. Contact your community administrator to enable <strong>"View: Emergency & Compliance Audit Log"</strong> in Settings.</p>
+                  </div>
+                ) : (
+                  (() => {
+                    const filteredLogs = (auditLogsList || []).filter((item: any) => {
+                      if (auditFilterType !== 'ALL' && item.actionType !== auditFilterType) return false;
+                      if (!auditSearch.trim()) return true;
+                      const q = auditSearch.toLowerCase();
+                      return (
+                        item.summary?.toLowerCase().includes(q) ||
+                        item.actorName?.toLowerCase().includes(q) ||
+                        item.category?.toLowerCase().includes(q) ||
+                        item.actionType?.toLowerCase().includes(q)
+                      );
+                    });
+
+                    if (filteredLogs.length === 0) {
+                      return (
+                        <div className="p-10 rounded-xl border border-dashed border-slate-800 text-center space-y-1.5 text-xs text-slate-400">
+                          <p className="font-bold text-white">No audit records found.</p>
+                          <p>All plan modifications, bulletins, and statutory certifications will appear here automatically.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-2.5">
+                        {filteredLogs.map((log: any, idx: number) => {
+                          const actionColor =
+                            log.actionType === 'BULLETIN_PUBLISH'
+                              ? 'bg-red-500/20 text-red-300 border-red-500/40'
+                              : log.actionType === 'BULLETIN_RETRACT'
+                              ? 'bg-slate-700/60 text-slate-300 border-slate-600'
+                              : log.actionType === 'CERTIFICATION_SIGN' || log.actionType === 'LSO_ENDORSEMENT'
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : log.actionType === 'FAILOVER_TOGGLE'
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                              : log.actionType === 'THREAT_CHANGE'
+                              ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                              : 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+
+                          return (
+                            <div
+                              key={log.id || idx}
+                              className="p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="flex items-start gap-3">
+                                <Badge className={`text-[9px] font-mono uppercase px-2 py-0.5 shrink-0 ${actionColor}`}>
+                                  {log.actionType?.replace('_', ' ')}
+                                </Badge>
+                                <div className="space-y-1">
+                                  <p className="font-bold text-white">{log.summary}</p>
+                                  <div className="flex items-center gap-2 flex-wrap text-[11px] text-slate-400">
+                                    <span>Actor: <strong className="text-slate-200">{log.actorName}</strong> ({log.actorRole})</span>
+                                    {log.category && <Badge variant="outline" className="text-[9px] border-slate-700 py-0">{log.category}</Badge>}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="text-[11px] text-slate-400 font-mono shrink-0 md:text-right">
+                                {log.timestamp?.toDate
+                                  ? log.timestamp.toDate().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                                  : 'Just now'}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* OPERATIONAL TIMELINE (0 - 6 HOURS) */}
-      {activeHazard !== 'submission' && (
+      {/* OPERATIONAL RESPONSE TIMELINE */}
+      {['wildfire', 'urbanfire', 'flood', 'power', 'drought', 'unrest', 'defence'].includes(activeHazard) && (
         <Card className="border shadow-md">
           <CardHeader className="bg-muted/30 border-b pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="space-y-0.5">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-amber-500" />
-                  Operational Response Timeline (0 – 6 Hours)
-                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-amber-500" />
+                    Operational Response Timeline
+                  </CardTitle>
+                  <Badge variant="outline" className="text-[10px] capitalize font-mono border-amber-500/40 text-amber-500">
+                    {activeHazard} ({currentTimelineStages.length} Milestones)
+                  </Badge>
+                </div>
                 <CardDescription className="text-xs">
-                  Event-specific protocol milestones for {activeHazard.toUpperCase()}
+                  Event-specific protocol milestones and operational instructions for {activeHazard.toUpperCase()}. Add or remove stages to suit your community.
                 </CardDescription>
               </div>
-              <Badge variant="outline" className="text-[10px] capitalize font-mono">
-                {activeHazard} Response
-              </Badge>
+
+              <Button
+                onClick={() => handleAddDynamicTimelineStage(activeHazard)}
+                size="sm"
+                className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs gap-1.5 h-8 whitespace-nowrap shadow-sm border-0"
+              >
+                <Plus className="h-4 w-4 text-slate-950" /> Add Response Milestone
+              </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* T+0m */}
-            <div className="p-3.5 rounded-xl border bg-card space-y-2">
-              <span className="text-xs font-black text-red-500 uppercase tracking-wider">T+00 Minutes</span>
-              <Input
-                value={currentTimeline.t0.title}
-                onChange={(e) => handleTimelineChange(activeHazard, 't0', 'title', e.target.value)}
-                placeholder="T+00 Action Title"
-                className="font-bold text-xs h-8"
-              />
-              <Textarea
-                value={currentTimeline.t0.desc}
-                onChange={(e) => handleTimelineChange(activeHazard, 't0', 'desc', e.target.value)}
-                placeholder="Instructions..."
-                rows={3}
-                className="text-xs resize-none"
-              />
-            </div>
+          <CardContent className="p-4 md:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {currentTimelineStages.map((stage, idx) => (
+                <div
+                  key={stage.id || idx}
+                  className="p-3.5 rounded-xl border bg-card space-y-2 relative group transition-all hover:border-amber-500/40"
+                >
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <Input
+                      value={stage.timeTag}
+                      onChange={(e) => handleUpdateDynamicTimelineStage(activeHazard, stage.id, 'timeTag', e.target.value)}
+                      placeholder="e.g. T+00 MINS"
+                      className="h-6 text-xs font-black text-amber-500 uppercase tracking-wider p-0 border-none bg-transparent focus-visible:ring-0 w-28"
+                    />
+                    <Button
+                      onClick={() => handleDeleteDynamicTimelineStage(activeHazard, stage.id)}
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg"
+                      title="Remove milestone"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                    </Button>
+                  </div>
 
-            {/* T+15m */}
-            <div className="p-3.5 rounded-xl border bg-card space-y-2">
-              <span className="text-xs font-black text-amber-500 uppercase tracking-wider">T+15 Minutes</span>
-              <Input
-                value={currentTimeline.t15.title}
-                onChange={(e) => handleTimelineChange(activeHazard, 't15', 'title', e.target.value)}
-                placeholder="T+15 Action Title"
-                className="font-bold text-xs h-8"
-              />
-              <Textarea
-                value={currentTimeline.t15.desc}
-                onChange={(e) => handleTimelineChange(activeHazard, 't15', 'desc', e.target.value)}
-                placeholder="Instructions..."
-                rows={3}
-                className="text-xs resize-none"
-              />
-            </div>
-
-            {/* T+30m */}
-            <div className="p-3.5 rounded-xl border bg-card space-y-2">
-              <span className="text-xs font-black text-cyan-500 uppercase tracking-wider">T+30 Minutes</span>
-              <Input
-                value={currentTimeline.t30.title}
-                onChange={(e) => handleTimelineChange(activeHazard, 't30', 'title', e.target.value)}
-                placeholder="T+30 Action Title"
-                className="font-bold text-xs h-8"
-              />
-              <Textarea
-                value={currentTimeline.t30.desc}
-                onChange={(e) => handleTimelineChange(activeHazard, 't30', 'desc', e.target.value)}
-                placeholder="Instructions..."
-                rows={3}
-                className="text-xs resize-none"
-              />
-            </div>
-
-            {/* T+60m */}
-            <div className="p-3.5 rounded-xl border bg-card space-y-2">
-              <span className="text-xs font-black text-emerald-500 uppercase tracking-wider">T+60 Minutes</span>
-              <Input
-                value={currentTimeline.t60.title}
-                onChange={(e) => handleTimelineChange(activeHazard, 't60', 'title', e.target.value)}
-                placeholder="T+60 Action Title"
-                className="font-bold text-xs h-8"
-              />
-              <Textarea
-                value={currentTimeline.t60.desc}
-                onChange={(e) => handleTimelineChange(activeHazard, 't60', 'desc', e.target.value)}
-                placeholder="Instructions..."
-                rows={3}
-                className="text-xs resize-none"
-              />
+                  <Input
+                    value={stage.title}
+                    onChange={(e) => handleUpdateDynamicTimelineStage(activeHazard, stage.id, 'title', e.target.value)}
+                    placeholder="Milestone Action Title"
+                    className="font-bold text-xs h-8"
+                  />
+                  <Textarea
+                    value={stage.desc}
+                    onChange={(e) => handleUpdateDynamicTimelineStage(activeHazard, stage.id, 'desc', e.target.value)}
+                    placeholder="Detailed operational instructions for volunteers..."
+                    rows={3}
+                    className="text-xs resize-y min-h-[60px]"
+                  />
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* KEYHOLDERS & INFRASTRUCTURE ACCESS REGISTER */}
+      {!['messages', 'audit'].includes(activeHazard) && (
+        <>
+          <Card className="border shadow-md">
+        <CardHeader className="bg-gradient-to-r from-amber-950/20 via-muted/30 to-muted/20 border-b pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-amber-500" />
+                  Keyholders & Emergency Infrastructure Access Register
+                </CardTitle>
+                <Badge variant="outline" className="border-amber-500/40 text-amber-500 text-[10px] uppercase font-mono">
+                  {keyholdersList.length} Access Points
+                </Badge>
+              </div>
+              <CardDescription className="text-xs">
+                Emergency 24/7 keyholders for community rest shelters, fire hydrant standpipe caches, private estate firebreak gates, and sandbag stores.
+              </CardDescription>
+            </div>
+            <Button
+              onClick={handleAddKeyholder}
+              size="sm"
+              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs gap-1.5 h-8 whitespace-nowrap shadow-sm border-0"
+            >
+              <Plus className="h-4 w-4 text-slate-950" /> Add Keyholder / Access Point
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 md:p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            {keyholdersList.map((kh, idx) => (
+              <div
+                key={kh.id || idx}
+                className="p-4 rounded-xl border bg-card/60 hover:bg-card/90 space-y-3 relative group transition-all hover:border-amber-500/40 shadow-sm"
+              >
+                <div className="flex items-center justify-between border-b pb-2">
+                  <Input
+                    value={kh.facilityOrAsset}
+                    onChange={(e) => handleUpdateKeyholder(kh.id, 'facilityOrAsset', e.target.value)}
+                    placeholder="Facility / Infrastructure Asset (e.g. Village Hall or Hydrant Keys)"
+                    className="bg-transparent border-none text-xs font-bold text-foreground p-0 h-auto focus-visible:ring-0 focus-visible:bg-muted/40 flex-grow mr-2"
+                  />
+                  <Button
+                    onClick={() => handleDeleteKeyholder(kh.id)}
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg"
+                    title="Delete this keyholder record"
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Category / Asset Type</Label>
+                  <Input
+                    value={kh.category}
+                    onChange={(e) => handleUpdateKeyholder(kh.id, 'category', e.target.value)}
+                    placeholder="e.g. Building / Shelter, Hydrants & Water, Estate Gates, Sandbag Store"
+                    className="h-7 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="p-2.5 rounded-lg border bg-muted/20 space-y-1.5">
+                    <Label className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
+                      <Key className="h-3 w-3" /> Primary Keyholder
+                    </Label>
+                    <Input
+                      value={kh.primaryName}
+                      onChange={(e) => handleUpdateKeyholder(kh.id, 'primaryName', e.target.value)}
+                      placeholder="Name / Role"
+                      className="h-7 text-xs font-medium"
+                    />
+                    <Input
+                      value={kh.primaryPhone}
+                      onChange={(e) => handleUpdateKeyholder(kh.id, 'primaryPhone', e.target.value)}
+                      placeholder="24/7 Phone Number"
+                      className="h-7 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="p-2.5 rounded-lg border bg-muted/20 space-y-1.5">
+                    <Label className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
+                      <Key className="h-3 w-3" /> Backup / Secondary
+                    </Label>
+                    <Input
+                      value={kh.backupName || ''}
+                      onChange={(e) => handleUpdateKeyholder(kh.id, 'backupName', e.target.value)}
+                      placeholder="Name / Role"
+                      className="h-7 text-xs"
+                    />
+                    <Input
+                      value={kh.backupPhone || ''}
+                      onChange={(e) => handleUpdateKeyholder(kh.id, 'backupPhone', e.target.value)}
+                      placeholder="24/7 Phone Number"
+                      className="h-7 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Key Location, Key Safe Code & Access Instructions</Label>
+                  <Textarea
+                    value={kh.keyLocationNotes || ''}
+                    onChange={(e) => handleUpdateKeyholder(kh.id, 'keyLocationNotes', e.target.value)}
+                    placeholder="e.g. Master key safe on wall (Code with SFRS/Police). Spare key with Caretaker..."
+                    rows={2}
+                    className="text-[11px] resize-y min-h-[50px] leading-relaxed"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* CAPABILITY & ASSET REGISTER + COMMUNITY VOLUNTEER ROSTER */}
       <Card className="border shadow-md">
@@ -2264,6 +4545,89 @@ export default function LeaderEmergencyPlanPage() {
               <Badge variant="secondary" className="text-[10px] gap-1">
                 <Users2 className="h-3 w-3 text-primary" /> {registeredVolunteers?.length || 0} Registered Volunteers
               </Badge>
+              <Dialog open={isAddVolModalOpen} onOpenChange={setIsAddVolModalOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold text-xs gap-1.5 h-8 whitespace-nowrap shadow-sm border-0">
+                    <UserPlus className="h-4 w-4 text-slate-950" /> Add Volunteer / Skill
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md bg-card border text-card-foreground">
+                  <DialogHeader>
+                    <DialogTitle className="text-sm font-bold flex items-center gap-2">
+                      <HeartHandshake className="h-4 w-4 text-emerald-500" />
+                      Add Volunteer to Resilience Register
+                    </DialogTitle>
+                    <DialogDescription className="text-xs">
+                      Manually register a local resident, contractor, or volunteer with specialized equipment or emergency skills.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3.5 py-2 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="font-bold">Contact Name / Owner *</Label>
+                        <Input
+                          value={volNameInput}
+                          onChange={(e) => setVolNameInput(e.target.value)}
+                          placeholder="e.g. John MacDonald (Owner/Lead)"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="font-bold">Operator Name (If Different)</Label>
+                        <Input
+                          value={volOperatorInput}
+                          onChange={(e) => setVolOperatorInput(e.target.value)}
+                          placeholder="e.g. Gordon Smith (Driver/Operator)"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="font-bold">Contact Phone Number *</Label>
+                      <Input
+                        value={volPhoneInput}
+                        onChange={(e) => setVolPhoneInput(e.target.value)}
+                        placeholder="e.g. 07700 900123"
+                        className="h-8 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="font-bold">Skills & Equipment Capabilities</Label>
+                      <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto p-2 border rounded-lg bg-muted/20">
+                        {VOLUNTEER_SKILL_OPTIONS.map((item) => (
+                          <label key={item.id} className="flex items-center gap-2 p-1 text-[11px] rounded hover:bg-muted/40 cursor-pointer">
+                            <Checkbox
+                              checked={volSelectedSkills.includes(item.label)}
+                              onCheckedChange={() => handleToggleVolSkill(item.label)}
+                            />
+                            <span>{item.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="font-bold">Vehicle Specs / Equipment Notes (Optional)</Label>
+                      <Textarea
+                        value={volNotesInput}
+                        onChange={(e) => setVolNotesInput(e.target.value)}
+                        placeholder="e.g. Land Rover Defender with 9,500lb winch; 8kVA portable generator"
+                        rows={2}
+                        className="text-xs resize-y min-h-[60px]"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      onClick={handleManualSaveVolunteer}
+                      disabled={isSavingVol}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5 w-full sm:w-auto"
+                    >
+                      {isSavingVol ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                      Save Volunteer Record
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </CardHeader>
@@ -2358,38 +4722,140 @@ export default function LeaderEmergencyPlanPage() {
           </div>
 
           {/* Registered Community Volunteer Roster */}
-          {registeredVolunteers && registeredVolunteers.length > 0 && (
-            <>
-              <Separator />
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <Users2 className="h-3.5 w-3.5 text-primary" /> Registered Local Community Volunteers ({registeredVolunteers.length})
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {registeredVolunteers.map((vol: any) => (
-                    <div key={vol.id} className="p-3 rounded-xl border bg-muted/20 space-y-1.5 text-xs">
-                      <div className="flex items-center justify-between font-bold">
-                        <span>{vol.userName || 'Community Resident'}</span>
-                        {vol.phone && <span className="text-muted-foreground font-mono">{vol.phone}</span>}
+          <Separator />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Users2 className="h-3.5 w-3.5 text-primary" /> Registered Local Community Volunteers ({registeredVolunteers?.length || 0})
+              </h4>
+            </div>
+
+            {registeredVolunteers && registeredVolunteers.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {registeredVolunteers.map((vol: any) => (
+                  <div key={vol.id} className="p-3.5 rounded-xl border bg-muted/20 space-y-2 text-xs relative group transition-all hover:border-primary/40">
+                    <div className="flex items-center justify-between font-bold border-b pb-1.5">
+                      <div>
+                        <span className="text-foreground">{vol.contactName || vol.userName || 'Community Resident'}</span>
+                        {vol.operatorName && (
+                          <span className="block text-[11px] font-normal text-amber-600 dark:text-amber-400">
+                            🚜 Operator: <strong>{vol.operatorName}</strong>
+                          </span>
+                        )}
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        {vol.skills?.map((s: string) => (
-                          <Badge key={s} variant="outline" className="text-[10px] px-1.5 py-0 bg-background">
-                            {s}
-                          </Badge>
-                        ))}
-                      </div>
-                      {vol.equipmentNotes && (
-                        <p className="text-[11px] text-muted-foreground italic pt-1">&ldquo;{vol.equipmentNotes}&rdquo;</p>
-                      )}
+                      <Button
+                        onClick={() => handleDeleteVolunteer(vol.id, vol.userName)}
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded shrink-0"
+                        title="Remove Volunteer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                  ))}
-                </div>
+
+                    {vol.phone && (
+                      <p className="text-[11px] font-mono text-primary font-semibold">
+                        📞 {vol.phone}
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap gap-1">
+                      {vol.skills?.map((s: string) => (
+                        <Badge key={s} variant="outline" className="text-[10px] px-1.5 py-0 bg-background font-normal">
+                          {s}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    {vol.equipmentNotes && (
+                      <p className="text-[11px] text-muted-foreground italic pt-0.5">&ldquo;{vol.equipmentNotes}&rdquo;</p>
+                    )}
+                  </div>
+                ))}
               </div>
-            </>
-          )}
+            ) : (
+              <div className="p-4 rounded-xl border border-dashed bg-muted/10 text-center space-y-1.5 text-xs text-muted-foreground">
+                <p className="font-semibold text-foreground">No volunteers registered yet.</p>
+                <p className="text-[11px]">
+                  Volunteers who submit their details via the Public Community Portal will appear here automatically, or you can add them manually with the <strong>"Add Volunteer / Skill"</strong> button above.
+                </p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* ADDITIONAL OPERATIONAL INFORMATION & RESILIENCE NOTES (UNIQUE PER SCENARIO) */}
+      {['wildfire', 'urbanfire', 'flood', 'power', 'drought', 'unrest', 'defence'].includes(activeHazard) && (
+        <Card className="border shadow-md bg-card">
+          <CardHeader className="bg-muted/30 border-b pb-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                  <FileText className="h-4 w-4 text-emerald-500" />
+                  Additional Operational Information & Resilience Notes
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Specific operational notes, landowner agreements, muster points, or local instructions strictly for {activeHazard.toUpperCase()}.
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="text-[10px] capitalize font-mono border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                {activeHazard} Notes
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 md:p-6 space-y-2">
+            <div className="bg-card rounded-xl border p-1 shadow-sm">
+              <RichTextEditor
+                value={scenarioNotes[activeHazard] || ''}
+                onChange={(val) => handleUpdateScenarioNotes(activeHazard, val)}
+                placeholder={`Type additional resilience notes, local instructions, equipment locations, or bespoke guidance for ${activeHazard} here...`}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* BOTTOM ACTION & SAVE BAR */}
+      <div className="p-4 md:p-5 rounded-2xl border bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 border-slate-800 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+            <ShieldCheck className="h-5 w-5 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white flex items-center gap-2">
+              Ready to commit statutory updates?
+            </p>
+            <p className="text-xs text-slate-400">
+              Save all changes to the living plan document and sync with the public emergency portal.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+          <Button
+            onClick={handlePrint}
+            variant="outline"
+            size="sm"
+            className="bg-slate-900/80 hover:bg-slate-800 border-slate-700 text-white gap-2 font-medium shadow-sm h-9 text-xs"
+          >
+            <Printer className="h-4 w-4 text-cyan-400" /> Print Document
+          </Button>
+
+          <Button
+            onClick={handleSavePlan}
+            disabled={isSavingPlan}
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 font-bold shadow-lg shadow-emerald-950/40 h-9 text-xs px-5"
+          >
+            {isSavingPlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 text-white" />}
+            Save Statutory Plan
+          </Button>
+        </div>
+      </div>
+      </>
+      )}
     </div>
   );
 }

@@ -104,13 +104,8 @@ export default function NationalHeader() {
   }, [user, userProfile, toast]);
   
   const handleAdvertiserDashboardClick = useCallback(() => {
-    const email = user?.email || userProfile?.email;
-    if (!email) {
-      toast({ title: "Error", description: "Could not retrieve email.", variant: "destructive" });
-      return;
-    }
-    window.location.href = `https://www.advertiser.my-community-hub.co.uk/?email=${encodeURIComponent(email)}`;
-  }, [user, userProfile, toast]);
+    router.push('/national/dashboard');
+  }, [router]);
   
   const handleCourierDashboardClick = useCallback(() => {
     const email = user?.email || userProfile?.email;
@@ -145,10 +140,6 @@ export default function NationalHeader() {
     
     if (userProfile.accountType === 'enterprise' || userProfile.permissions?.isEnterpriseUser) {
       availableDashboards.push({ href: '/enterprise/dashboard', label: 'Enterprise', icon: Building });
-    }
-
-    if (userProfile.accountType === 'advertiser' || userProfile.accountType === 'national') {
-      availableDashboards.push({ onClick: handleAdvertiserDashboardClick, label: 'Advertiser', icon: Star });
     }
 
     if (userProfile.role === 'reporter') {
@@ -231,8 +222,11 @@ export default function NationalHeader() {
                                 </div>
                             ) : (
                                 <div className="flex flex-col space-y-1">
-                                <p className="text-sm font-medium leading-none">{userProfile?.name}</p>
-                                <p className="text-xs leading-none text-muted-foreground">{userProfile?.email}</p>
+                                  <p className="text-sm font-medium leading-none">{userProfile?.name}</p>
+                                  <p className="text-xs leading-none text-muted-foreground">{userProfile?.email}</p>
+                                  <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-1">
+                                    <Star className="h-3 w-3 fill-current" /> National Advertiser
+                                  </span>
                                 </div>
                             )}
                         </DropdownMenuLabel>

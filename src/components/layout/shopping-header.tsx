@@ -119,13 +119,8 @@ export default function ShoppingHeader() {
   }, [user, toast]);
   
   const handleAdvertiserDashboardClick = useCallback(() => {
-    const email = user?.email || userProfile?.email;
-    if (!email) {
-      toast({ title: "Error", description: "Could not retrieve email.", variant: "destructive" });
-      return;
-    }
-    window.location.href = `https://www.advertiser.my-community-hub.co.uk/?email=${encodeURIComponent(email)}`;
-  }, [user, toast]);
+    router.push('/national/dashboard');
+  }, [router]);
   
   const handleCourierDashboardClick = useCallback(() => {
     const email = user?.email || userProfile?.email;
@@ -206,7 +201,7 @@ export default function ShoppingHeader() {
     }
 
     if (userProfile.accountType === 'advertiser' || userProfile.accountType === 'national') {
-      availableDashboards.push({ onClick: handleAdvertiserDashboardClick, label: 'Advertiser', icon: Star });
+      availableDashboards.push({ href: '/national/dashboard', label: 'Advertiser', icon: Star });
     }
 
     if (userProfile.role === 'reporter') {
@@ -301,20 +296,19 @@ export default function ShoppingHeader() {
   }
   
   const handleReturnHome = async () => {
-    if (!user) return;
-    setIsSwitching(true);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
+      window.dispatchEvent(new Event('community-change'));
     }
-    const result = await returnToHomeCommunityAction({ userId: user.uid });
-    setIsSwitching(false);
-    if (result.success) {
-      toast({ title: 'Returned Home', description: `You are now back in your home community.` });
-      window.location.href = '/home';
-    } else {
-      toast({ title: "Error Returning Home", description: result.error, variant: 'destructive' });
+    if (user) {
+      setIsSwitching(true);
+      returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
+      setIsSwitching(false);
     }
+    toast({ title: 'Returned Home', description: `You are now back in your home community.` });
+    router.push('/home');
+    router.refresh();
   };
   
   const handleClaimLeadership = async () => {

@@ -104,15 +104,18 @@ export async function updateNotificationStatusAction(params: {
     
     const updateData: { [key: string]: any } = { 
         status: status,
+        lastInteractedAt: Timestamp.now()
     };
 
-    if(actor) {
-        updateData.history = FieldValue.arrayUnion({
-            action: status,
-            actor: actor,
-            timestamp: Timestamp.now()
-        })
+    if (status.toLowerCase() === 'read') {
+        updateData.readAt = Timestamp.now();
     }
+
+    updateData.history = FieldValue.arrayUnion({
+        action: status,
+        actor: actor || 'User',
+        timestamp: Timestamp.now()
+    });
 
     if (status === 'Assigned' && assignedTo) {
         updateData.assignedTo = assignedTo;

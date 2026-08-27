@@ -110,12 +110,16 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
   };
 
   const handleReturnHome = async () => {
-    if (!user || !homeCommunityId) return;
-    const result = await returnToHomeCommunityAction({ userId: user.uid, homeCommunityId });
-    if (result.success) {
-      toast({ title: 'Welcome Home!', description: `Returned to ${homeCommunityName}.` });
-      router.refresh();
+    if (!user) return;
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('visitedCommunityId');
+      sessionStorage.removeItem('visitedCommunityName');
+      window.dispatchEvent(new Event('community-change'));
     }
+    returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
+    toast({ title: 'Welcome Home!', description: `Returned to ${homeCommunityName}.` });
+    router.push('/home');
+    router.refresh();
   };
 
   const hasActiveParticipation = Boolean(activePolls && activePolls.length > 0) || Boolean(activePetitions && activePetitions.length > 0);

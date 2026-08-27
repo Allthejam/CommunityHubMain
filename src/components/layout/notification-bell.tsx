@@ -15,7 +15,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { type Notification } from '@/lib/types/notifications';
+import { getNotificationDestination } from '@/lib/utils/notificationRouting';
+import { updateNotificationStatusAction } from '@/lib/actions/notificationActions';
 
 function getNotificationIcon(type: string) {
   switch (type) {
@@ -48,60 +49,19 @@ function getNotificationIcon(type: string) {
     case 'New Order':
     case 'Order Update':
       return '🛒';
+    case 'Emergency Plan Update':
+    case 'Situation Bulletin':
+    case 'Public Emergency Alert':
+      return '🚨';
+    case 'Community Announcement':
+      return '📢';
+    case 'Poll Alert':
+      return '📊';
+    case 'Petition Alert':
+      return '🎯';
     default:
       return '🔔';
   }
-}
-
-function getNotificationLink(notification: Notification) {
-  let path = '#';
-  if (notification.actionUrl) {
-    path = notification.actionUrl;
-  } else {
-    switch (notification.type) {
-      case 'New Message':
-        if (notification.subject.includes("Platform Support")) {
-          path = `/leader/chat?conversationId=${notification.relatedId}`;
-        } else if (notification.from === "Platform Administration") {
-          path = `/admin/staff-chat?conversationId=${notification.relatedId}`;
-        } else {
-          path = `/chat?conversationId=${notification.relatedId}`;
-        }
-        break;
-      case 'New Report':
-        path = '/leader/reports';
-        break;
-      case 'Lost & Found Report':
-        path = '/leader/lost-and-found';
-        break;
-      case 'Event Request':
-        path = '/leader/events';
-        break;
-      case 'Business Submission':
-        path = '/leader/businesses';
-        break;
-      case 'News Story Submission':
-        path = '/leader/news';
-        break;
-      case 'Advert Approval Request':
-        path = '/leader/adverts';
-        break;
-      case 'Charity Application':
-        path = '/leader/charities';
-        break;
-      case 'Leadership Application':
-        path = '/leader/applications';
-        break;
-      case 'New Order':
-      case 'Order Update':
-        path = '/business/orders';
-        break;
-      default:
-        path = '/notifications';
-        break;
-    }
-  }
-  return path;
 }
 
 export function NotificationBell() {
@@ -122,7 +82,17 @@ export function NotificationBell() {
       where('status', '==', 'new')
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setNotifications(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Notification)));
+      const rawData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Notification));
+      const filtered = rawData.filter(n => {
+        const targetApp = (n as any).targetApp;
+        if (targetApp === 'admin') return false;
+        const typeStr = (n.type as string) || '';
+        const subjectStr = (n.subject || '').toLowerCase();
+        if (typeStr === 'Task Assignment' || typeStr === 'Development Task') return false;
+        if (subjectStr.includes('development task')) return false;
+        return true;
+      });
+      setNotifications(filtered);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -163,18 +133,14 @@ export function NotificationBell() {
             <div className="p-6 text-center text-xs text-slate-400">No new notifications</div>
           ) : (
             notifications.slice(0, 6).map((n) => {
-              const path = getNotificationLink(n);
+              const path = getNotificationDestination(n);
               const icon = getNotificationIcon(n.type);
               return (
                 <DropdownMenuItem
                   key={n.id}
                   className="p-3 border-b border-slate-50 last:border-0 cursor-pointer hover:bg-slate-50 flex items-start gap-3 focus:bg-slate-50"
                   onClick={async () => {
-                    try {
-                      await updateDoc(doc(firestore, 'notifications', n.id), { status: 'read' });
-                    } catch (err) {
-                      console.error('Failed to mark notification as read', err);
-                    }
+                    updateNotificationStatusAction({ notificationId: n.id, status: 'read' }).catch(console.error);
                     router.push(path);
                   }}
                 >

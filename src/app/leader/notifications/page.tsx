@@ -218,10 +218,20 @@ export default function NotificationsPage() {
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const notificationsData = snapshot.docs.map(doc => ({
+            const rawData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             } as Notification));
+            
+            const notificationsData = rawData.filter(n => {
+                const targetApp = (n as any).targetApp;
+                if (targetApp === 'admin') return false;
+                const typeStr = (n.type as string) || '';
+                const subjectStr = (n.subject || '').toLowerCase();
+                if (typeStr === 'Task Assignment' || typeStr === 'Development Task') return false;
+                if (subjectStr.includes('development task')) return false;
+                return true;
+            });
             
             // Sort by date client-side to avoid composite index
             notificationsData.sort((a, b) => {

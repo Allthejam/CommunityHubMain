@@ -51,19 +51,33 @@ export function GeofenceProvider({ children }: { children: React.ReactNode }) {
 
   // Synchronize active community ID from session storage or profile
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedId = sessionStorage.getItem('visitedCommunityId');
-      setCurrentCommunityId(storedId || userProfile?.communityId || null);
+    const syncCurrentCommunity = () => {
+      if (typeof window !== 'undefined') {
+        const storedId = sessionStorage.getItem('visitedCommunityId');
+        const homeId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+        setCurrentCommunityId(storedId || homeId || null);
 
-      // Load local muted geofences from LocalStorage
-      const localMuted = localStorage.getItem('mutedGeofences');
-      if (localMuted) {
-        try {
-          setLocalMutedGeofences(JSON.parse(localMuted));
-        } catch (e) {
-          console.error('Error parsing local muted geofences:', e);
+        // Load local muted geofences from LocalStorage
+        const localMuted = localStorage.getItem('mutedGeofences');
+        if (localMuted) {
+          try {
+            setLocalMutedGeofences(JSON.parse(localMuted));
+          } catch (e) {
+            console.error('Error parsing local muted geofences:', e);
+          }
         }
       }
+    };
+
+    syncCurrentCommunity();
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('community-change', syncCurrentCommunity);
+      window.addEventListener('storage', syncCurrentCommunity);
+      return () => {
+        window.removeEventListener('community-change', syncCurrentCommunity);
+        window.removeEventListener('storage', syncCurrentCommunity);
+      };
     }
   }, [userProfile]);
 
@@ -72,7 +86,14 @@ export function GeofenceProvider({ children }: { children: React.ReactNode }) {
 
   // Determine if the detected entry community has been muted or dismissed
   const isMuted = React.useMemo(() => {
-    if (!enteredCommunity) return false;
+    if (!enteredCommunity) return true;
+    
+    // CRITICAL: NEVER show boundary entry prompt for the user's own home community
+    const userHomeId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+    if (userHomeId && enteredCommunity.id === userHomeId) {
+      return true;
+    }
+
     const profileMuted = userProfile?.mutedGeofences || [];
     return profileMuted.includes(enteredCommunity.id) || localMutedGeofences.includes(enteredCommunity.id) || dismissedGeofences.includes(enteredCommunity.id);
   }, [enteredCommunity, userProfile, localMutedGeofences, dismissedGeofences]);

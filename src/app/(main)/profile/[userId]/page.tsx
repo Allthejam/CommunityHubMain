@@ -522,6 +522,7 @@ export default function UserProfilePage() {
         if (!communityId) return;
         if (typeof window !== 'undefined') {
             sessionStorage.setItem('visitedCommunityId', communityId);
+            window.dispatchEvent(new Event('community-change'));
         }
         router.push(`/home?community=${communityId}`);
     }

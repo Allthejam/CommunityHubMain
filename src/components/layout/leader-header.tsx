@@ -63,6 +63,7 @@ import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
 import { type Notification } from '@/lib/types/notifications';
 import { useToast } from '@/hooks/use-toast';
+import { NotificationBell } from './notification-bell';
 
 const mainLeaderNavItems = [
   { href: '/leader/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'viewDashboard' },
@@ -141,13 +142,8 @@ export default function LeaderHeader() {
   }, [user, userProfile, toast]);
   
   const handleAdvertiserDashboardClick = useCallback(() => {
-    const email = user?.email || userProfile?.email;
-    if (!email) {
-      toast({ title: "Error", description: "Could not retrieve email.", variant: "destructive" });
-      return;
-    }
-    window.location.href = `https://www.advertiser.my-community-hub.co.uk/?email=${encodeURIComponent(email)}`;
-  }, [user, userProfile, toast]);
+    router.push('/national/dashboard');
+  }, [router]);
   
   const handleCourierDashboardClick = useCallback(() => {
     const email = user?.email || userProfile?.email;
@@ -212,7 +208,7 @@ export default function LeaderHeader() {
     }
 
     if (userProfile.accountType === 'advertiser' || userProfile.accountType === 'national') {
-      availableDashboards.push({ onClick: handleAdvertiserDashboardClick, label: 'Advertiser', icon: Star });
+      availableDashboards.push({ href: '/national/dashboard', label: 'Advertiser', icon: Star });
     }
 
     if (userProfile.accountType === 'regional' || userProfile.permissions?.isRegionalNetwork) {
@@ -312,6 +308,7 @@ export default function LeaderHeader() {
       </nav>
 
       <div className="ml-auto flex items-center gap-2 shrink-0">
+        {isClient && user && <NotificationBell />}
         {isClient ? (
             user ? (
             <DropdownMenu>

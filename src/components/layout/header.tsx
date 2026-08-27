@@ -153,31 +153,65 @@ export default function AppHeader() {
 
   const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
-  const visitedCommunityIdEffective = useMemo(() => {
+  const [visitedSessionId, setVisitedSessionId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('visitedCommunityId');
+    }
+    return null;
+  });
+
+  // Keep visited community ID instantly synchronized across all navigation events and routes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const syncVisitedId = () => {
+      // 1. Check URL query params (?community=xxx)
       const urlParams = new URLSearchParams(window.location.search);
       const urlComm = urlParams.get('community');
       if (urlComm) {
         if (homeCommunityId && urlComm === homeCommunityId) {
           sessionStorage.removeItem('visitedCommunityId');
-          return null;
+          setVisitedSessionId(null);
+        } else {
+          sessionStorage.setItem('visitedCommunityId', urlComm);
+          setVisitedSessionId(urlComm);
         }
-        sessionStorage.setItem('visitedCommunityId', urlComm);
-        return urlComm;
+        return;
       }
-      const storedVisited = sessionStorage.getItem('visitedCommunityId');
-      if (storedVisited && homeCommunityId && storedVisited === homeCommunityId) {
+
+      // 2. Check URL pathname (/community/:id)
+      if (pathname && pathname.startsWith('/community/')) {
+        const parts = pathname.split('/');
+        const commIdFromPath = parts[2];
+        if (commIdFromPath && commIdFromPath !== homeCommunityId && !['join', 'create'].includes(commIdFromPath)) {
+          sessionStorage.setItem('visitedCommunityId', commIdFromPath);
+          setVisitedSessionId(commIdFromPath);
+          return;
+        }
+      }
+
+      // 3. Fallback to active session storage
+      const stored = sessionStorage.getItem('visitedCommunityId');
+      if (stored && homeCommunityId && stored === homeCommunityId) {
         sessionStorage.removeItem('visitedCommunityId');
-        return null;
+        setVisitedSessionId(null);
+      } else {
+        setVisitedSessionId(stored && stored !== homeCommunityId ? stored : null);
       }
-      return (storedVisited && storedVisited !== homeCommunityId) ? storedVisited : null;
-    }
-    return null;
-  }, [homeCommunityId]);
+    };
 
-  const isVisiting = Boolean(userProfile && homeCommunityId && visitedCommunityIdEffective && visitedCommunityIdEffective !== homeCommunityId);
+    syncVisitedId();
 
+    window.addEventListener('storage', syncVisitedId);
+    window.addEventListener('community-change', syncVisitedId);
+    return () => {
+      window.removeEventListener('storage', syncVisitedId);
+      window.removeEventListener('community-change', syncVisitedId);
+    };
+  }, [pathname, homeCommunityId]);
 
+  const visitedCommunityIdEffective = (visitedSessionId && visitedSessionId !== homeCommunityId) ? visitedSessionId : null;
+  const isVisiting = Boolean(userProfile && homeCommunityId && visitedCommunityIdEffective);
 
   const visitedCommunityDataRef = useMemoFirebase(() => visitedCommunityIdEffective ? doc(firestore, 'communities', visitedCommunityIdEffective) : null, [visitedCommunityIdEffective, firestore]);
   const { data: visitedCommunityData } = useDoc(visitedCommunityDataRef);
@@ -231,13 +265,8 @@ export default function AppHeader() {
   }, [user, toast, userProfile?.email]);
   
   const handleAdvertiserDashboardClick = useCallback(() => {
-    const email = user?.email || userProfile?.email;
-    if (!email) {
-      toast({ title: "Error", description: "Could not retrieve email.", variant: "destructive" });
-      return;
-    }
-    window.location.href = `https://www.advertiser.my-community-hub.co.uk/?email=${encodeURIComponent(email)}`;
-  }, [user, toast, userProfile?.email]);
+    router.push('/national/dashboard');
+  }, [router]);
   
   const handleCourierDashboardClick = useCallback(() => {
     const email = user?.email || userProfile?.email;
@@ -256,6 +285,7 @@ export default function AppHeader() {
     const targetCommId = communitySelection.community;
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('visitedCommunityId', targetCommId);
+      window.dispatchEvent(new Event('community-change'));
     }
     setIsCommunityDialogOpen(false);
     toast({ title: 'Visiting Community', description: `Opening hub for selected community.` });
@@ -266,14 +296,17 @@ export default function AppHeader() {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
+      window.dispatchEvent(new Event('community-change'));
     }
+    setVisitedSessionId(null);
     if (user) {
       setIsSwitching(true);
-      await returnToHomeCommunityAction({ userId: user.uid });
+      returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
       setIsSwitching(false);
     }
     toast({ title: 'Returned Home', description: `Returned to your locked Home Community hub.` });
-    window.location.href = '/home';
+    router.push('/home');
+    router.refresh();
   };
 
   
@@ -359,7 +392,7 @@ export default function AppHeader() {
     }
 
     if (userProfile.accountType === 'advertiser' || userProfile.accountType === 'national') {
-      availableDashboards.push({ onClick: handleAdvertiserDashboardClick, label: 'Advertiser', icon: Star });
+      availableDashboards.push({ href: '/national/dashboard', label: 'Advertiser', icon: Star });
     }
 
     if (userProfile.accountType === 'regional' || userProfile.permissions?.isRegionalNetwork) {
@@ -425,8 +458,13 @@ export default function AppHeader() {
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                       <DropdownMenuLabel className="font-normal">
                           <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none">{userProfile?.name}</p>
-                          <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                            <p className="text-sm font-medium leading-none">{userProfile?.name}</p>
+                            <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                            {(userProfile?.accountType === 'national' || userProfile?.accountType === 'advertiser') && (
+                              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-1">
+                                <Star className="h-3 w-3 fill-current" /> National Advertiser
+                              </span>
+                            )}
                           </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
@@ -497,8 +535,8 @@ export default function AppHeader() {
                       {userProfile?.settings?.hasBroadcastAccess && (
                           <DropdownMenuItem asChild><Link href="/broadcast"><Siren className="mr-2 h-4 w-4 text-destructive" /><span>Broadcast System</span></Link></DropdownMenuItem>
                       )}
-                      <DropdownMenuItem disabled>
-                          <CurrentAccountIcon className="mr-2 h-4 w-4" /><span className='capitalize'>{userProfile?.role || 'Personal'}</span>
+                      <DropdownMenuItem disabled className="opacity-80">
+                          <CurrentAccountIcon className="mr-2 h-4 w-4" /><span className='capitalize'>{userProfile?.accountType === 'national' || userProfile?.accountType === 'advertiser' ? 'National Advertiser' : (userProfile?.role || 'Personal')}</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <TooltipProvider>

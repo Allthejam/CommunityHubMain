@@ -13,6 +13,49 @@ export interface ScenarioFacilityItem {
   notes?: string;
 }
 
+export type EmergencyMessageLevel = 'info' | 'advisory' | 'warning' | 'critical' | 'allclear';
+
+export interface EmergencyMessage {
+  id: string;
+  communityId: string;
+  title: string;
+  body: string;
+  level: EmergencyMessageLevel;
+  hazardCategory: string;
+  authorName: string;
+  authorRole: string;
+  authorId: string;
+  createdAt: any;
+  isActive: boolean;
+  retractedAt?: any;
+  retractedBy?: string;
+  retractReason?: string;
+}
+
+export type EmergencyAuditActionType =
+  | 'PLAN_SAVE'
+  | 'BULLETIN_PUBLISH'
+  | 'BULLETIN_RETRACT'
+  | 'FAILOVER_TOGGLE'
+  | 'CERTIFICATION_SIGN'
+  | 'LSO_ENDORSEMENT'
+  | 'THREAT_CHANGE'
+  | 'VOLUNTEER_REGISTER';
+
+export interface EmergencyAuditLogEntry {
+  id?: string;
+  communityId: string;
+  actionType: EmergencyAuditActionType;
+  category: string;
+  actorName: string;
+  actorEmail?: string;
+  actorRole: string;
+  actorId: string;
+  summary: string;
+  details?: any;
+  timestamp?: any;
+}
+
 export type ScenarioFacilitiesMap = Record<
   string,
   {
@@ -22,11 +65,150 @@ export type ScenarioFacilitiesMap = Record<
   }
 >;
 
+export interface WildfireHazardArea {
+  id: string;
+  title: string;
+  fuelType: string;
+  windThreat: string;
+  notes?: string;
+}
+
+export interface WildfireContactItem {
+  id: string;
+  role: string;
+  name: string;
+  telephone: string;
+  notes?: string;
+}
+
+export interface WildfireTimelineStage {
+  id: string;
+  timeTag: string; // e.g. "T+0 MINS", "T+15 MINS"
+  title: string;
+  desc: string;
+}
+
+export interface WildfireSafeguardingItem {
+  id: string;
+  title: string;
+  description: string;
+  category?: 'protocol' | 'hfsv' | 'custom';
+}
+
+export interface WildfireAssetItem {
+  id: string;
+  category: string; // e.g. "Machinery", "Water Point", "Transport", "Pasture", "Equipment"
+  name: string;
+  description: string;
+}
+
+export interface KeyholderItem {
+  id: string;
+  facilityOrAsset: string; // e.g. "Community Hall / Rest Centre", "Fire Hydrant Standpipes & Keys", "Estate Access Gates"
+  category: string; // e.g. "Building / Shelter", "Hydrants & Standpipes", "Estate Gates", "Equipment / Generator", "Sandbag Store"
+  primaryName: string;
+  primaryPhone: string;
+  backupName?: string;
+  backupPhone?: string;
+  keyLocationNotes?: string; // e.g. "Key safe on wall code 1234; spare key held by caretaker"
+}
+
+export interface ScenarioLiaisonItem {
+  id: string;
+  role: string; // e.g. "SFRS Fire Station Command", "SEPA Flood Warning Officer", "SSEN Grid Lead"
+  agencyOrName: string; // e.g. "Grantown Community Fire Station (SFRS)", "SEPA North Command"
+  telephone: string;
+  notes?: string;
+}
+
+export type ScenarioLiaisonsMap = Record<string, ScenarioLiaisonItem[]>;
+
+export interface ScenarioTimelineStage {
+  id: string;
+  timeTag: string; // e.g. "T+00 MINS", "T+15 MINS", "T+30 MINS", "T+60 MINS", "T+2 HOURS"
+  title: string;
+  desc: string;
+}
+
+export type ScenarioTimelinesMap = Record<string, ScenarioTimelineStage[]>;
+
+export interface IncidentSopTask {
+  id: string;
+  title: string;
+  desc: string;
+  role?: string;
+  shortcutAction?: 'announcement' | 'threat' | 'bulletin' | 'keyholders' | 'volunteers' | 'none';
+  isCompleted?: boolean;
+  completedAt?: any;
+  completedBy?: string;
+}
+
+export interface IncidentSopPhase {
+  id: string;
+  timeTag: string;
+  title: string;
+  desc: string;
+  tasks: IncidentSopTask[];
+}
+
 export interface EmergencyPlanData {
   communityId: string;
   townshipName: string;
   updatedAt?: any;
   updatedBy?: string;
+
+  // Incident Commander Standard Operating Procedure (SOP) & Pocket Checklist
+  incidentSop?: IncidentSopPhase[];
+
+  // Living Plan Statutory Audit & Verification Lifecycle
+  lastReviewedAt?: any;
+  reviewedByName?: string;
+  reviewedByRole?: string;
+  nextReviewDueAt?: any;
+  sfrsPriorityAlignment?: string; // e.g. "SFRS Priority 2: Wildfire & Climate Resilience"
+  lsoEndorsement?: {
+    endorsed: boolean;
+    serviceName?: string;
+    officerName?: string;
+    endorsedAt?: any;
+    comments?: string;
+  };
+
+  // Keyholders & Infrastructure Access Register
+  keyholdersList?: KeyholderItem[];
+
+  // Scenario-Specific Multi-Agency Liaisons Map
+  scenarioLiaisons?: ScenarioLiaisonsMap;
+
+  // Dynamic Operational Response Timelines per Hazard
+  timelinesMap?: ScenarioTimelinesMap;
+
+  // Dynamic Wildfire Sections (Multi-item support with Add / Delete)
+  wildfireHazardAreas?: WildfireHazardArea[];
+  wildfireAssetList?: WildfireAssetItem[];
+  wildfireContactList?: WildfireContactItem[];
+  wildfireTimelineStages?: WildfireTimelineStage[];
+  wildfireSafeguardingList?: WildfireSafeguardingItem[];
+
+  // Wildfire Specialized Contacts Matrix (Fallback / Legacy)
+  wildfireContacts?: {
+    coordinatorName?: string;
+    coordinatorTel?: string;
+    estateManagerName?: string;
+    estateManagerTel?: string;
+    headKeeperName?: string;
+    headKeeperTel?: string;
+    fireStationName?: string;
+    fireStationTel?: string;
+  };
+
+  // SFRS Community Asset Register (Machinery & Water Abstraction)
+  wildfireAssets?: {
+    firebreakTractors?: string;
+    waterAbstractionPoints?: string;
+    bowsersAndATVs?: string;
+    livestockPastures?: string;
+  };
 
   // Public Visibility & Threat State
   isPublicOnAboutPage?: boolean;
@@ -35,6 +217,9 @@ export interface EmergencyPlanData {
 
   // Scenario-Specific Infrastructure & Facilities Map (Unique to each Annexe)
   scenarioFacilities?: ScenarioFacilitiesMap;
+
+  // Scenario-Specific Operational Notes & Guidance (Unique per scenario)
+  scenarioNotes?: Record<string, string>;
 
   // Official Situation Bulletin / Leader Noticeboard (One-way official verified notice)
   officialNotice?: {
@@ -59,6 +244,9 @@ export interface EmergencyPlanData {
     hub: boolean;
     route: boolean;
   };
+
+  // Additional Information & Rich Notes (e.g. Volunteer Notes, Local Protocols)
+  additionalNotesHtml?: string;
 
   // Hazard Priorities Map
   priorities: Record<
@@ -323,17 +511,21 @@ export async function publishCommunityEmergencyBroadcastAction(params: {
 export async function registerResilienceVolunteerAction(params: {
   userId: string;
   communityId: string;
-  userName: string;
+  userName?: string;
+  contactName?: string;
+  operatorName?: string;
   userEmail: string;
   phone: string;
   skills: string[];
   equipmentNotes?: string;
 }): Promise<{ success: boolean; error?: string }> {
-  const { userId, communityId, userName, userEmail, phone, skills, equipmentNotes } = params;
+  const { userId, communityId, userName, contactName, operatorName, userEmail, phone, skills, equipmentNotes } = params;
 
   if (!userId || !communityId) {
     return { success: false, error: 'User ID and Community ID are required.' };
   }
+
+  const primaryName = contactName?.trim() || userName?.trim() || 'Local Resident';
 
   try {
     const { firestore } = initializeAdminApp();
@@ -347,7 +539,9 @@ export async function registerResilienceVolunteerAction(params: {
       {
         userId,
         communityId,
-        userName: userName || 'Local Resident',
+        userName: primaryName,
+        contactName: primaryName,
+        operatorName: operatorName?.trim() || '',
         userEmail: userEmail || '',
         phone: phone || '',
         skills: skills || [],
@@ -374,3 +568,281 @@ export async function registerResilienceVolunteerAction(params: {
     return { success: false, error: error.message || 'Failed to register as volunteer.' };
   }
 }
+
+/**
+ * Formally certifies and stamps the Emergency Resilience Plan as reviewed and current for a 6-month cycle.
+ */
+export async function certifyEmergencyPlanAction(params: {
+  communityId: string;
+  reviewerName: string;
+  reviewerRole?: string;
+  userId: string;
+}): Promise<{ success: boolean; error?: string; reviewedAt?: string; nextReviewDueAt?: string }> {
+  const { communityId, reviewerName, reviewerRole, userId } = params;
+
+  if (!communityId || !reviewerName) {
+    return { success: false, error: 'Community ID and Reviewer Name are required.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const planRef = firestore.collection('communities').doc(communityId).collection('emergency_plan').doc('main');
+
+    const now = Timestamp.now();
+    // 6 months in milliseconds (~182.5 days)
+    const sixMonthsMs = 182.5 * 24 * 60 * 60 * 1000;
+    const nextDue = Timestamp.fromMillis(now.toMillis() + sixMonthsMs);
+
+    await planRef.set(
+      {
+        lastReviewedAt: now,
+        reviewedByName: reviewerName,
+        reviewedByRole: reviewerRole || 'Community Leader / Resilience Coordinator',
+        nextReviewDueAt: nextDue,
+        updatedAt: now,
+        updatedBy: userId,
+      },
+      { merge: true }
+    );
+
+    return {
+      success: true,
+      reviewedAt: now.toDate().toISOString(),
+      nextReviewDueAt: nextDue.toDate().toISOString(),
+    };
+  } catch (error: any) {
+    console.error('Error certifying emergency plan:', error);
+    return { success: false, error: error.message || 'Failed to certify emergency plan.' };
+  }
+}
+
+/**
+ * Allows a verified emergency services liaison officer (e.g. SFRS LSO) to digitally endorse the plan.
+ */
+export async function endorseEmergencyPlanAction(params: {
+  communityId: string;
+  serviceName: string;
+  officerName: string;
+  comments?: string;
+  userId: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const { communityId, serviceName, officerName, comments, userId } = params;
+
+  if (!communityId || !officerName) {
+    return { success: false, error: 'Community ID and Officer Name are required.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const planRef = firestore.collection('communities').doc(communityId).collection('emergency_plan').doc('main');
+
+    await planRef.set(
+      {
+        lsoEndorsement: {
+          endorsed: true,
+          serviceName: serviceName || 'Scottish Fire and Rescue Service',
+          officerName,
+          comments: comments || 'Plan reviewed and verified against local emergency service protocols.',
+          endorsedAt: Timestamp.now(),
+        },
+        updatedAt: Timestamp.now(),
+        updatedBy: userId,
+      },
+      { merge: true }
+    );
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error endorsing emergency plan:', error);
+    return { success: false, error: error.message || 'Failed to endorse emergency plan.' };
+  }
+}
+
+/**
+ * Appends an immutable entry to the Community Emergency Audit Log.
+ */
+export async function logEmergencyAuditAction(params: EmergencyAuditLogEntry): Promise<{ success: boolean; error?: string }> {
+  const { communityId, actionType, category, actorName, actorEmail, actorRole, actorId, summary, details } = params;
+
+  if (!communityId || !actionType || !actorId) {
+    return { success: false, error: 'Community ID, Action Type, and Actor ID are required.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const auditColRef = firestore.collection('communities').doc(communityId).collection('emergency_audit_logs');
+
+    await auditColRef.add({
+      communityId,
+      actionType,
+      category: category || 'General',
+      actorName: actorName || 'Community Resilience Leader',
+      actorEmail: actorEmail || '',
+      actorRole: actorRole || 'Leader / Official',
+      actorId,
+      summary: summary || actionType,
+      details: details || {},
+      timestamp: Timestamp.now(),
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error recording emergency audit log:', error);
+    return { success: false, error: error.message || 'Failed to record audit log.' };
+  }
+}
+
+/**
+ * Publishes an official emergency situation message / bulletin to the public portal and records in audit.
+ */
+export async function publishEmergencyMessageAction(params: {
+  communityId: string;
+  title: string;
+  body: string;
+  level: EmergencyMessageLevel;
+  hazardCategory: string;
+  authorName: string;
+  authorRole?: string;
+  authorId: string;
+  authorEmail?: string;
+}): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  const { communityId, title, body, level, hazardCategory, authorName, authorRole, authorId, authorEmail } = params;
+
+  if (!communityId || !title || !body || !authorId) {
+    return { success: false, error: 'Community, title, message content, and author are required.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const now = Timestamp.now();
+    const messagesCol = firestore.collection('communities').doc(communityId).collection('emergency_messages');
+
+    const messageDoc = await messagesCol.add({
+      communityId,
+      title,
+      body,
+      level: level || 'advisory',
+      hazardCategory: hazardCategory || 'general',
+      authorName: authorName || 'Incident Commander',
+      authorRole: authorRole || 'Community Resilience Leader',
+      authorId,
+      createdAt: now,
+      isActive: true,
+    });
+
+    // Update main emergency plan document with active official notice
+    const planRef = firestore.collection('communities').doc(communityId).collection('emergency_plan').doc('main');
+    await planRef.set(
+      {
+        officialNotice: {
+          isActive: true,
+          headline: title,
+          message: body,
+          level: level || 'advisory',
+          hazardCategory: hazardCategory || 'general',
+          authorName: authorName || 'Incident Commander',
+          authorRole: authorRole || 'Community Resilience Leader',
+          publishedAt: now,
+          messageId: messageDoc.id,
+        },
+        currentThreatStatus: level === 'critical' ? 'incident' : level === 'warning' ? 'advisory' : 'normal',
+        updatedAt: now,
+        updatedBy: authorId,
+      },
+      { merge: true }
+    );
+
+    // Record in Audit Log
+    await logEmergencyAuditAction({
+      communityId,
+      actionType: 'BULLETIN_PUBLISH',
+      category: hazardCategory || 'Emergency Notice',
+      actorName: authorName || 'Incident Commander',
+      actorEmail: authorEmail || '',
+      actorRole: authorRole || 'Leader / Incident Commander',
+      actorId: authorId,
+      summary: `Published Live ${level.toUpperCase()} Bulletin: "${title}"`,
+      details: { title, level, hazardCategory, messageId: messageDoc.id },
+    });
+
+    return { success: true, messageId: messageDoc.id };
+  } catch (error: any) {
+    console.error('Error publishing emergency message:', error);
+    return { success: false, error: error.message || 'Failed to publish emergency message.' };
+  }
+}
+
+/**
+ * Retracts / archives an active emergency situation bulletin and clears official notice.
+ */
+export async function retractEmergencyMessageAction(params: {
+  communityId: string;
+  messageId?: string;
+  authorName: string;
+  authorRole?: string;
+  authorId: string;
+  authorEmail?: string;
+  reason?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const { communityId, messageId, authorName, authorRole, authorId, authorEmail, reason } = params;
+
+  if (!communityId || !authorId) {
+    return { success: false, error: 'Community ID and Author ID are required.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const now = Timestamp.now();
+
+    // If a specific messageId was provided, mark it inactive
+    if (messageId) {
+      const msgRef = firestore.collection('communities').doc(communityId).collection('emergency_messages').doc(messageId);
+      await msgRef.set(
+        {
+          isActive: false,
+          retractedAt: now,
+          retractedBy: authorId,
+          retractReason: reason || 'Notice retracted / situation normalized.',
+        },
+        { merge: true }
+      );
+    }
+
+    // Clear official notice on main plan document
+    const planRef = firestore.collection('communities').doc(communityId).collection('emergency_plan').doc('main');
+    await planRef.set(
+      {
+        officialNotice: {
+          isActive: false,
+          headline: '',
+          message: '',
+          retractedAt: now,
+          retractedBy: authorName,
+        },
+        currentThreatStatus: 'normal',
+        updatedAt: now,
+        updatedBy: authorId,
+      },
+      { merge: true }
+    );
+
+    // Record in Audit Log
+    await logEmergencyAuditAction({
+      communityId,
+      actionType: 'BULLETIN_RETRACT',
+      category: 'Emergency Notice',
+      actorName: authorName || 'Incident Commander',
+      actorEmail: authorEmail || '',
+      actorRole: authorRole || 'Leader / Incident Commander',
+      actorId: authorId,
+      summary: `Retracted Active Bulletin. Reason: ${reason || 'Situation Normalized'}`,
+      details: { messageId, reason },
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error retracting emergency message:', error);
+    return { success: false, error: error.message || 'Failed to retract emergency message.' };
+  }
+}
+

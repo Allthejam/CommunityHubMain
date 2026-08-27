@@ -1,4 +1,3 @@
-
 'use server';
 
 import { initializeAdminApp } from "@/firebase/admin-app";
@@ -29,5 +28,3 @@ export async function updateNationalAdvertiserStatusAction(params: {
     return { success: false, error: error.message || 'Failed to update status.' };
   }
 }
-
-    

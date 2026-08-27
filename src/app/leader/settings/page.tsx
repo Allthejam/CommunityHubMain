@@ -107,6 +107,11 @@ const initialPermissions = {
     viewPolls: true,
     canViewAllCommunityReports: false,
     viewableReportCategories: [],
+    emergencyCanViewPlan: true,
+    emergencyCanEditPlan: false,
+    emergencyCanSendMessages: false,
+    emergencyCanViewAudit: false,
+    emergencyCanUpdateCertification: false,
 };
 
 type TeamMember = {
@@ -207,6 +212,16 @@ const permissionGroups = [
         permissions: [
              { key: 'canSendStandardBroadcast', label: 'Action: Send Standard Broadcasts' },
              { key: 'canSendEmergencyBroadcast', label: 'Action: Send Emergency Broadcasts' },
+        ]
+    },
+    {
+        title: "Emergency Resilience & Incident Command",
+        permissions: [
+            { key: 'emergencyCanViewPlan', label: 'View: Statutory Emergency Resilience Plan' },
+            { key: 'emergencyCanEditPlan', label: 'Action: Edit Hazard Annexes & Facilities' },
+            { key: 'emergencyCanSendMessages', label: 'Action: Publish & Retract Live Public Bulletins' },
+            { key: 'emergencyCanViewAudit', label: 'View: Emergency & Compliance Audit Log' },
+            { key: 'emergencyCanUpdateCertification', label: 'Action: Sign Off 6-Monthly Statutory Certification' },
         ]
     }
 ];

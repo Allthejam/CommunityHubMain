@@ -244,17 +244,7 @@ export default function AppHeader() {
   }
   
   const handleAdvertiserDashboardClick = () => {
-    const email = user?.email || userProfile?.email;
-    if (!email) {
-      toast({
-        title: "Could not retrieve email",
-        description: "Please try again or contact support.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const url = `https://www.advertiser.my-community-hub.co.uk/?email=${encodeURIComponent(email)}`;
-    window.location.href = url;
+    router.push('/national/dashboard');
   };
   
   const handleAdminDashboardClick = () => {
@@ -267,7 +257,8 @@ export default function AppHeader() {
       });
       return;
     }
-    const url = `https://admin.my-community-hub.co.uk/?email=${encodeURIComponent(email)}`;
+    const adminBaseUrl = process.env.NEXT_PUBLIC_ADMIN_APP_URL || 'https://admin.my-community-hub.co.uk';
+    const url = `${adminBaseUrl}/?email=${encodeURIComponent(email)}`;
     window.location.href = url;
   };
   
@@ -311,7 +302,7 @@ export default function AppHeader() {
     }
 
     if (userProfile.accountType === 'advertiser' || userProfile.accountType === 'national') {
-      availableDashboards.push({ onClick: handleAdvertiserDashboardClick, label: 'Advertiser', icon: Star });
+      availableDashboards.push({ href: '/national/dashboard', label: 'Advertiser', icon: Star });
     }
 
     if (userProfile.accountType === 'regional' || userProfile.permissions?.isRegionalNetwork) {
@@ -376,21 +367,20 @@ export default function AppHeader() {
   }
   
   const handleReturnHome = async () => {
-    if (!user) return;
-    setIsSwitching(true);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
+      window.dispatchEvent(new Event('community-change'));
     }
-    const result = await returnToHomeCommunityAction({ userId: user.uid });
-    setIsSwitching(false);
-    if (result.success) {
-      setVisitedCommunityId(null);
-      showToast({ title: 'Returned Home', description: `You are now back in your home community.` });
-      window.location.href = '/home';
-    } else {
-      showToast({ title: "Error Returning Home", description: result.error, variant: 'destructive' });
+    setVisitedCommunityId(null);
+    if (user) {
+      setIsSwitching(true);
+      returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
+      setIsSwitching(false);
     }
+    showToast({ title: 'Returned Home', description: `You are now back in your home community.` });
+    router.push('/home');
+    router.refresh();
   }
 
   
@@ -488,8 +478,13 @@ export default function AppHeader() {
                           </div>
                       ) : (
                           <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none">{userProfile?.name}</p>
-                          <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                            <p className="text-sm font-medium leading-none">{userProfile?.name}</p>
+                            <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                            {(userProfile?.accountType === 'national' || userProfile?.accountType === 'advertiser') && (
+                              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-1">
+                                <Star className="h-3 w-3 fill-current" /> National Advertiser
+                              </span>
+                            )}
                           </div>
                       )}
                       </DropdownMenuLabel>
@@ -633,9 +628,9 @@ export default function AppHeader() {
                               </Link>
                           </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem disabled>
+                      <DropdownMenuItem disabled className="opacity-80">
                           <CurrentAccountIcon className="mr-2 h-4 w-4" />
-                          <span className='capitalize'>{userProfile?.role || 'Personal'}</span>
+                          <span className='capitalize'>{userProfile?.accountType === 'national' || userProfile?.accountType === 'advertiser' ? 'National Advertiser' : (userProfile?.role || 'Personal')}</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <TooltipProvider>

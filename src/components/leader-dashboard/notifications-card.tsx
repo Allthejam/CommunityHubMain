@@ -28,7 +28,20 @@ export function NotificationsCard() {
         );
     }, [user, db]);
 
-    const { data: newNotifications, isLoading: notificationsLoading } = useCollection<Notification>(notificationsQuery);
+    const { data: rawNotifications, isLoading: notificationsLoading } = useCollection<Notification>(notificationsQuery);
+
+    const newNotifications = React.useMemo(() => {
+        if (!rawNotifications) return [];
+        return rawNotifications.filter(n => {
+            const targetApp = (n as any).targetApp;
+            if (targetApp === 'admin') return false;
+            const typeStr = (n as any).type || '';
+            const subjectStr = (n.subject || '').toLowerCase();
+            if (typeStr === 'Task Assignment' || typeStr === 'Development Task') return false;
+            if (subjectStr.includes('development task')) return false;
+            return true;
+        });
+    }, [rawNotifications]);
 
     const loading = isUserLoading || notificationsLoading;
 

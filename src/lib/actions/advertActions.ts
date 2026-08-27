@@ -213,32 +213,42 @@ export async function saveAdvertAsDraft(params: {
         }
     }
 
-    if (dataToSave.startDate && !(dataToSave.startDate instanceof Timestamp)) {
-        dataToSave.startDate = Timestamp.fromDate(new Date(dataToSave.startDate));
+    let finalStatus = "Draft";
+    if (id) {
+        const existing = await firestore.collection('adverts').doc(id).get();
+        const currentStatus = existing.data()?.status;
+        if (currentStatus && ['Active', 'Scheduled', 'Pending Approval'].includes(currentStatus)) {
+            finalStatus = currentStatus;
+        }
     }
-    if (dataToSave.endDate && !(dataToSave.endDate instanceof Timestamp)) {
-        dataToSave.endDate = Timestamp.fromDate(new Date(dataToSave.endDate));
-    }
+
+    const startDate = dataToSave.startDate ? (dataToSave.startDate instanceof Date ? dataToSave.startDate : new Date(dataToSave.startDate)) : null;
+    const endDate = dataToSave.endDate ? (dataToSave.endDate instanceof Date ? dataToSave.endDate : new Date(dataToSave.endDate)) : null;
 
     const advert: any = {
         ...dataToSave,
         image: imageUrl,
         imagePath: imagePath,
         ownerId: userId,
-        status: "Draft",
+        status: finalStatus,
+        scope: dataToSave.scope || ((advertData.type === 'featured' || advertData.type === 'partner') ? 'national' : 'community'),
+        title: dataToSave.headline || dataToSave.title || "Untitled Draft",
         updatedAt: Timestamp.now(),
-        scope: (advertData.type === 'featured' || advertData.type === 'partner') ? 'national' : 'community',
+        startDate: startDate ? Timestamp.fromDate(startDate) : null,
+        endDate: endDate ? Timestamp.fromDate(endDate) : null,
     };
 
     let docId: string;
     if (id) {
         docId = id;
         const advertRef = firestore.collection('adverts').doc(docId);
-        await advertRef.update(advert);
+        await advertRef.set(advert, { merge: true });
     } else {
         const newAdvertRef = await firestore.collection("adverts").add({
             ...advert,
             createdAt: Timestamp.now(),
+            impressions: 0,
+            clicks: 0,
         });
         docId = newAdvertRef.id;
     }
@@ -397,4 +407,48 @@ export async function submitAdvertForApprovalAction(params: {
         console.error("Error submitting advert for approval:", error);
         return { success: false, error: error.message };
     }
+}
+
+/**
+ * Updates an already paid (Active/Scheduled) advert and notifies admins.
+ */
+export async function updateActiveAdvertAction(params: {
+  userId: string;
+  advertId: string;
+  advertData: any;
+}): Promise<ActionResponse> {
+  const { userId, advertId, advertData } = params;
+  if (!userId || !advertId) {
+    return { success: false, error: "User ID and advert ID are required." };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const advertRef = firestore.collection('adverts').doc(advertId);
+    
+    // We only update creative content to avoid messing with payment/targeting logic
+    // We exclude system fields and status to ensure it stays Active
+    const { id, status, createdAt, impressions, clicks, ownerId, ...dataToUpdate } = advertData;
+
+    await advertRef.set({
+      ...dataToUpdate,
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
+
+    // Notify admins of the modification
+    await firestore.collection('notifications').add({
+      recipientId: 'platform_admin',
+      type: 'Advertiser Profile',
+      subject: `Active campaign content modified: ${dataToUpdate.headline || 'Untitled'}`,
+      from: 'National Advertiser Hub',
+      date: Timestamp.now().toDate().toISOString(),
+      status: 'new',
+      relatedId: advertId,
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating active advert:", error);
+    return { success: false, error: error.message };
+  }
 }
