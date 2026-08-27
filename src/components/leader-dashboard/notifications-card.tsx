@@ -23,8 +23,7 @@ export function NotificationsCard() {
         if (!user || !db) return null;
         return query(
             collection(db, 'notifications'), 
-            where('recipientId', '==', user.uid),
-            where('status', '==', 'new')
+            where('recipientId', '==', user.uid)
         );
     }, [user, db]);
 
@@ -39,7 +38,9 @@ export function NotificationsCard() {
             const subjectStr = (n.subject || '').toLowerCase();
             if (typeStr === 'Task Assignment' || typeStr === 'Development Task') return false;
             if (subjectStr.includes('development task')) return false;
-            return true;
+
+            const statusLower = ((n as any).status || 'new').toLowerCase();
+            return statusLower === 'new' || statusLower === 'unread';
         });
     }, [rawNotifications]);
 

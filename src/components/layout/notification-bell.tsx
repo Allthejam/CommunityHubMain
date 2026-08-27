@@ -78,8 +78,7 @@ export function NotificationBell() {
     }
     const q = query(
       collection(firestore, 'notifications'),
-      where('recipientId', '==', user.uid),
-      where('status', '==', 'new')
+      where('recipientId', '==', user.uid)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const rawData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Notification));
@@ -90,7 +89,9 @@ export function NotificationBell() {
         const subjectStr = (n.subject || '').toLowerCase();
         if (typeStr === 'Task Assignment' || typeStr === 'Development Task') return false;
         if (subjectStr.includes('development task')) return false;
-        return true;
+
+        const statusLower = (n.status || 'new').toLowerCase();
+        return statusLower === 'new' || statusLower === 'unread';
       });
       setNotifications(filtered);
       setLoading(false);

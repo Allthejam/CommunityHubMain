@@ -172,10 +172,22 @@ export default function LeaderHeader() {
       setLoadingNotifications(false);
       return;
     }
-    const q = query(collection(firestore, "notifications"), where("recipientId", "==", user.uid), where("status", "==", "new"));
+    const q = query(collection(firestore, "notifications"), where("recipientId", "==", user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        setNotifications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification)));
-        setLoadingNotifications(false);
+      const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+      const filtered = rawData.filter(n => {
+        const targetApp = (n as any).targetApp;
+        if (targetApp === 'admin') return false;
+        const typeStr = (n.type as string) || '';
+        const subjectStr = (n.subject || '').toLowerCase();
+        if (typeStr === 'Task Assignment' || typeStr === 'Development Task') return false;
+        if (subjectStr.includes('development task')) return false;
+
+        const statusLower = (n.status || 'new').toLowerCase();
+        return statusLower === 'new' || statusLower === 'unread';
+      });
+      setNotifications(filtered);
+      setLoadingNotifications(false);
     });
     return () => unsubscribe();
   }, [user, firestore]);
