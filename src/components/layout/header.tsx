@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard,
   Home as HomeIcon,
@@ -35,6 +35,8 @@ import {
   X,
   BookOpen,
   Target,
+  ArrowLeft,
+  UserPlus,
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -127,6 +129,7 @@ const getInitials = (name: string | undefined) => {
 export default function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -558,7 +561,37 @@ export default function AppHeader() {
     }
     return <Button asChild><Link href="/">Sign In</Link></Button>;
   };
-  
+  const isPublicLoginPreview = isClient && pathname === '/about' && (searchParams.get('source') === 'login' || (!user && !isUserLoading));
+  if (isPublicLoginPreview) {
+    return (
+      <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
+            <Logo className="h-7 w-7 text-primary" />
+            <span className="font-bold text-lg font-headline tracking-tight text-foreground">
+              Community Hub
+            </span>
+          </Link>
+
+          <div className="flex items-center gap-2.5">
+            <Button asChild variant="ghost" size="sm" className="gap-1.5 text-xs font-semibold">
+              <Link href="/">
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to Sign In
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="gap-1.5 text-xs font-semibold shadow-sm">
+              <Link href="/signup/account-type">
+                <UserPlus className="h-3.5 w-3.5" />
+                Create Account
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className={cn("sticky top-0 z-30 flex h-auto min-h-16 flex-col justify-center border-b bg-card")}>
        {isClient && isVisiting && (

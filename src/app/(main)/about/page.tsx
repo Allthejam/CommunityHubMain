@@ -167,10 +167,10 @@ export default function AboutPage() {
             <div className="relative w-full h-80 sm:h-[420px] rounded-3xl overflow-hidden shadow-2xl border">
                 <Image 
                     src="/images/about/hero.jpg" 
-                    alt="Vibrant local community street festival with market stalls"
-                    fill
-                    className="object-cover"
-                    priority
+                    alt="Vibrant local community street festival with market stalls" 
+                    fill 
+                    className="object-cover" 
+                    priority 
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-6 sm:p-10">
                     <div className="text-white space-y-1">
@@ -208,7 +208,7 @@ export default function AboutPage() {
 
             <Separator />
 
-            {/* NEW SECTION 1: Regional Networks & Broadcast System */}
+            {/* Section 1: Regional Networks & Broadcast System */}
             <section className="grid lg:grid-cols-2 gap-12 items-center">
                 <div className="space-y-5">
                     <Badge variant="outline" className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-xs font-semibold gap-1.5">
@@ -219,7 +219,7 @@ export default function AboutPage() {
                         Regional Networks & Multi-Hub Broadcast System
                     </h2>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                        We have expanded the platform to empower **Regional Authorities, Local Councils, and District Organizations**. Regional accounts can claim oversight over entire geographic regions containing multiple local community hubs.
+                        We empower <strong>Regional Authorities, Local Councils, and District Organizations</strong> to claim oversight over entire geographic regions containing multiple local community hubs.
                     </p>
                     <div className="space-y-3 text-sm text-muted-foreground">
                         <div className="flex items-start gap-3">
@@ -253,7 +253,7 @@ export default function AboutPage() {
 
             <Separator />
 
-            {/* NEW SECTION 2: Geofencing Maps & GPS Location */}
+            {/* Section 2: Geofencing Maps & GPS Location */}
             <section className="grid lg:grid-cols-2 gap-12 items-center">
                 <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border order-2 lg:order-1">
                     <Image 
@@ -298,7 +298,7 @@ export default function AboutPage() {
 
             <Separator />
 
-            {/* Virtual High Street */}
+            {/* Section 3: Virtual High Street */}
             <section className="grid lg:grid-cols-2 gap-12 items-center">
                 <div className="space-y-5">
                     <Badge variant="outline" className="px-3 py-1 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-xs font-semibold gap-1.5">
@@ -343,7 +343,7 @@ export default function AboutPage() {
 
             <Separator />
 
-            {/* NEW SECTION 3: Emergency & Civil Resilience Engine (Image Left, Text Right) */}
+            {/* Section 4: Emergency & Civil Resilience Engine */}
             <section className="grid lg:grid-cols-2 gap-12 items-center">
                 <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border order-2 lg:order-1">
                     <Image 

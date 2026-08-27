@@ -4,7 +4,7 @@
 import { Logo } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -26,13 +26,14 @@ const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export default function Footer() {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
     const isChatPage = pathname === '/chat' || pathname === '/leader/chat' || pathname === '/admin/chat';
 
     const [pageUrl, setPageUrl] = useState('');
     const [pageTitle, setPageTitle] = useState('');
     const [isClient, setIsClient] = useState(false);
     
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
     const { toast } = useToast();
     const [isCommunityDialogOpen, setIsCommunityDialogOpen] = useState(false);
     const [communitySelection, setCommunitySelection] = useState<CommunitySelection | null>(null);
@@ -90,6 +91,27 @@ export default function Footer() {
         }
     };
 
+    const isPublicLoginPreview = isClient && pathname === '/about' && (searchParams.get('source') === 'login' || (!user && !isUserLoading));
+    if (isPublicLoginPreview) {
+        return (
+            <footer className="border-t bg-card py-8 mt-12">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                        <Logo className="h-5 w-5 text-primary" />
+                        <span>&copy; {new Date().getFullYear()} Community Hub. All rights reserved.</span>
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <Link href="/" className="hover:text-primary transition-colors font-medium">
+                            Sign In
+                        </Link>
+                        <Link href="/signup/account-type" className="hover:text-primary transition-colors font-medium">
+                            Create Account
+                        </Link>
+                    </div>
+                </div>
+            </footer>
+        );
+    }
 
     const footerContent = (
         <div className="container mx-auto px-4 md:px-6">

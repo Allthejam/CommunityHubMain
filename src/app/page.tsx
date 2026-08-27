@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Auth, setPersistence, browserLocalPersistence, browserSessionPersistence, signInWithEmailAndPassword, sendEmailVerification, type User } from 'firebase/auth'
-import { Eye, EyeOff, Loader2, ArrowLeft, Megaphone } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ArrowLeft, Megaphone, Info } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -331,6 +331,16 @@ export default function SignInPage() {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
+                </div>
+
+                <div className="pt-2 border-t border-border/40 w-full flex items-center justify-center">
+                    <Link
+                        href="/about?source=login"
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1 px-3 rounded-full hover:bg-muted/50 border border-transparent hover:border-border/60"
+                    >
+                        <Info className="h-3.5 w-3.5 text-primary/70" />
+                        <span>Curious what Community Hub is all about? <strong className="font-semibold text-primary underline underline-offset-2">About Us</strong></span>
+                    </Link>
                 </div>
                 </CardFooter>
             </form>
