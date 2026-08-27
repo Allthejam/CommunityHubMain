@@ -4,7 +4,7 @@
 import { Logo } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -26,7 +26,6 @@ const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export default function Footer() {
     const pathname = usePathname();
-    const searchParams = useSearchParams();
     const isChatPage = pathname === '/chat' || pathname === '/leader/chat' || pathname === '/admin/chat';
 
     const [pageUrl, setPageUrl] = useState('');
@@ -91,7 +90,10 @@ export default function Footer() {
         }
     };
 
-    const isPublicLoginPreview = isClient && pathname === '/about' && (searchParams.get('source') === 'login' || (!user && !isUserLoading));
+    const isPublicLoginPreview = isClient && pathname === '/about' && (
+        (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('source') === 'login') || 
+        (!user && !isUserLoading)
+    );
     if (isPublicLoginPreview) {
         return (
             <footer className="border-t bg-card py-8 mt-12">

@@ -1,9 +1,9 @@
-
 'use client';
 
 import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
-import { Loader2, LineChart as LineChartIcon } from "lucide-react";
+import { Badge } from "../ui/badge";
+import { Loader2, Activity, Users, Eye } from "lucide-react";
 import { useFirestore } from "@/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import {
@@ -44,13 +44,10 @@ export function ActivityChart({ communityId }: { communityId: string | null }) {
         let visitors = 0;
 
         onlineUsers.forEach(user => {
-            // Count users who are currently viewing this community
             if (user.communityId === communityId) {
-                // If their home is this community, they are an "online member"
                 if (user.homeCommunityId === communityId) {
                     members++;
                 } else {
-                // Otherwise, they are a "visitor"
                     visitors++;
                 }
             }
@@ -65,10 +62,8 @@ export function ActivityChart({ communityId }: { communityId: string | null }) {
         for (let hour = 0; hour < 24; hour++) {
             const ampm = hour >= 12 ? 'PM' : 'AM';
             let displayHour = hour % 12;
-            displayHour = displayHour ? displayHour : 12; // the hour '0' should be '12'
+            displayHour = displayHour ? displayHour : 12;
             
-            // We only show real-time data for the current hour.
-            // Historical tracking is not yet implemented in the database, so past hours are set to 0.
             const isCurrentHour = hour === currentHour;
             
             data.push({
@@ -81,33 +76,46 @@ export function ActivityChart({ communityId }: { communityId: string | null }) {
     }, [onlineMembersCount, visitorsCount]);
 
     return (
-        <Card className="md:col-span-2 lg:col-span-3">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><LineChartIcon /> Community Activity</CardTitle>
-                <CardDescription>Real-time presence in your community hub.</CardDescription>
+        <Card className="md:col-span-2 lg:col-span-3 border-t-4 border-t-blue-600 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-card via-card to-blue-50/10 dark:to-blue-950/10">
+            <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-xs">
+                            <Activity className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-base font-bold">Community Activity & Presence</CardTitle>
+                            <CardDescription className="text-xs">Live visitor traffic and resident engagement</CardDescription>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-xs font-semibold gap-1.5 py-1 px-2.5">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <Users className="h-3 w-3" /> {onlineMembersCount} Members Live
+                        </Badge>
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs font-semibold gap-1.5 py-1 px-2.5">
+                            <Eye className="h-3 w-3" /> {visitorsCount} Visitors
+                        </Badge>
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 {loadingOnline ? (
-                    <div className="flex justify-center items-center h-64">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <div className="flex justify-center items-center h-56">
+                        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                     </div>
                 ) : (
-                    <div className="h-64">
+                    <div className="h-56">
                          <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.6} />
                                 <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={10} interval={2} />
-                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
-                                <Tooltip
-                                    contentStyle={{
-                                        background: "hsl(var(--background))",
-                                        border: "1px solid hsl(var(--border))",
-                                        borderRadius: "var(--radius)",
-                                    }}
-                                />
-                                <Legend wrapperStyle={{fontSize: "0.8rem"}}/>
-                                <Line type="monotone" dataKey="Online" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
-                                <Line type="monotone" dataKey="Visitors" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
+                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
+                                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '0.75rem', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                                <Line type="monotone" dataKey="Online" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} name="Local Members" />
+                                <Line type="monotone" dataKey="Visitors" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} name="Visitors" />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>

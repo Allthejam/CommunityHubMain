@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Home as HomeIcon,
@@ -129,7 +129,6 @@ const getInitials = (name: string | undefined) => {
 export default function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -573,7 +572,10 @@ export default function AppHeader() {
     }
     return <Button asChild><Link href="/">Sign In</Link></Button>;
   };
-  const isPublicLoginPreview = isClient && pathname === '/about' && (searchParams.get('source') === 'login' || (!user && !isUserLoading));
+  const isPublicLoginPreview = isClient && pathname === '/about' && (
+    (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('source') === 'login') || 
+    (!user && !isUserLoading)
+  );
   if (isPublicLoginPreview) {
     return (
       <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur-md">
