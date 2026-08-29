@@ -38,7 +38,8 @@ import {
   ListTodo,
   Sparkles,
   HeartHandshake,
-  Target
+  Target,
+  Navigation
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -79,6 +80,7 @@ const reviewSubItems = [
 ];
 
 const contentSubItems = [
+    { href: '/leader/travel', label: 'Travel & Transit', icon: Navigation, permission: 'viewAbout' },
     { href: '/leader/news', label: 'News', icon: Newspaper, permission: 'viewNewsManagement' },
     { href: '/leader/events', label: 'Events', icon: Calendar, permission: 'viewEvents' },
     { href: '/leader/whatson', label: "What's On", icon: Tv, permission: 'viewWhatson' },

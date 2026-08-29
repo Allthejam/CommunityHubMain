@@ -9,6 +9,7 @@ import { type Announcement } from '@/lib/announcement-data';
 import EmergencyAlert from '@/components/emergency-alert';
 import { WelcomeCards } from '@/components/welcome-cards';
 import { EventsFeed } from '@/components/events-feed';
+import { TravelCard } from '@/components/travel-card';
 import { WhatsonFeed } from '@/components/whatson-feed';
 import NationalAdvertisers from '@/components/national-advertisers';
 import { JobsFeed } from '@/components/jobs-feed';
@@ -329,6 +330,7 @@ function HomePageContent() {
       <div className='px-4 md:px-0 space-y-6 md:space-y-8'>
           <AnnouncementBanners allAnnouncements={standardAnnouncements} />
           <EventsFeed communityId={activeCommunityId} />
+          <TravelCard communityId={activeCommunityId} />
           <div id="section-whatson" className="scroll-mt-20">
             <WhatsonFeed communityId={activeCommunityId} />
           </div>

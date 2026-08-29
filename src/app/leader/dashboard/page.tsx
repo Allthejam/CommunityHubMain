@@ -12,7 +12,8 @@ import {
     Building2, 
     Settings,
     ChevronRight,
-    MapPin
+    MapPin,
+    Navigation
 } from "lucide-react";
 import { BusinessesCard } from "@/components/leader-dashboard/businesses-card";
 import { EventsCard } from "@/components/leader-dashboard/events-card";
@@ -101,13 +102,13 @@ export default function LeaderDashboardPage() {
                             </Link>
                         </Button>
                         <Button asChild size="sm" variant="outline" className="font-semibold text-xs bg-background/80 hover:bg-muted">
-                            <Link href="/leader/events/create">
-                                <CalendarPlus className="mr-1.5 h-3.5 w-3.5 text-sky-600" /> Post New Event
+                            <Link href="/leader/travel">
+                                <Navigation className="mr-1.5 h-3.5 w-3.5 text-sky-600" /> Travel Guide
                             </Link>
                         </Button>
                         <Button asChild size="sm" variant="outline" className="font-semibold text-xs bg-background/80 hover:bg-muted">
-                            <Link href="/leader/settings">
-                                <Settings className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" /> Hub Settings
+                            <Link href="/leader/events/create">
+                                <CalendarPlus className="mr-1.5 h-3.5 w-3.5 text-indigo-600" /> Post Event
                             </Link>
                         </Button>
                     </div>

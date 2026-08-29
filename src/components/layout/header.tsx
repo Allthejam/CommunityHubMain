@@ -37,6 +37,8 @@ import {
   Target,
   ArrowLeft,
   UserPlus,
+  Navigation,
+  Bus,
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -93,11 +95,13 @@ const accountTypeIcons = {
 const mainNavItems = [
     { href: '/home', label: 'Home', icon: HomeIcon },
     { href: '/feed', label: 'Feed', icon: Newspaper },
+    { href: '/travel', label: 'Travel', icon: Navigation },
     { href: '/shopping', label: 'Shopping', icon: Store },
     { href: '/chat', label: 'Chat', icon: MessagesSquare },
 ];
 
 const discoverSubItems = [
+    { href: '/travel', label: 'Local Travel & Transit', icon: Navigation },
     { href: '/events', label: 'Events', icon: CalendarIcon },
     { href: '/whatson', label: "What's On", icon: Tv },
     { href: '/news', label: 'News', icon: Newspaper },
