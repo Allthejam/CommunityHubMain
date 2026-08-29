@@ -36,6 +36,8 @@ export type EmergencyAuditActionType =
   | 'PLAN_SAVE'
   | 'BULLETIN_PUBLISH'
   | 'BULLETIN_RETRACT'
+  | 'BULLETIN_ARCHIVE'
+  | 'STAND_DOWN'
   | 'FAILOVER_TOGGLE'
   | 'CERTIFICATION_SIGN'
   | 'LSO_ENDORSEMENT'
@@ -663,9 +665,10 @@ export async function endorseEmergencyPlanAction(params: {
  */
 export async function logEmergencyAuditAction(params: EmergencyAuditLogEntry): Promise<{ success: boolean; error?: string }> {
   const { communityId, actionType, category, actorName, actorEmail, actorRole, actorId, summary, details } = params;
+  const safeActorId = actorId || 'leader';
 
-  if (!communityId || !actionType || !actorId) {
-    return { success: false, error: 'Community ID, Action Type, and Actor ID are required.' };
+  if (!communityId || !actionType) {
+    return { success: false, error: 'Community ID and Action Type are required.' };
   }
 
   try {
@@ -679,7 +682,7 @@ export async function logEmergencyAuditAction(params: EmergencyAuditLogEntry): P
       actorName: actorName || 'Community Resilience Leader',
       actorEmail: actorEmail || '',
       actorRole: actorRole || 'Leader / Official',
-      actorId,
+      actorId: safeActorId,
       summary: summary || actionType,
       details: details || {},
       timestamp: Timestamp.now(),
@@ -843,6 +846,227 @@ export async function retractEmergencyMessageAction(params: {
   } catch (error: any) {
     console.error('Error retracting emergency message:', error);
     return { success: false, error: error.message || 'Failed to retract emergency message.' };
+  }
+}
+
+/**
+ * Archives a specific emergency message with a custom archive reason and records in audit.
+ */
+export async function archiveEmergencyMessageAction(params: {
+  communityId: string;
+  messageId: string;
+  authorName: string;
+  authorRole?: string;
+  authorId: string;
+  authorEmail?: string;
+  reason?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const { communityId, messageId, authorName, authorRole, authorId, authorEmail, reason } = params;
+
+  if (!communityId || !messageId || !authorId) {
+    return { success: false, error: 'Community ID, Message ID, and Author ID are required.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const now = Timestamp.now();
+    const msgRef = firestore.collection('communities').doc(communityId).collection('emergency_messages').doc(messageId);
+    
+    await msgRef.set(
+      {
+        isActive: false,
+        archivedAt: now,
+        archivedBy: authorId,
+        archivedByName: authorName,
+        archiveReason: reason || 'Bulletin archived by incident commander.',
+      },
+      { merge: true }
+    );
+
+    // If this was the active official notice on main doc, clear it
+    const planRef = firestore.collection('communities').doc(communityId).collection('emergency_plan').doc('main');
+    const planDoc = await planRef.get();
+    if (planDoc.exists) {
+      const pData = planDoc.data();
+      if (pData?.officialNotice?.messageId === messageId) {
+        await planRef.set(
+          {
+            officialNotice: {
+              isActive: false,
+              headline: '',
+              message: '',
+              archivedAt: now,
+              archivedBy: authorName,
+            },
+            currentThreatStatus: 'normal',
+            updatedAt: now,
+            updatedBy: authorId,
+          },
+          { merge: true }
+        );
+      }
+    }
+
+    // Record in Audit Log
+    await logEmergencyAuditAction({
+      communityId,
+      actionType: 'BULLETIN_ARCHIVE',
+      category: 'Emergency Notice Archive',
+      actorName: authorName || 'Incident Commander',
+      actorEmail: authorEmail || '',
+      actorRole: authorRole || 'Leader / Incident Commander',
+      actorId: authorId,
+      summary: `Archived Emergency Bulletin: ${messageId}. Reason: ${reason || 'Archived'}`,
+      details: { messageId, reason },
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error archiving emergency message:', error);
+    return { success: false, error: error.message || 'Failed to archive emergency message.' };
+  }
+}
+
+/**
+ * Executes a full Incident Stand Down:
+ * 1. Archives ALL currently active emergency bulletins to the permanent audit log.
+ * 2. Optionally issues a final 🟢 All-Clear / Stand-Down bulletin to residents.
+ * 3. De-escalates threat readiness back to Normal (Green).
+ * 4. Stamped in the immutable statutory audit log.
+ */
+export async function standDownEmergencyAndArchiveBulletinsAction(params: {
+  communityId: string;
+  authorName: string;
+  authorRole?: string;
+  authorId: string;
+  authorEmail?: string;
+  issueAllClearNotice: boolean;
+  allClearTitle?: string;
+  allClearBody?: string;
+  hazardCategory?: string;
+}): Promise<{ success: boolean; error?: string; archivedCount?: number }> {
+  const {
+    communityId,
+    authorName,
+    authorRole,
+    authorId,
+    authorEmail,
+    issueAllClearNotice,
+    allClearTitle,
+    allClearBody,
+    hazardCategory
+  } = params;
+
+  if (!communityId || !authorId) {
+    return { success: false, error: 'Community ID and Author ID are required.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const now = Timestamp.now();
+    const messagesCol = firestore.collection('communities').doc(communityId).collection('emergency_messages');
+
+    // 1. Fetch all active bulletins
+    const activeSnapshot = await messagesCol.where('isActive', '==', true).get();
+    let archivedCount = 0;
+
+    const batch = firestore.batch();
+
+    activeSnapshot.docs.forEach((docSnap) => {
+      batch.set(
+        docSnap.ref,
+        {
+          isActive: false,
+          archivedAt: now,
+          archivedBy: authorId,
+          archivedByName: authorName,
+          archiveReason: 'Emergency Incident Stood Down & Archived for Compliance Audit',
+        },
+        { merge: true }
+      );
+      archivedCount++;
+    });
+
+    await batch.commit();
+
+    // 2. If requested, publish a single final 🟢 All-Clear / Stand-Down Bulletin
+    let newAllClearMsgId: string | undefined;
+    const finalTitle = allClearTitle?.trim() || '🟢 ALL CLEAR: Emergency Incident Stood Down';
+    const finalBody =
+      allClearBody?.trim() ||
+      'Official Stand-Down: All active emergency cordons and measures have stood down. Community response operations have concluded and facilities are returning to normal schedule.';
+
+    if (issueAllClearNotice) {
+      const allClearDoc = await messagesCol.add({
+        communityId,
+        title: finalTitle,
+        body: finalBody,
+        level: 'allclear',
+        hazardCategory: hazardCategory || 'general',
+        authorName: authorName || 'Incident Commander',
+        authorRole: authorRole || 'Community Resilience Leader',
+        authorId,
+        createdAt: now,
+        isActive: true,
+      });
+      newAllClearMsgId = allClearDoc.id;
+    }
+
+    // 3. Update main emergency plan document
+    const planRef = firestore.collection('communities').doc(communityId).collection('emergency_plan').doc('main');
+    await planRef.set(
+      {
+        officialNotice: issueAllClearNotice
+          ? {
+              isActive: true,
+              headline: finalTitle,
+              message: finalBody,
+              level: 'allclear',
+              hazardCategory: hazardCategory || 'general',
+              authorName: authorName || 'Incident Commander',
+              authorRole: authorRole || 'Community Resilience Leader',
+              publishedAt: now,
+              messageId: newAllClearMsgId,
+            }
+          : {
+              isActive: false,
+              headline: '',
+              message: '',
+              level: 'allclear',
+              retractedAt: now,
+              retractedBy: authorName,
+            },
+        currentThreatStatus: 'normal',
+        lastThreatUpdate: now,
+        lastThreatUpdatedBy: authorId,
+        updatedAt: now,
+        updatedBy: authorId,
+      },
+      { merge: true }
+    );
+
+    // 4. Log immutable entry in Emergency Audit Log
+    await logEmergencyAuditAction({
+      communityId,
+      actionType: 'STAND_DOWN',
+      category: 'Incident Closure',
+      actorName: authorName || 'Incident Commander',
+      actorEmail: authorEmail || '',
+      actorRole: authorRole || 'Leader / Incident Commander',
+      actorId: authorId,
+      summary: `Incident Stood Down: ${archivedCount} active bulletin(s) archived.${issueAllClearNotice ? ' Final All-Clear Notice published.' : ''}`,
+      details: {
+        archivedCount,
+        issueAllClearNotice,
+        allClearTitle: issueAllClearNotice ? finalTitle : null,
+        hazardCategory: hazardCategory || 'general',
+      },
+    });
+
+    return { success: true, archivedCount };
+  } catch (error: any) {
+    console.error('Error standing down emergency and archiving bulletins:', error);
+    return { success: false, error: error.message || 'Failed to stand down emergency.' };
   }
 }
 

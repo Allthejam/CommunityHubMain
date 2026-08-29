@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, collection, query, orderBy, limit } from "firebase/firestore";
+import { doc, collection, query, orderBy, limit } from "firebase/firestore";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import {
   ArrowLeft,
@@ -47,8 +47,16 @@ import {
   Users2,
   TreePine,
   KeyRound,
-  Key
+  Key,
+  Bus,
+  Car
 } from "lucide-react";
+import { 
+  DEFAULT_COLLECTION_POINTS, 
+  DEFAULT_EVACUATION_PARTNERS,
+  type EvacuationCollectionPoint,
+  type EvacuationTransportPartner
+} from "@/lib/types/emergencySop";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,11 +65,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -128,6 +137,139 @@ const DEFAULT_FALLBACK_FACILITIES: ScenarioFacilitiesMap = {
   }
 };
 
+const SCENARIO_METADATA: Record<string, {
+  label: string;
+  shortLabel: string;
+  icon: any;
+  color: string;
+  borderColor: string;
+  bgLight: string;
+  badgeBg: string;
+  simpleSummary: string;
+  residentAdvice: string[];
+}> = {
+  wildfire: {
+    label: "🔥 Wildfire & Moorland Fire",
+    shortLabel: "Wildfire",
+    icon: Flame,
+    color: "text-red-600 dark:text-red-400",
+    borderColor: "border-red-500",
+    bgLight: "bg-red-50 dark:bg-red-950/30",
+    badgeBg: "bg-red-600",
+    simpleSummary: "Guidance for wildfire threats in surrounding pinewoods, heaths, and rural estates.",
+    residentAdvice: [
+      "Keep doors and windows firmly closed to prevent smoke inhalation and spark ingress.",
+      "Follow the designated escape highway and avoid driving along dense pine plantation corridors.",
+      "If you do not drive or require assisted transport, proceed to the nearest designated muster point."
+    ]
+  },
+  urbanfire: {
+    label: "🏢 Town & Building Structural Fire",
+    shortLabel: "Town Fire",
+    icon: Building,
+    color: "text-orange-600 dark:text-orange-400",
+    borderColor: "border-orange-500",
+    bgLight: "bg-orange-50 dark:bg-orange-950/30",
+    badgeBg: "bg-orange-600",
+    simpleSummary: "Guidance for major town-centre fires, building collapses, and emergency cordons.",
+    residentAdvice: [
+      "Keep at least 150 metres clear of active cordons to allow fire engines and tenders rapid access.",
+      "If evacuated from your home or business, proceed immediately to the Family Assembly & Warmth Hub.",
+      "Follow traffic diversions and do not park on narrow side streets needed by emergency services."
+    ]
+  },
+  flood: {
+    label: "🌊 River Flooding & Severe Storms",
+    shortLabel: "Flooding",
+    icon: Waves,
+    color: "text-cyan-600 dark:text-cyan-400",
+    borderColor: "border-cyan-500",
+    bgLight: "bg-cyan-50 dark:bg-cyan-950/30",
+    badgeBg: "bg-cyan-600",
+    simpleSummary: "Guidance for river spate, heavy surface flooding, sandbag depots, and high-ground shelters.",
+    residentAdvice: [
+      "Never walk or drive through floodwater — 30cm of moving water can float a family car.",
+      "Collect emergency sandbags from the Council Sandbag Depot if your property is in the flood zone.",
+      "If water enters your property, move to the designated High-Ground Evacuation Refuge (>220m contour)."
+    ]
+  },
+  power: {
+    label: "⚡ Power Outage & Winter Warmth",
+    shortLabel: "Power Cut",
+    icon: Zap,
+    color: "text-amber-600 dark:text-amber-400",
+    borderColor: "border-amber-500",
+    bgLight: "bg-amber-50 dark:bg-amber-950/30",
+    badgeBg: "bg-amber-500 text-slate-950 font-bold",
+    simpleSummary: "Guidance during extended electricity blackout, generator-powered warm spaces, and phone charging.",
+    residentAdvice: [
+      "The community generator-powered Warm Space is open for hot soup, tea, and heated shelter.",
+      "Bring your phone, tablet, and charging cables to the device charging station at the sports suite.",
+      "Check on elderly or isolated neighbours to ensure they have warm blankets and working torches."
+    ]
+  },
+  drought: {
+    label: "💧 Water Shortage & Bowser Points",
+    shortLabel: "Water Shortage",
+    icon: Droplets,
+    color: "text-blue-600 dark:text-blue-400",
+    borderColor: "border-blue-500",
+    bgLight: "bg-blue-50 dark:bg-blue-950/30",
+    badgeBg: "bg-blue-600",
+    simpleSummary: "Guidance for private water supply (PWS) dry-ups, potable water rationing, and static bowsers.",
+    residentAdvice: [
+      "Potable bottled drinking water is available for collection at the central distribution hub (10L/person/day).",
+      "Large Scottish Water road bowsers are stationed at the main car park for refilling clean domestic containers.",
+      "Report private spring or borehole dry-ups to the local water resilience team for emergency tank delivery."
+    ]
+  },
+  evacuation: {
+    label: "🚌 Civic Evacuation & Transport Shuttles",
+    shortLabel: "Evacuation Fleet",
+    icon: Bus,
+    color: "text-teal-600 dark:text-teal-400",
+    borderColor: "border-teal-500",
+    bgLight: "bg-teal-50 dark:bg-teal-950/30",
+    badgeBg: "bg-teal-600",
+    simpleSummary: "Designated pickup points, Stagecoach buses, accessible minibuses, and taxis for non-drivers.",
+    residentAdvice: [
+      "If an evacuation is declared and you don't drive, walk to your nearest designated muster collection point.",
+      "Stagecoach arterial coaches, community minibuses, and local 4x4 taxis will transport you to reception shelters.",
+      "Wheelchair users and non-ambulatory residents can request door-to-door escort via the duty dispatch number."
+    ]
+  },
+  unrest: {
+    label: "🛡️ Civil Unrest & Public Safety",
+    shortLabel: "Public Safety",
+    icon: ShieldCheck,
+    color: "text-purple-600 dark:text-purple-400",
+    borderColor: "border-purple-500",
+    bgLight: "bg-purple-50 dark:bg-purple-950/30",
+    badgeBg: "bg-purple-600",
+    simpleSummary: "Advisories for civil disturbances, crowd safety, safe haven sanctuaries, and bypass routes.",
+    residentAdvice: [
+      "Avoid designated core unrest areas and use the outer perimeter pedestrian ring routes.",
+      "Proceed to the Town Hall reinforced sanctuary if you feel unsafe or require immediate protection.",
+      "Follow direct instructions from Police Scotland officers on the ground."
+    ]
+  },
+  defence: {
+    label: "🎖️ Civil Defence & State Emergency",
+    shortLabel: "Civil Defence",
+    icon: Award,
+    color: "text-emerald-600 dark:text-emerald-400",
+    borderColor: "border-emerald-500",
+    bgLight: "bg-emerald-50 dark:bg-emerald-950/30",
+    badgeBg: "bg-emerald-600",
+    simpleSummary: "Reinforced basement shelters, gravity-fed emergency water springs, and civil protection.",
+    residentAdvice: [
+      "Report to the reinforced shelter complex during severe national infrastructure emergencies.",
+      "Gravity-fed potable spring water distribution points operate independently of the electric grid.",
+      "Tune into local battery radios (PMR Channel 7 / HAM 2M) for official verified civil situation broadcasts."
+    ]
+  }
+};
+
 export default function CommunityEmergencyPortalPage() {
   const params = useParams();
   const router = useRouter();
@@ -153,6 +295,20 @@ export default function CommunityEmergencyPortalPage() {
     return query(collection(db, `communities/${communityId}/emergency_messages`), orderBy('createdAt', 'desc'), limit(10));
   }, [communityId, db]);
   const { data: publicMessagesList } = useCollection<any>(messagesQuery);
+
+  // User-selected plan state (defaulting to the leader's active hazard or 'power')
+  const activeLeaderScenario = emergencyPlan?.activeHazardScenario || 'wildfire';
+  const threatStatus = emergencyPlan?.currentThreatStatus || 'normal';
+  const isCrisisMode = threatStatus === 'incident' || threatStatus === 'advisory';
+
+  const [selectedPlan, setSelectedPlan] = React.useState<string>(activeLeaderScenario);
+
+  // Sync selectedPlan if an active crisis is declared by leaders
+  React.useEffect(() => {
+    if (isCrisisMode && activeLeaderScenario) {
+      setSelectedPlan(activeLeaderScenario);
+    }
+  }, [isCrisisMode, activeLeaderScenario]);
 
   // Volunteer Sign-Up Modal State
   const [isVolunteerModalOpen, setIsVolunteerModalOpen] = React.useState(false);
@@ -224,7 +380,7 @@ export default function CommunityEmergencyPortalPage() {
     }
   };
 
-  // Living Plan Certification Status Calculations (MUST be at top level before early returns)
+  // Living Plan Certification Status Calculations
   const lastReviewedAt = emergencyPlan?.lastReviewedAt;
   const isPlanCurrent = React.useMemo(() => {
     if (!lastReviewedAt) return false;
@@ -259,143 +415,43 @@ export default function CommunityEmergencyPortalPage() {
     );
   }
 
-  const threatStatus = emergencyPlan?.currentThreatStatus || 'normal';
-  const activeScenario = emergencyPlan?.activeHazardScenario || 'wildfire';
-  const isCrisisMode = threatStatus === 'incident' || threatStatus === 'advisory';
-
   // Official Situation Notice State
   const officialNotice = emergencyPlan?.officialNotice;
   const hasActiveNotice = officialNotice?.isActive && (officialNotice?.message || officialNotice?.headline);
 
-  // Scenario-Specific Facilities Resolution for the active hazard
-  const activeFacs = emergencyPlan?.scenarioFacilities?.[activeScenario] || DEFAULT_FALLBACK_FACILITIES[activeScenario] || DEFAULT_FALLBACK_FACILITIES.wildfire;
+  // Selected Plan Metadata & Facilities Resolution
+  const activeMeta = SCENARIO_METADATA[selectedPlan] || SCENARIO_METADATA.wildfire;
+  const ActiveIcon = activeMeta.icon;
 
-  const f1 = activeFacs.f1;
-  const f2 = activeFacs.f2;
-  const f3 = activeFacs.f3;
+  const currentFacilities = selectedPlan !== 'evacuation' 
+    ? (emergencyPlan?.scenarioFacilities?.[selectedPlan] || DEFAULT_FALLBACK_FACILITIES[selectedPlan] || DEFAULT_FALLBACK_FACILITIES.wildfire)
+    : null;
 
-  const effectiveF1 = f1.isFailover ? f1.secondary : f1.primary;
-  const effectiveF2 = f2.isFailover ? f2.secondary : f2.primary;
-  const effectiveF3 = f3.isFailover ? f3.secondary : f3.primary;
+  const f1 = currentFacilities?.f1;
+  const f2 = currentFacilities?.f2;
+  const f3 = currentFacilities?.f3;
 
-  const hasAnyFailover = f1.isFailover || f2.isFailover || f3.isFailover;
+  const effectiveF1 = f1?.isFailover ? f1?.secondary : f1?.primary;
+  const effectiveF2 = f2?.isFailover ? f2?.secondary : f2?.primary;
+  const effectiveF3 = f3?.isFailover ? f3?.secondary : f3?.primary;
 
-  // Get active scenario priorities
-  const activePriorities = emergencyPlan?.priorities?.[activeScenario] || {
-    p1: { title: 'Immediate Life Safety & Safe Evacuation', desc: 'Follow official directions and move clear of the threat perimeter.' },
-    p2: { title: 'Emergency Water & Canteen Access', desc: 'Proceed to the active refuge for warmth and emergency provisions.' },
-    p3: { title: 'Welfare & Asset Protection', desc: 'Check in with marshals and report any isolated or vulnerable neighbors.' }
+  const hasAnyFailover = Boolean(f1?.isFailover || f2?.isFailover || f3?.isFailover);
+
+  // Priorities for the selected plan
+  const planPriorities = emergencyPlan?.priorities?.[selectedPlan] || {
+    p1: { title: 'Life Safety & Immediate Protection', desc: activeMeta.residentAdvice[0] },
+    p2: { title: 'Essential Provisions & Warmth/Water', desc: activeMeta.residentAdvice[1] },
+    p3: { title: 'Assistance for Vulnerable Neighbours', desc: activeMeta.residentAdvice[2] }
   };
 
-  // Helper for Scenario Styling & Info
-  const getScenarioTheme = () => {
-    switch (activeScenario) {
-      case 'wildfire':
-        return {
-          name: 'Wildfire & Moorland Fire',
-          icon: Flame,
-          color: 'text-red-500',
-          border: 'border-red-500/50',
-          bg: 'bg-red-950/20',
-          badgeBg: 'bg-red-600',
-          bannerGradient: 'from-red-950/90 via-slate-900 to-slate-950',
-          heroTitle: 'ACTIVE WILDFIRE EVACUATION & ESCAPE CORRIDOR ALERT',
-          specificDesc: `High-risk vegetation: ${emergencyPlan?.wildfire?.fuels || 'Mature Scots Pine & Heather'}. Avoid fuel corridors and follow the designated escape route.`
-        };
-      case 'urbanfire':
-        return {
-          name: 'Urban Structural Fire',
-          icon: Building,
-          color: 'text-orange-500',
-          border: 'border-orange-500/50',
-          bg: 'bg-orange-950/20',
-          badgeBg: 'bg-orange-600',
-          bannerGradient: 'from-orange-950/90 via-slate-900 to-slate-950',
-          heroTitle: 'STRUCTURAL FIRE & SAFETY CORDON ALERT',
-          specificDesc: `Affected area: ${emergencyPlan?.urbanfire?.riskBlocks || 'Town Central Core'}. Keep ${emergencyPlan?.urbanfire?.cordonDist || '150'}m clear to allow unrestricted appliance access.`
-        };
-      case 'flood':
-        return {
-          name: 'River Flooding & Coastal Surge',
-          icon: Waves,
-          color: 'text-cyan-500',
-          border: 'border-cyan-500/50',
-          bg: 'bg-cyan-950/20',
-          badgeBg: 'bg-cyan-600',
-          bannerGradient: 'from-cyan-950/90 via-slate-900 to-slate-950',
-          heroTitle: 'SEPA FLOOD WARNING & HIGH-GROUND REFUGES',
-          specificDesc: `Threat watercourse: ${emergencyPlan?.flood?.river || 'River Spey in Spate'} (${emergencyPlan?.flood?.sepaCode || 'Flood Warning Zone'}). Sandbags and high-ground shelters are operational.`
-        };
-      case 'power':
-        return {
-          name: 'Prolonged Grid Power Outage',
-          icon: Zap,
-          color: 'text-amber-500',
-          border: 'border-amber-500/50',
-          bg: 'bg-amber-950/20',
-          badgeBg: 'bg-amber-600',
-          bannerGradient: 'from-amber-950/90 via-slate-900 to-slate-950',
-          heroTitle: 'PROLONGED POWER OUTAGE - WARM SPACE ACTIVATION',
-          specificDesc: `Grid outage exceeds ${emergencyPlan?.power?.triggerHours || '4'} hours. Generator-powered Warm Space hub is open for heating, hot meals, and phone charging.`
-        };
-      case 'drought':
-        return {
-          name: 'Water Shortage & Drought',
-          icon: Droplets,
-          color: 'text-blue-500',
-          border: 'border-blue-500/50',
-          bg: 'bg-blue-950/20',
-          badgeBg: 'bg-blue-600',
-          bannerGradient: 'from-blue-950/90 via-slate-900 to-slate-950',
-          heroTitle: 'PRIVATE WATER SUPPLY (PWS) & BOWSER STATIONS ACTIVE',
-          specificDesc: `Emergency water distribution active for ${emergencyPlan?.drought?.pwsCount || 'Rural Households on dry springs'}. Static bowsers and bottled water points are open.`
-        };
-      case 'unrest':
-        return {
-          name: 'Civil Unrest & Public Safety',
-          icon: ShieldCheck,
-          color: 'text-purple-500',
-          border: 'border-purple-500/50',
-          bg: 'bg-purple-950/20',
-          badgeBg: 'bg-purple-600',
-          bannerGradient: 'from-purple-950/90 via-slate-900 to-slate-950',
-          heroTitle: 'PUBLIC SAFETY ALERT - AVOIDANCE PERIMETER',
-          specificDesc: `Safety advisory: Avoid ${emergencyPlan?.unrest?.avoidArea || 'Town Square core'}. Follow instructions from Police Scotland.`
-        };
-      case 'defence':
-        return {
-          name: 'Civil Defence & State Emergency',
-          icon: Award,
-          color: 'text-emerald-500',
-          border: 'border-emerald-500/50',
-          bg: 'bg-emerald-950/20',
-          badgeBg: 'bg-emerald-600',
-          bannerGradient: 'from-emerald-950/90 via-slate-900 to-slate-950',
-          heroTitle: 'CIVIL DEFENCE & EMERGENCY DISTRIBUTION ACTIVE',
-          specificDesc: `Emergency distribution active. Potable spring: ${emergencyPlan?.defence?.waterSpring || 'Gravity Tanks'}. Shelter: ${emergencyPlan?.defence?.shelterLoc || 'Reinforced Complex'}.`
-        };
-      default:
-        return {
-          name: 'Community Emergency',
-          icon: ShieldAlert,
-          color: 'text-red-500',
-          border: 'border-red-500/50',
-          bg: 'bg-red-950/20',
-          badgeBg: 'bg-red-600',
-          bannerGradient: 'from-slate-900 via-indigo-950 to-slate-900',
-          heroTitle: 'COMMUNITY EMERGENCY NOTICE',
-          specificDesc: 'Follow instructions from local resilience marshals.'
-        };
-    }
-  };
-
-  const currentTheme = getScenarioTheme();
-  const ScenarioIcon = currentTheme.icon;
+  // Scenario Multi-Agency Liaisons
+  const planLiaisons = emergencyPlan?.scenarioLiaisons?.[selectedPlan] || [];
 
   return (
-    <div className="container max-w-6xl mx-auto py-6 sm:py-8 space-y-8 pb-16">
-      {/* Top Header & Breadcrumb Navigation */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="container max-w-6xl mx-auto py-6 sm:py-8 space-y-6 pb-16">
+      
+      {/* 1. TOP NAVIGATION & VOLUNTEER ACTION BAR */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button asChild variant="ghost" size="sm">
             <Link href={`/community/${communityId}/about`}>
@@ -413,8 +469,8 @@ export default function CommunityEmergencyPortalPage() {
 
         <Dialog open={isVolunteerModalOpen} onOpenChange={setIsVolunteerModalOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 font-bold shadow-md">
-              <HeartHandshake className="h-4 w-4" /> Volunteer Skills & Assets
+            <Button className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 font-bold shadow-md text-xs sm:text-sm">
+              <HeartHandshake className="h-4 w-4" /> Volunteer Skills & 4x4 Assets
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg bg-card border text-card-foreground">
@@ -424,7 +480,7 @@ export default function CommunityEmergencyPortalPage() {
                 Register for Community Resilience
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Let your local community council know what equipment, 4x4 vehicles, or skills you can offer during bad weather, floods, or emergencies.
+                Let your local community resilience leaders know what equipment, 4x4 vehicles, generators, or skills you can offer during bad weather, floods, or emergencies.
               </DialogDescription>
             </DialogHeader>
 
@@ -435,7 +491,7 @@ export default function CommunityEmergencyPortalPage() {
                   <Input
                     value={volContactName}
                     onChange={(e) => setVolContactName(e.target.value)}
-                    placeholder="e.g. John MacDonald (Owner / Manager)"
+                    placeholder="e.g. John MacDonald (Owner / Lead)"
                     className="text-xs h-9"
                   />
                 </div>
@@ -445,7 +501,7 @@ export default function CommunityEmergencyPortalPage() {
                   <Input
                     value={volOperatorName}
                     onChange={(e) => setVolOperatorName(e.target.value)}
-                    placeholder="e.g. Gordon Smith (Driver / Lead Operator)"
+                    placeholder="e.g. Gordon Smith (Driver / Operator)"
                     className="text-xs h-9"
                   />
                 </div>
@@ -463,7 +519,7 @@ export default function CommunityEmergencyPortalPage() {
 
               <div className="space-y-2">
                 <Label className="text-xs font-bold">Skills, Equipment & Capabilities You Can Offer:</Label>
-                <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto p-2 border rounded-xl bg-muted/20">
+                <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto p-2 border rounded-xl bg-muted/20">
                   {VOLUNTEER_SKILL_OPTIONS.map((item) => (
                     <label
                       key={item.id}
@@ -506,9 +562,7 @@ export default function CommunityEmergencyPortalPage() {
         </Dialog>
       </div>
 
-      {/* ========================================================================= */}
-      {/* OFFICIAL VERIFIED SITUATION NOTICE / LIVE LEADER BULLETIN                 */}
-      {/* ========================================================================= */}
+      {/* 2. OFFICIAL LIVE CRISIS BULLETIN BANNER (IF ACTIVE) */}
       {(hasActiveNotice || (publicMessagesList && publicMessagesList.some((m: any) => m.isActive))) && (() => {
         const activeMsg = publicMessagesList?.find((m: any) => m.isActive);
         const headline = activeMsg?.title || officialNotice?.headline || 'Official Community Situation Notice';
@@ -518,18 +572,18 @@ export default function CommunityEmergencyPortalPage() {
 
         const levelStyle =
           level === 'critical'
-            ? { border: 'border-red-500/80', bg: 'from-red-950/40', badge: 'bg-red-600 text-white', label: '🔴 Critical Alert' }
+            ? { border: 'border-red-500', bg: 'from-red-950/50', badge: 'bg-red-600 text-white', label: '🔴 Critical Alert' }
             : level === 'warning'
-            ? { border: 'border-amber-500/80', bg: 'from-amber-950/40', badge: 'bg-amber-500 text-slate-950 font-bold', label: '🟠 Threat Warning' }
+            ? { border: 'border-amber-500', bg: 'from-amber-950/50', badge: 'bg-amber-400 text-slate-950 font-black', label: '🟠 Threat Warning' }
             : level === 'advisory'
-            ? { border: 'border-yellow-500/80', bg: 'from-yellow-950/40', badge: 'bg-yellow-500 text-slate-950 font-bold', label: '🟡 Community Advisory' }
+            ? { border: 'border-yellow-500', bg: 'from-yellow-950/50', badge: 'bg-yellow-400 text-slate-950 font-black', label: '🟡 Community Advisory' }
             : level === 'allclear'
-            ? { border: 'border-emerald-500/80', bg: 'from-emerald-950/40', badge: 'bg-emerald-600 text-white font-bold', label: '🟢 All Clear / Stand Down' }
-            : { border: 'border-blue-500/80', bg: 'from-blue-950/40', badge: 'bg-blue-600 text-white', label: 'ℹ️ Official Notice' };
+            ? { border: 'border-emerald-500', bg: 'from-emerald-950/50', badge: 'bg-emerald-600 text-white font-bold', label: '🟢 All Clear / Stand Down' }
+            : { border: 'border-blue-500', bg: 'from-blue-950/50', badge: 'bg-blue-600 text-white', label: 'ℹ️ Official Notice' };
 
         return (
-          <Card className={`border-2 ${levelStyle.border} bg-gradient-to-r ${levelStyle.bg} via-card to-card shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300`}>
-            <CardHeader className="p-5 pb-3 border-b border-border/50 bg-muted/30">
+          <Card className={`border-2 ${levelStyle.border} bg-gradient-to-r ${levelStyle.bg} via-card to-card shadow-2xl overflow-hidden`}>
+            <CardHeader className="p-5 pb-3 border-b bg-muted/30">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 bg-red-600 text-white rounded-xl shadow-md">
@@ -540,11 +594,11 @@ export default function CommunityEmergencyPortalPage() {
                       <Badge className={`${levelStyle.badge} text-[10px] uppercase font-mono tracking-wider`}>
                         {levelStyle.label}
                       </Badge>
-                      <Badge variant="outline" className="border-red-500/40 text-red-400 text-[10px] font-mono gap-1">
-                        <Lock className="h-3 w-3" /> Verified Information
+                      <Badge variant="outline" className="border-red-500/40 text-red-500 text-[10px] font-bold gap-1">
+                        <Lock className="h-3 w-3" /> Direct Verified Broadcast
                       </Badge>
                     </div>
-                    <CardTitle className="text-base sm:text-lg font-extrabold text-foreground pt-1">
+                    <CardTitle className="text-base sm:text-lg font-black text-foreground pt-1">
                       {headline}
                     </CardTitle>
                   </div>
@@ -552,25 +606,25 @@ export default function CommunityEmergencyPortalPage() {
 
                 {issuer && (
                   <div className="text-right">
-                    <span className="text-[11px] text-muted-foreground block font-mono">
-                      Issued By: <strong className="text-foreground">{issuer}</strong>
+                    <span className="text-xs text-muted-foreground block">
+                      Issued By: <strong className="text-foreground font-bold">{issuer}</strong>
                     </span>
                   </div>
                 )}
               </div>
             </CardHeader>
 
-            <CardContent className="p-5 sm:p-6 space-y-3">
-              <p className="text-sm sm:text-base text-foreground leading-relaxed font-medium whitespace-pre-wrap">
+            <CardContent className="p-5 space-y-3">
+              <p className="text-sm sm:text-base text-foreground leading-relaxed font-semibold whitespace-pre-wrap">
                 {body}
               </p>
 
-              <div className="pt-2 border-t flex items-center justify-between text-[11px] text-muted-foreground flex-wrap gap-2">
-                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Direct Community Council Dispatch • Undistorted Official Bulletin
+              <div className="pt-2 border-t flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
+                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <CheckCircle2 className="h-4 w-4" /> Undistorted Official Bulletin from Community Council
                 </span>
-                <span className="font-mono">
-                  {new Date().toLocaleDateString('en-GB')} Live Feed
+                <span className="font-mono font-medium">
+                  {new Date().toLocaleDateString('en-GB')} Live Stream
                 </span>
               </div>
             </CardContent>
@@ -578,712 +632,452 @@ export default function CommunityEmergencyPortalPage() {
         );
       })()}
 
-      {/* ========================================================================= */}
-      {/* MODE A: CRISIS INCIDENT RESPONSE MODE (SPOTLIGHTS ACTIVE SCENARIO)        */}
-      {/* ========================================================================= */}
-      {isCrisisMode ? (
-        <div className="space-y-8">
-          {/* Dynamic Incident Hero Banner */}
-          <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-r ${currentTheme.bannerGradient} border ${currentTheme.border} p-6 sm:p-8 text-white shadow-2xl`}>
-            <div className="relative z-10 space-y-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className={`p-3 ${currentTheme.badgeBg} text-white rounded-2xl shadow-lg ring-4 ring-white/10`}>
-                  <ScenarioIcon className="h-8 w-8 animate-pulse" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className="bg-red-600 text-white font-bold animate-pulse text-[10px] uppercase font-mono tracking-wider">
-                      {threatStatus === 'incident' ? '🔴 Active Incident in Progress' : '🟡 Urgent Weather / Hazard Advisory'}
-                    </Badge>
-                    <Badge variant="outline" className="border-white/30 text-white text-[10px] font-mono uppercase">
-                      Active Disaster Scenario: {currentTheme.name}
-                    </Badge>
-                  </div>
-                  <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight font-headline mt-1">
-                    {currentTheme.heroTitle}
-                  </h1>
-                </div>
+      {/* 3. SIMPLIFIED "SEE EMERGENCY PLAN FOR..." SELECTOR */}
+      <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/5 via-card to-card shadow-lg">
+        <CardHeader className="p-4 sm:p-5 pb-3 border-b">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-primary text-primary-foreground font-extrabold text-[10px] uppercase tracking-wide">
+                  Interactive Resident Guide
+                </Badge>
+                <Badge variant="outline" className="text-xs font-semibold">
+                  {communityName} Resilience
+                </Badge>
               </div>
-
-              <p className="text-sm sm:text-base text-slate-200 max-w-3xl leading-relaxed font-medium">
-                {currentTheme.specificDesc}
-              </p>
-
-              {/* Failover Notice Banner if any facility has been diverted */}
-              {hasAnyFailover && (
-                <div className="p-3.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200 text-xs font-semibold flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
-                  <span>
-                    Notice: Dynamic facility failovers are in effect for this incident. One or more primary facilities have been diverted to secondary backups below.
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* DYNAMIC SCENARIO-SPECIFIC FACILITIES (Unique for Wildfire vs Power Cut vs Flood etc.) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Scenario Facility 1 */}
-            <Card className="border-primary/40 bg-card shadow-lg flex flex-col justify-between">
-              <div>
-                <CardHeader className="p-5 pb-3 bg-muted/20 border-b">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-primary">
-                      <LifeBuoy className="h-4 w-4" /> {f1.name}
-                    </CardTitle>
-                    <Badge className={f1.isFailover ? 'bg-amber-500 text-slate-950 font-bold text-[9px]' : 'bg-primary text-primary-foreground text-[9px]'}>
-                      {f1.isFailover ? 'SECONDARY FAILOVER ACTIVE' : 'ACTIVE / PRIMARY'}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-5 space-y-3 text-xs">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-muted-foreground uppercase">Location / Protocol</Label>
-                    <p className="text-sm font-bold text-foreground">{effectiveF1}</p>
-                  </div>
-                  {f1.isFailover && (
-                    <p className="text-[11px] text-amber-500 font-semibold">
-                      Primary was compromised. Diverting all residents to this secondary facility.
-                    </p>
-                  )}
-                </CardContent>
-              </div>
-
-              <div className="p-5 pt-0">
-                {effectiveF1 && (
-                  <Button asChild className="w-full text-xs font-bold gap-2 shadow-sm h-9">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(effectiveF1 + ', ' + communityName)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Navigation className="h-4 w-4" /> Open in Google Maps
-                    </a>
-                  </Button>
-                )}
-              </div>
-            </Card>
-
-            {/* Scenario Facility 2 */}
-            <Card className="border-cyan-500/40 bg-card shadow-lg flex flex-col justify-between">
-              <div>
-                <CardHeader className="p-5 pb-3 bg-muted/20 border-b">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
-                      <Building2 className="h-4 w-4" /> {f2.name}
-                    </CardTitle>
-                    <Badge className={f2.isFailover ? 'bg-amber-500 text-slate-950 font-bold text-[9px]' : 'bg-cyan-600 text-white text-[9px]'}>
-                      {f2.isFailover ? 'SECONDARY FAILOVER ACTIVE' : 'ACTIVE / PRIMARY'}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-5 space-y-3 text-xs">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-muted-foreground uppercase">Location / Protocol</Label>
-                    <p className="text-sm font-bold text-foreground">{effectiveF2}</p>
-                  </div>
-                  {f2.isFailover && (
-                    <p className="text-[11px] text-amber-500 font-semibold">
-                      Primary was compromised. Diverting all operations to this secondary facility.
-                    </p>
-                  )}
-                </CardContent>
-              </div>
-
-              <div className="p-5 pt-0">
-                {effectiveF2 && (
-                  <Button asChild variant="outline" className="w-full text-xs font-bold gap-2 border-cyan-500/40 hover:bg-cyan-500/10 h-9">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(effectiveF2 + ', ' + communityName)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Navigation className="h-4 w-4 text-cyan-500" /> Open in Google Maps
-                    </a>
-                  </Button>
-                )}
-              </div>
-            </Card>
-
-            {/* Scenario Facility 3 */}
-            <Card className="border-amber-500/40 bg-card shadow-lg flex flex-col justify-between">
-              <div>
-                <CardHeader className="p-5 pb-3 bg-muted/20 border-b">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                      <Shield className="h-4 w-4" /> {f3.name}
-                    </CardTitle>
-                    <Badge className={f3.isFailover ? 'bg-amber-500 text-slate-950 font-bold text-[9px]' : 'bg-slate-800 text-slate-200 text-[9px]'}>
-                      {f3.isFailover ? 'SECONDARY FAILOVER ACTIVE' : 'ACTIVE / PRIMARY'}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-5 space-y-3 text-xs">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-muted-foreground uppercase">Location / Channel</Label>
-                    <p className="text-sm font-bold text-foreground">{effectiveF3}</p>
-                  </div>
-                  {f3.isFailover && (
-                    <p className="text-[11px] text-amber-500 font-semibold">
-                      Primary was compromised. Diverting all operations to this secondary facility.
-                    </p>
-                  )}
-                </CardContent>
-              </div>
-
-              <div className="p-5 pt-0">
-                {effectiveF3 && (
-                  <Button asChild variant="outline" className="w-full text-xs font-bold gap-2 border-amber-500/40 hover:bg-amber-500/10 h-9">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(effectiveF3 + ', ' + communityName)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Navigation className="h-4 w-4 text-amber-500" /> Locate on Map
-                    </a>
-                  </Button>
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* Active Priorities Section */}
-          <Card className="border shadow-md">
-            <CardHeader className="bg-muted/30 border-b pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
-                Active Operational Priorities for {currentTheme.name}
+              <CardTitle className="text-lg sm:text-xl font-black mt-1 text-slate-950 dark:text-white">
+                See Emergency Plan For:
               </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              <div className="p-4 rounded-xl border bg-red-950/10 border-red-500/30 space-y-1.5">
-                <span className="font-bold text-red-500 uppercase tracking-wider text-[11px]">#1 Critical Priority</span>
-                <p className="font-bold text-sm text-foreground">{activePriorities.p1?.title || activePriorities.p1Title}</p>
-                <p className="text-muted-foreground leading-relaxed">{activePriorities.p1?.desc || activePriorities.p1Desc}</p>
-              </div>
-
-              <div className="p-4 rounded-xl border bg-amber-950/10 border-amber-500/30 space-y-1.5">
-                <span className="font-bold text-amber-500 uppercase tracking-wider text-[11px]">#2 Critical Priority</span>
-                <p className="font-bold text-sm text-foreground">{activePriorities.p2?.title || activePriorities.p2Title}</p>
-                <p className="text-muted-foreground leading-relaxed">{activePriorities.p2?.desc || activePriorities.p2Desc}</p>
-              </div>
-
-              <div className="p-4 rounded-xl border bg-cyan-950/10 border-cyan-500/30 space-y-1.5">
-                <span className="font-bold text-cyan-500 uppercase tracking-wider text-[11px]">#3 Critical Priority</span>
-                <p className="font-bold text-sm text-foreground">{activePriorities.p3?.title || activePriorities.p3Title}</p>
-                <p className="text-muted-foreground leading-relaxed">{activePriorities.p3?.desc || activePriorities.p3Desc}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        /* ========================================================================= */
-        /* MODE B: PEACE-TIME PREPAREDNESS GUIDE (NORMAL STATUS)                     */
-        /* ========================================================================= */
-        <div className="space-y-8">
-          {/* Normal Preparedness Hero Banner */}
-          {/* Normal Preparedness Hero Banner */}
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-700/80 p-6 sm:p-8 text-white shadow-2xl">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div className="relative z-10 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-950/60 ring-4 ring-emerald-500/20">
-                    <ShieldCheck className="h-7 w-7" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className={
-                        isPlanCurrent
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] uppercase font-mono'
-                          : lastReviewedAt
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] uppercase font-mono'
-                          : 'bg-slate-700/50 text-slate-300 border-slate-600 text-[10px] uppercase font-mono'
-                      }>
-                        {isPlanCurrent ? '🟢 Verified Living Plan Current' : lastReviewedAt ? '🟡 Statutory Review Due' : '⚪ Draft / Uncertified'}
-                      </Badge>
-                      <Badge variant="outline" className="border-cyan-500/40 text-cyan-300 text-[10px] font-mono">
-                        SFRS 2026–2029 Aligned (Priority 2 & 7)
-                      </Badge>
-                    </div>
-                    <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight font-headline mt-1">
-                      {communityName} Community Emergency & Resilience Guide
-                    </h1>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-700/60 text-xs text-slate-300">
-                <p>
-                  <strong>Statutory Audit:</strong> {formattedLastReviewed ? `Reviewed on ${formattedLastReviewed} by ${emergencyPlan?.reviewedByName || 'Community Lead'}` : 'Community council draft plan'}
-                  {formattedNextDue && <span className="text-slate-400 ml-2">• <strong>Next Review:</strong> {formattedNextDue}</span>}
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-400">Emergency Services Callout:</span>
-                  <a href="tel:999" className="font-mono font-bold text-red-400 hover:underline">999</a>
-                  <span className="text-slate-600">•</span>
-                  <a href="tel:101" className="font-mono font-bold text-cyan-400 hover:underline">Police 101</a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick-Info Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Card 1: Warm Space & Outage Hub */}
-            <Card className="border-amber-500/30 bg-card shadow-sm flex flex-col justify-between">
-              <div>
-                <CardHeader className="p-5 pb-2">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                    <Zap className="h-4 w-4" /> Winter Warm Space & Outage Hub
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-5 pt-1 space-y-2 text-xs">
-                  <p className="font-bold text-sm text-foreground">
-                    {emergencyPlan?.scenarioFacilities?.power?.f1?.primary || 'Community Hub Hall (Generator Powered)'}
-                  </p>
-                  <p className="text-muted-foreground">
-                    Hours during power cuts: {emergencyPlan?.power?.warmHours || '08:00 - 22:00'} • Canteen & Phone Charging Banks
-                  </p>
-                </CardContent>
-              </div>
-              <div className="p-5 pt-0">
-                <Button asChild variant="outline" size="sm" className="w-full text-xs h-8 gap-1.5">
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((emergencyPlan?.scenarioFacilities?.power?.f1?.primary || 'Community Hall') + ', ' + communityName)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Navigation className="h-3.5 w-3.5 text-amber-500" /> Directions in Google Maps
-                  </a>
-                </Button>
-              </div>
-            </Card>
-
-            {/* Card 2: Sandbags & Flood Precautions */}
-            <Card className="border-cyan-500/30 bg-card shadow-sm flex flex-col justify-between">
-              <div>
-                <CardHeader className="p-5 pb-2">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
-                    <Waves className="h-4 w-4" /> Sandbag Depot & Flooding
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-5 pt-1 space-y-2 text-xs">
-                  <p className="font-bold text-sm text-foreground">
-                    {emergencyPlan?.scenarioFacilities?.flood?.f2?.primary || emergencyPlan?.flood?.sandbagLoc || 'Council Depot, Burnfield Car Park'}
-                  </p>
-                  <p className="text-muted-foreground font-mono">
-                    Duty Team: {emergencyPlan?.flood?.sandbagTel || '07700 900888'}
-                  </p>
-                </CardContent>
-              </div>
-              <div className="p-5 pt-0">
-                <Button asChild variant="outline" size="sm" className="w-full text-xs h-8 gap-1.5">
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((emergencyPlan?.scenarioFacilities?.flood?.f2?.primary || 'Council Depot') + ', ' + communityName)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Navigation className="h-3.5 w-3.5 text-cyan-500" /> Locate Sandbag Depot
-                  </a>
-                </Button>
-              </div>
-            </Card>
-
-            {/* Card 3: Water Shortage & PWS */}
-            <Card className="border-blue-500/30 bg-card shadow-sm flex flex-col justify-between">
-              <div>
-                <CardHeader className="p-5 pb-2">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                    <Droplets className="h-4 w-4" /> Water Shortage & PWS Refills
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-5 pt-1 space-y-2 text-xs">
-                  <p className="font-bold text-sm text-foreground">
-                    {emergencyPlan?.scenarioFacilities?.drought?.f1?.primary || emergencyPlan?.drought?.bowserLoc || 'Burnfield Car Park Bowser Station'}
-                  </p>
-                  <p className="text-muted-foreground">
-                    Bottled Water Hub: {emergencyPlan?.scenarioFacilities?.drought?.f2?.primary || emergencyPlan?.drought?.bottledHub || 'RBLS Legion Main Hall'}
-                  </p>
-                </CardContent>
-              </div>
-              <div className="p-5 pt-0">
-                <Button asChild variant="outline" size="sm" className="w-full text-xs h-8 gap-1.5">
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((emergencyPlan?.scenarioFacilities?.drought?.f1?.primary || 'Burnfield Car Park') + ', ' + communityName)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Navigation className="h-3.5 w-3.5 text-blue-500" /> Locate Bowser Station
-                  </a>
-                </Button>
-              </div>
-            </Card>
-          </div>
-
-          {/* Collapsible Preparedness Accordions */}
-          <Card className="border shadow-md">
-            <CardHeader className="p-5 pb-2 border-b bg-muted/20">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                Community Resilience & Preparedness Guidelines
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Review specific contingency plans for local hazards in {communityName}, aligned with statutory emergency service frameworks.
+              <CardDescription className="text-xs text-muted-foreground font-medium">
+                Choose any scenario below to see the exact shelter locations, directions, hot food hubs, and action steps set up by your community council.
               </CardDescription>
-            </CardHeader>
-            <CardContent className="p-5">
-              <Accordion type="single" collapsible defaultValue="wf" className="w-full space-y-2">
-                {/* 1. Wildfire (Clean Master Accordion) */}
-                <AccordionItem value="wf" className="border rounded-2xl p-2">
-                  <AccordionTrigger className="text-sm font-bold flex items-center gap-2 text-red-600 dark:text-red-400 hover:no-underline">
-                    <span className="flex items-center gap-2">
-                      <Flame className="h-4 w-4" />
-                      Wildfire & Climate Emergency Resilience Plan (SFRS Aligned)
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-4 text-xs text-muted-foreground leading-relaxed pt-3">
-                    <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/20 text-foreground flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-bold text-red-600 dark:text-red-400">Scottish Fire & Rescue Service (SFRS) Local Plan 2026–2029 Alignment</p>
-                        <p className="text-[11px] text-muted-foreground">Delivering SFRS Priority 2 (Wildfire & Climate Resilience) and Priority 7 (Community Resilience).</p>
-                      </div>
-                      <Badge variant="outline" className="border-red-500/40 text-red-600 dark:text-red-400 text-[10px] whitespace-nowrap">
-                        Statutory Priority
-                      </Badge>
-                    </div>
+            </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5 p-3 rounded-xl border bg-muted/20">
-                        <Label className="text-[11px] font-bold text-foreground uppercase">Designated Evacuation Highway</Label>
-                        <p className="text-sm font-bold text-foreground">{emergencyPlan?.scenarioFacilities?.wildfire?.f1?.primary || 'A95 Northbound towards Aviemore / A9'}</p>
-                        <p className="text-[11px] text-muted-foreground">Secondary Non-Pine Bypass: {emergencyPlan?.scenarioFacilities?.wildfire?.f1?.secondary || 'A939 towards Coast'}</p>
-                      </div>
-
-                      <div className="space-y-1.5 p-3 rounded-xl border bg-muted/20">
-                        <Label className="text-[11px] font-bold text-foreground uppercase">Evacuation Refuge & Shelter Hub</Label>
-                        <p className="text-sm font-bold text-foreground">{emergencyPlan?.scenarioFacilities?.wildfire?.f2?.primary || 'Grammar School Sports Complex'}</p>
-                        <p className="text-[11px] text-muted-foreground">Secondary Welfare Hub: {emergencyPlan?.scenarioFacilities?.wildfire?.f2?.secondary || 'Inverallan Church Hall'}</p>
-                      </div>
-                    </div>
-
-                    {/* Section 1: Dynamic Hazard Areas & Fuel Profile */}
-                    <div className="p-4 rounded-xl border bg-muted/20 space-y-2.5">
-                      <h4 className="font-bold text-foreground flex items-center gap-1.5">
-                        <TreePine className="h-4 w-4 text-red-500" /> 1. Wildfire Hazard Assessment & Fuel Profile
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                        {(emergencyPlan?.wildfireHazardAreas && emergencyPlan.wildfireHazardAreas.length > 0
-                          ? emergencyPlan.wildfireHazardAreas
-                          : [
-                              {
-                                id: '1',
-                                title: 'Anagach Pinewoods Corridor',
-                                fuelType: emergencyPlan?.wildfire?.fuels || '1,000ha mature Scots Pine & needle duff',
-                                windThreat: emergencyPlan?.wildfire?.windThreat || 'East / South-East winds driving fire towards town'
-                              }
-                            ]
-                        ).map((area: any, idx: number) => (
-                          <div key={area.id || idx} className="p-3 bg-card/60 rounded-lg border space-y-1 text-[11px]">
-                            <div className="font-bold text-foreground flex items-center gap-1.5">
-                              <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[9px] px-1 py-0 font-mono">#{idx + 1}</Badge>
-                              <span>{area.title}</span>
-                            </div>
-                            <p className="text-muted-foreground"><strong className="text-foreground">Fuel:</strong> {area.fuelType}</p>
-                            <p className="text-muted-foreground"><strong className="text-foreground">Threat Path:</strong> {area.windThreat}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Section 2: SFRS Community Asset Register */}
-                    <div className="p-4 rounded-xl border bg-muted/20 space-y-2.5">
-                      <h4 className="font-bold text-foreground flex items-center gap-1.5">
-                        <Tractor className="h-4 w-4 text-amber-500" /> 2. SFRS Community Asset Register (Machinery & Water Abstraction)
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                        {(emergencyPlan?.wildfireAssetList && emergencyPlan.wildfireAssetList.length > 0
-                          ? emergencyPlan.wildfireAssetList
-                          : [
-                              {
-                                id: '1',
-                                name: 'Heavy Agricultural Tractors & Ploughs',
-                                category: 'Firebreaks',
-                                description: emergencyPlan?.wildfireAssets?.firebreakTractors || '4x Heavy 4WD agricultural tractors with subsoil ploughs on call'
-                              },
-                              {
-                                id: '2',
-                                name: 'Water Abstraction Points & Draft Stations',
-                                category: 'Water Abstraction',
-                                description: emergencyPlan?.wildfireAssets?.waterAbstractionPoints || emergencyPlan?.wildfire?.waterPoint || 'River Spey Old Bridge tender hardstanding draft point'
-                              },
-                              {
-                                id: '3',
-                                name: '4x4 Transport, Argocat ATVs & Water Bowsers',
-                                category: 'All-Terrain Transport',
-                                description: emergencyPlan?.wildfireAssets?.bowsersAndATVs || '2x 5,000L Tractor Water Bowsers & 6x Estate Argocat ATVs'
-                              },
-                              {
-                                id: '4',
-                                name: 'Livestock & Equine Emergency Holding Pastures',
-                                category: 'Livestock Holding',
-                                description: emergencyPlan?.wildfireAssets?.livestockPastures || emergencyPlan?.wildfire?.livestockGrounds || 'Showgrounds Field 4 & North Paddocks'
-                              }
-                            ]
-                        ).map((asset: any, idx: number) => (
-                          <div key={asset.id || idx} className="p-3 bg-card/60 rounded-lg border space-y-1 text-[11px]">
-                            <div className="flex items-center justify-between">
-                              <p className="font-bold text-foreground">{asset.name}</p>
-                              {asset.category && (
-                                <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-500/40 text-amber-400">
-                                  {asset.category}
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-muted-foreground leading-relaxed">{asset.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                {/* 2. Flood */}
-                <AccordionItem value="fl">
-                  <AccordionTrigger className="text-sm font-bold flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
-                    <span className="flex items-center gap-2"><Waves className="h-4 w-4" /> River Flooding & Extreme Rainfall</span>
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-3 text-xs text-muted-foreground leading-relaxed pt-2">
-                    <div className="space-y-1">
-                      <p>• High-Ground Evacuation Refuge: <strong className="text-foreground">{emergencyPlan?.scenarioFacilities?.flood?.f1?.primary || 'Grammar School (Above 220m contour)'}</strong></p>
-                      <p>• Sandbag Depot: <strong className="text-foreground">{emergencyPlan?.scenarioFacilities?.flood?.f2?.primary || 'Council Depot, Burnfield Car Park'}</strong> (Duty Tel: {emergencyPlan?.flood?.sandbagTel || '07700 900888'})</p>
-                      <p>• Watercourses: <strong className="text-foreground">{emergencyPlan?.flood?.river || 'River Spey & Local Burns'}</strong> ({emergencyPlan?.flood?.sepaCode || 'Speyside Zone'})</p>
-                    </div>
-
-                    {emergencyPlan?.scenarioLiaisons?.flood && emergencyPlan.scenarioLiaisons.flood.length > 0 && (
-                      <div className="pt-2 border-t space-y-1.5">
-                        <p className="text-[11px] font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">Flood Multi-Agency Liaisons:</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {emergencyPlan.scenarioLiaisons.flood.map((l: any, idx: number) => (
-                            <div key={l.id || idx} className="p-2 rounded bg-card border text-[11px]">
-                              <p className="font-bold text-foreground">{l.role}: {l.agencyOrName}</p>
-                              <p className="font-mono text-primary">📞 {l.telephone}</p>
-                              {l.notes && <p className="text-[10px] text-muted-foreground">{l.notes}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-
-                {/* 3. Power Cut */}
-                <AccordionItem value="po">
-                  <AccordionTrigger className="text-sm font-bold flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                    <span className="flex items-center gap-2"><Zap className="h-4 w-4" /> Prolonged Winter Power Cuts & Grid Outages</span>
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-3 text-xs text-muted-foreground leading-relaxed pt-2">
-                    <div className="space-y-1">
-                      <p>• Warm Space & Soup Canteen: <strong className="text-foreground">{emergencyPlan?.scenarioFacilities?.power?.f1?.primary || 'Community Hub Hall (Generator Powered)'}</strong></p>
-                      <p>• Device Charging Banks: <strong className="text-foreground">{emergencyPlan?.scenarioFacilities?.power?.f2?.primary || 'Grammar School Sports Tech Suite'}</strong></p>
-                      <p>• Operating Schedule: <strong className="text-foreground">{emergencyPlan?.power?.warmHours || '08:00 - 22:00 Daily'}</strong></p>
-                      <p>• Generator Power: <strong className="text-foreground">{emergencyPlan?.power?.generatorSpecs || '25kVA Backup Diesel Generator'}</strong></p>
-                    </div>
-
-                    {emergencyPlan?.scenarioLiaisons?.power && emergencyPlan.scenarioLiaisons.power.length > 0 && (
-                      <div className="pt-2 border-t space-y-1.5">
-                        <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Power Grid & Welfare Liaisons:</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {emergencyPlan.scenarioLiaisons.power.map((l: any, idx: number) => (
-                            <div key={l.id || idx} className="p-2 rounded bg-card border text-[11px]">
-                              <p className="font-bold text-foreground">{l.role}: {l.agencyOrName}</p>
-                              <p className="font-mono text-primary">📞 {l.telephone}</p>
-                              {l.notes && <p className="text-[10px] text-muted-foreground">{l.notes}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-
-                {/* 4. Water Shortage */}
-                <AccordionItem value="dr">
-                  <AccordionTrigger className="text-sm font-bold flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                    <span className="flex items-center gap-2"><Droplets className="h-4 w-4" /> Private Water Supplies (PWS) & Drought</span>
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-3 text-xs text-muted-foreground leading-relaxed pt-2">
-                    <div className="space-y-1">
-                      <p>• Scottish Water Bowser Station: <strong className="text-foreground">{emergencyPlan?.scenarioFacilities?.drought?.f1?.primary || 'Burnfield Car Park Bowser Station'}</strong></p>
-                      <p>• Bottled Water Rationing Point: <strong className="text-foreground">{emergencyPlan?.scenarioFacilities?.drought?.f2?.primary || 'RBLS Legion Main Hall'}</strong> (10L / person / day)</p>
-                      <p>• Farm Livestock Water Point: <strong className="text-foreground">{emergencyPlan?.scenarioFacilities?.drought?.f3?.primary || 'Spey Valley Showgrounds 5000L Bowser'}</strong></p>
-                    </div>
-
-                    {emergencyPlan?.scenarioLiaisons?.drought && emergencyPlan.scenarioLiaisons.drought.length > 0 && (
-                      <div className="pt-2 border-t space-y-1.5">
-                        <p className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Water Shortage & Tanker Liaisons:</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {emergencyPlan.scenarioLiaisons.drought.map((l: any, idx: number) => (
-                            <div key={l.id || idx} className="p-2 rounded bg-card border text-[11px]">
-                              <p className="font-bold text-foreground">{l.role}: {l.agencyOrName}</p>
-                              <p className="font-mono text-primary">📞 {l.telephone}</p>
-                              {l.notes && <p className="text-[10px] text-muted-foreground">{l.notes}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* COMMUNICATIONS REDUNDANCY & NOTICEBOARD NET */}
-      <Card className="border shadow-md">
-        <CardHeader className="p-5 pb-3 bg-muted/20 border-b">
-          <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-            <Radio className="h-5 w-5 text-primary" />
-            Communications Redundancy & Cellular Blackout Protocol
-          </CardTitle>
-          <CardDescription className="text-xs">
-            How to communicate and receive verified emergency updates if telephone and internet masts fail.
-          </CardDescription>
+            {/* Dropdown Selector */}
+            <div className="w-full sm:w-80 shrink-0">
+              <Select value={selectedPlan} onValueChange={(val) => setSelectedPlan(val)}>
+                <SelectTrigger className="h-11 text-sm font-bold border-2 border-primary/50 bg-background shadow-sm">
+                  <SelectValue placeholder="Select an Emergency Plan..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-2 shadow-2xl">
+                  {Object.entries(SCENARIO_METADATA).map(([key, meta]) => (
+                    <SelectItem key={key} value={key} className="font-bold py-2 text-xs sm:text-sm">
+                      {meta.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="p-5 space-y-4 text-xs">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <Label className="text-[11px] font-bold uppercase text-primary flex items-center gap-1.5">
-                <Radio className="h-4 w-4" /> Off-Grid Radio Mesh & Frequencies
-              </Label>
-              <p className="text-muted-foreground leading-relaxed">
-                During grid/mobile outages, volunteer operators conduct hourly check-in nets on:
-              </p>
-              <p className="font-mono font-bold text-sm text-foreground bg-muted p-2 rounded border">
-                {emergencyPlan?.comms?.hamPmrFreq || 'PMR446 Channel 7 / CTCSS 11 | HAM 2M (145.500MHz)'}
-              </p>
-            </div>
 
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <Label className="text-[11px] font-bold uppercase text-primary flex items-center gap-1.5">
-                <FileSpreadsheet className="h-4 w-4" /> Weatherproof Physical Noticeboards
-              </Label>
-              <p className="text-muted-foreground leading-relaxed">
-                Official printed situation reports are refreshed every 4 hours at:
-              </p>
-              <p className="font-medium text-foreground bg-muted p-2 rounded border leading-relaxed">
-                {emergencyPlan?.comms?.noticeboards || 'Post Office Window, Pharmacy Outer Board, RBLS Outer Door, Village Hall Board'}
-              </p>
-            </div>
+        {/* Quick Filter Buttons (Pills) */}
+        <CardContent className="p-3 sm:p-4 bg-muted/20">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar flex-wrap sm:flex-nowrap">
+            {Object.entries(SCENARIO_METADATA).map(([key, meta]) => {
+              const isSelected = selectedPlan === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSelectedPlan(key)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all whitespace-nowrap flex items-center gap-1.5 border-2 ${
+                    isSelected
+                      ? 'bg-primary text-primary-foreground border-primary shadow-md scale-105'
+                      : 'bg-card hover:bg-muted text-muted-foreground border-border/80'
+                  }`}
+                >
+                  <span>{meta.shortLabel}</span>
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
 
-      {/* RECENT OFFICIAL INCIDENT BULLETINS & SITUATION LOG */}
-      {publicMessagesList && publicMessagesList.length > 0 && (
-        <Card className="border shadow-md">
-          <CardHeader className="p-5 pb-3 bg-muted/20 border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-                <MessageSquareText className="h-5 w-5 text-primary" />
-                Live Situation Bulletins & Incident Updates
-              </CardTitle>
-              <Badge variant="outline" className="text-[10px] font-mono">
-                {publicMessagesList.length} Official Bulletins
-              </Badge>
+      {/* 4. FOCUSED SCENARIO VIEW (CHANGES TO SHOW ONLY THE SELECTED PLAN) */}
+      <div className="space-y-6 animate-in fade-in duration-300">
+        
+        {/* Focused Hero Banner for Selected Plan */}
+        <div className={`p-6 rounded-3xl border-2 ${activeMeta.borderColor} ${activeMeta.bgLight} shadow-xl relative overflow-hidden`}>
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 shadow-md shrink-0">
+                <ActiveIcon className={`h-8 w-8 ${activeMeta.color}`} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className={`${activeMeta.badgeBg} text-white font-extrabold text-[10px] uppercase tracking-wider`}>
+                    Official Statutory Plan
+                  </Badge>
+                  {isCrisisMode && activeLeaderScenario === selectedPlan && (
+                    <Badge className="bg-red-600 text-white font-black animate-pulse text-[10px] uppercase">
+                      🔴 Active Incident in Effect
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs font-semibold border-slate-400">
+                    SFRS 2026–2029 Aligned
+                  </Badge>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white pt-0.5">
+                  {activeMeta.label.replace(/^[^\s]+\s/, '')}
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium max-w-3xl leading-relaxed">
+                  {activeMeta.simpleSummary}
+                </p>
+              </div>
             </div>
-            <CardDescription className="text-xs">
-              Chronological log of verified broadcasts from Community Incident Response Leads.
+
+            {hasAnyFailover && (
+              <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-950/80 border-2 border-amber-400 text-amber-950 dark:text-amber-100 text-xs font-bold flex items-center gap-2 shrink-0">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span>Failover in effect: Secondary backup facility active</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 4A. SCENARIO FACILITIES (IF NOT EVACUATION FLEET) */}
+        {selectedPlan !== 'evacuation' && currentFacilities && (
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-3">
+              <MapPin className="h-4 w-4 text-primary" />
+              Designated Facilities & Support Locations for {activeMeta.shortLabel}
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Facility 1 */}
+              <Card className="border-2 bg-card shadow-md flex flex-col justify-between hover:border-primary/50 transition-all">
+                <div>
+                  <CardHeader className="p-4 pb-2 bg-muted/20 border-b">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xs font-extrabold flex items-center gap-1.5 text-primary">
+                        <LifeBuoy className="h-4 w-4" /> {f1?.name}
+                      </CardTitle>
+                      <Badge className={f1?.isFailover ? 'bg-amber-400 text-slate-950 font-black text-[9px]' : 'bg-primary text-primary-foreground text-[9px] font-bold'}>
+                        {f1?.isFailover ? 'FAILOVER' : 'PRIMARY'}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-2 text-xs">
+                    <div>
+                      <Label className="text-[10px] font-bold text-muted-foreground uppercase">Location / Route</Label>
+                      <p className="text-sm font-black text-slate-950 dark:text-white pt-0.5">{effectiveF1}</p>
+                    </div>
+                    {f1?.isFailover && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+                        ⚠️ Primary compromised. Divert to this backup location.
+                      </p>
+                    )}
+                  </CardContent>
+                </div>
+                <div className="p-4 pt-0">
+                  {effectiveF1 && (
+                    <Button asChild className="w-full text-xs font-bold gap-2 h-9 shadow-sm">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(effectiveF1 + ', ' + communityName)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Navigation className="h-4 w-4" /> Directions in Google Maps
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </Card>
+
+              {/* Facility 2 */}
+              <Card className="border-2 bg-card shadow-md flex flex-col justify-between hover:border-primary/50 transition-all">
+                <div>
+                  <CardHeader className="p-4 pb-2 bg-muted/20 border-b">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xs font-extrabold flex items-center gap-1.5 text-cyan-700 dark:text-cyan-400">
+                        <Building2 className="h-4 w-4" /> {f2?.name}
+                      </CardTitle>
+                      <Badge className={f2?.isFailover ? 'bg-amber-400 text-slate-950 font-black text-[9px]' : 'bg-cyan-600 text-white text-[9px] font-bold'}>
+                        {f2?.isFailover ? 'FAILOVER' : 'PRIMARY'}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-2 text-xs">
+                    <div>
+                      <Label className="text-[10px] font-bold text-muted-foreground uppercase">Location / Route</Label>
+                      <p className="text-sm font-black text-slate-950 dark:text-white pt-0.5">{effectiveF2}</p>
+                    </div>
+                    {f2?.isFailover && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+                        ⚠️ Primary compromised. Divert to this backup location.
+                      </p>
+                    )}
+                  </CardContent>
+                </div>
+                <div className="p-4 pt-0">
+                  {effectiveF2 && (
+                    <Button asChild variant="outline" className="w-full text-xs font-bold gap-2 border-2 border-cyan-500/50 h-9 shadow-sm hover:bg-cyan-50 dark:hover:bg-cyan-950/40">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(effectiveF2 + ', ' + communityName)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Navigation className="h-4 w-4 text-cyan-600" /> Directions in Google Maps
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </Card>
+
+              {/* Facility 3 */}
+              <Card className="border-2 bg-card shadow-md flex flex-col justify-between hover:border-primary/50 transition-all">
+                <div>
+                  <CardHeader className="p-4 pb-2 bg-muted/20 border-b">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xs font-extrabold flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                        <Shield className="h-4 w-4" /> {f3?.name}
+                      </CardTitle>
+                      <Badge className={f3?.isFailover ? 'bg-amber-400 text-slate-950 font-black text-[9px]' : 'bg-slate-800 text-slate-200 text-[9px] font-bold'}>
+                        {f3?.isFailover ? 'FAILOVER' : 'PRIMARY'}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-2 text-xs">
+                    <div>
+                      <Label className="text-[10px] font-bold text-muted-foreground uppercase">Location / Command Channel</Label>
+                      <p className="text-sm font-black text-slate-950 dark:text-white pt-0.5">{effectiveF3}</p>
+                    </div>
+                    {f3?.isFailover && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+                        ⚠️ Primary compromised. Divert to this backup location.
+                      </p>
+                    )}
+                  </CardContent>
+                </div>
+                <div className="p-4 pt-0">
+                  {effectiveF3 && (
+                    <Button asChild variant="outline" className="w-full text-xs font-bold gap-2 border-2 border-amber-500/50 h-9 shadow-sm hover:bg-amber-50 dark:hover:bg-amber-950/40">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(effectiveF3 + ', ' + communityName)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Navigation className="h-4 w-4 text-amber-600" /> Locate on Map
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* 4B. WHAT YOU SHOULD DO: 3 RESIDENT PRIORITIES */}
+        <Card className="border-2 shadow-md">
+          <CardHeader className="p-4 sm:p-5 pb-3 border-b bg-muted/20">
+            <CardTitle className="text-base font-black flex items-center gap-2 text-slate-950 dark:text-white">
+              <Clock className="h-4 w-4 text-primary" />
+              What You Should Do: 3 Key Actions for Residents
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground font-medium">
+              Immediate life safety advice approved by Community Resilience Leads.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-5 space-y-3">
-            {publicMessagesList.map((msg: any) => (
-              <div
-                key={msg.id}
-                className={`p-4 rounded-xl border space-y-2 text-xs transition-all ${
-                  msg.isActive
-                    ? 'border-primary/50 bg-primary/5 shadow-sm'
-                    : 'border-border/60 bg-muted/20 text-muted-foreground'
-                }`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge
-                      className={`text-[10px] font-mono uppercase ${
-                        msg.level === 'critical'
-                          ? 'bg-red-600 text-white'
-                          : msg.level === 'warning'
-                          ? 'bg-amber-500 text-slate-950 font-bold'
-                          : msg.level === 'allclear'
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-blue-600 text-white'
-                      }`}
-                    >
-                      {msg.level}
-                    </Badge>
-                    <span className="font-bold text-foreground text-sm">{msg.title}</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-muted-foreground">
-                    {msg.createdAt?.toDate
-                      ? msg.createdAt.toDate().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-                      : 'Recent'}
-                  </span>
-                </div>
-                <p className="text-foreground leading-relaxed whitespace-pre-wrap">{msg.body}</p>
-                <div className="text-[11px] text-muted-foreground pt-1 flex items-center justify-between">
-                  <span>Author: <strong className="text-foreground">{msg.authorName}</strong> ({msg.authorRole})</span>
-                  {msg.isActive && (
-                    <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[9px]">
-                      ● Live Broadcast
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            ))}
+          <CardContent className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            <div className="p-4 rounded-2xl border-2 bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-800 space-y-1.5">
+              <span className="font-black text-red-700 dark:text-red-400 uppercase tracking-wider text-[11px]">
+                Step 1: Life Safety
+              </span>
+              <p className="font-extrabold text-sm text-slate-950 dark:text-white">{planPriorities.p1?.title || 'Immediate Protection'}</p>
+              <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">{planPriorities.p1?.desc || activeMeta.residentAdvice[0]}</p>
+            </div>
+
+            <div className="p-4 rounded-2xl border-2 bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800 space-y-1.5">
+              <span className="font-black text-amber-800 dark:text-amber-400 uppercase tracking-wider text-[11px]">
+                Step 2: Shelter & Provisions
+              </span>
+              <p className="font-extrabold text-sm text-slate-950 dark:text-white">{planPriorities.p2?.title || 'Refuge & Warmth'}</p>
+              <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">{planPriorities.p2?.desc || activeMeta.residentAdvice[1]}</p>
+            </div>
+
+            <div className="p-4 rounded-2xl border-2 bg-cyan-50 dark:bg-cyan-950/20 border-cyan-300 dark:border-cyan-800 space-y-1.5">
+              <span className="font-black text-cyan-800 dark:text-cyan-400 uppercase tracking-wider text-[11px]">
+                Step 3: Welfare & Neighbours
+              </span>
+              <p className="font-extrabold text-sm text-slate-950 dark:text-white">{planPriorities.p3?.title || 'Check on Neighbours'}</p>
+              <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">{planPriorities.p3?.desc || activeMeta.residentAdvice[2]}</p>
+            </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* NATIONAL & REGIONAL EMERGENCY HELPLINES */}
-      <Card className="border shadow-md">
-        <CardHeader className="p-5 pb-3 bg-muted/20 border-b">
-          <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-            <PhoneCall className="h-5 w-5 text-red-500" />
-            Key Emergency Helplines & Utility Outage Numbers
+        {/* 4C. PUBLIC EVACUATION MUSTER POINTS & SHUTTLE BUS HUBS (SHOWN FOR EVACUATION OR ALWAYS ACCESSIBLE) */}
+        {(selectedPlan === 'evacuation' || selectedPlan === 'wildfire' || selectedPlan === 'flood') && (
+          <Card className="border-2 border-teal-500/40 bg-gradient-to-br from-teal-950/20 via-card to-card shadow-lg">
+            <CardHeader className="p-4 sm:p-5 pb-3 border-b bg-teal-500/10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 shrink-0">
+                    <Bus className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-teal-600 text-white border-teal-700 text-[10px] font-black uppercase">
+                        Civic Evacuation Shuttles & Non-Drivers
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-base sm:text-lg font-black text-slate-950 dark:text-white mt-0.5">
+                      Designated Passenger Collection Points & Muster Hubs
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground font-medium">
+                      If an evacuation is declared and you do not have private vehicle transport, proceed to your designated muster point for coordinated bus and taxi transport.
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-4 sm:p-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {(emergencyPlan?.collectionPoints && Array.isArray(emergencyPlan.collectionPoints) && emergencyPlan.collectionPoints.length > 0
+                  ? emergencyPlan.collectionPoints
+                  : DEFAULT_COLLECTION_POINTS
+                ).map((point: EvacuationCollectionPoint) => (
+                  <div 
+                    key={point.id} 
+                    className="p-4 rounded-2xl border-2 bg-card hover:bg-muted/30 transition-all space-y-2 flex flex-col justify-between shadow-sm"
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-1">
+                        <Badge 
+                          className={`text-[10px] font-black ${
+                            point.accessibleFor === 'all_vehicles' ? 'bg-teal-100 text-teal-950 border-2 border-teal-400 dark:bg-teal-950 dark:text-teal-100' :
+                            point.accessibleFor === 'minibus_taxi_only' ? 'bg-amber-100 text-amber-950 border-2 border-amber-400 dark:bg-amber-950 dark:text-amber-100' :
+                            'bg-red-100 text-red-950 border-2 border-red-400 dark:bg-red-950 dark:text-red-100'
+                          }`}
+                        >
+                          {point.accessibleFor === 'all_vehicles' && '🚌 Full Coaches OK'}
+                          {point.accessibleFor === 'minibus_taxi_only' && '🚐 Minibus & Taxi Hub'}
+                          {point.accessibleFor === '4x4_only' && '🚙 4x4 Shuttle Only'}
+                        </Badge>
+                        <Badge variant="outline" className="text-[9px] uppercase font-mono font-bold">
+                          {point.status}
+                        </Badge>
+                      </div>
+
+                      <p className="font-black text-sm text-slate-950 dark:text-white">{point.name}</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">{point.address}</p>
+
+                      <div className="pt-1 space-y-1 text-xs text-slate-700 dark:text-slate-300">
+                        <p>🎯 <strong>Vehicles:</strong> <span className="font-bold text-slate-950 dark:text-white">{point.designatedVehicles}</span></p>
+                        <p>🏁 <strong>Destination:</strong> <span className="font-bold text-slate-950 dark:text-white">{point.dropoffShelter}</span></p>
+                        <p>👤 <strong>Muster Lead:</strong> {point.onSiteCoordinator} ({point.coordinatorPhone})</p>
+                      </div>
+                    </div>
+
+                    <Button asChild variant="outline" size="sm" className="w-full text-xs font-bold h-8 gap-1.5 mt-2 border-teal-500/50 hover:bg-teal-50 dark:hover:bg-teal-950/30">
+                      <a 
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(point.address + ', ' + communityName)}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                      >
+                        <Navigation className="h-3.5 w-3.5 text-teal-600" /> Directions in Google Maps
+                      </a>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Wheelchair & Assisted Evacuation Note */}
+              <div className="p-3.5 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border-2 border-amber-400 flex items-start gap-3 text-xs text-amber-950 dark:text-amber-100">
+                <LifeBuoy className="h-5 w-5 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-black">Require Wheelchair or Assisted Evacuation?</p>
+                  <p className="font-semibold leading-relaxed">
+                    Wheelchair-lift minibuses (CTCO) and 4x4 private hire taxis are on standby for residents with limited mobility or living on single-track rural roads. Call the local resilience lead or 24/7 crisis dispatch for escort assistance.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 4D. MULTI-AGENCY LIAISONS & LOCAL EMERGENCY CONTACTS FOR THIS PLAN */}
+        {planLiaisons.length > 0 && (
+          <Card className="border-2 shadow-md">
+            <CardHeader className="p-4 sm:p-5 pb-3 border-b bg-muted/20">
+              <CardTitle className="text-base font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                <Users2 className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                Specialist Contacts & Agency Liaisons for {activeMeta.shortLabel}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {planLiaisons.map((l: any, idx: number) => (
+                  <div key={l.id || idx} className="p-3.5 rounded-xl border bg-card space-y-1.5 text-xs shadow-sm">
+                    <p className="font-black text-slate-950 dark:text-white">{l.role}</p>
+                    <p className="text-slate-700 dark:text-slate-300 font-medium">{l.agencyOrName}</p>
+                    <a
+                      href={`tel:${(l.telephone || '').replace(/[^0-9+]/g, '')}`}
+                      className="inline-flex items-center gap-1 font-mono font-bold text-primary hover:underline text-xs"
+                    >
+                      <Phone className="h-3.5 w-3.5" /> {l.telephone}
+                    </a>
+                    {l.notes && <p className="text-[11px] text-muted-foreground italic">{l.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+      </div>
+
+      {/* 5. NATIONAL & REGIONAL CRISIS HELPLINES (ALWAYS AT BOTTOM) */}
+      <Card className="border-2 shadow-md bg-card">
+        <CardHeader className="p-4 sm:p-5 pb-3 bg-muted/20 border-b">
+          <CardTitle className="text-base font-black flex items-center gap-2 text-slate-950 dark:text-white">
+            <PhoneCall className="h-4 w-4 text-red-600" />
+            Key Emergency Helplines & Outage Numbers (1-Click Call)
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-            <div className="p-3.5 rounded-xl border bg-red-950/10 border-red-500/30 space-y-1">
-              <p className="font-bold text-red-600 dark:text-red-400">Life Threat / SFRS / Police</p>
-              <p className="text-lg font-black text-foreground">999</p>
-              <p className="text-[11px] text-muted-foreground">Emergency Life & Fire Threat</p>
-            </div>
+        <CardContent className="p-4 sm:p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <a
+              href="tel:999"
+              className="p-3.5 rounded-2xl border-2 border-red-500/40 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 transition-all block space-y-1 shadow-sm"
+            >
+              <p className="font-extrabold text-red-700 dark:text-red-400">Emergency Life & Fire Threat</p>
+              <p className="text-2xl font-black text-slate-950 dark:text-white font-mono">999</p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">SFRS, Police Scotland, Ambulance</p>
+            </a>
 
-            <div className="p-3.5 rounded-xl border bg-blue-950/10 border-blue-500/30 space-y-1">
-              <p className="font-bold text-blue-600 dark:text-blue-400">Police Scotland (Non-Emergency)</p>
-              <p className="text-lg font-black text-foreground">101</p>
-              <p className="text-[11px] text-muted-foreground">Report incidents & civil unrest</p>
-            </div>
+            <a
+              href="tel:101"
+              className="p-3.5 rounded-2xl border-2 border-blue-500/40 bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 transition-all block space-y-1 shadow-sm"
+            >
+              <p className="font-extrabold text-blue-700 dark:text-blue-400">Police Scotland (Non-Emergency)</p>
+              <p className="text-2xl font-black text-slate-950 dark:text-white font-mono">101</p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">Report non-urgent incidents</p>
+            </a>
 
-            <div className="p-3.5 rounded-xl border bg-amber-950/10 border-amber-500/30 space-y-1">
-              <p className="font-bold text-amber-600 dark:text-amber-400">Power Grid Failure (SSEN)</p>
-              <p className="text-lg font-black text-foreground">105</p>
-              <p className="text-[11px] text-muted-foreground">Free national power outage line</p>
-            </div>
+            <a
+              href="tel:105"
+              className="p-3.5 rounded-2xl border-2 border-amber-500/40 bg-amber-50 dark:bg-amber-950/20 hover:bg-amber-100 transition-all block space-y-1 shadow-sm"
+            >
+              <p className="font-extrabold text-amber-800 dark:text-amber-400">Power Grid Failure (SSEN)</p>
+              <p className="text-2xl font-black text-slate-950 dark:text-white font-mono">105</p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">Free national power outage line</p>
+            </a>
 
-            <div className="p-3.5 rounded-xl border bg-emerald-950/10 border-emerald-500/30 space-y-1">
-              <p className="font-bold text-emerald-600 dark:text-emerald-400">NHS 24 (Urgent Care)</p>
-              <p className="text-lg font-black text-foreground">111</p>
-              <p className="text-[11px] text-muted-foreground">Non-life threatening medical</p>
-            </div>
+            <a
+              href="tel:111"
+              className="p-3.5 rounded-2xl border-2 border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 transition-all block space-y-1 shadow-sm"
+            >
+              <p className="font-extrabold text-emerald-700 dark:text-emerald-400">NHS 24 (Urgent Care)</p>
+              <p className="text-2xl font-black text-slate-950 dark:text-white font-mono">111</p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">Medical advice & urgent care</p>
+            </a>
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }

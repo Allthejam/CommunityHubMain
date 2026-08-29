@@ -102,6 +102,8 @@ import {
   certifyEmergencyPlanAction,
   publishEmergencyMessageAction,
   retractEmergencyMessageAction,
+  archiveEmergencyMessageAction,
+  standDownEmergencyAndArchiveBulletinsAction,
   logEmergencyAuditAction,
   EmergencyMessage,
   EmergencyAuditLogEntry,
@@ -123,10 +125,18 @@ import {
   IncidentSopPhase,
   IncidentSopTask,
   ScenarioSopsMap,
-  DEFAULT_SCENARIO_SOPS
+  DEFAULT_SCENARIO_SOPS,
+  EvacuationTransportPartner,
+  EvacuationCollectionPoint,
+  DEFAULT_EVACUATION_PARTNERS,
+  DEFAULT_COLLECTION_POINTS,
+  TransportVehicleType,
+  TransportReadinessStatus,
+  RoadAccessibilityTier
 } from '@/lib/types/emergencySop';
+import { Bus, Car, Phone } from 'lucide-react';
 
-type HazardType = 'wildfire' | 'urbanfire' | 'flood' | 'power' | 'drought' | 'unrest' | 'defence' | 'submission' | 'messages' | 'audit';
+type HazardType = 'wildfire' | 'urbanfire' | 'flood' | 'power' | 'drought' | 'unrest' | 'defence' | 'evacuation' | 'submission' | 'messages' | 'audit';
 
 const DEFAULT_SCENARIO_LIAISONS: ScenarioLiaisonsMap = {
   wildfire: [
@@ -673,6 +683,14 @@ export default function LeaderEmergencyPlanPage() {
   const [retractReasonInput, setRetractReasonInput] = useState('');
   const [isRetractDialogOpen, setIsRetractDialogOpen] = useState(false);
 
+  // Stand Down Incident & Bulk Bulletin Archive State
+  const [isStandDownDialogOpen, setIsStandDownDialogOpen] = useState(false);
+  const [isStandingDown, setIsStandingDown] = useState(false);
+  const [standDownIssueAllClear, setStandDownIssueAllClear] = useState(true);
+  const [standDownAllClearTitle, setStandDownAllClearTitle] = useState('🟢 ALL CLEAR: Emergency Incident Stood Down');
+  const [standDownAllClearBody, setStandDownAllClearBody] = useState('Official incident stand-down. Emergency response services have stood down. Road cordons are open and community facilities have returned to regular schedule.');
+  const [bulletinFilter, setBulletinFilter] = useState<'all' | 'active' | 'archived'>('all');
+
   // Audit Search & Filter State
   const [auditSearch, setAuditSearch] = useState('');
   const [auditFilterType, setAuditFilterType] = useState<string>('ALL');
@@ -1046,6 +1064,268 @@ export default function LeaderEmergencyPlanPage() {
   // Scenario-Specific Incident Response SOPs Map
   const [sopsMap, setSopsMap] = useState<ScenarioSopsMap>(DEFAULT_SCENARIO_SOPS);
 
+  // Evacuation Transport Fleet & Collection Points State
+  const [evacuationPartners, setEvacuationPartners] = useState<EvacuationTransportPartner[]>(DEFAULT_EVACUATION_PARTNERS);
+  const [collectionPoints, setCollectionPoints] = useState<EvacuationCollectionPoint[]>(DEFAULT_COLLECTION_POINTS);
+
+  // Partner Modal Dialogs
+  const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
+  const [editingPartner, setEditingPartner] = useState<EvacuationTransportPartner | null>(null);
+  const [partnerFormData, setPartnerFormData] = useState<Partial<EvacuationTransportPartner>>({
+    operator: '',
+    vehicleType: 'coach',
+    vehicleCount: 1,
+    totalSeats: 50,
+    assignedSector: '',
+    dispatchContact: '',
+    pickupMusterPoint: '',
+    dropoffDestination: '',
+    status: 'standby',
+    notes: ''
+  });
+
+  // Collection Point Modal Dialogs
+  const [isPointModalOpen, setIsPointModalOpen] = useState(false);
+  const [editingPoint, setEditingPoint] = useState<EvacuationCollectionPoint | null>(null);
+  const [pointFormData, setPointFormData] = useState<Partial<EvacuationCollectionPoint>>({
+    name: '',
+    address: '',
+    accessibleFor: 'all_vehicles',
+    targetRoads: '',
+    designatedVehicles: '',
+    dropoffShelter: '',
+    onSiteCoordinator: '',
+    coordinatorPhone: '',
+    status: 'staged',
+    notes: ''
+  });
+
+  const [isPrintManifestModalOpen, setIsPrintManifestModalOpen] = useState(false);
+
+  const handleOpenAddPartner = () => {
+    setEditingPartner(null);
+    setPartnerFormData({
+      operator: '',
+      vehicleType: 'coach',
+      vehicleCount: 1,
+      totalSeats: 50,
+      assignedSector: '',
+      dispatchContact: '',
+      pickupMusterPoint: '',
+      dropoffDestination: '',
+      status: 'standby',
+      notes: ''
+    });
+    setIsPartnerModalOpen(true);
+  };
+
+  const handleOpenEditPartner = (partner: EvacuationTransportPartner) => {
+    setEditingPartner(partner);
+    setPartnerFormData({ ...partner });
+    setIsPartnerModalOpen(true);
+  };
+
+  const handleSavePartner = () => {
+    if (!partnerFormData.operator || !partnerFormData.assignedSector) {
+      toast({ title: 'Validation Error', description: 'Operator name and assigned sector are required.', variant: 'destructive' });
+      return;
+    }
+
+    if (editingPartner) {
+      setEvacuationPartners(prev => prev.map(p => p.id === editingPartner.id ? { ...p, ...partnerFormData } as EvacuationTransportPartner : p));
+      toast({ title: 'Partner Updated', description: `${partnerFormData.operator} details updated.` });
+    } else {
+      const newPartner: EvacuationTransportPartner = {
+        id: `partner-${Date.now()}`,
+        operator: partnerFormData.operator || 'Transport Operator',
+        vehicleType: partnerFormData.vehicleType || 'coach',
+        vehicleCount: Number(partnerFormData.vehicleCount) || 1,
+        totalSeats: Number(partnerFormData.totalSeats) || 50,
+        assignedSector: partnerFormData.assignedSector || '',
+        dispatchContact: partnerFormData.dispatchContact || '',
+        pickupMusterPoint: partnerFormData.pickupMusterPoint || '',
+        dropoffDestination: partnerFormData.dropoffDestination || '',
+        status: (partnerFormData.status as TransportReadinessStatus) || 'standby',
+        notes: partnerFormData.notes || ''
+      };
+      setEvacuationPartners(prev => [...prev, newPartner]);
+      toast({ title: 'Partner Added', description: `${newPartner.operator} added to fleet roster.` });
+    }
+    setIsPartnerModalOpen(false);
+  };
+
+  const handleDeletePartner = (id: string) => {
+    setEvacuationPartners(prev => prev.filter(p => p.id !== id));
+    toast({ title: 'Removed', description: 'Transport partner removed from roster.' });
+  };
+
+  const handlePrintDriverManifest = () => {
+    const printWindow = window.open('', '_blank', 'width=950,height=1100');
+    if (!printWindow) {
+      toast({
+        title: 'Popup Blocked',
+        description: 'Please allow popups in your browser to print the driver manifest sheet.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const totalCapacity = evacuationPartners.reduce((acc, p) => acc + (p.totalSeats || 0), 0);
+
+    const partnersHtml = evacuationPartners.map((p) => `
+      <div style="border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; font-size: 11px;">
+        <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 13px; color: #0f172a; margin-bottom: 4px;">
+          <span>[${p.vehicleType.toUpperCase().replace('_', ' ')}] ${p.operator}</span>
+          <span style="color: #047857; font-weight: 800;">${p.vehicleCount} Unit(s) • ${p.totalSeats} Total Seats</span>
+        </div>
+        <div style="color: #334155; margin-bottom: 3px;">📍 <strong>Assigned Sector:</strong> ${p.assignedSector}</div>
+        <div style="color: #334155; margin-bottom: 3px;">📞 <strong>24/7 Crisis Dispatch:</strong> <span style="font-family: monospace; font-weight: 800; color: #0f172a;">${p.dispatchContact}</span></div>
+        <div style="color: #334155;">🏁 <strong>Pickup Muster:</strong> ${p.pickupMusterPoint} ➔ <strong>Drop-Off Reception:</strong> ${p.dropoffDestination}</div>
+        ${p.notes ? `<div style="margin-top: 5px; padding: 4px 8px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 6px; color: #92400e; font-weight: 700; font-size: 10.5px;">💡 Note: ${p.notes}</div>` : ''}
+      </div>
+    `).join('');
+
+    const pointsHtml = collectionPoints.map((pt) => `
+      <div style="border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; font-size: 11px;">
+        <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 13px; color: #0f172a; margin-bottom: 4px;">
+          <span>${pt.name}</span>
+          <span style="font-size: 10px; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-weight: 800; text-transform: uppercase;">${pt.accessibleFor.replace('_', ' ')}</span>
+        </div>
+        <div style="color: #334155; margin-bottom: 3px;">📍 <strong>Address:</strong> ${pt.address}</div>
+        <div style="color: #334155; margin-bottom: 3px;">🎯 <strong>Assigned Fleet:</strong> ${pt.designatedVehicles} ➔ <strong>Drop-Off Shelter:</strong> ${pt.dropoffShelter}</div>
+        <div style="color: #334155;">👤 <strong>On-Site Lead:</strong> ${pt.onSiteCoordinator} (${pt.coordinatorPhone})</div>
+      </div>
+    `).join('');
+
+    const htmlContent = [
+      '<!DOCTYPE html>',
+      '<html lang="en">',
+      '<head>',
+      '<meta charset="utf-8" />',
+      '<title>EMERGENCY EVACUATION DRIVER BRIEFING & MANIFEST - ' + townshipName.toUpperCase() + '</title>',
+      '<style>',
+      '@page { size: A4 portrait; margin: 8mm; }',
+      '* { box-sizing: border-box; margin: 0; padding: 0; }',
+      'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; background: #ffffff; font-size: 11px; line-height: 1.35; padding: 10px; }',
+      '.header { border-bottom: 3px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; }',
+      '.title { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; color: #0f172a; }',
+      '.subtitle { font-size: 11px; font-weight: 600; color: #475569; margin-top: 2px; }',
+      '.badge { font-size: 9px; font-weight: 900; color: #dc2626; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3px; }',
+      '.meta-box { background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; font-weight: 800; font-size: 11px; }',
+      '.section-title { font-size: 12px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-top: 14px; margin-bottom: 8px; color: #0f172a; }',
+      '.driver-orders { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 10px 14px; margin-top: 14px; color: #78350f; font-size: 11px; }',
+      '.driver-orders h4 { font-weight: 900; margin-bottom: 5px; text-transform: uppercase; font-size: 12px; }',
+      '.driver-orders ol { padding-left: 18px; }',
+      '.driver-orders li { margin-bottom: 3px; }',
+      '.footer { margin-top: 16px; border-top: 1px solid #cbd5e1; padding-top: 6px; font-size: 9px; color: #64748b; text-align: center; font-family: monospace; }',
+      '</style>',
+      '</head>',
+      '<body>',
+      '<div class="header">',
+      '  <div>',
+      '    <div class="badge">SCOTTISH CIVIL RESILIENCE TRANSPORT PROTOCOL</div>',
+      '    <div class="title">CIVIC EVACUATION DRIVER BRIEFING & MANIFEST</div>',
+      '    <div class="subtitle">Official Operational Sheet for Stagecoach Drivers, Accessible Van Operators & Taxi Marshals</div>',
+      '  </div>',
+      '  <div style="text-align: right; font-family: monospace; font-size: 10px; font-weight: 800;">',
+      '    <div>JURISDICTION: ' + townshipName.toUpperCase() + '</div>',
+      '    <div>DATE: ' + new Date().toLocaleDateString('en-GB') + '</div>',
+      '  </div>',
+      '</div>',
+      '<div class="meta-box">',
+      '  <div>COMMUNITY: <strong>' + townshipName + '</strong></div>',
+      '  <div>TOTAL REGISTERED FLEET CAPACITY: <span style="color: #047857;">' + totalCapacity + ' PASSENGER SEATS</span></div>',
+      '  <div>FLEET OPERATORS: <strong>' + evacuationPartners.length + ' REGISTERED</strong></div>',
+      '</div>',
+      '<div class="section-title">1. REGISTERED TRANSPORT FLEET OPERATORS</div>',
+      partnersHtml,
+      '<div class="section-title">2. DESIGNATED PASSENGER COLLECTION & MUSTER HUBS</div>',
+      pointsHtml,
+      '<div class="driver-orders">',
+      '  <h4>⚠️ MANDATORY FIELD DRIVER & OPERATOR INSTRUCTIONS</h4>',
+      '  <ol>',
+      '    <li><strong>Road Suitability & Clearance:</strong> Full-size coaches (Tier 1) must remain on designated arterial A-Roads and Wide Hubs. Do NOT attempt narrow single-track country passes.</li>',
+      '    <li><strong>Priority Boarding:</strong> Give immediate priority boarding to non-ambulatory, elderly, and vulnerable residents requiring assistance.</li>',
+      '    <li><strong>Departure & Arrival Logging:</strong> Report vehicle ID, passenger headcount, and departure time to the On-Site Muster Lead or 24/7 Crisis Dispatch number before moving off.</li>',
+      '    <li><strong>Designated Drop-Off Shelters:</strong> Transport evacuees strictly to the designated reception shelter specified above unless re-routed by Police Scotland / SFRS Incident Command.</li>',
+      '  </ol>',
+      '</div>',
+      '<div class="footer">',
+      '  COMMUNITY RESILIENCE EMERGENCY PLANNING DOCUMENT • OFFICIAL DRIVER FIELD MANIFEST • KEEP IN CAB / GLOVEBOX',
+      '</div>',
+      '<script>',
+      '  window.onload = function() { window.print(); };',
+      '</script>',
+      '</body>',
+      '</html>'
+    ].join('\n');
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  const handleTogglePartnerStatus = (id: string, newStatus: TransportReadinessStatus) => {
+    setEvacuationPartners(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
+    toast({ title: 'Status Updated', description: `Fleet partner status set to ${newStatus.toUpperCase()}` });
+  };
+
+  const handleOpenAddPoint = () => {
+    setEditingPoint(null);
+    setPointFormData({
+      name: '',
+      address: '',
+      accessibleFor: 'all_vehicles',
+      targetRoads: '',
+      designatedVehicles: '',
+      dropoffShelter: '',
+      onSiteCoordinator: '',
+      coordinatorPhone: '',
+      status: 'staged',
+      notes: ''
+    });
+    setIsPointModalOpen(true);
+  };
+
+  const handleOpenEditPoint = (point: EvacuationCollectionPoint) => {
+    setEditingPoint(point);
+    setPointFormData({ ...point });
+    setIsPointModalOpen(true);
+  };
+
+  const handleSavePoint = () => {
+    if (!pointFormData.name || !pointFormData.address) {
+      toast({ title: 'Validation Error', description: 'Collection point name and address are required.', variant: 'destructive' });
+      return;
+    }
+
+    if (editingPoint) {
+      setCollectionPoints(prev => prev.map(pt => pt.id === editingPoint.id ? { ...pt, ...pointFormData } as EvacuationCollectionPoint : pt));
+      toast({ title: 'Muster Point Updated', description: `${pointFormData.name} updated.` });
+    } else {
+      const newPoint: EvacuationCollectionPoint = {
+        id: `point-${Date.now()}`,
+        name: pointFormData.name || 'Collection Point',
+        address: pointFormData.address || '',
+        accessibleFor: (pointFormData.accessibleFor as RoadAccessibilityTier) || 'all_vehicles',
+        targetRoads: pointFormData.targetRoads || '',
+        designatedVehicles: pointFormData.designatedVehicles || '',
+        dropoffShelter: pointFormData.dropoffShelter || '',
+        onSiteCoordinator: pointFormData.onSiteCoordinator || '',
+        coordinatorPhone: pointFormData.coordinatorPhone || '',
+        status: (pointFormData.status as any) || 'staged',
+        notes: pointFormData.notes || ''
+      };
+      setCollectionPoints(prev => [...prev, newPoint]);
+      toast({ title: 'Muster Point Added', description: `${newPoint.name} added to evacuation matrix.` });
+    }
+    setIsPointModalOpen(false);
+  };
+
+  const handleDeletePoint = (id: string) => {
+    setCollectionPoints(prev => prev.filter(pt => pt.id !== id));
+    toast({ title: 'Removed', description: 'Collection point removed from plan.' });
+  };
+
   // Registered Volunteers subcollection query
   const volunteersQuery = useMemoFirebase(() => {
     if (!db || !activeCommunityId) return null;
@@ -1129,6 +1409,14 @@ export default function LeaderEmergencyPlanPage() {
           // Load Dynamic Keyholders & Access Register
           if (Array.isArray(data.keyholdersList) && data.keyholdersList.length > 0) {
             setKeyholdersList(data.keyholdersList);
+          }
+
+          // Load Evacuation Transport Fleet & Collection Points
+          if (Array.isArray(data.evacuationPartners) && data.evacuationPartners.length > 0) {
+            setEvacuationPartners(data.evacuationPartners);
+          }
+          if (Array.isArray(data.collectionPoints) && data.collectionPoints.length > 0) {
+            setCollectionPoints(data.collectionPoints);
           }
 
           // Load Scenario-Specific Multi-Agency Liaisons
@@ -1343,6 +1631,8 @@ export default function LeaderEmergencyPlanPage() {
           keyholdersList,
           scenarioLiaisons,
           scenarioNotes,
+          evacuationPartners,
+          collectionPoints,
           incidentSops: sopsMap,
           wildfireHazardAreas: wfHazardAreas,
           wildfireAssetList: wfAssetList,
@@ -1541,6 +1831,90 @@ export default function LeaderEmergencyPlanPage() {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setIsRetractingMessage(false);
+    }
+  };
+
+  // Live Situation Message Archive Handler
+  const handleArchiveMessage = async (messageId: string, reason?: string) => {
+    if (!activeCommunityId || !user) {
+      toast({ title: 'Error', description: 'Leader authentication required.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const author = (userProfile as any)?.name || user.displayName || 'Incident Commander';
+      const role = (userProfile as any)?.role || 'Community Resilience Leader';
+      const res = await archiveEmergencyMessageAction({
+        communityId: activeCommunityId,
+        messageId,
+        authorName: author,
+        authorRole: role,
+        authorId: user.uid,
+        authorEmail: user.email || '',
+        reason: reason || 'Bulletin archived by incident commander.',
+      });
+
+      if (res.success) {
+        toast({
+          title: 'Bulletin Archived 📦',
+          description: 'Emergency bulletin has been cleared from active status and archived to audit logs.'
+        });
+      } else {
+        toast({ title: 'Archive Failed', description: res.error, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  // Stand Down Incident & Bulk Archive Handler
+  const handleStandDownIncident = async () => {
+    if (!activeCommunityId || !user) {
+      toast({ title: 'Error', description: 'Leader authentication required.', variant: 'destructive' });
+      return;
+    }
+
+    setIsStandingDown(true);
+    try {
+      const author = (userProfile as any)?.name || user.displayName || 'Incident Commander';
+      const role = (userProfile as any)?.role || 'Community Resilience Leader';
+
+      const res = await standDownEmergencyAndArchiveBulletinsAction({
+        communityId: activeCommunityId,
+        authorName: author,
+        authorRole: role,
+        authorId: user.uid,
+        authorEmail: user.email || '',
+        issueAllClearNotice: standDownIssueAllClear,
+        allClearTitle: standDownAllClearTitle.trim(),
+        allClearBody: standDownAllClearBody.trim(),
+        hazardCategory: activeHazardScenario,
+      });
+
+      if (res.success) {
+        toast({
+          title: 'Incident Stood Down & Archived 🟢',
+          description: `All ${res.archivedCount || 0} active bulletins were archived to the audit log. Threat status restored to Normal (Green).`
+        });
+        setCurrentThreatStatus('normal');
+        if (standDownIssueAllClear) {
+          setIsNoticeActive(true);
+          setNoticeHeadline(standDownAllClearTitle.trim());
+          setNoticeMessage(standDownAllClearBody.trim());
+          setNoticeIssuedBy(`${author} (${role})`);
+        } else {
+          setIsNoticeActive(false);
+          setNoticeHeadline('');
+          setNoticeMessage('');
+        }
+        setIsStandDownDialogOpen(false);
+      } else {
+        toast({ title: 'Stand Down Failed', description: res.error, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsStandingDown(false);
     }
   };
 
@@ -2506,6 +2880,13 @@ export default function LeaderEmergencyPlanPage() {
                 className="gap-2 data-[state=active]:bg-emerald-600 data-[state=active]:text-white font-semibold text-xs py-2 px-3.5 rounded-xl transition-all"
               >
                 <Award className="h-4 w-4 text-emerald-400 data-[state=active]:text-white" /> Civil Defence
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="evacuation"
+                className="gap-2 data-[state=active]:bg-teal-600 data-[state=active]:text-white font-semibold text-xs py-2 px-3.5 rounded-xl transition-all"
+              >
+                <Bus className="h-4 w-4 text-teal-400 data-[state=active]:text-white" /> Evacuation Fleet ({evacuationPartners.length})
               </TabsTrigger>
 
               <TabsTrigger
@@ -3751,6 +4132,281 @@ export default function LeaderEmergencyPlanPage() {
             {renderScenarioLiaisonsCard('defence', 'Civil Defence & Emergency Distribution')}
           </TabsContent>
 
+          {/* TAB CONTENT: EVACUATION FLEET & COLLECTION POINTS */}
+          <TabsContent value="evacuation" className="space-y-6 mt-4">
+            
+            {/* Strategy Callout Banner */}
+            <Card className="border-2 border-teal-500/40 bg-gradient-to-br from-teal-950/40 via-card to-slate-900/60 shadow-lg">
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-2xl bg-teal-500/20 text-teal-600 dark:text-teal-300 border-2 border-teal-500/40 shrink-0">
+                      <Bus className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-teal-600 text-white border-teal-700 text-[11px] uppercase font-black tracking-wide">
+                          Multi-Tier Evacuation Logistics
+                        </Badge>
+                        <Badge variant="outline" className="text-xs font-bold text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
+                          {evacuationPartners.reduce((acc, p) => acc + (p.totalSeats || 0), 0)} Total Passenger Seats Available
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-xl font-black mt-1 text-slate-950 dark:text-white">
+                        Civic Mass Evacuation & Transport Mobilisation Fleet
+                      </CardTitle>
+                      <CardDescription className="text-xs max-w-3xl leading-relaxed text-slate-700 dark:text-slate-300 font-medium mt-0.5">
+                        Coordinated standby and dispatch protocols for bus operators (Stagecoach), accessible community minibuses, and local 4x4 taxis tailored to road geography and accessibility constraints.
+                      </CardDescription>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button 
+                      onClick={() => setIsPrintManifestModalOpen(true)}
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs font-bold gap-1.5 border-teal-500 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 shadow-sm"
+                    >
+                      <Printer className="h-3.5 w-3.5" /> Driver Manifest (PDF)
+                    </Button>
+                    <Button 
+                      onClick={handleOpenAddPartner} 
+                      size="sm" 
+                      className="bg-teal-700 hover:bg-teal-800 text-white font-extrabold text-xs gap-1.5 shadow-sm"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add Transport Partner
+                    </Button>
+                    <Button 
+                      onClick={handleOpenAddPoint} 
+                      variant="secondary" 
+                      size="sm" 
+                      className="font-extrabold text-xs gap-1.5 text-slate-900 dark:text-white"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add Muster Point
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="pt-2">
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-card border-2 border-teal-500/30 space-y-1.5 shadow-sm">
+                    <div className="flex items-center gap-2 font-black text-xs text-teal-700 dark:text-teal-300">
+                      <Bus className="h-4 w-4" />
+                      <span>Tier 1: Arterial Coaches</span>
+                    </div>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                      50–70 seat coaches staged at main arterial collection hubs (Town Square/Arenas). Move high passenger volumes on wide roads.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-card border-2 border-indigo-500/30 space-y-1.5 shadow-sm">
+                    <div className="flex items-center gap-2 font-black text-xs text-indigo-700 dark:text-indigo-300">
+                      <Truck className="h-4 w-4" />
+                      <span>Tier 2: Feeder & Care Vans</span>
+                    </div>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                      12–16 seat wheelchair-accessible minibuses dedicated to care homes, assisted living, and residential estate feeder runs.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-card border-2 border-amber-400 dark:border-amber-700 space-y-1.5 shadow-sm">
+                    <div className="flex items-center gap-2 font-black text-xs text-amber-900 dark:text-amber-300">
+                      <Car className="h-4 w-4" />
+                      <span>Tier 3: Rural 4x4 & Taxis</span>
+                    </div>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                      4–8 seat taxis and 4WD vehicles dispatched to single-track country lanes, farms, and non-ambulatory residents.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Transport Partners Fleet Table / Cards */}
+            <Card className="border-2 shadow-md bg-card">
+              <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                    <Bus className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                    Transport Partner Fleet Inventory ({evacuationPartners.length})
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                    Operators and emergency dispatch contacts registered for civic evacuation.
+                  </CardDescription>
+                </div>
+                <Button onClick={handleOpenAddPartner} size="sm" variant="ghost" className="text-xs font-bold gap-1 text-teal-700 dark:text-teal-300">
+                  <Plus className="h-3.5 w-3.5" /> Add Partner
+                </Button>
+              </CardHeader>
+
+              <CardContent className="p-4 space-y-3">
+                {evacuationPartners.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-6 font-medium">No transport partners added yet.</p>
+                ) : (
+                  <div className="grid gap-3">
+                    {evacuationPartners.map((partner) => (
+                      <div 
+                        key={partner.id}
+                        className="p-4 rounded-2xl border-2 bg-card hover:bg-muted/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm"
+                      >
+                        <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                          <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30 shrink-0">
+                            {partner.vehicleType === 'coach' && <Bus className="h-5 w-5" />}
+                            {partner.vehicleType === 'minibus' && <Truck className="h-5 w-5" />}
+                            {partner.vehicleType === 'accessible_van' && <LifeBuoy className="h-5 w-5" />}
+                            {partner.vehicleType === 'taxi_4x4' && <Car className="h-5 w-5" />}
+                          </div>
+
+                          <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-[10px] font-bold uppercase border-slate-400 dark:border-slate-600 text-slate-800 dark:text-slate-200">
+                                {partner.vehicleType.replace('_', ' ')}
+                              </Badge>
+                              <Badge className="bg-primary/20 text-primary border border-primary/40 text-[10px] font-extrabold">
+                                {partner.vehicleCount} Vehicle{partner.vehicleCount > 1 ? 's' : ''} ({partner.totalSeats} seats)
+                              </Badge>
+                              <Badge 
+                                className={`text-[10px] font-black uppercase tracking-wider ${
+                                  partner.status === 'standby' ? 'bg-amber-100 text-amber-950 border-2 border-amber-400 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-600' :
+                                  partner.status === 'mobilised' ? 'bg-orange-100 text-orange-950 border-2 border-orange-400 dark:bg-orange-950 dark:text-orange-100 dark:border-orange-600' :
+                                  partner.status === 'active_evacuation' ? 'bg-red-600 text-white border-2 border-red-700 animate-pulse' :
+                                  'bg-emerald-100 text-emerald-950 border-2 border-emerald-400 dark:bg-emerald-950 dark:text-emerald-100 dark:border-emerald-600'
+                                }`}
+                              >
+                                {partner.status.replace('_', ' ')}
+                              </Badge>
+                            </div>
+
+                            <p className="font-black text-base text-slate-950 dark:text-white">{partner.operator}</p>
+                            <p className="text-xs text-slate-800 dark:text-slate-200 font-semibold">
+                              📍 <strong>Assigned Sector:</strong> {partner.assignedSector}
+                            </p>
+                            <p className="text-xs text-slate-800 dark:text-slate-200">
+                              📞 <strong>24/7 Dispatch:</strong> <span className="font-mono text-slate-950 dark:text-white font-bold">{partner.dispatchContact}</span>
+                            </p>
+
+                            {partner.notes && (
+                              <p className="text-xs font-bold text-amber-950 dark:text-amber-100 bg-amber-100 dark:bg-amber-950/80 px-3 py-1.5 rounded-xl border-2 border-amber-300 dark:border-amber-700 inline-block mt-1">
+                                💡 {partner.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                          <Select 
+                            value={partner.status} 
+                            onValueChange={(val: TransportReadinessStatus) => handleTogglePartnerStatus(partner.id, val)}
+                          >
+                            <SelectTrigger className="h-8 text-xs font-bold w-36 border-2">
+                              <SelectValue placeholder="Set Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="standby" className="font-bold">🟡 Standby</SelectItem>
+                              <SelectItem value="mobilised" className="font-bold">🟠 Mobilised</SelectItem>
+                              <SelectItem value="active_evacuation" className="font-bold">🔴 Active Evac</SelectItem>
+                              <SelectItem value="completed" className="font-bold">🟢 Completed</SelectItem>
+                              <SelectItem value="off_duty" className="font-bold">⚪ Off Duty</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          <Button onClick={() => handleOpenEditPartner(partner)} variant="outline" size="sm" className="h-8 px-2.5 text-xs font-bold">
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button onClick={() => handleDeletePartner(partner.id)} variant="ghost" size="sm" className="h-8 px-2 text-destructive hover:bg-destructive/10">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Designated Collection Points Matrix */}
+            <Card className="border-2 shadow-md bg-card">
+              <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                    <MapPin className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                    Designated Passenger Collection Points & Muster Hubs ({collectionPoints.length})
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                    Pre-arranged pickup locations with road suitability rules for public evacuation.
+                  </CardDescription>
+                </div>
+                <Button onClick={handleOpenAddPoint} size="sm" variant="ghost" className="text-xs font-bold gap-1 text-teal-700 dark:text-teal-300">
+                  <Plus className="h-3.5 w-3.5" /> Add Muster Point
+                </Button>
+              </CardHeader>
+
+              <CardContent className="p-4 space-y-3">
+                {collectionPoints.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-6 font-medium">No collection points configured yet.</p>
+                ) : (
+                  <div className="grid gap-3">
+                    {collectionPoints.map((point) => (
+                      <div 
+                        key={point.id}
+                        className="p-4 rounded-2xl border-2 bg-card hover:bg-muted/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm"
+                      >
+                        <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                          <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 shrink-0">
+                            <MapPin className="h-5 w-5" />
+                          </div>
+
+                          <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge 
+                                className={`text-[10px] font-extrabold ${
+                                  point.accessibleFor === 'all_vehicles' ? 'bg-teal-100 text-teal-950 border-2 border-teal-400 dark:bg-teal-950 dark:text-teal-100 dark:border-teal-700' :
+                                  point.accessibleFor === 'minibus_taxi_only' ? 'bg-amber-100 text-amber-950 border-2 border-amber-400 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-700' :
+                                  'bg-red-100 text-red-950 border-2 border-red-400 dark:bg-red-950 dark:text-red-100 dark:border-red-700'
+                                }`}
+                              >
+                                {point.accessibleFor === 'all_vehicles' && '🚌 All Vehicles & Full Coaches OK'}
+                                {point.accessibleFor === 'minibus_taxi_only' && '🚐 Minibus & Taxi ONLY (Narrow Access)'}
+                                {point.accessibleFor === '4x4_only' && '🚙 4x4 / Rural Off-Road ONLY'}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px] font-bold border-slate-400 dark:border-slate-600 text-slate-800 dark:text-slate-200">
+                                {point.status.toUpperCase()}
+                              </Badge>
+                            </div>
+
+                            <p className="font-black text-base text-slate-950 dark:text-white">{point.name}</p>
+                            <p className="text-xs text-slate-800 dark:text-slate-200 font-medium">{point.address}</p>
+                            <p className="text-xs text-slate-800 dark:text-slate-200">
+                              🎯 <strong>Assigned Vehicles:</strong> <span className="text-slate-950 dark:text-white font-bold">{point.designatedVehicles}</span>
+                            </p>
+                            <p className="text-xs text-slate-800 dark:text-slate-200">
+                              🏁 <strong>Drop-Off Shelter:</strong> <span className="text-slate-950 dark:text-white font-bold">{point.dropoffShelter}</span>
+                            </p>
+                            <p className="text-xs text-slate-800 dark:text-slate-200">
+                              👤 <strong>On-Site Lead:</strong> {point.onSiteCoordinator} ({point.coordinatorPhone})
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                          <Button onClick={() => handleOpenEditPoint(point)} variant="outline" size="sm" className="h-8 px-2.5 text-xs font-bold">
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button onClick={() => handleDeletePoint(point.id)} variant="ghost" size="sm" className="h-8 px-2 text-destructive hover:bg-destructive/10">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+          </TabsContent>
+
           {/* TAB CONTENT: 8. MASTER STATUTORY PRINT VIEW */}
           <TabsContent value="submission" className="space-y-6 mt-4">
             <Card className="border-amber-500/50 shadow-xl bg-card">
@@ -3854,35 +4510,46 @@ export default function LeaderEmergencyPlanPage() {
                   <Badge className="bg-pink-500/20 text-pink-300 border-pink-500/40 text-[10px] font-mono uppercase px-2 py-0.5">
                     Live Incident Communications
                   </Badge>
-                  {isNoticeActive ? (
+                  {isNoticeActive || (emergencyMessagesList && emergencyMessagesList.some((m: any) => m.isActive)) ? (
                     <Badge className="bg-red-600 text-white font-bold animate-pulse text-[10px] uppercase font-mono tracking-wider">
-                      ● Active Public Notice
+                      ● Active Incident Bulletins Live
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-[10px] font-mono uppercase">
-                      ✓ Normal (No Active Emergency)
+                      ✓ Normal (No Active Bulletins)
                     </Badge>
                   )}
                 </div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <MessageSquareText className="h-5 w-5 text-pink-400" />
-                  Live Situation Bulletins & Public Emergency Messaging
+                  Live Situation Bulletins & Emergency Broadcast Archive
                 </h3>
                 <p className="text-xs text-slate-300 max-w-2xl">
-                  Broadcast verified real-time situation updates, road closures, sandbag arrivals, and refuge notices directly to the public community emergency page.
+                  Broadcast verified situation updates to the public portal. When an incident is resolved, execute Stand Down to archive active warnings to the compliance audit log.
                 </p>
               </div>
 
-              {isNoticeActive && (
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
-                  onClick={() => setIsRetractDialogOpen(true)}
+                  onClick={() => setIsStandDownDialogOpen(true)}
                   variant="outline"
                   size="sm"
-                  className="bg-red-950/40 border-red-500/60 text-red-300 hover:bg-red-900/60 text-xs font-bold gap-2 shrink-0"
+                  className="bg-emerald-950/60 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/60 text-xs font-bold gap-2 shrink-0 shadow-md"
                 >
-                  <XCircle className="h-4 w-4 text-red-400" /> Retract / Clear Active Notice
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" /> 🟢 Stand Down & Archive All
                 </Button>
-              )}
+
+                {isNoticeActive && (
+                  <Button
+                    onClick={() => setIsRetractDialogOpen(true)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-red-950/40 border-red-500/60 text-red-300 hover:bg-red-900/60 text-xs font-bold gap-2 shrink-0"
+                  >
+                    <XCircle className="h-4 w-4 text-red-400" /> Retract Active Notice
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Currently Active Live Notice Card */}
@@ -4041,97 +4708,252 @@ export default function LeaderEmergencyPlanPage() {
               </CardContent>
             </Card>
 
-            {/* Historical Emergency Bulletins Stream */}
+            {/* Historical Emergency Bulletins Stream & Archive Matrix */}
             <Card className="border-slate-800 bg-slate-950/80 shadow-md">
               <CardHeader className="p-4 bg-muted/20 border-b border-slate-800">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-0.5">
                     <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
-                      <History className="h-4 w-4 text-primary" /> Emergency Bulletins History ({emergencyMessagesList?.length || 0})
+                      <History className="h-4 w-4 text-primary" /> Emergency Bulletins History & Archive ({emergencyMessagesList?.length || 0})
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      Chronological log of all situation notices published for this community.
+                      Chronological log of all situation notices and archived historical records.
                     </CardDescription>
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setBulletinFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                        bulletinFilter === 'all'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      All ({emergencyMessagesList?.length || 0})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBulletinFilter('active')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                        bulletinFilter === 'active'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span>Active</span>
+                      <span className="text-[10px] px-1 bg-emerald-950 rounded">
+                        {emergencyMessagesList?.filter((m: any) => m.isActive).length || 0}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBulletinFilter('archived')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                        bulletinFilter === 'archived'
+                          ? 'bg-slate-700 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span>Archived</span>
+                      <span className="text-[10px] px-1 bg-slate-800 rounded">
+                        {emergencyMessagesList?.filter((m: any) => !m.isActive).length || 0}
+                      </span>
+                    </button>
                   </div>
                 </div>
               </CardHeader>
+
               <CardContent className="p-4 md:p-6 space-y-3">
-                {emergencyMessagesList && emergencyMessagesList.length > 0 ? (
-                  <div className="space-y-3">
-                    {emergencyMessagesList.map((msg: any) => (
-                      <div
-                        key={msg.id}
-                        className={`p-4 rounded-xl border transition-all space-y-2 text-xs ${
-                          msg.isActive
-                            ? 'bg-slate-900/80 border-pink-500/50 shadow-md'
-                            : 'bg-slate-900/30 border-slate-800 text-slate-400'
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge
-                              className={`text-[10px] font-mono uppercase ${
-                                msg.level === 'critical'
-                                  ? 'bg-red-600 text-white'
-                                  : msg.level === 'warning'
-                                  ? 'bg-amber-500 text-slate-950 font-bold'
-                                  : msg.level === 'allclear'
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'bg-blue-600 text-white'
-                              }`}
-                            >
-                              {msg.level}
-                            </Badge>
-                            <Badge variant="outline" className="text-[10px] uppercase font-mono border-slate-700 text-slate-300">
-                              {msg.hazardCategory || 'General'}
-                            </Badge>
-                            <span className="font-bold text-white text-sm">{msg.title}</span>
-                          </div>
+                {(() => {
+                  const filteredList = (emergencyMessagesList || []).filter((msg: any) => {
+                    if (bulletinFilter === 'active') return msg.isActive;
+                    if (bulletinFilter === 'archived') return !msg.isActive;
+                    return true;
+                  });
 
-                          <div className="flex items-center gap-2">
-                            {msg.isActive ? (
-                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-[10px]">
-                                Active On Portal
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="border-slate-700 text-slate-500 text-[10px]">
-                                Archived / Retracted
-                              </Badge>
-                            )}
-                            {msg.isActive && permissions.canSendMessages && (
-                              <Button
-                                onClick={() => handleRetractMessage(msg.id)}
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 text-[11px] text-red-400 hover:bg-red-500/10 hover:text-red-300 px-2"
-                              >
-                                Retract
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-
-                        <p className="text-slate-200 whitespace-pre-wrap leading-relaxed">{msg.body}</p>
-
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
-                          <span>Issued by: <strong className="text-slate-300">{msg.authorName}</strong> ({msg.authorRole})</span>
-                          <span>
-                            {msg.createdAt?.toDate
-                              ? msg.createdAt.toDate().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                              : 'Recent'}
-                          </span>
-                        </div>
+                  if (filteredList.length === 0) {
+                    return (
+                      <div className="p-8 rounded-xl border border-dashed border-slate-800 text-center space-y-1 text-xs text-slate-400">
+                        <p className="font-bold text-white">No bulletins found for this filter ({bulletinFilter}).</p>
+                        <p>All emergency messages and archived records will be displayed here.</p>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-8 rounded-xl border border-dashed border-slate-800 text-center space-y-1 text-xs text-slate-400">
-                    <p className="font-bold text-white">No emergency bulletins issued yet.</p>
-                    <p>Use the composer above to broadcast real-time messages to residents during weather or emergency events.</p>
-                  </div>
-                )}
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {filteredList.map((msg: any) => (
+                        <div
+                          key={msg.id}
+                          className={`p-4 rounded-xl border transition-all space-y-2 text-xs ${
+                            msg.isActive
+                              ? 'bg-slate-900/80 border-pink-500/50 shadow-md'
+                              : 'bg-slate-900/30 border-slate-800/80 text-slate-400'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge
+                                className={`text-[10px] font-mono uppercase ${
+                                  msg.level === 'critical'
+                                    ? 'bg-red-600 text-white'
+                                    : msg.level === 'warning'
+                                    ? 'bg-amber-500 text-slate-950 font-bold'
+                                    : msg.level === 'allclear'
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-blue-600 text-white'
+                                }`}
+                              >
+                                {msg.level}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px] uppercase font-mono border-slate-700 text-slate-300">
+                                {msg.hazardCategory || 'General'}
+                              </Badge>
+                              <span className="font-bold text-white text-sm">{msg.title}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {msg.isActive ? (
+                                <>
+                                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-[10px]">
+                                    Active On Portal
+                                  </Badge>
+                                  {permissions.canSendMessages && (
+                                    <Button
+                                      onClick={() => handleArchiveMessage(msg.id)}
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 text-[11px] border-amber-500/40 text-amber-300 hover:bg-amber-500/10 px-2"
+                                    >
+                                      📦 Archive / Clear
+                                    </Button>
+                                  )}
+                                  {permissions.canSendMessages && (
+                                    <Button
+                                      onClick={() => handleRetractMessage(msg.id)}
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 text-[11px] text-red-400 hover:bg-red-500/10 hover:text-red-300 px-2"
+                                    >
+                                      Retract
+                                    </Button>
+                                  )}
+                                </>
+                              ) : (
+                                <Badge variant="outline" className="border-slate-700 text-slate-400 text-[10px] bg-slate-900/60 font-mono">
+                                  📦 Stood Down & Archived for Audit
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          <p className="text-slate-200 whitespace-pre-wrap leading-relaxed">{msg.body}</p>
+
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800/40 flex-wrap gap-2">
+                            <span>
+                              Issued by: <strong className="text-slate-300">{msg.authorName}</strong> ({msg.authorRole})
+                              {msg.archiveReason && (
+                                <span className="text-slate-500 ml-2 italic">• Reason: {msg.archiveReason}</span>
+                              )}
+                            </span>
+                            <span>
+                              Published:{' '}
+                              {msg.createdAt?.toDate
+                                ? msg.createdAt.toDate().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                : 'Recent'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
+
+            {/* Stand Down & Bulk Archive Wizard Dialog */}
+            <Dialog open={isStandDownDialogOpen} onOpenChange={setIsStandDownDialogOpen}>
+              <DialogContent className="sm:max-w-lg bg-slate-950 border-slate-800 text-white">
+                <DialogHeader>
+                  <DialogTitle className="text-base font-bold flex items-center gap-2 text-emerald-400">
+                    <CheckCircle2 className="h-5 w-5" /> Stand Down Emergency Incident & Archive Bulletins
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-400">
+                    Executes official emergency stand-down. All active emergency warning bulletins will be archived to the compliance log and threat status returned to Normal (Green).
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-2 text-xs">
+                  <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 space-y-1">
+                    <p className="font-bold">Active Bulletins to be Archived:</p>
+                    <p className="text-[11px] text-emerald-300">
+                      {emergencyMessagesList?.filter((m: any) => m.isActive).length || 0} active bulletin(s) currently displaying on the public portal will be marked inactive and logged to the permanent audit record.
+                    </p>
+                  </div>
+
+                  {/* Option to Issue Final All-Clear Notice */}
+                  <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 space-y-3">
+                    <div className="flex items-start gap-2.5">
+                      <Checkbox
+                        id="issueAllClear"
+                        checked={standDownIssueAllClear}
+                        onCheckedChange={(checked) => setStandDownIssueAllClear(Boolean(checked))}
+                        className="mt-0.5"
+                      />
+                      <label htmlFor="issueAllClear" className="font-bold text-white text-xs cursor-pointer">
+                        Publish Final Official 🟢 All-Clear Situation Notice on Portal
+                      </label>
+                    </div>
+
+                    {standDownIssueAllClear && (
+                      <div className="space-y-2 pt-2 border-t border-slate-800">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-bold text-slate-300">All-Clear Headline</Label>
+                          <Input
+                            value={standDownAllClearTitle}
+                            onChange={(e) => setStandDownAllClearTitle(e.target.value)}
+                            className="bg-slate-900 border-slate-700 text-white text-xs h-8 font-semibold"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-bold text-slate-300">All-Clear Public Message</Label>
+                          <Textarea
+                            value={standDownAllClearBody}
+                            onChange={(e) => setStandDownAllClearBody(e.target.value)}
+                            rows={3}
+                            className="bg-slate-900 border-slate-700 text-white text-xs resize-y"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsStandDownDialogOpen(false)}
+                    className="bg-slate-900 border-slate-700 text-slate-300"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleStandDownIncident}
+                    disabled={isStandingDown}
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5"
+                  >
+                    {isStandingDown ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                    Confirm Incident Stand-Down & Archive
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Retract Dialog */}
             <Dialog open={isRetractDialogOpen} onOpenChange={setIsRetractDialogOpen}>
@@ -4221,9 +5043,11 @@ export default function LeaderEmergencyPlanPage() {
                   <div className="flex items-center gap-1.5 flex-wrap w-full md:w-auto overflow-x-auto pb-1">
                     {[
                       { key: 'ALL', label: 'All Events' },
-                      { key: 'PLAN_SAVE', label: 'Plan Saves' },
+                      { key: 'STAND_DOWN', label: '🟢 Stand-Downs' },
                       { key: 'BULLETIN_PUBLISH', label: 'Bulletins' },
+                      { key: 'BULLETIN_ARCHIVE', label: 'Archived' },
                       { key: 'BULLETIN_RETRACT', label: 'Retractions' },
+                      { key: 'PLAN_SAVE', label: 'Plan Saves' },
                       { key: 'FAILOVER_TOGGLE', label: 'Failovers' },
                       { key: 'CERTIFICATION_SIGN', label: 'Certifications' },
                       { key: 'THREAT_CHANGE', label: 'Threat Changes' },
@@ -4411,7 +5235,7 @@ export default function LeaderEmergencyPlanPage() {
       )}
 
       {/* KEYHOLDERS & INFRASTRUCTURE ACCESS REGISTER */}
-      {!['messages', 'audit'].includes(activeHazard) && (
+      {!['evacuation', 'messages', 'audit'].includes(activeHazard) && (
         <>
           <Card className="border shadow-md">
         <CardHeader className="bg-gradient-to-r from-amber-950/20 via-muted/30 to-muted/20 border-b pb-3">
@@ -4785,6 +5609,8 @@ export default function LeaderEmergencyPlanPage() {
           </div>
         </CardContent>
       </Card>
+      </>
+      )}
 
       {/* ADDITIONAL OPERATIONAL INFORMATION & RESILIENCE NOTES (UNIQUE PER SCENARIO) */}
       {['wildfire', 'urbanfire', 'flood', 'power', 'drought', 'unrest', 'defence'].includes(activeHazard) && (
@@ -4854,8 +5680,317 @@ export default function LeaderEmergencyPlanPage() {
           </Button>
         </div>
       </div>
-      </>
-      )}
+      {/* DIALOG: ADD/EDIT TRANSPORT PARTNER */}
+      <Dialog open={isPartnerModalOpen} onOpenChange={setIsPartnerModalOpen}>
+        <DialogContent className="sm:max-w-lg bg-card text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {editingPartner ? 'Edit Evacuation Transport Partner' : 'Add Evacuation Transport Partner'}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Configure partner vehicle tier, road access sector, and emergency dispatch contact.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="space-y-1">
+              <Label className="font-bold">Operator / Company Name</Label>
+              <Input
+                value={partnerFormData.operator || ''}
+                onChange={(e) => setPartnerFormData(prev => ({ ...prev, operator: e.target.value }))}
+                placeholder="e.g. Stagecoach North Scotland / Strathspey Cabs"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="font-bold">Vehicle Tier</Label>
+                <Select
+                  value={partnerFormData.vehicleType || 'coach'}
+                  onValueChange={(val: TransportVehicleType) => setPartnerFormData(prev => ({ ...prev, vehicleType: val }))}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Vehicle Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="coach">🚌 Large Coach (50-70pax)</SelectItem>
+                    <SelectItem value="minibus">🚐 Minibus (12-16pax)</SelectItem>
+                    <SelectItem value="accessible_van">♿ Accessible Lift Van</SelectItem>
+                    <SelectItem value="taxi_4x4">🚕 Taxi / 4x4 Private Hire</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="font-bold"># Vehicles</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={partnerFormData.vehicleCount || 1}
+                  onChange={(e) => setPartnerFormData(prev => ({ ...prev, vehicleCount: Number(e.target.value) }))}
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="font-bold">Total Seats</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={partnerFormData.totalSeats || 50}
+                  onChange={(e) => setPartnerFormData(prev => ({ ...prev, totalSeats: Number(e.target.value) }))}
+                  className="h-9 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="font-bold">Assigned Road Sector / Access Zone</Label>
+              <Input
+                value={partnerFormData.assignedSector || ''}
+                onChange={(e) => setPartnerFormData(prev => ({ ...prev, assignedSector: e.target.value }))}
+                placeholder="e.g. Arterial High Street & A95 / Rural Single-Track Lanes"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="font-bold">24/7 Emergency Dispatch Contact (Phone / Radio)</Label>
+              <Input
+                value={partnerFormData.dispatchContact || ''}
+                onChange={(e) => setPartnerFormData(prev => ({ ...prev, dispatchContact: e.target.value }))}
+                placeholder="e.g. 01463 233371 / 07700 900123"
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="font-bold">Primary Staging / Pickup Point</Label>
+                <Input
+                  value={partnerFormData.pickupMusterPoint || ''}
+                  onChange={(e) => setPartnerFormData(prev => ({ ...prev, pickupMusterPoint: e.target.value }))}
+                  placeholder="e.g. The Square & Burnfield Car Park"
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="font-bold">Designated Drop-Off Shelter</Label>
+                <Input
+                  value={partnerFormData.dropoffDestination || ''}
+                  onChange={(e) => setPartnerFormData(prev => ({ ...prev, dropoffDestination: e.target.value }))}
+                  placeholder="e.g. Aviemore Sports Complex (Shelter Alpha)"
+                  className="h-9 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="font-bold">Operational Notes & Road Constraints</Label>
+              <Textarea
+                value={partnerFormData.notes || ''}
+                onChange={(e) => setPartnerFormData(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="e.g. Large coaches suitable for main roads only. Single-track passes blocked for large chassis."
+                rows={2}
+                className="text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsPartnerModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSavePartner} className="bg-teal-600 hover:bg-teal-700 text-white font-bold">
+              {editingPartner ? 'Save Changes' : 'Add to Fleet'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: ADD/EDIT COLLECTION POINT */}
+      <Dialog open={isPointModalOpen} onOpenChange={setIsPointModalOpen}>
+        <DialogContent className="sm:max-w-lg bg-card text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {editingPoint ? 'Edit Muster Collection Point' : 'Add Passenger Collection Point'}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Configure public muster point location, road suitability, and on-site coordinator.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="space-y-1">
+              <Label className="font-bold">Muster Point Name</Label>
+              <Input
+                value={pointFormData.name || ''}
+                onChange={(e) => setPointFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g. The Square & Burnfield Coach Park"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="font-bold">Physical Address / Landmark</Label>
+              <Input
+                value={pointFormData.address || ''}
+                onChange={(e) => setPointFormData(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="e.g. High Street, Grantown-on-Spey, PH26 3HF"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="font-bold">Road Accessibility Tier</Label>
+                <Select
+                  value={pointFormData.accessibleFor || 'all_vehicles'}
+                  onValueChange={(val: RoadAccessibilityTier) => setPointFormData(prev => ({ ...prev, accessibleFor: val }))}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Accessibility" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all_vehicles">🚌 All Vehicles & Full Coaches OK</SelectItem>
+                    <SelectItem value="minibus_taxi_only">🚐 Minibus & Taxi ONLY (Narrow Road)</SelectItem>
+                    <SelectItem value="4x4_only">🚙 4x4 / Rural Track ONLY</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="font-bold">Designated Vehicles</Label>
+                <Input
+                  value={pointFormData.designatedVehicles || ''}
+                  onChange={(e) => setPointFormData(prev => ({ ...prev, designatedVehicles: e.target.value }))}
+                  placeholder="e.g. 2x Stagecoach Coaches + Minibuses"
+                  className="h-9 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="font-bold">Designated Drop-Off Destination Shelter</Label>
+              <Input
+                value={pointFormData.dropoffShelter || ''}
+                onChange={(e) => setPointFormData(prev => ({ ...prev, dropoffShelter: e.target.value }))}
+                placeholder="e.g. Aviemore Community Centre (Shelter Alpha)"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="font-bold">On-Site Coordinator Name</Label>
+                <Input
+                  value={pointFormData.onSiteCoordinator || ''}
+                  onChange={(e) => setPointFormData(prev => ({ ...prev, onSiteCoordinator: e.target.value }))}
+                  placeholder="e.g. John MacRae (Community Warden)"
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="font-bold">Coordinator Contact Phone</Label>
+                <Input
+                  value={pointFormData.coordinatorPhone || ''}
+                  onChange={(e) => setPointFormData(prev => ({ ...prev, coordinatorPhone: e.target.value }))}
+                  placeholder="e.g. 07700 900222"
+                  className="h-9 text-xs font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsPointModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSavePoint} className="bg-teal-600 hover:bg-teal-700 text-white font-bold">
+              {editingPoint ? 'Save Changes' : 'Add Muster Point'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: PRINTABLE DRIVER MANIFEST & INCIDENT BRIEFING */}
+      <Dialog open={isPrintManifestModalOpen} onOpenChange={setIsPrintManifestModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white text-slate-950">
+          <DialogHeader>
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Bus className="h-5 w-5 text-teal-600" />
+                  EMERGENCY EVACUATION DRIVER BRIEFING & MANIFEST
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-600">
+                  Official operational transport sheet for Stagecoach drivers, taxi marshals, and emergency services.
+                </DialogDescription>
+              </div>
+              <Button onClick={handlePrintDriverManifest} size="sm" className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs gap-1.5 shadow-sm">
+                <Printer className="h-4 w-4" /> Print Sheet
+              </Button>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs font-mono">
+            <div className="p-3 bg-slate-100 rounded-xl border border-slate-300 space-y-1">
+              <p className="font-bold text-slate-900 text-sm">COMMUNITY: {townshipName.toUpperCase()}</p>
+              <p className="text-slate-700">DATE: {new Date().toLocaleDateString('en-GB')} | CRISIS TRANSPORT NET</p>
+              <p className="text-slate-700">TOTAL FLEET CAPACITY: {evacuationPartners.reduce((acc, p) => acc + (p.totalSeats || 0), 0)} PASSENGER SEATS</p>
+            </div>
+
+            {/* Fleet Roster */}
+            <div>
+              <p className="font-bold text-slate-900 border-b border-slate-300 pb-1 uppercase mb-2">1. REGISTERED EVACUATION FLEET PARTNERS</p>
+              <div className="space-y-2">
+                {evacuationPartners.map((p, idx) => (
+                  <div key={p.id || idx} className="p-2 bg-slate-50 border rounded-lg text-[11px] space-y-0.5">
+                    <p className="font-bold text-slate-900">
+                      [{p.vehicleType.toUpperCase()}] {p.operator} — {p.vehicleCount} VEHICLE(S) ({p.totalSeats} SEATS)
+                    </p>
+                    <p className="text-slate-700">SECTOR: {p.assignedSector}</p>
+                    <p className="text-slate-700">24/7 DISPATCH: {p.dispatchContact}</p>
+                    <p className="text-slate-700">STAGING / PICKUP: {p.pickupMusterPoint} ➔ DROP-OFF: {p.dropoffDestination}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Collection Points */}
+            <div>
+              <p className="font-bold text-slate-900 border-b border-slate-300 pb-1 uppercase mb-2">2. DESIGNATED PASSENGER COLLECTION POINTS</p>
+              <div className="space-y-2">
+                {collectionPoints.map((pt, idx) => (
+                  <div key={pt.id || idx} className="p-2 bg-slate-50 border rounded-lg text-[11px] space-y-0.5">
+                    <p className="font-bold text-slate-900">{pt.name} — [{pt.accessibleFor.toUpperCase()}]</p>
+                    <p className="text-slate-700">ADDRESS: {pt.address}</p>
+                    <p className="text-slate-700">TARGET ROADS: {pt.targetRoads}</p>
+                    <p className="text-slate-700">DROP-OFF RECEPTION: {pt.dropoffShelter}</p>
+                    <p className="text-slate-700">ON-SITE COORDINATOR: {pt.onSiteCoordinator} ({pt.coordinatorPhone})</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-[11px] text-amber-900 space-y-1">
+              <p className="font-bold">⚠️ CRITICAL DRIVER INSTRUCTIONS:</p>
+              <p>1. Follow designated emergency corridors strictly. Avoid rural single-track passes if operating large coaches.</p>
+              <p>2. Report departure headcount and arrival at reception shelter via radio or emergency dispatch number.</p>
+              <p>3. Give priority boarding to non-ambulatory, elderly, and vulnerable residents.</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsPrintManifestModalOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

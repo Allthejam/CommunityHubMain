@@ -32,7 +32,8 @@ import {
   Radio,
   Clock,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Edit3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,10 +50,12 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { doc, getDoc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
 import {
   publishCommunityEmergencyBroadcastAction,
   updateLiveThreatStatusAction,
+  standDownEmergencyAndArchiveBulletinsAction,
   logEmergencyAuditAction,
   KeyholderItem,
   WildfireAssetItem
@@ -61,8 +64,16 @@ import {
   IncidentSopPhase,
   IncidentSopTask,
   ScenarioSopsMap,
-  DEFAULT_SCENARIO_SOPS
+  DEFAULT_SCENARIO_SOPS,
+  EvacuationTransportPartner,
+  EvacuationCollectionPoint,
+  EvacuationDepartureLog,
+  DEFAULT_EVACUATION_PARTNERS,
+  DEFAULT_COLLECTION_POINTS,
+  TransportReadinessStatus,
+  TransportVehicleType
 } from '@/lib/types/emergencySop';
+import { Bus, Car, Phone, Navigation, MapPin, Users, CheckCircle2 } from 'lucide-react';
 
 const HAZARDS: { id: string; title: string; icon: any; color: string; bg: string }[] = [
   { id: 'wildfire', title: 'Wildfire', icon: Flame, color: 'text-red-400', bg: 'bg-red-600' },
@@ -116,6 +127,106 @@ function IncidentSopPageContent() {
   const [quickAnnounceBody, setQuickAnnounceBody] = useState('');
   const [isDispatchingAnnouncement, setIsDispatchingAnnouncement] = useState(false);
 
+  // Evacuation Transport Fleet & Live Dispatcher State
+  const [evacuationPartners, setEvacuationPartners] = useState<EvacuationTransportPartner[]>(DEFAULT_EVACUATION_PARTNERS);
+  const [collectionPoints, setCollectionPoints] = useState<EvacuationCollectionPoint[]>(DEFAULT_COLLECTION_POINTS);
+  const [departureLogs, setDepartureLogs] = useState<EvacuationDepartureLog[]>([]);
+  const [isLogDepartureModalOpen, setIsLogDepartureModalOpen] = useState(false);
+  const [departureFormData, setDepartureFormData] = useState({
+    operator: 'Stagecoach North Scotland (Coach #1)',
+    vehicleType: 'coach' as TransportVehicleType,
+    headcount: 52,
+    fromPoint: 'The Square & Burnfield Coach Park',
+    toShelter: 'Aviemore Community & Sports Complex (Shelter Alpha)'
+  });
+
+  // Stand Down & Bulk Bulletin Archive State
+  const [isStandDownDialogOpen, setIsStandDownDialogOpen] = useState(false);
+  const [isStandingDown, setIsStandingDown] = useState(false);
+  const [standDownIssueAllClear, setStandDownIssueAllClear] = useState(true);
+  const [standDownAllClearTitle, setStandDownAllClearTitle] = useState('🟢 ALL CLEAR: Emergency Incident Stood Down');
+  const [standDownAllClearBody, setStandDownAllClearBody] = useState('Official incident stand-down. Emergency response services have stood down. Road cordons are open and community facilities have returned to regular schedule.');
+
+  const totalEvacuatedHeadcount = useMemo(() => {
+    return departureLogs.reduce((acc, log) => acc + (log.headcount || 0), 0);
+  }, [departureLogs]);
+
+  const handleSetAllFleetStatus = async (newStatus: TransportReadinessStatus) => {
+    const updated = evacuationPartners.map(p => ({ ...p, status: newStatus }));
+    setEvacuationPartners(updated);
+    toast({
+      title: 'Fleet Status Updated',
+      description: `All ${updated.length} evacuation transport partners set to ${newStatus.toUpperCase()}`
+    });
+    if (db && activeCommunityId) {
+      try {
+        const planDocRef = doc(db, 'communities', activeCommunityId, 'emergency_plan', 'main');
+        await setDoc(planDocRef, { evacuationPartners: updated }, { merge: true });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
+  const handleSetPartnerStatus = async (id: string, newStatus: TransportReadinessStatus) => {
+    const updated = evacuationPartners.map(p => p.id === id ? { ...p, status: newStatus } : p);
+    setEvacuationPartners(updated);
+    if (db && activeCommunityId) {
+      try {
+        const planDocRef = doc(db, 'communities', activeCommunityId, 'emergency_plan', 'main');
+        await setDoc(planDocRef, { evacuationPartners: updated }, { merge: true });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
+  const handleLogDeparture = async () => {
+    if (!departureFormData.operator || !departureFormData.headcount) {
+      toast({ title: 'Validation Error', description: 'Operator and passenger headcount required.', variant: 'destructive' });
+      return;
+    }
+    const newLog: EvacuationDepartureLog = {
+      id: `dep-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+      operator: departureFormData.operator,
+      vehicleType: departureFormData.vehicleType,
+      headcount: Number(departureFormData.headcount) || 0,
+      fromPoint: departureFormData.fromPoint,
+      toShelter: departureFormData.toShelter,
+      status: 'en_route',
+      loggedBy: userProfile?.displayName || 'Incident Dispatcher'
+    };
+    const updatedLogs = [newLog, ...departureLogs];
+    setDepartureLogs(updatedLogs);
+    setIsLogDepartureModalOpen(false);
+    toast({
+      title: 'Departure Logged',
+      description: `${newLog.headcount} passengers departed via ${newLog.operator} ➔ ${newLog.toShelter}`
+    });
+    if (db && activeCommunityId) {
+      try {
+        const planDocRef = doc(db, 'communities', activeCommunityId, 'emergency_plan', 'main');
+        await setDoc(planDocRef, { departureLogs: updatedLogs }, { merge: true });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
+  const handleDeleteDepartureLog = async (id: string) => {
+    const updatedLogs = departureLogs.filter(l => l.id !== id);
+    setDepartureLogs(updatedLogs);
+    if (db && activeCommunityId) {
+      try {
+        const planDocRef = doc(db, 'communities', activeCommunityId, 'emergency_plan', 'main');
+        await setDoc(planDocRef, { departureLogs: updatedLogs }, { merge: true });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
   // Sync townshipName if communityData loads and not custom saved
   useEffect(() => {
     if (communityData?.name) {
@@ -147,6 +258,16 @@ function IncidentSopPageContent() {
           }
           if (data.scenarioFacilities?.[activeHazard]?.f1?.secondary) {
             setSecondaryShelter(data.scenarioFacilities[activeHazard].f1.secondary);
+          }
+
+          if (Array.isArray(data.evacuationPartners) && data.evacuationPartners.length > 0) {
+            setEvacuationPartners(data.evacuationPartners);
+          }
+          if (Array.isArray(data.collectionPoints) && data.collectionPoints.length > 0) {
+            setCollectionPoints(data.collectionPoints);
+          }
+          if (Array.isArray(data.departureLogs)) {
+            setDepartureLogs(data.departureLogs);
           }
 
           if (data.incidentSops && typeof data.incidentSops === 'object') {
@@ -694,20 +815,59 @@ function IncidentSopPageContent() {
     } else if (actionType === 'threat') {
       updateLiveThreatStatusAction({
         communityId: activeCommunityId,
-        targetThreatStatus: 'incident',
-        hazardScenario: activeHazard,
-        actorId: user?.uid || 'leader',
-        actorName: (userProfile as any)?.name || user?.displayName || 'Incident Commander',
-        actorRole: (userProfile as any)?.role || 'Resilience Leader'
+        threatStatus: 'incident',
+        activeHazardScenario: activeHazard as any,
+        userId: user?.uid || 'leader'
       }).then(() => {
         toast({ title: 'Threat Elevated 🔴', description: `Threat readiness set to Incident Active for ${currentHazardConfig.title}.` });
       });
     } else if (actionType === 'bulletin') {
       router.push('/leader/emergency-plan');
+    } else if (actionType === 'standdown') {
+      setIsStandDownDialogOpen(true);
     } else if (actionType === 'keyholders') {
       handlePrintPocketCard();
     } else if (actionType === 'volunteers') {
       router.push('/leader/emergency-plan');
+    }
+  };
+
+  const handleStandDownIncident = async () => {
+    if (!activeCommunityId || !user) {
+      toast({ title: 'Error', description: 'Leader authentication required.', variant: 'destructive' });
+      return;
+    }
+
+    setIsStandingDown(true);
+    try {
+      const author = (userProfile as any)?.name || user.displayName || 'Incident Commander';
+      const role = (userProfile as any)?.role || 'Community Resilience Leader';
+
+      const res = await standDownEmergencyAndArchiveBulletinsAction({
+        communityId: activeCommunityId,
+        authorName: author,
+        authorRole: role,
+        authorId: user.uid,
+        authorEmail: user.email || '',
+        issueAllClearNotice: standDownIssueAllClear,
+        allClearTitle: standDownAllClearTitle.trim(),
+        allClearBody: standDownAllClearBody.trim(),
+        hazardCategory: activeHazard,
+      });
+
+      if (res.success) {
+        toast({
+          title: 'Incident Stood Down & Archived 🟢',
+          description: `All ${res.archivedCount || 0} active bulletins were archived to the audit log. Threat status restored to Normal (Green).`
+        });
+        setIsStandDownDialogOpen(false);
+      } else {
+        toast({ title: 'Stand Down Failed', description: res.error, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsStandingDown(false);
     }
   };
 
@@ -770,6 +930,15 @@ function IncidentSopPageContent() {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          <Button
+            onClick={() => setIsStandDownDialogOpen(true)}
+            variant="outline"
+            size="sm"
+            className="bg-emerald-950/60 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/60 font-bold text-xs h-9 gap-1.5 shadow-sm"
+          >
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" /> 🟢 Stand Down & Archive
+          </Button>
+
           <Button
             onClick={handlePrintPocketCard}
             variant="outline"
@@ -845,6 +1014,185 @@ function IncidentSopPageContent() {
           </Button>
         </div>
       </div>
+
+      {/* CIVIC MASS EVACUATION & TRANSPORT DISPATCH CONSOLE */}
+      <Card className="border-2 border-teal-500/40 bg-gradient-to-br from-teal-950/40 via-slate-950 to-slate-900 shadow-2xl rounded-3xl overflow-hidden">
+        <CardHeader className="p-5 border-b border-teal-500/30 bg-teal-500/10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-teal-500/20 text-teal-400 border border-teal-500/40 shrink-0">
+                <Bus className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-teal-500/30 text-teal-300 border-teal-500/50 text-[10px] uppercase font-bold">
+                    Incident Transport Command
+                  </Badge>
+                  <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] font-mono font-bold">
+                    {totalEvacuatedHeadcount} Passengers Evacuated to Date
+                  </Badge>
+                </div>
+                <CardTitle className="text-lg font-bold text-white mt-1 flex items-center gap-2 font-headline">
+                  Transport Partner Mobilisation & Evacuation Dispatcher
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-300 max-w-2xl mt-0.5">
+                  Coordinate Stagecoach arterial buses, accessible dial-a-ride vans, and rural 4x4 taxis in real time during active incidents.
+                </CardDescription>
+              </div>
+            </div>
+
+            {/* Quick Action Dial Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                onClick={() => handleSetAllFleetStatus('standby')}
+                size="sm"
+                className="bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black h-8 border-2 border-amber-500 shadow-sm"
+              >
+                🟡 Standby All Fleet
+              </Button>
+              <Button
+                onClick={() => handleSetAllFleetStatus('mobilised')}
+                size="sm"
+                className="bg-orange-500 hover:bg-orange-400 text-slate-950 text-xs font-black h-8 border-2 border-orange-600 shadow-sm"
+              >
+                🟠 Mobilise to Points
+              </Button>
+              <Button
+                onClick={() => handleSetAllFleetStatus('active_evacuation')}
+                size="sm"
+                className="bg-red-600 hover:bg-red-500 text-white text-xs font-black h-8 gap-1.5 border-2 border-red-700 shadow-md animate-pulse"
+              >
+                🔴 Active Evac Net
+              </Button>
+              <Button
+                onClick={() => setIsLogDepartureModalOpen(true)}
+                size="sm"
+                className="bg-teal-600 hover:bg-teal-500 text-white text-xs font-black h-8 gap-1.5 shadow-md"
+              >
+                <Plus className="h-3.5 w-3.5" /> Log Departure
+              </Button>
+              <Link href="/leader/emergency-plan">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-slate-900 border-teal-500/40 text-teal-300 hover:bg-teal-950/60 text-xs font-bold h-8 gap-1.5"
+                >
+                  <Edit3 className="h-3.5 w-3.5" /> Edit Fleet & Muster Points
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-5 space-y-4">
+          
+          {/* Active Fleet Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {evacuationPartners.map((partner) => (
+              <div 
+                key={partner.id} 
+                className={`p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between gap-2.5 ${
+                  partner.status === 'active_evacuation' 
+                    ? 'border-red-500 bg-red-950/40 ring-1 ring-red-500' 
+                    : partner.status === 'mobilised'
+                    ? 'border-orange-500/60 bg-orange-950/30'
+                    : partner.status === 'standby'
+                    ? 'border-amber-500/50 bg-amber-950/20'
+                    : 'border-slate-800 bg-slate-900/90'
+                }`}
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-1">
+                    <Badge variant="outline" className="text-[9px] uppercase font-bold border-slate-600 text-slate-200">
+                      {partner.vehicleType.replace('_', ' ')}
+                    </Badge>
+                    <Badge 
+                      className={`text-[9px] font-black uppercase tracking-wider ${
+                        partner.status === 'standby' ? 'bg-amber-400 text-slate-950 border border-amber-500' :
+                        partner.status === 'mobilised' ? 'bg-orange-400 text-slate-950 border border-orange-500' :
+                        partner.status === 'active_evacuation' ? 'bg-red-600 text-white border border-red-700 animate-pulse' :
+                        'bg-emerald-400 text-slate-950 border border-emerald-500'
+                      }`}
+                    >
+                      {partner.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+
+                  <p className="font-black text-sm text-white line-clamp-1">{partner.operator}</p>
+                  <p className="text-xs text-slate-200 font-bold">
+                    {partner.vehicleCount} unit(s) • <span className="text-teal-300">{partner.totalSeats} seats</span>
+                  </p>
+                  <p className="text-xs text-slate-300 font-medium line-clamp-2">
+                    📍 {partner.assignedSector}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+                  <a 
+                    href={`tel:${partner.dispatchContact.replace(/[^0-9+]/g, '')}`} 
+                    className="inline-flex items-center gap-1 text-xs font-mono font-bold text-teal-300 hover:underline"
+                  >
+                    <Phone className="h-3.5 w-3.5" /> Call Dispatch
+                  </a>
+
+                  <Select 
+                    value={partner.status} 
+                    onValueChange={(val: TransportReadinessStatus) => handleSetPartnerStatus(partner.id, val)}
+                  >
+                    <SelectTrigger className="h-7 text-xs font-bold w-24 bg-slate-950 border-slate-700 text-white">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-950 border-slate-800 text-white">
+                      <SelectItem value="standby" className="font-bold">🟡 Standby</SelectItem>
+                      <SelectItem value="mobilised" className="font-bold">🟠 Mobilised</SelectItem>
+                      <SelectItem value="active_evacuation" className="font-bold">🔴 Active</SelectItem>
+                      <SelectItem value="completed" className="font-bold">🟢 Done</SelectItem>
+                      <SelectItem value="off_duty" className="font-bold">⚪ Off</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Recent Departures Stream */}
+          {departureLogs.length > 0 && (
+            <div className="p-3.5 rounded-2xl border border-slate-800 bg-slate-950/60 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Navigation className="h-3.5 w-3.5 text-teal-400" />
+                  Recent Evacuation Departures Stream ({departureLogs.length})
+                </p>
+                <span className="text-[10px] text-slate-400 font-mono">Live Incident Log</span>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {departureLogs.slice(0, 6).map((log) => (
+                  <div key={log.id} className="p-2.5 rounded-xl border border-slate-800/80 bg-slate-900/60 text-xs flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Badge className="bg-teal-500/20 text-teal-300 font-black text-[10px] px-1.5 py-0">
+                          {log.headcount} pax
+                        </Badge>
+                        <span className="font-bold text-white text-[11px] truncate">{log.operator}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {log.fromPoint} ➔ {log.toShelter}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] font-mono text-slate-400">{log.timestamp}</span>
+                      <Button onClick={() => handleDeleteDepartureLog(log.id)} variant="ghost" size="sm" className="h-5 w-5 p-0 text-slate-500 hover:text-red-400">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </CardContent>
+      </Card>
 
       {/* 5-PHASE INTERACTIVE CHECKLIST */}
       <div className="space-y-6">
@@ -1007,6 +1355,7 @@ function IncidentSopPageContent() {
                               <SelectItem value="announcement">📢 Broadcast Alert</SelectItem>
                               <SelectItem value="threat">🔴 Elevate Threat</SelectItem>
                               <SelectItem value="bulletin">📝 Post Bulletin</SelectItem>
+                              <SelectItem value="standdown">🟢 Stand Down & Archive</SelectItem>
                               <SelectItem value="keyholders">🔑 View Keyholders</SelectItem>
                               <SelectItem value="volunteers">🚜 Volunteer Assets</SelectItem>
                             </SelectContent>
@@ -1027,17 +1376,20 @@ function IncidentSopPageContent() {
                                 ? 'bg-red-600 hover:bg-red-500 text-white'
                                 : task.shortcutAction === 'bulletin'
                                 ? 'bg-pink-600 hover:bg-pink-500 text-white'
+                                : task.shortcutAction === 'standdown'
+                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                                 : task.shortcutAction === 'keyholders'
                                 ? 'bg-amber-600 hover:bg-amber-500 text-white'
-                                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                                : 'bg-teal-600 hover:bg-teal-500 text-white'
                             }`}
                           >
                             {task.shortcutAction === 'announcement' && <Megaphone className="h-3 w-3" />}
                             {task.shortcutAction === 'threat' && <ShieldAlert className="h-3 w-3" />}
                             {task.shortcutAction === 'bulletin' && <Send className="h-3 w-3" />}
+                            {task.shortcutAction === 'standdown' && <CheckCircle2 className="h-3 w-3" />}
                             {task.shortcutAction === 'keyholders' && <Key className="h-3 w-3" />}
                             {task.shortcutAction === 'volunteers' && <Truck className="h-3 w-3" />}
-                            Trigger Action Shortcut
+                            {task.shortcutAction === 'standdown' ? '🟢 Stand Down & Archive' : 'Trigger Action Shortcut'}
                           </Button>
                         )}
 
@@ -1288,6 +1640,184 @@ function IncidentSopPageContent() {
               <p>Community Resilience Emergency Planning Document • Statutory {currentHazardConfig.title} Incident SOP • Keep in Grab-Bag / Glovebox</p>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: LOG PASSENGER DEPARTURE */}
+      <Dialog open={isLogDepartureModalOpen} onOpenChange={setIsLogDepartureModalOpen}>
+        <DialogContent className="sm:max-w-md bg-slate-950 border-slate-800 text-white">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-teal-500/20 text-teal-400">
+                <Bus className="h-5 w-5" />
+              </div>
+              <DialogTitle className="text-base font-bold text-white">
+                Log Evacuation Departure Run
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-400">
+              Record coach, minibus, or taxi departure headcount and destination shelter.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="space-y-1.5">
+              <Label className="text-slate-300 font-bold">Transport Operator / Vehicle</Label>
+              <Select
+                value={departureFormData.operator}
+                onValueChange={(val) => {
+                  const partner = evacuationPartners.find(p => p.operator === val);
+                  setDepartureFormData(prev => ({
+                    ...prev,
+                    operator: val,
+                    vehicleType: partner?.vehicleType || 'coach',
+                    fromPoint: partner?.pickupMusterPoint || prev.fromPoint,
+                    toShelter: partner?.dropoffDestination || prev.toShelter
+                  }));
+                }}
+              >
+                <SelectTrigger className="bg-slate-900 border-slate-700 text-white h-9 text-xs">
+                  <SelectValue placeholder="Select Vehicle" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-950 border-slate-800 text-white">
+                  {evacuationPartners.map((p) => (
+                    <SelectItem key={p.id} value={p.operator}>
+                      [{p.vehicleType.toUpperCase()}] {p.operator} ({p.totalSeats} seats)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-300 font-bold">Passenger Headcount Boarded</Label>
+              <Input
+                type="number"
+                min={1}
+                value={departureFormData.headcount}
+                onChange={(e) => setDepartureFormData(prev => ({ ...prev, headcount: Number(e.target.value) }))}
+                className="bg-slate-900 border-slate-700 text-white h-9 text-xs font-bold"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-300 font-bold">Pickup Muster Point</Label>
+              <Select
+                value={departureFormData.fromPoint}
+                onValueChange={(val) => setDepartureFormData(prev => ({ ...prev, fromPoint: val }))}
+              >
+                <SelectTrigger className="bg-slate-900 border-slate-700 text-white h-9 text-xs">
+                  <SelectValue placeholder="Select Collection Point" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-950 border-slate-800 text-white">
+                  {collectionPoints.map((pt) => (
+                    <SelectItem key={pt.id} value={pt.name}>
+                      {pt.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-300 font-bold">Designated Drop-Off Reception Shelter</Label>
+              <Input
+                value={departureFormData.toShelter}
+                onChange={(e) => setDepartureFormData(prev => ({ ...prev, toShelter: e.target.value }))}
+                className="bg-slate-900 border-slate-700 text-white h-9 text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button variant="outline" size="sm" onClick={() => setIsLogDepartureModalOpen(false)} className="bg-slate-900 border-slate-700 text-white">
+              Cancel
+            </Button>
+            <Button onClick={handleLogDeparture} size="sm" className="bg-teal-600 hover:bg-teal-500 text-white font-bold gap-1.5">
+              <CheckCircle2 className="h-4 w-4" /> Commit Departure Log
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stand Down & Bulk Archive Wizard Dialog */}
+      <Dialog open={isStandDownDialogOpen} onOpenChange={setIsStandDownDialogOpen}>
+        <DialogContent className="sm:max-w-lg bg-slate-950 border-slate-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-emerald-400">
+              <CheckCircle2 className="h-5 w-5" /> Stand Down Incident & Archive All Bulletins
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400">
+              Executes official emergency stand-down. All active warning bulletins will be archived to the compliance log and threat status returned to Normal (Green).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 space-y-1">
+              <p className="font-bold">Incident Recovery Protocol:</p>
+              <p className="text-[11px] text-emerald-300">
+                Standing down will archive all active public notices for {currentHazardConfig.title} and log the completion in the statutory audit register.
+              </p>
+            </div>
+
+            {/* Option to Issue Final All-Clear Notice */}
+            <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <Checkbox
+                  id="sopIssueAllClear"
+                  checked={standDownIssueAllClear}
+                  onCheckedChange={(checked) => setStandDownIssueAllClear(Boolean(checked))}
+                  className="mt-0.5"
+                />
+                <label htmlFor="sopIssueAllClear" className="font-bold text-white text-xs cursor-pointer">
+                  Publish Final Official 🟢 All-Clear Notice on Public Portal
+                </label>
+              </div>
+
+              {standDownIssueAllClear && (
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-300">All-Clear Headline</Label>
+                    <Input
+                      value={standDownAllClearTitle}
+                      onChange={(e) => setStandDownAllClearTitle(e.target.value)}
+                      className="bg-slate-900 border-slate-700 text-white text-xs h-8 font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-300">All-Clear Public Message</Label>
+                    <Textarea
+                      value={standDownAllClearBody}
+                      onChange={(e) => setStandDownAllClearBody(e.target.value)}
+                      rows={3}
+                      className="bg-slate-900 border-slate-700 text-white text-xs resize-y"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsStandDownDialogOpen(false)}
+              className="bg-slate-900 border-slate-700 text-slate-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleStandDownIncident}
+              disabled={isStandingDown}
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5"
+            >
+              {isStandingDown ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              Confirm Incident Stand-Down & Archive
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

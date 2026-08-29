@@ -3,7 +3,7 @@ export interface IncidentSopTask {
   title: string;
   desc: string;
   role?: string;
-  shortcutAction?: 'announcement' | 'threat' | 'bulletin' | 'keyholders' | 'volunteers' | 'none';
+  shortcutAction?: 'announcement' | 'threat' | 'bulletin' | 'keyholders' | 'volunteers' | 'standdown' | 'none';
   isCompleted: boolean;
   completedAt?: string | null;
   completedBy?: string | null;
@@ -1049,3 +1049,149 @@ export const DEFAULT_SCENARIO_SOPS: ScenarioSopsMap = {
     }
   ]
 };
+
+// ==========================================
+// MASS EVACUATION & TRANSPORT MOBILISATION TYPES
+// ==========================================
+
+export type TransportVehicleType = 'coach' | 'minibus' | 'taxi_4x4' | 'accessible_van';
+export type TransportReadinessStatus = 'standby' | 'mobilised' | 'active_evacuation' | 'completed' | 'off_duty';
+export type RoadAccessibilityTier = 'all_vehicles' | 'minibus_taxi_only' | '4x4_only';
+
+export interface EvacuationTransportPartner {
+  id: string;
+  operator: string;
+  vehicleType: TransportVehicleType;
+  vehicleCount: number;
+  totalSeats: number;
+  assignedSector: string;
+  dispatchContact: string;
+  driverName?: string;
+  pickupMusterPoint: string;
+  dropoffDestination: string;
+  status: TransportReadinessStatus;
+  notes?: string;
+}
+
+export interface EvacuationCollectionPoint {
+  id: string;
+  name: string;
+  address: string;
+  accessibleFor: RoadAccessibilityTier;
+  targetRoads: string;
+  designatedVehicles: string;
+  dropoffShelter: string;
+  onSiteCoordinator: string;
+  coordinatorPhone: string;
+  status: 'open' | 'staged' | 'cleared' | 'closed';
+  notes?: string;
+}
+
+export interface EvacuationDepartureLog {
+  id: string;
+  timestamp: string;
+  operator: string;
+  vehicleType: TransportVehicleType;
+  headcount: number;
+  fromPoint: string;
+  toShelter: string;
+  status: 'loading' | 'en_route' | 'arrived';
+  loggedBy: string;
+}
+
+export const DEFAULT_EVACUATION_PARTNERS: EvacuationTransportPartner[] = [
+  {
+    id: 'partner-stagecoach',
+    operator: 'Stagecoach North Scotland (Aviemore/Inverness Depot)',
+    vehicleType: 'coach',
+    vehicleCount: 2,
+    totalSeats: 106,
+    assignedSector: 'Arterial Arteries: High Street, Square & Main A95/A939 corridors',
+    dispatchContact: '01463 233371 (24h Emergency Dispatch)',
+    pickupMusterPoint: 'The Square & Burnfield Coach Park, Grantown',
+    dropoffDestination: 'Aviemore Community & Sports Complex (Shelter Alpha)',
+    status: 'standby',
+    notes: 'Large 53-seat coaches suitable for wide roads only. Cannot navigate rural single-track lanes.'
+  },
+  {
+    id: 'partner-dial-a-bus',
+    operator: 'Strathspey Community Transport (CTCO)',
+    vehicleType: 'accessible_van',
+    vehicleCount: 2,
+    totalSeats: 32,
+    assignedSector: 'Care Facilities & Non-Ambulatory: Ian Charles Hospital, Senior Housing & Lynstock',
+    dispatchContact: '01479 810004 (Duty Mobiliser: 07700 900123)',
+    pickupMusterPoint: 'Lynstock Assisted Living & Grantown Health Centre',
+    dropoffDestination: 'Aviemore Community Centre (Accessible Wing)',
+    status: 'standby',
+    notes: 'Equipped with hydraulic wheelchair lift and secure wheelchair anchor bays.'
+  },
+  {
+    id: 'partner-speyside-taxis',
+    operator: 'Strathspey Cabs & Private Hire',
+    vehicleType: 'taxi_4x4',
+    vehicleCount: 4,
+    totalSeats: 24,
+    assignedSector: 'Rural Glen & Single-Track: Cromdale Hill Road, Dreggie, Kylintra & Farms',
+    dispatchContact: '01479 872222 (Direct Lead: 07712 345678)',
+    pickupMusterPoint: 'Door-to-door rural shuttle & Primary School feeder',
+    dropoffDestination: 'The Square Coach Transfer Hub / Direct to Shelter Alpha',
+    status: 'standby',
+    notes: 'All-wheel drive vehicles capable of narrow single-track passes and snowy/muddy farm tracks.'
+  },
+  {
+    id: 'partner-cairngorm-taxis',
+    operator: 'Cairngorm Executive 4x4 Fleet',
+    vehicleType: 'taxi_4x4',
+    vehicleCount: 3,
+    totalSeats: 18,
+    assignedSector: 'South & Spey River Corridor: Dulnain Bridge, Nethy feeder & isolated cottages',
+    dispatchContact: '01479 811111',
+    pickupMusterPoint: 'Nethy Bridge Village Hall / Dulnain Post Office',
+    dropoffDestination: 'Aviemore Community Centre (Shelter Alpha)',
+    status: 'standby',
+    notes: '4x4 estate vehicles with high ground clearance for forest tracks and flood verge bypass.'
+  }
+];
+
+export const DEFAULT_COLLECTION_POINTS: EvacuationCollectionPoint[] = [
+  {
+    id: 'point-square',
+    name: 'The Square & Burnfield Car Park (Arterial Coach Hub)',
+    address: 'The Square, High Street, Grantown-on-Spey, PH26 3HF',
+    accessibleFor: 'all_vehicles',
+    targetRoads: 'Town Centre, High Street, Woodside, Castle Road',
+    designatedVehicles: '2x 53-Seat Stagecoach Coaches + Minibuses',
+    dropoffShelter: 'Aviemore Community & Sports Complex (Shelter Alpha)',
+    onSiteCoordinator: 'John MacRae (Community Warden)',
+    coordinatorPhone: '07700 900222',
+    status: 'staged',
+    notes: 'Primary high-capacity coach loading zone. Public toilets and warm shelter available in Burnfield hall.'
+  },
+  {
+    id: 'point-primary-school',
+    name: 'Grantown Primary School Bus Turning Circle',
+    address: 'South Street, Grantown-on-Spey, PH26 3HZ',
+    accessibleFor: 'all_vehicles',
+    targetRoads: 'South Grantown, Rothes Road, Spey Valley Housing Estate',
+    designatedVehicles: '1x Stagecoach Coach + 2x Community Minibuses',
+    dropoffShelter: 'Aviemore Community & Sports Complex (Shelter Alpha)',
+    onSiteCoordinator: 'Sarah Fraser (School Liaison)',
+    coordinatorPhone: '07700 900333',
+    status: 'staged',
+    notes: 'Dedicated bus turning loop with covered canopy for loading families and children.'
+  },
+  {
+    id: 'point-cromdale',
+    name: 'Cromdale Old Station & B9102 Single-Track Feeder Point',
+    address: 'Cromdale Village Approach, PH26 3LQ',
+    accessibleFor: 'minibus_taxi_only',
+    targetRoads: 'Cromdale Hills, B9102 Single-Track, Lethendry Farm Tracks',
+    designatedVehicles: '4x Speyside Taxis & 4WD Shuttles (Transfer to Coach Hub)',
+    dropoffShelter: 'Transfer to The Square Coach Hub / Direct to Shelter Beta',
+    onSiteCoordinator: 'Angus Grant (Rural Sector Lead)',
+    coordinatorPhone: '07700 900444',
+    status: 'staged',
+    notes: 'Narrow road access. Full-size coaches CANNOT enter. Taxis run continuous feeder shuttles to the Square.'
+  }
+];
