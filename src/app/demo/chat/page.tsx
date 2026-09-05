@@ -339,39 +339,35 @@ export default function DemoChatPage() {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 border border-blue-500/20 p-6 md:p-8 shadow-lg backdrop-blur-sm">
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-background/80 backdrop-blur-md border border-blue-500/30 text-xs font-semibold text-blue-600 dark:text-blue-400 shadow-xs">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Interactive Demo Chat & Assistant</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight font-headline">
+    <div className="flex flex-col h-[calc(100vh-7rem)] min-h-[580px] space-y-3">
+      {/* Sleek Top Bar */}
+      <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-purple-600/10 border border-blue-500/20 backdrop-blur-md shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div>
+            <h1 className="text-base sm:text-lg font-bold tracking-tight font-headline flex items-center gap-2">
               <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
                 Community Messenger & AI Concierge
               </span>
             </h1>
-            <p className="text-sm text-muted-foreground max-w-2xl">
-              Connect with local neighbors, ask the AI Concierge about community features, and explore interactive messaging across Oakridge & DemoVille.
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              Interactive chat with local Oakridge residents & Hub AI Assistant
             </p>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="px-3 py-1.5 bg-background/80 text-xs gap-1.5 border-blue-500/30">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              Live Demo Mode
-            </Badge>
-          </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="px-2.5 py-1 bg-background/80 text-xs gap-1.5 border-blue-500/30">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            Live Demo
+          </Badge>
         </div>
       </div>
 
-      {/* Main Chat Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 h-[680px] rounded-2xl border bg-card shadow-sm overflow-hidden min-h-0">
+      {/* Main Chat Grid - fills full screen height down to the bottom */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 rounded-2xl border bg-card shadow-sm overflow-hidden min-h-0">
         {/* Sidebar: Conversation List */}
         <div className="lg:col-span-4 border-r flex flex-col h-full bg-muted/20 min-h-0 overflow-hidden">
           <div className="p-4 border-b space-y-3 shrink-0">
