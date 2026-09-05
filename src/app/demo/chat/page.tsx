@@ -173,20 +173,25 @@ export default function DemoChatPage() {
   const [inputMessage, setInputMessage] = React.useState('');
   const [isTyping, setIsTyping] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const messagesContainerRef = React.useRef<HTMLDivElement>(null);
 
   const activeConversation = React.useMemo(
     () => conversations.find((c) => c.id === activeConvId) || conversations[0],
     [conversations, activeConvId]
   );
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior,
+      });
+    }
   };
 
   React.useEffect(() => {
-    scrollToBottom();
-  }, [activeConversation?.messages, isTyping]);
+    scrollToBottom(activeConversation?.messages?.length <= 2 ? 'auto' : 'smooth');
+  }, [activeConversation?.messages?.length, isTyping, activeConvId]);
 
   const generateAIResponse = (userText: string): string => {
     const lower = userText.toLowerCase();
@@ -366,10 +371,10 @@ export default function DemoChatPage() {
       </div>
 
       {/* Main Chat Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[680px] rounded-2xl border bg-card shadow-sm overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 h-[680px] rounded-2xl border bg-card shadow-sm overflow-hidden min-h-0">
         {/* Sidebar: Conversation List */}
-        <div className="lg:col-span-4 border-r flex flex-col h-full bg-muted/20">
-          <div className="p-4 border-b space-y-3">
+        <div className="lg:col-span-4 border-r flex flex-col h-full bg-muted/20 min-h-0 overflow-hidden">
+          <div className="p-4 border-b space-y-3 shrink-0">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-blue-600" />
@@ -390,71 +395,69 @@ export default function DemoChatPage() {
             </div>
           </div>
 
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
-              {filteredConversations.map((conv) => {
-                const isActive = conv.id === activeConvId;
-                return (
-                  <button
-                    key={conv.id}
-                    onClick={() => setActiveConvId(conv.id)}
-                    className={cn(
-                      'w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 relative group',
-                      isActive
-                        ? 'bg-primary/10 text-primary border border-primary/20 shadow-xs'
-                        : 'hover:bg-muted/60 text-foreground'
+          <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain p-2 space-y-1">
+            {filteredConversations.map((conv) => {
+              const isActive = conv.id === activeConvId;
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => setActiveConvId(conv.id)}
+                  className={cn(
+                    'w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 relative group',
+                    isActive
+                      ? 'bg-primary/10 text-primary border border-primary/20 shadow-xs'
+                      : 'hover:bg-muted/60 text-foreground'
+                  )}
+                >
+                  <div className="relative shrink-0">
+                    <Avatar className="h-11 w-11 border shadow-xs">
+                      {conv.avatar ? (
+                        <AvatarImage src={conv.avatar} alt={conv.name} />
+                      ) : conv.type === 'ai' ? (
+                        <div className="h-full w-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white">
+                          <Bot className="h-6 w-6" />
+                        </div>
+                      ) : conv.type === 'group' ? (
+                        <div className="h-full w-full bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center text-white">
+                          <Users className="h-5 w-5" />
+                        </div>
+                      ) : (
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                          {conv.name.charAt(0)}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    {conv.isOnline && (
+                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
                     )}
-                  >
-                    <div className="relative shrink-0">
-                      <Avatar className="h-11 w-11 border shadow-xs">
-                        {conv.avatar ? (
-                          <AvatarImage src={conv.avatar} alt={conv.name} />
-                        ) : conv.type === 'ai' ? (
-                          <div className="h-full w-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white">
-                            <Bot className="h-6 w-6" />
-                          </div>
-                        ) : conv.type === 'group' ? (
-                          <div className="h-full w-full bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center text-white">
-                            <Users className="h-5 w-5" />
-                          </div>
-                        ) : (
-                          <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                            {conv.name.charAt(0)}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      {conv.isOnline && (
-                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <span className={cn('text-sm font-semibold truncate', isActive && 'text-primary')}>
+                        {conv.name}
+                      </span>
+                      {conv.type === 'ai' && (
+                        <Badge className="text-[10px] px-1.5 py-0 bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/20">
+                          AI Bot
+                        </Badge>
                       )}
                     </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <span className={cn('text-sm font-semibold truncate', isActive && 'text-primary')}>
-                          {conv.name}
-                        </span>
-                        {conv.type === 'ai' && (
-                          <Badge className="text-[10px] px-1.5 py-0 bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/20">
-                            AI Bot
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate">{conv.role}</p>
-                      <p className="text-xs text-muted-foreground/80 truncate mt-1">
-                        {conv.lastMessage}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </ScrollArea>
+                    <p className="text-xs text-muted-foreground truncate">{conv.role}</p>
+                    <p className="text-xs text-muted-foreground/80 truncate mt-1">
+                      {conv.lastMessage}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Main Chat Area */}
-        <div className="lg:col-span-8 flex flex-col h-full bg-background">
+        <div className="lg:col-span-8 flex flex-col h-full bg-background min-h-0 overflow-hidden">
           {/* Active Chat Header */}
-          <div className="p-4 border-b flex items-center justify-between bg-card/60 backdrop-blur-md">
+          <div className="p-4 border-b flex items-center justify-between bg-card/60 backdrop-blur-md shrink-0">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 border shadow-xs">
                 {activeConversation.avatar ? (
@@ -495,7 +498,7 @@ export default function DemoChatPage() {
           </div>
 
           {/* Messages Area */}
-          <ScrollArea className="flex-1 p-4 md:p-6 bg-muted/5">
+          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0 p-4 md:p-6 bg-muted/5 overscroll-contain space-y-4">
             <div className="space-y-4 max-w-3xl mx-auto">
               {activeConversation.messages.map((msg) => {
                 const isMe = msg.sender === 'user';
@@ -561,13 +564,12 @@ export default function DemoChatPage() {
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Suggested Quick Prompt Chips */}
           {activeConversation.suggestions && activeConversation.suggestions.length > 0 && (
-            <div className="px-4 py-2 border-t bg-muted/10 overflow-x-auto flex items-center gap-2 no-scrollbar">
+            <div className="px-4 py-2 border-t bg-muted/10 overflow-x-auto flex items-center gap-2 no-scrollbar shrink-0">
               <span className="text-[11px] font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
                 <Sparkles className="h-3 w-3 text-blue-600" />
                 Try asking:
@@ -587,7 +589,7 @@ export default function DemoChatPage() {
           )}
 
           {/* Input Bar */}
-          <div className="p-4 border-t bg-card flex items-center gap-2">
+          <div className="p-4 border-t bg-card flex items-center gap-2 shrink-0">
             <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground">
               <Paperclip className="h-4 w-4" />
             </Button>

@@ -192,7 +192,7 @@ export function ChatPageContent() {
     const [newGroupName, setNewGroupName] = React.useState("");
     const [selectedMembers, setSelectedMembers] = React.useState<string[]>([]);
     const [isCreatingChat, setIsCreatingChat] = React.useState(false);
-    const bottomOfMessagesRef = React.useRef<HTMLDivElement>(null);
+    const messagesContainerRef = React.useRef<HTMLDivElement>(null);
     const [conversationToDelete, setConversationToDelete] = React.useState<Conversation | null>(null);
     const [pinnedConversations, setPinnedConversations] = React.useState<string[]>([]);
     const [favoriteConversations, setFavoriteConversations] = React.useState<string[]>([]);
@@ -368,8 +368,11 @@ export function ChatPageContent() {
     }, [currentChatId, user, db]);
     
     React.useEffect(() => {
-        if (!loadingMessages) {
-          bottomOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (!loadingMessages && messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTo({
+            top: messagesContainerRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
         }
       }, [messages, loadingMessages]);
 
@@ -941,7 +944,7 @@ export function ChatPageContent() {
                             <Search className="absolute left-3.5 top-3.5 text-slate-400 text-sm h-4 w-4" />
                         </div>
                     </div>
-                    <ScrollArea id="sidebarList" className="flex-1 custom-scrollbar">
+                    <div id="sidebarList" className="flex-1 overflow-y-auto min-h-0 custom-scrollbar overscroll-contain">
                         {currentPage === 'main' && sortedConversations.map((item) => (
                             <ContextMenu key={item.id}>
                                 <ContextMenuTrigger>
@@ -1008,7 +1011,7 @@ export function ChatPageContent() {
                                 </div>
                             </Button>
                         ))}
-                    </ScrollArea>
+                    </div>
                     <CardFooter className="p-2 border-t flex flex-col gap-2">
                         <Dialog open={openNewChatDialog} onOpenChange={setOpenNewChatDialog}>
                             <DialogTrigger asChild>
@@ -1072,7 +1075,7 @@ export function ChatPageContent() {
                     </CardFooter>
                 </aside>
                  <div id="resizer" className="hidden md:block" onMouseDown={handleMouseDown}></div>
-                <section id="chatWindow" className={cn("flex-1 flex flex-col absolute inset-0 md:relative z-40 bg-white md:bg-slate-50", (currentChatId || provisionalConversation) ? 'flex' : 'hidden md:flex')}>
+                <section id="chatWindow" className={cn("flex-1 flex flex-col absolute inset-0 md:relative z-40 bg-white md:bg-slate-50 min-h-0 overflow-hidden", (currentChatId || provisionalConversation) ? 'flex' : 'hidden md:flex')}>
                     {currentChatId || provisionalConversation ? (
                         <>
                             <header className="h-20 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between flex-shrink-0 relative z-20 shadow-sm">
@@ -1133,7 +1136,7 @@ export function ChatPageContent() {
                                 </div>
                             </header>
 
-                            <ScrollArea id="messageDisplay" className="flex-1 p-4 md:p-6 custom-scrollbar bg-[#f8fafc]">
+                            <div id="messageDisplay" ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0 p-4 md:p-6 custom-scrollbar bg-[#f8fafc] overscroll-contain">
                                 <div className="space-y-4">
                                 {messages.map((msg, index) => {
                                     const messageDate = msg.timestamp?.toDate ? format(msg.timestamp.toDate(), "PPP") : null;
@@ -1177,7 +1180,7 @@ export function ChatPageContent() {
                                                         </div>
                                                     ) : (
                                                         <>
-                                                            {msg.image && <Image src={msg.image} alt="sent image" width={300} height={200} className="rounded-lg mb-2"/>}
+                                                             {msg.image && <Image src={msg.image} alt="sent image" width={300} height={200} className="rounded-lg mb-2"/>}
                                                             {msg.text && <p className="text-sm">{msg.text}</p>}
                                                         </>
                                                     )}
@@ -1192,9 +1195,8 @@ export function ChatPageContent() {
                                         </React.Fragment>
                                     );
                                 })}
-                                <div ref={bottomOfMessagesRef} />
                                 </div>
-                            </ScrollArea>
+                            </div>
                             <footer id="chatFooter" className="bg-white border-t border-slate-200 flex-shrink-0 relative flex flex-col">
                                 {imageToSend && (
                                   <div className="p-2 relative w-24 h-24 m-2 border rounded-md">
