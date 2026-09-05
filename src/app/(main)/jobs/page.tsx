@@ -73,7 +73,7 @@ import {
   ScrollArea } from "@/components/ui/scroll-area";
 import { LegalDocumentDisplay } from "@/components/legal-document-display";
 import { addDays, isAfter } from "date-fns";
-import { deleteJobVacancyAction, deleteJobSeekerProfileAction } from "@/lib/actions/jobActions";
+import { deleteJobVacancyAction, deleteJobSeekerProfileAction, getJobsAction, getJobSeekersAction } from "@/lib/actions/jobActions";
 import { useToast } from "@/hooks/use-toast";
 
 
