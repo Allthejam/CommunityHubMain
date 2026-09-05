@@ -11,11 +11,25 @@ export interface EventLike {
 
 export function parseEventDate(d: any): Date | null {
   if (!d) return null;
-  if (typeof d?.toDate === 'function') return d.toDate();
-  if (d instanceof Date) return d;
+  if (typeof d?.toDate === 'function') {
+    try {
+      return d.toDate();
+    } catch {
+      return null;
+    }
+  }
+  if (d instanceof Date) return isNaN(d.getTime()) ? null : d;
   if (typeof d === 'string' || typeof d === 'number') {
     const parsed = new Date(d);
     return isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (typeof d === 'object') {
+    if (typeof d._seconds === 'number') {
+      return new Date(d._seconds * 1000 + (d._nanoseconds ? d._nanoseconds / 1e6 : 0));
+    }
+    if (typeof d.seconds === 'number') {
+      return new Date(d.seconds * 1000 + (d.nanoseconds ? d.nanoseconds / 1e6 : 0));
+    }
   }
   return null;
 }

@@ -15,7 +15,9 @@ export function BusinessesCard() {
 
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-    const communityId = userProfile?.communityId;
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
     const businessesQuery = useMemoFirebase(() => {
         if (!communityId || !db) return null;
@@ -80,7 +82,7 @@ export function BusinessesCard() {
             </CardContent>
             <CardFooter className="pt-0">
                 <Button asChild size="sm" variant="outline" className="w-full text-xs font-semibold border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-800 dark:text-amber-200 justify-between">
-                    <Link href="/leader/businesses">
+                    <Link href={`${demoPrefix}/leader/businesses`}>
                         <span>Directory & Subscriptions</span>
                         <ChevronRight className="h-3.5 w-3.5" />
                     </Link>

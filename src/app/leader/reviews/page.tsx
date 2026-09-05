@@ -122,7 +122,7 @@ export default function LeaderReviewsPage() {
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
     const communityId =
-        (userProfile as any)?.impersonating?.communityId || userProfile?.communityId;
+        (userProfile as any)?.impersonating?.communityId || communityId;
     const communityName =
         (userProfile as any)?.impersonating?.communityName || userProfile?.communityName;
 

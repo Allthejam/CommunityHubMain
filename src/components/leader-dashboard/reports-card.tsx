@@ -21,7 +21,9 @@ export function ReportsCard() {
 
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-    const communityId = userProfile?.communityId;
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
     const reportsQuery = useMemoFirebase(() => {
         if (!communityId || !db) return null;
@@ -76,7 +78,7 @@ export function ReportsCard() {
                                         <p className="text-[10px] text-muted-foreground">Reported by {report.reporterName || 'Resident'}</p>
                                     </div>
                                     <Button asChild variant="secondary" size="sm" className="h-7 px-2.5 text-xs font-semibold bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-200 hover:bg-rose-200">
-                                        <Link href="/leader/reports">Review</Link>
+                                        <Link href={`${demoPrefix}/leader/reports`}>Review</Link>
                                     </Button>
                                 </div>
                             ))
@@ -90,7 +92,7 @@ export function ReportsCard() {
             </CardContent>
             <CardFooter className="pt-0">
                 <Button asChild size="sm" variant="outline" className="w-full text-xs font-semibold border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-300 justify-between">
-                    <Link href="/leader/reports">
+                    <Link href={`${demoPrefix}/leader/reports`}>
                         <span>Moderation Center</span>
                         <ChevronRight className="h-3.5 w-3.5" />
                     </Link>

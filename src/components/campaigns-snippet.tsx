@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { collection } from 'firebase/firestore';
-import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useFirestore, useMemoFirebase, useCollection, useUser } from '@/firebase';
 import { Campaign, CampaignCategory } from '@/lib/types/campaigns';
 import { Target, ArrowRight, Flame, Users, Trophy, Loader2, Bus, Building2, Trees, Stethoscope, Megaphone, HelpCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -35,11 +35,12 @@ function PulseDot() {
 
 export function CampaignsSnippet({ communityId }: CampaignsSnippetProps) {
   const db = useFirestore();
+  const { user } = useUser();
 
-  // Query petitions without restrictive orderBy so all existing docs load safely
+  // Query petitions without restrictive orderBy so all existing docs load safely (only if authenticated)
   const campaignsQuery = useMemoFirebase(
-    () => (db && communityId) ? collection(db, 'communities', communityId, 'petitions') : null,
-    [db, communityId]
+    () => (db && communityId && user) ? collection(db, 'communities', communityId, 'petitions') : null,
+    [db, communityId, user]
   );
   const { data: rawCampaigns, isLoading } = useCollection<any>(campaignsQuery);
 

@@ -159,7 +159,7 @@ const MemberListDialog = ({ members }: { members: { id: string; name: string }[]
     </Dialog>
 );
 
-function ChatPageContent() {
+export function ChatPageContent() {
     const { toast } = useToast();
     const { user, isUserLoading } = useUser();
     const db = useFirestore();
@@ -1290,11 +1290,27 @@ function ChatPageContent() {
 }
 
 export default function ChatPage() {
+    const [isDemo, setIsDemo] = React.useState(false);
+
+    React.useEffect(() => {
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/demo')) {
+            setIsDemo(true);
+        }
+    }, []);
+
+    const content = (
+        <React.Suspense fallback={<div className="flex h-[75vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <ChatPageContent />
+        </React.Suspense>
+    );
+
+    if (isDemo) {
+        return content;
+    }
+
     return (
         <MainAppLayout>
-            <React.Suspense fallback={<div className="flex h-[75vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-                <ChatPageContent />
-            </React.Suspense>
+            {content}
         </MainAppLayout>
     );
 }

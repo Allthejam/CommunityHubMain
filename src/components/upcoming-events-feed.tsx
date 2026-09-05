@@ -22,30 +22,35 @@ import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@
 import { collection, query, where, doc, orderBy } from 'firebase/firestore';
 import { ScrollArea } from './ui/scroll-area';
 
+import { parseEventDate } from '@/lib/utils/event-utils';
+
 type CommunityEvent = {
-    id: string;
-    title: string;
-    category: string;
-    startDate: { toDate: () => Date };
-    endDate?: { toDate: () => Date };
-    image?: string;
-    dataAiHint?: string;
-    description: string;
-    authorName?: string;
-    businessName?: string;
+  id: string;
+  title: string;
+  category: string;
+  startDate: { toDate: () => Date } | Date | string | any;
+  endDate?: { toDate: () => Date } | Date | string | any | null;
+  image?: string;
+  dataAiHint?: string;
+  description: string;
+  authorName?: string;
+  businessName?: string;
 };
 
-const EventDialogContent = ({ event }: { event: CommunityEvent }) => (
+const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
+  const startDate = parseEventDate(event.startDate) || new Date();
+  const endDate = event.endDate ? parseEventDate(event.endDate) : null;
+  return (
     <>
         <DialogHeader className="p-6 pb-2">
             {event.image && (
-                <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted mb-4">
+                <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-4">
                     <Image
                         src={event.image}
                         alt={event.title}
                         fill
                         className="object-cover"
-                        priority
+                        data-ai-hint={event.dataAiHint || "event image"}
                     />
                 </div>
             )}
@@ -59,8 +64,8 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => (
                         <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4" />
                             <span>
-                                {format(event.startDate.toDate(), "PPP")}
-                                {event.endDate && ` - ${format(event.endDate.toDate(), "PPP")}`}
+                                {format(startDate, "PPP")}
+                                {endDate && ` - ${format(endDate, "PPP")}`}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -85,7 +90,8 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => (
             </Button>
         </DialogFooter>
     </>
-);
+  );
+};
 
 
 export function UpcomingEventsFeed() {
@@ -109,8 +115,15 @@ export function UpcomingEventsFeed() {
     if (!events) return [];
     const now = new Date();
     return events
-        .filter(event => event.startDate.toDate() > now)
-        .sort((a,b) => a.startDate.toDate().getTime() - b.startDate.toDate().getTime());
+        .filter(event => {
+          const d = parseEventDate(event.startDate);
+          return d ? d > now : false;
+        })
+        .sort((a,b) => {
+          const dateA = parseEventDate(a.startDate) || new Date(0);
+          const dateB = parseEventDate(b.startDate) || new Date(0);
+          return dateA.getTime() - dateB.getTime();
+        });
   }, [events]);
 
   const loading = profileLoading || eventsLoading;
@@ -145,21 +158,24 @@ export function UpcomingEventsFeed() {
       </CardHeader>
       <CardContent>
         <ul className="space-y-4">
-          {upcomingEvents.slice(0, 5).map((event) => (
-            <li key={event.id}>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <button className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors">
-                    <p className="font-semibold text-sm truncate">{event.title}</p>
-                    <p className="text-xs text-muted-foreground">{format(event.startDate.toDate(), "PPP")}</p>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-xl p-0 grid grid-rows-[auto_minmax(0,1fr)_auto] max-h-[90vh]">
-                  <EventDialogContent event={event} />
-                </DialogContent>
-              </Dialog>
-            </li>
-          ))}
+          {upcomingEvents.slice(0, 5).map((event) => {
+            const startDate = parseEventDate(event.startDate) || new Date();
+            return (
+              <li key={event.id}>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors">
+                      <p className="font-semibold text-sm truncate">{event.title}</p>
+                      <p className="text-xs text-muted-foreground">{format(startDate, "PPP")}</p>
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-xl p-0 grid grid-rows-[auto_minmax(0,1fr)_auto] max-h-[90vh]">
+                    <EventDialogContent event={event} />
+                  </DialogContent>
+                </Dialog>
+              </li>
+            );
+          })}
         </ul>
       </CardContent>
        <CardFooter>

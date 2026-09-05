@@ -57,7 +57,9 @@ export default function LeaderForumPage() {
     
     const userProfileRef = useMemoFirebase(() => user ? doc(db, 'users', user.uid) : null, [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-    const communityId = userProfile?.communityId;
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
 
     const categoriesQuery = useMemoFirebase(() => {
@@ -136,7 +138,7 @@ export default function LeaderForumPage() {
                 <h1 className="text-2xl font-bold">Error</h1>
                 <p className="text-muted-foreground">{error?.message || "Could not load categories."}</p>
                 <Button asChild variant="link" className="mt-4">
-                    <Link href="/leader/dashboard">
+                    <Link href={`${demoPrefix}/leader/dashboard`}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Return to Dashboard
                     </Link>

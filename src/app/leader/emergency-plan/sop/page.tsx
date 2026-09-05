@@ -101,7 +101,7 @@ function IncidentSopPageContent() {
   }, [db, user]);
   const { data: userProfile } = useDoc(userDocRef);
 
-  const activeCommunityId = (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.primaryCommunityId || (userProfile as any)?.communityId || 'c_showhome';
+  const activeCommunityId = (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.primaryCommunityId || (userProfile as any)?.communityId || '9ayHMyZf4SRw2gof1AM9';
 
   const communityDocRef = useMemoFirebase(() => {
     if (!db || !activeCommunityId) return null;
@@ -228,9 +228,14 @@ function IncidentSopPageContent() {
   };
 
   // Sync townshipName if communityData loads and not custom saved
+  
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+  const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
   useEffect(() => {
     if (communityData?.name) {
-      setTownshipName((prev) => (!prev || prev === 'Local Community' || prev === 'Grantown-on-Spey') ? communityData.name : prev);
+      setTownshipName((prev) => (!prev || prev === 'Local Community' || prev === 'Grantown-on-Spey' || prev === 'Oakridge & DemoVille') ? communityData.name : prev);
     }
   }, [communityData?.name]);
 
@@ -908,7 +913,7 @@ function IncidentSopPageContent() {
       {/* TOP NAVIGATION BAR */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div className="flex items-center gap-3">
-          <Link href="/leader/emergency-plan">
+          <Link href={`${demoPrefix}/leader/emergency-plan`}>
             <Button variant="outline" size="sm" className="bg-slate-900 border-slate-700 text-slate-300 hover:text-white text-xs h-9 gap-1.5">
               <ArrowLeft className="h-4 w-4" /> Back to Statutory Plan
             </Button>
@@ -1071,7 +1076,7 @@ function IncidentSopPageContent() {
               >
                 <Plus className="h-3.5 w-3.5" /> Log Departure
               </Button>
-              <Link href="/leader/emergency-plan">
+              <Link href={`${demoPrefix}/leader/emergency-plan`}>
                 <Button
                   variant="outline"
                   size="sm"

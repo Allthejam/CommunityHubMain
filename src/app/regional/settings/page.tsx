@@ -316,7 +316,7 @@ export default function RegionalSettingsPage() {
                   id="address"
                   value={address}
                   onChange={(e) => handleAddressChange(e.target.value)}
-                  placeholder="e.g. Regional Network Headquarters, Grantown-on-Spey, PH26 3HG"
+                  placeholder="e.g. Regional Network Headquarters, Oakridge, DE1 4MO"
                 />
               </div>
 

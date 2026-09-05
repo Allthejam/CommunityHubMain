@@ -303,7 +303,9 @@ function PlatformSettingsContent() {
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
   
   const impersonating = (userProfile as any)?.impersonating;
-  const communityId = impersonating?.communityId || userProfile?.communityId;
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
   const communityName = impersonating?.communityName || userProfile?.communityName;
   
   const communityRef = useMemoFirebase(() => (communityId && db ? doc(db, 'communities', communityId) : null), [communityId, db]);
@@ -639,12 +641,12 @@ function PlatformSettingsContent() {
   };
 
   const handleResign = async () => {
-    if (!user || !userProfile?.communityId || resignConfirmation !== 'RESIGN') {
+    if (!user || !communityId || resignConfirmation !== 'RESIGN') {
         toast({ title: "Confirmation failed", description: "Please type RESIGN to confirm.", variant: "destructive" });
         return;
     }
     setIsResigning(true);
-    const result = await resignAsPresidentAction({ userId: user.uid, communityId: userProfile.communityId });
+    const result = await resignAsPresidentAction({ userId: user.uid, communityId: communityId });
     if (result.success) {
         toast({ title: "Resignation Successful", description: "You are no longer the community president. You will be logged out." });
         setTimeout(async () => {
@@ -791,7 +793,7 @@ function PlatformSettingsContent() {
             </CardContent>
             <CardFooter>
                 <Button asChild>
-                    <Link href="/leader/profile">
+                    <Link href={`${demoPrefix}/leader/profile`}>
                         <FileEdit className="mr-2 h-4 w-4" /> Edit Your Leader Profile
                     </Link>
                 </Button>

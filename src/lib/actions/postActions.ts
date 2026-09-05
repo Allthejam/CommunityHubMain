@@ -14,6 +14,8 @@ type ActionResponse = {
 
 type CreatePostParams = {
   authorId: string;
+  authorName?: string;
+  authorAvatar?: string;
   content: string;
   image?: string | null;
   videoUrl?: string | null;
@@ -28,18 +30,28 @@ export async function createPostAction(params: CreatePostParams): Promise<Action
   }
 
   try {
-    const { firestore } = initializeAdminApp(); 
+    const isDemoCommunity = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+    const { firestore } = initializeAdminApp(isDemoCommunity ? 'comfeed' : undefined); 
 
     // Fetch user profile to get necessary info like name and avatar
-    const userRef = firestore.collection('users').doc(authorId);
-    const userDoc = await userRef.get();
+    let authorName = params.authorName || 'Community Member';
+    let authorAvatar = params.authorAvatar || '';
 
-    if (!userDoc.exists) {
-      return { success: false, error: "Author not found." };
+    try {
+      const userRef = firestore.collection('users').doc(authorId);
+      let userDoc = await userRef.get();
+      if (!userDoc.exists && isDemoCommunity) {
+        const { firestore: defaultDb } = initializeAdminApp();
+        userDoc = await defaultDb.collection('users').doc(authorId).get();
+      }
+      if (userDoc.exists) {
+        const userData = userDoc.data()!;
+        authorName = userData.name || authorName;
+        authorAvatar = userData.avatar || authorAvatar;
+      }
+    } catch (err) {
+      console.warn("Could not fetch user profile for post author:", err);
     }
-    const userData = userDoc.data()!;
-    const authorName = userData.name;
-    const authorAvatar = userData.avatar || '';
     
     let imageUrl: string | null = null;
     
@@ -47,14 +59,18 @@ export async function createPostAction(params: CreatePostParams): Promise<Action
     const postRef = firestore.collection(`communities/${communityId}/posts`).doc();
 
     // If an image is provided (as a base64 string), upload it to storage.
-    if (image) {
+    if (image && image.startsWith('data:')) {
+      try {
         const storagePath = `posts/${communityId}/${postRef.id}/${Date.now()}`;
         const uploadResult = await uploadImageAction({ base64Data: image, path: storagePath });
         if (uploadResult.success && uploadResult.url) {
-            imageUrl = uploadResult.url;
-        } else {
-            throw new Error(uploadResult.error || "Image upload failed.");
+          imageUrl = uploadResult.url;
         }
+      } catch (imgErr) {
+        console.warn("Image upload failed, using inline fallback if small or omitting:", imgErr);
+      }
+    } else if (image) {
+      imageUrl = image;
     }
     
     const postData = {
@@ -62,7 +78,7 @@ export async function createPostAction(params: CreatePostParams): Promise<Action
       authorName,
       authorAvatar,
       content,
-      image: imageUrl, // Use the public URL from storage
+      image: imageUrl,
       videoUrl: videoUrl || null,
       communityId,
       status: 'active',
@@ -72,7 +88,7 @@ export async function createPostAction(params: CreatePostParams): Promise<Action
       likedBy: [],
     };
     
-    // Use the pre-generated ref to set the data.
+    // Save to the appropriate database (comfeed for 9ayHMyZf4SRw2gof1AM9, default for live communities)
     await postRef.set(postData);
     
     return { success: true, postId: postRef.id };
@@ -93,7 +109,8 @@ export async function likePostAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const isDemoCommunity = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+    const { firestore } = initializeAdminApp(isDemoCommunity ? 'comfeed' : undefined);
     const postRef = firestore.collection(`communities/${communityId}/posts`).doc(postId);
 
     await firestore.runTransaction(async (transaction) => {
@@ -139,7 +156,8 @@ export async function updatePostAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const isDemoCommunity = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+    const { firestore } = initializeAdminApp(isDemoCommunity ? 'comfeed' : undefined);
     const postRef = firestore.collection(`communities/${communityId}/posts`).doc(postId);
 
     const updateData: { [key: string]: any } = {
@@ -179,7 +197,8 @@ export async function deletePostAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const isDemoCommunity = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+    const { firestore } = initializeAdminApp(isDemoCommunity ? 'comfeed' : undefined);
     const postRef = firestore.collection(`communities/${communityId}/posts`).doc(postId);
     const postDoc = await postRef.get();
 
@@ -192,7 +211,6 @@ export async function deletePostAction(params: {
       return { success: false, error: "You do not have permission to delete this post." };
     }
 
-    // It's good practice to delete subcollections in a batch, but for now we'll just delete the post.
     await postRef.delete();
     
     return { success: true };

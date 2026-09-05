@@ -139,10 +139,15 @@ export default function LeaderWhatsonPage() {
     const [sorting, setSorting] = React.useState<{ key: keyof WhatsonItem; order: 'asc' | 'desc' }>({ key: 'title', order: 'asc' });
     const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize: 10 });
 
-    React.useEffect(() => {
+    
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+  const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
+  React.useEffect(() => {
         if (isUserLoading || isProfileLoading) return;
         
-        if (!userProfile?.communityId || !db) {
+        if (!communityId || !db) {
             setLoading(false);
             return;
         }
@@ -150,7 +155,7 @@ export default function LeaderWhatsonPage() {
         setLoading(true);
         const q = query(
             collection(db, "whatson"),
-            where("communityId", "==", userProfile.communityId)
+            where("communityId", "==", communityId)
         );
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -182,9 +187,9 @@ export default function LeaderWhatsonPage() {
     }
     
     const handleUpdateStatus = async (id: string, status: ItemStatus) => {
-        if (!db || !userProfile?.communityId) return;
+        if (!db || !communityId) return;
         const result = await updateWhatsonStatusAction({
-            communityId: userProfile.communityId,
+            communityId: communityId,
             itemId: id,
             status,
         });
@@ -196,12 +201,12 @@ export default function LeaderWhatsonPage() {
     }
 
     const handleDelete = async (id: string) => {
-        if (!db || !userProfile?.communityId) return;
+        if (!db || !communityId) return;
         if (!window.confirm("Are you sure you want to permanently delete this listing?")) {
             return;
         }
         const result = await deleteWhatsonItemAction({
-            communityId: userProfile.communityId,
+            communityId: communityId,
             itemId: id,
         });
         if (result.success) {
@@ -266,7 +271,7 @@ export default function LeaderWhatsonPage() {
                     </TabsList>
                 </Tabs>
                  <Button asChild>
-                    <Link href="/leader/whatson/create">
+                    <Link href={`${demoPrefix}/leader/whatson/create`}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Create Item
                     </Link>
                 </Button>

@@ -129,7 +129,9 @@ export default function LeaderReportsPage() {
   const [sorting, setSorting] = React.useState<{ key: keyof Report; order: 'asc' | 'desc' }>({ key: 'createdAt', order: 'desc' });
   const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize: 10 });
   
-  const communityId = (userProfile as any)?.impersonating?.communityId || userProfile?.communityId;
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
   // Use a simpler query and filter/sort client side to avoid potential index/permission sync issues
   const [reports, setReports] = React.useState<Report[]>([]);

@@ -69,8 +69,10 @@ export default function LeaderTravelManagementPage() {
   const { data: userProfile } = useDoc(userProfileRef);
 
   const impersonating = (userProfile as any)?.impersonating;
-  const communityId = impersonating?.communityId || userProfile?.communityId || 'c_showhome';
-  const communityName = impersonating?.communityName || userProfile?.communityName || 'Grantown-on-Spey';
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+  const communityName = impersonating?.communityName || userProfile?.communityName || 'Show Home Community, "Display Only"';
 
   const communityDocRef = useMemoFirebase(() => (communityId && db ? doc(db, 'communities', communityId) : null), [communityId, db]);
   const { data: communityData, isLoading: communityLoading } = useDoc(communityDocRef);
@@ -115,17 +117,17 @@ export default function LeaderTravelManagementPage() {
     localTips: '',
   });
 
-  // Sync from DB: Only Grantown-on-Spey / c_showhome gets sample defaults if empty. All other communities start clean!
+  // Sync from DB: Only Show Home / Oakridge gets sample defaults if empty. All other communities start clean!
   React.useEffect(() => {
     if (communityData) {
       if (Array.isArray(communityData.travelServices)) {
         setServices(communityData.travelServices);
-      } else if (communityId === 'c_showhome' || (communityName && communityName.toLowerCase().includes('grantown'))) {
+      } else if (communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome' || (communityName && (communityName.toLowerCase().includes('oakridge') || communityName.toLowerCase().includes('show') || communityName.toLowerCase().includes('demo')))) {
         setServices(DEFAULT_TRAVEL_SERVICES);
       } else {
         setServices([]);
       }
-    } else if (communityId === 'c_showhome') {
+    } else if (communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome') {
       setServices(DEFAULT_TRAVEL_SERVICES);
     }
   }, [communityData, communityId, communityName]);
@@ -338,7 +340,7 @@ export default function LeaderTravelManagementPage() {
         <div>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" size="sm" className="gap-1 text-xs">
-              <Link href="/leader/dashboard">
+              <Link href={`${demoPrefix}/leader/dashboard`}>
                 <ArrowLeft className="h-3.5 w-3.5" /> Back to Dashboard
               </Link>
             </Button>
@@ -737,7 +739,7 @@ export default function LeaderTravelManagementPage() {
               <Input 
                 value={formData.destinations}
                 onChange={(e) => setFormData(prev => ({ ...prev, destinations: e.target.value }))}
-                placeholder="e.g. Aviemore – Carrbridge – Grantown-on-Spey"
+                placeholder="e.g. Oakridge – DemoVille Central – Westpark"
                 className="h-9 text-xs"
               />
             </div>

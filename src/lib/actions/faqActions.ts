@@ -29,7 +29,7 @@ export async function runCreateFaq(params: {
     return { success: false, error: 'Community ID, question, and answer are required.' };
   }
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
     const faqsCollection = firestore.collection(`communities/${communityId}/faqs`);
     
     // Get the current max order
@@ -56,7 +56,7 @@ export async function runUpdateFaq(params: Partial<FaqItem> & {id: string, commu
         return { success: false, error: 'Item ID and Community ID are required.' };
     }
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
         const faqRef = firestore.doc(`communities/${communityId}/faqs/${id}`);
         await faqRef.update({ ...updateData, updatedAt: Timestamp.now() });
         return { success: true };
@@ -71,7 +71,7 @@ export async function runDeleteFaq(params: { id: string; communityId: string }):
         return { success: false, error: 'Item ID and Community ID are required.' };
     }
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
         await firestore.doc(`communities/${communityId}/faqs/${id}`).delete();
         return { success: true };
     } catch (error: any) {
@@ -89,7 +89,7 @@ export async function runUpdateFaqOrder(params: {
         return { success: false, error: 'Invalid parameters for reordering.' };
     }
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
         const batch = firestore.batch();
         const ref1 = firestore.doc(`communities/${communityId}/faqs/${item1.id}`);
         const ref2 = firestore.doc(`communities/${communityId}/faqs/${item2.id}`);
@@ -108,7 +108,7 @@ export async function runToggleFaqVisibility(params: { communityId: string; isPu
         return { success: false, error: 'Community ID is required.' };
     }
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
         const communityRef = firestore.doc(`communities/${communityId}`);
         await communityRef.update({ faqPublished: isPublished });
         return { success: true };

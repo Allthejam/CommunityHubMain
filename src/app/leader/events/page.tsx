@@ -175,8 +175,13 @@ export default function MyEventsPage() {
   const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
+  
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+  const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
   React.useEffect(() => {
-    if (!userProfile?.communityId || !db) {
+    if (!communityId || !db) {
         setEvents([]);
         setLoading(false);
         return;
@@ -184,7 +189,7 @@ export default function MyEventsPage() {
 
     setLoading(true);
     const eventsRef = collection(db, "events");
-    const q = query(eventsRef, where("communityId", "==", userProfile.communityId));
+    const q = query(eventsRef, where("communityId", "==", communityId));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const eventsData = snapshot.docs.map(doc => ({
@@ -200,7 +205,7 @@ export default function MyEventsPage() {
     });
 
     return () => unsubscribe();
-  }, [userProfile?.communityId, db, toast]);
+  }, [communityId, db, toast]);
 
   const handleDeleteEvent = async (eventId: string) => {
     const result = await deleteEventAction({ eventId });

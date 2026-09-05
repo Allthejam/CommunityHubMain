@@ -69,7 +69,7 @@ export async function deleteBusinessAction(params: {
   userId: string;
 }): Promise<ActionResponse> {
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     await firestore.collection('businesses').doc(params.businessId).delete();
     return { success: true };
   } catch (error: any) {
@@ -84,7 +84,7 @@ export async function updateBusinessStatusAction(params: {
     amendmentReason?: string;
 }): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const updateData: {status: string, amendmentReason?: string | FieldValue, pageThreeTypeLocked?: boolean} = { status: params.status };
         if (params.status === 'Requires Amendment' && params.amendmentReason) {
             updateData.amendmentReason = params.amendmentReason;
@@ -106,7 +106,7 @@ export async function updateBusinessStatusAction(params: {
 
 export async function runCreateBusiness(businessData: any): Promise<ActionResponse> {
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const { businessId, ownerId, additionalCommunities, pageThreeType, pageThreeContent, meetingMinutes, ...data } = businessData;
     const additionalCommunityIds = (additionalCommunities || []).map((c: any) => c.community).filter(Boolean);
     
@@ -251,7 +251,7 @@ export async function saveBusinessAsDraft(params: {
   businessData: any;
 }): Promise<ActionResponse> {
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const { userId, businessData } = params;
     const { id, additionalCommunities, pageThreeType, pageThreeContent, meetingMinutes, ...dataToSave } = businessData;
     const additionalCommunityIds = (additionalCommunities || []).map((c: any) => c.community).filter(Boolean);
@@ -301,7 +301,7 @@ export async function approveAsFreeListingAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     
     await firestore.runTransaction(async (transaction) => {
       const communityRef = firestore.collection('communities').doc(communityId);
@@ -378,7 +378,7 @@ export async function cancelFreeListingAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const businessRef = firestore.collection('businesses').doc(businessId);
     await businessRef.update({
       status: 'Pending Approval',
@@ -415,7 +415,7 @@ export async function saveNationalAdvertiserProfile(params: {
     return { success: false, error: 'User ID is required.' };
   }
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
 
     const companyProfilePayload: any = {
@@ -446,7 +446,7 @@ export async function saveNationalAdvertiserProfile(params: {
 }
 
 export async function updatePageTwoBlock(businessId: string, block: { id: string; text: string; image: string | null }): Promise<ActionResponse> {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const businessRef = firestore.collection('businesses').doc(businessId);
     
     try {
@@ -485,7 +485,7 @@ export async function updatePageTwoBlock(businessId: string, block: { id: string
 }
 
 export async function deletePageTwoBlock(businessId: string, blockId: string): Promise<ActionResponse> {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const businessRef = firestore.collection('businesses').doc(businessId);
     try {
         await firestore.runTransaction(async (transaction) => {
@@ -505,7 +505,7 @@ export async function deletePageTwoBlock(businessId: string, blockId: string): P
 }
 
 export async function addMeetingMinuteAction(params: { businessId: string; minuteData: any }): Promise<ActionResponse & { newMinute?: any }> {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const businessRef = firestore.collection('businesses').doc(params.businessId);
     try {
         const now = Timestamp.now();
@@ -534,7 +534,7 @@ export async function addMeetingMinuteAction(params: { businessId: string; minut
 }
 
 export async function updateMeetingMinuteAction(params: { businessId: string; minuteData: any }): Promise<ActionResponse> {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const businessRef = firestore.collection('businesses').doc(params.businessId);
     try {
         await firestore.runTransaction(async (transaction) => {
@@ -565,7 +565,7 @@ export async function updateMeetingMinuteAction(params: { businessId: string; mi
 }
 
 export async function deleteMeetingMinuteAction(params: { businessId: string; minuteId: string }): Promise<ActionResponse> {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const businessRef = firestore.collection('businesses').doc(params.businessId);
     try {
         await firestore.runTransaction(async (transaction) => {

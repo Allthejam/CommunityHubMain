@@ -614,7 +614,7 @@ export default function LeaderEmergencyPlanPage() {
   const activeCommunityId = useMemo(() => {
     if (!userProfile) return null;
     const impersonating = (userProfile as any)?.impersonating;
-    return impersonating?.communityId || userProfile.communityId;
+    return impersonating?.communityId || communityId;
   }, [userProfile]);
 
   // Real-time Community Doc for ownership check
@@ -1334,6 +1334,11 @@ export default function LeaderEmergencyPlanPage() {
   const { data: registeredVolunteers } = useCollection(volunteersQuery);
 
   // Fetch Existing Plan from Firestore on mount / community change
+  
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+  const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
   useEffect(() => {
     if (!db || !activeCommunityId) {
       setIsLoadingData(false);
@@ -2406,7 +2411,7 @@ export default function LeaderEmergencyPlanPage() {
               value={townshipName}
               onChange={(e) => setTownshipName(e.target.value)}
               className="bg-slate-900 border-slate-700 text-white font-bold h-8 text-xs"
-              placeholder="e.g. Grantown-on-Spey & Strathspey"
+              placeholder="e.g. Oakridge Community Council"
             />
           </div>
 
@@ -3858,7 +3863,7 @@ export default function LeaderEmergencyPlanPage() {
                     <Input
                       value={flSepaCode}
                       onChange={(e) => setFlSepaCode(e.target.value)}
-                      placeholder="Speyside - Grantown (023314)"
+                      placeholder="Oakridge Sector (023314)"
                     />
                   </div>
                 </div>
@@ -5838,7 +5843,7 @@ export default function LeaderEmergencyPlanPage() {
               <Input
                 value={pointFormData.address || ''}
                 onChange={(e) => setPointFormData(prev => ({ ...prev, address: e.target.value }))}
-                placeholder="e.g. High Street, Grantown-on-Spey, PH26 3HF"
+                placeholder="e.g. High Street, Oakridge, DE1 4MO"
                 className="h-9 text-xs"
               />
             </div>

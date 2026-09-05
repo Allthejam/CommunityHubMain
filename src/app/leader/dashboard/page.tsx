@@ -27,9 +27,15 @@ import { useUser, useDoc, useMemoFirebase, useFirestore } from "@/firebase";
 import { doc } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function LeaderDashboardPage() {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     const { user, isUserLoading } = useUser();
     const db = useFirestore();
 
@@ -37,25 +43,32 @@ export default function LeaderDashboardPage() {
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
     const impersonating = (userProfile as any)?.impersonating;
-    const communityId = impersonating?.communityId || userProfile?.communityId;
-    const communityName = impersonating?.communityName || userProfile?.communityName;
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (impersonating?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
+    
+    // Query the actual community doc in Firestore so any database edits update immediately
+    const communityRef = useMemoFirebase(() => (communityId && db ? doc(db, 'communities', communityId) : null), [communityId, db]);
+    const { data: communityData } = useDoc<any>(communityRef);
+
+    const communityName = impersonating?.communityName || communityData?.name || userProfile?.communityName || 'Community Hub';
     const communityRoleData = communityId ? userProfile?.communityRoles?.[communityId] : null;
 
     const permissions = communityRoleData?.permissions || userProfile?.permissions || {};
     const activeRole = communityRoleData?.role || userProfile?.role || 'Leader';
     
     // President/admin should see all by default. Platform owner/admin account types get full access too.
-    const isAdminOrPresident = ['president', 'owner', 'admin'].includes(activeRole) ||
+    const isAdminOrPresident = isDemo || ['president', 'owner', 'admin'].includes(activeRole) ||
         ['owner', 'admin', 'administrator'].includes((userProfile as any)?.accountType);
 
     const hasAccess = (permissionKey: keyof typeof permissions) => {
-        if (isAdminOrPresident) return true;
+        if (isAdminOrPresident || isDemo) return true;
         return !!permissions[permissionKey];
     }
     
     const isLoading = isUserLoading || profileLoading;
 
-    if (isLoading) {
+    if (!mounted || (isLoading && !isDemo)) {
         return (
             <div className="flex items-center justify-center h-96">
                 <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -97,17 +110,17 @@ export default function LeaderDashboardPage() {
                     {/* Quick Action Shortcuts */}
                     <div className="flex flex-wrap md:flex-col gap-2.5 shrink-0">
                         <Button asChild size="sm" className="bg-red-600 hover:bg-red-700 text-white font-semibold shadow-xs text-xs">
-                            <Link href="/leader/emergency-plan">
+                            <Link href={`${demoPrefix}/leader/emergency-plan`}>
                                 <Siren className="mr-1.5 h-3.5 w-3.5" /> Emergency Plan
                             </Link>
                         </Button>
                         <Button asChild size="sm" variant="outline" className="font-semibold text-xs bg-background/80 hover:bg-muted">
-                            <Link href="/leader/travel">
+                            <Link href={`${demoPrefix}/leader/travel`}>
                                 <Navigation className="mr-1.5 h-3.5 w-3.5 text-sky-600" /> Travel Guide
                             </Link>
                         </Button>
                         <Button asChild size="sm" variant="outline" className="font-semibold text-xs bg-background/80 hover:bg-muted">
-                            <Link href="/leader/events/create">
+                            <Link href={`${demoPrefix}/leader/events`}>
                                 <CalendarPlus className="mr-1.5 h-3.5 w-3.5 text-indigo-600" /> Post Event
                             </Link>
                         </Button>

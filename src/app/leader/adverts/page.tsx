@@ -106,14 +106,16 @@ export default function LeaderAdvertsPage() {
 
 
     React.useEffect(() => {
-        if (isUserLoading || profileLoading || !userProfile?.communityId || !db) {
+        if (isUserLoading || profileLoading || !communityId || !db) {
             setLoading(false);
             return;
         }
 
         setLoading(true);
 
-        const communityId = userProfile.communityId;
+        const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
         const advertsRef = collection(db, "adverts");
 
         const q = query(advertsRef, where("communityId", "==", communityId));
@@ -129,7 +131,7 @@ export default function LeaderAdvertsPage() {
         });
 
         return () => unsubscribe();
-    }, [userProfile?.communityId, isUserLoading, profileLoading, db, toast]);
+    }, [communityId, isUserLoading, profileLoading, db, toast]);
     
     const handleConfirmAction = async (advertId?: string, status?: AdvertStatus) => {
         const id = advertId || storyToAction?.id;

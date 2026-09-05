@@ -36,7 +36,8 @@ export async function createPlatformAnnouncementAction(
   params: CreatePlatformAnnouncementParams
 ): Promise<ActionResponse> {
   try {
-    const { firestore } = initializeAdminApp();
+    const dbId = params.communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined;
+    const { firestore } = initializeAdminApp(dbId);
     const { userId, audience, ...restOfParams } = params;
     
     const finalAudienceObject = {
@@ -137,7 +138,8 @@ export async function createCommunityAnnouncementAction(
   params: CreateCommunityAnnouncementParams
 ): Promise<ActionResponse> {
   try {
-    const { firestore } = initializeAdminApp();
+    const dbId = params.communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined;
+    const { firestore } = initializeAdminApp(dbId);
     
     const { sendEmail: shouldSendEmail, userId, ...restOfData } = params;
     let finalShouldSendEmail = shouldSendEmail;
@@ -148,6 +150,8 @@ export async function createCommunityAnnouncementAction(
 
     const announcementData: any = {
       ...restOfData,
+      communityId: params.communityId,
+      targetCommunityIds: [params.communityId],
       ownerId: userId,
       scope: 'community',
       createdAt: Timestamp.now(),
@@ -229,16 +233,28 @@ export async function updateAnnouncementStatusAction(params: {
   announcementId: string;
   status: 'Paused' | 'Live' | 'Archived';
   actorId: string;
+  communityId?: string;
 }): Promise<ActionResponse> {
-  const { announcementId, status, actorId } = params;
+  const { announcementId, status, actorId, communityId } = params;
 
   if (!announcementId || !status || !actorId) {
     return { success: false, error: 'Announcement ID, status, and actor ID are required.' };
   }
 
   try {
-    const { firestore } = initializeAdminApp();
-    const announcementRef = firestore.collection('announcements').doc(announcementId);
+    let dbId = communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined;
+    let { firestore } = initializeAdminApp(dbId);
+    let announcementRef = firestore.collection('announcements').doc(announcementId);
+    let docSnap = await announcementRef.get();
+
+    if (!docSnap.exists && dbId === undefined) {
+      const comfeedAdmin = initializeAdminApp('comfeed');
+      const comfeedSnap = await comfeedAdmin.firestore.collection('announcements').doc(announcementId).get();
+      if (comfeedSnap.exists) {
+        firestore = comfeedAdmin.firestore;
+        announcementRef = firestore.collection('announcements').doc(announcementId);
+      }
+    }
 
     await announcementRef.update({
       status: status,

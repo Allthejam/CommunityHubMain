@@ -301,8 +301,13 @@ export default function LeaderAnnouncementsPage() {
   const [sorting, setSorting] = React.useState<{ key: keyof Announcement; order: 'asc' | 'desc' }>({ key: 'createdAt', order: 'desc' });
   const [archivedSorting, setArchivedSorting] = React.useState<{ key: keyof Announcement; order: 'asc' | 'desc' }>({ key: 'createdAt', order: 'desc' });
 
+  
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+  const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
   React.useEffect(() => {
-    if (!user || !userProfile?.communityId || !db) {
+    if (!user || !communityId || !db) {
         setLoading(false);
         return;
     };
@@ -311,7 +316,7 @@ export default function LeaderAnnouncementsPage() {
 
     const q = query(
         collection(db, "announcements"), 
-        where("communityId", "==", userProfile.communityId)
+        where("communityId", "==", communityId)
     );
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const communityAnnouncements: Announcement[] = [];
@@ -332,20 +337,20 @@ export default function LeaderAnnouncementsPage() {
     });
 
     return () => unsubscribe();
-  }, [user, userProfile, db, toast]);
+  }, [user, userProfile, db, toast, communityId]);
 
   const updateAnnouncementStatus = React.useCallback(async (announcementId: string, status: 'Paused' | 'Live' | 'Archived') => {
     if (!user) {
         toast({ title: "Error", description: "You must be logged in to perform this action.", variant: "destructive"});
         return;
     }
-    const result = await updateAnnouncementStatusAction({ announcementId, status, actorId: user.uid });
+    const result = await updateAnnouncementStatusAction({ announcementId, status, actorId: user.uid, communityId });
     if (result.success) {
         toast({ title: "Success", description: `Announcement status updated to ${status}.`});
     } else {
         toast({ title: "Error", description: "Failed to update announcement status.", variant: "destructive"});
     }
-  }, [user, toast]);
+  }, [user, toast, communityId]);
   
   const handlePause = React.useCallback((announcementId: string) => updateAnnouncementStatus(announcementId, 'Paused'), [updateAnnouncementStatus]);
   const handleReactivate = React.useCallback((announcementId: string) => updateAnnouncementStatus(announcementId, 'Live'), [updateAnnouncementStatus]);

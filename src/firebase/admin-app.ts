@@ -44,14 +44,23 @@ function createAdminApp(): App {
  * This function is the entry point for accessing server-side Firebase services.
  * It ensures the admin app is initialized before returning the services.
  *
+ * @param databaseId Optional named database ID (e.g. 'comfeed' for demo sandbox)
  * @returns An object containing the Firestore instance and the Admin App itself.
  */
-export function initializeAdminApp() {
+export function initializeAdminApp(databaseId?: string) {
   if (!adminApp) {
     adminApp = createAdminApp();
   }
   return {
-    firestore: getFirestore(adminApp),
+    firestore: databaseId ? getFirestore(adminApp, databaseId) : getFirestore(adminApp),
     adminApp,
   };
+}
+
+export function getAdminDb(communityId?: string, isDemo?: boolean) {
+  if (!adminApp) {
+    adminApp = createAdminApp();
+  }
+  const isDemoDb = isDemo || communityId === '9ayHMyZf4SRw2gof1AM9';
+  return isDemoDb ? getFirestore(adminApp, 'comfeed') : getFirestore(adminApp);
 }

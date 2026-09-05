@@ -27,7 +27,8 @@ export async function addCommentAction(params: AddCommentParams): Promise<Action
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const isDemoCommunity = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+    const { firestore } = initializeAdminApp(isDemoCommunity ? 'comfeed' : undefined);
     
     const postRef = firestore.collection(`communities/${communityId}/posts`).doc(postId);
     const postDocForCheck = await postRef.get();

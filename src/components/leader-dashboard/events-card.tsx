@@ -15,7 +15,9 @@ export function EventsCard() {
 
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-    const communityId = userProfile?.communityId;
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
     const eventsQuery = useMemoFirebase(() => {
         if (!communityId || !db) return null;
@@ -85,7 +87,7 @@ export function EventsCard() {
             </CardContent>
             <CardFooter className="pt-0">
                 <Button asChild size="sm" variant="outline" className="w-full text-xs font-semibold border-sky-200 dark:border-sky-800 hover:bg-sky-50 dark:hover:bg-sky-950/40 text-sky-700 dark:text-sky-300 justify-between">
-                    <Link href="/leader/events">
+                    <Link href={`${demoPrefix}/leader/events`}>
                         <span>Event Manager</span>
                         <ChevronRight className="h-3.5 w-3.5" />
                     </Link>

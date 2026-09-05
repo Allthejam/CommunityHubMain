@@ -30,17 +30,17 @@ import {
 export function TravelCard({ communityId }: { communityId?: string | null }) {
   const db = useFirestore();
 
-  const effectiveId = communityId || 'c_showhome';
+  const effectiveId = communityId || '9ayHMyZf4SRw2gof1AM9';
   const communityDocRef = useMemoFirebase(() => (effectiveId && db ? doc(db, 'communities', effectiveId) : null), [effectiveId, db]);
   const { data: communityData } = useDoc(communityDocRef);
 
-  const communityName = communityData?.name || 'Local Community';
+  const communityName = communityData?.name || 'Show Home Community, "Display Only"';
 
   const travelServices: TravelServiceItem[] = React.useMemo(() => {
     if (communityData?.travelServices && Array.isArray(communityData.travelServices)) {
       return communityData.travelServices.filter((s: TravelServiceItem) => s.isActive !== false);
     }
-    if (effectiveId === 'c_showhome' || (communityName && communityName.toLowerCase().includes('grantown'))) {
+    if (effectiveId === '9ayHMyZf4SRw2gof1AM9' || effectiveId === 'c_showhome' || (communityName && (communityName.toLowerCase().includes('oakridge') || communityName.toLowerCase().includes('show') || communityName.toLowerCase().includes('demo')))) {
       return DEFAULT_TRAVEL_SERVICES;
     }
     return [];

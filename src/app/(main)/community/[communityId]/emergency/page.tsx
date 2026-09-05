@@ -101,39 +101,39 @@ const VOLUNTEER_SKILL_OPTIONS = [
 
 const DEFAULT_FALLBACK_FACILITIES: ScenarioFacilitiesMap = {
   wildfire: {
-    f1: { name: 'Evacuation Corridor / Escape Highway', primary: 'A95 Northbound towards Aviemore / A9', secondary: 'A939 towards Nairn / Coast', isFailover: false },
-    f2: { name: 'Evacuation Refuge & Shelter Hub', primary: 'Grantown Grammar School Sports Complex', secondary: 'Inverallan Church Hall & Canteen', isFailover: false },
-    f3: { name: 'Incident Command Post', primary: 'The Town Hall, The Square', secondary: 'Royal British Legion Hall (RBLS)', isFailover: false }
+    f1: { name: 'Evacuation Corridor / Escape Highway', primary: 'A10 Northbound towards Regional Bypass', secondary: 'B402 Relief Corridor towards Coast', isFailover: false },
+    f2: { name: 'Evacuation Refuge & Shelter Hub', primary: 'Oakridge Community Academy Sports Complex', secondary: 'Oakridge Civic Hall & Canteen', isFailover: false },
+    f3: { name: 'Incident Command Post', primary: 'Oakridge Town Hall, The Square', secondary: 'Community Centre Main Hall', isFailover: false }
   },
   urbanfire: {
-    f1: { name: 'Traffic Bypass & Cordon Corridor', primary: 'Bypass via Castle Grant Estate Road & Seafield Avenue', secondary: 'Relief Route via Old Spey Bridge', isFailover: false },
-    f2: { name: 'Immediate Warmth & Family Assembly Hub', primary: 'RBLS Legion Main Hall, The Square', secondary: 'Strathspey Church Hall', isFailover: false },
-    f3: { name: 'Forward Fire & Rescue Appliance Staging', primary: 'The Square Central Staging Area', secondary: 'Burnfield Car Park Hardstanding', isFailover: false }
+    f1: { name: 'Traffic Bypass & Cordon Corridor', primary: 'Bypass via North Ridge Avenue', secondary: 'Relief Route via Valley Road', isFailover: false },
+    f2: { name: 'Immediate Warmth & Family Assembly Hub', primary: 'Oakridge Community Hall, The Square', secondary: 'Civic Centre Assembly Room', isFailover: false },
+    f3: { name: 'Forward Fire & Rescue Appliance Staging', primary: 'The Square Central Staging Area', secondary: 'High Street Car Park Hardstanding', isFailover: false }
   },
   flood: {
-    f1: { name: 'High-Ground Evacuation Refuge (>220m)', primary: 'Grantown Grammar School (Above 220m contour)', secondary: 'Spey Valley Golf Clubhouse', isFailover: false },
-    f2: { name: 'Council Sandbag Collection Depot', primary: 'Highland Council Depot, Burnfield Car Park', secondary: 'Strathspey Roads Yard', isFailover: false },
-    f3: { name: 'Emergency Flood Warden Command Desk', primary: 'Burnfield Command Portacabin', secondary: 'Town Hall Lower Meeting Room', isFailover: false }
+    f1: { name: 'High-Ground Evacuation Refuge (>220m)', primary: 'Oakridge Community Academy (High Ridge Campus)', secondary: 'Oakridge Sports & Leisure Clubhouse', isFailover: false },
+    f2: { name: 'Council Sandbag Collection Depot', primary: 'Municipal Depot, High Street Car Park', secondary: 'Highways Maintenance Yard', isFailover: false },
+    f3: { name: 'Emergency Flood Warden Command Desk', primary: 'Civic Command Post', secondary: 'Town Hall Lower Meeting Room', isFailover: false }
   },
   power: {
-    f1: { name: 'Warm Space Hub & Soup Canteen (Generator Powered)', primary: 'Community Hub Hall (25kVA Generator, Heating & Kitchen)', secondary: 'Inverallan Church Canteen', isFailover: false },
-    f2: { name: 'Device Charging & Thermal Blanket Bank', primary: 'Grammar School Sports Tech Suite (Multi-Socket Bank)', secondary: 'Legion Lounge Power Station', isFailover: false },
-    f3: { name: 'Off-Grid Mesh Radio Net & Welfare Check Station', primary: 'Anagach Hill Repeater / PMR Channel 7', secondary: 'High School Mast Net Controller', isFailover: false }
+    f1: { name: 'Warm Space Hub & Soup Canteen (Generator Powered)', primary: 'Community Hub Hall (25kVA Generator, Heating & Kitchen)', secondary: 'Civic Hall Canteen', isFailover: false },
+    f2: { name: 'Device Charging & Thermal Blanket Bank', primary: 'Academy Sports Complex (Multi-Socket Bank)', secondary: 'Community Lounge Power Station', isFailover: false },
+    f3: { name: 'Off-Grid Mesh Radio Net & Welfare Check Station', primary: 'North Ridge Repeater / PMR Channel 7', secondary: 'Academy Radio Net Controller', isFailover: false }
   },
   drought: {
-    f1: { name: 'Scottish Water Bowser Tanker Station', primary: 'Burnfield Car Park (Heavy Tanker Access)', secondary: 'Showgrounds Agricultural Bowser Stand', isFailover: false },
-    f2: { name: 'Potable Bottled Water Rationing Hub', primary: 'RBLS Legion Main Hall (10L / person / day)', secondary: 'Town Hall Distribution Desk', isFailover: false },
-    f3: { name: 'Agricultural & Livestock Water Draw Point', primary: 'Spey Valley Showgrounds 5000L Mobile Bowser', secondary: 'River Spey Dedicated Mobile Pump Point', isFailover: false }
+    f1: { name: 'Emergency Water Bowser Tanker Station', primary: 'High Street Public Car Park (Heavy Tanker Access)', secondary: 'Showgrounds Mobile Bowser Stand', isFailover: false },
+    f2: { name: 'Potable Bottled Water Distribution Hub', primary: 'Community Centre Main Hall (10L / person / day)', secondary: 'Town Hall Distribution Desk', isFailover: false },
+    f3: { name: 'Agricultural & Livestock Water Draw Point', primary: 'Rural Showgrounds 5000L Mobile Bowser', secondary: 'River Valley Dedicated Pump Point', isFailover: false }
   },
   unrest: {
-    f1: { name: 'Public Safety Safe Haven & Sanctuary', primary: 'Town Hall Reinforced Complex & Secure Rooms', secondary: 'Legion Inner Hall Sanctuary', isFailover: false },
-    f2: { name: 'Pedestrian & Traffic Avoidance Bypass', primary: 'Bypass High Street via Grant Road & Woodside', secondary: 'Outer Perimeter Ring Road', isFailover: false },
-    f3: { name: 'Police Scotland Liaison Command Link', primary: 'Aviemore Police Command Control 101 Line', secondary: 'Duty Inspector Mobile Command Post', isFailover: false }
+    f1: { name: 'Public Safety Safe Haven & Sanctuary', primary: 'Town Hall Reinforced Complex & Secure Rooms', secondary: 'Civic Centre Inner Hall', isFailover: false },
+    f2: { name: 'Pedestrian & Traffic Avoidance Bypass', primary: 'Bypass High Street via Park Road & Station Way', secondary: 'Outer Perimeter Ring Road', isFailover: false },
+    f3: { name: 'Emergency Services Liaison Command Link', primary: 'Regional Command Control Link', secondary: 'Duty Inspector Mobile Command Post', isFailover: false }
   },
   defence: {
-    f1: { name: 'Subterranean Reinforced Shelter', primary: 'Grantown Grammar School Reinforced Basement Complex', secondary: 'Castle Grant Vaulted Cellars', isFailover: false },
-    f2: { name: 'Potable Spring & Gravity Water Borehole', primary: 'Castle Grant Estate Gravity-Fed Spring Tank 1', secondary: 'Hillhead Borehole Pump Station', isFailover: false },
-    f3: { name: 'Civil Resilience Command Bunker', primary: 'Grammar School Operations Suite', secondary: 'Town Hall Secure Meeting Room', isFailover: false }
+    f1: { name: 'Subterranean Reinforced Shelter', primary: 'Oakridge Community Academy Reinforced Basement Complex', secondary: 'Civic Centre Vaulted Cellars', isFailover: false },
+    f2: { name: 'Potable Spring & Gravity Water Borehole', primary: 'High Ridge Gravity-Fed Spring Reservoir', secondary: 'Valley Borehole Pump Station', isFailover: false },
+    f3: { name: 'Civil Resilience Command Bunker', primary: 'Academy Operations Suite', secondary: 'Town Hall Secure Meeting Room', isFailover: false }
   }
 };
 

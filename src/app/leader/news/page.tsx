@@ -271,14 +271,19 @@ function LeaderNewsContent() {
     const canEditNews = userProfile?.role === 'president' || permissions.actionEditNews;
 
 
-    React.useEffect(() => {
-        if (authLoading || !userProfile?.communityId || !db) {
+    
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+  const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
+  React.useEffect(() => {
+        if (authLoading || !communityId || !db) {
             setLoading(false);
             return;
         };
 
-        const reportersQuery = query(collection(db, "users"), where("communityId", "==", userProfile.communityId), where("role", "==", "reporter"));
-        const newsQuery = query(collection(db, "news"), where("communityId", "==", userProfile.communityId));
+        const reportersQuery = query(collection(db, "users"), where("communityId", "==", communityId), where("role", "==", "reporter"));
+        const newsQuery = query(collection(db, "news"), where("communityId", "==", communityId));
 
         const unsubscribeReporters = onSnapshot(reportersQuery, (snapshot) => {
             setReportersData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reporter)));
@@ -305,7 +310,7 @@ function LeaderNewsContent() {
             unsubscribeReporters();
             unsubscribeNews();
         };
-    }, [userProfile?.communityId, authLoading, db]);
+    }, [communityId, authLoading, db]);
 
     const handleAction = (story: NewsStory, action: 'archive' | 'delete' | 'decline' | 'request-edit' | 'approve') => {
         if (action === 'approve') {
@@ -458,7 +463,7 @@ function LeaderNewsContent() {
                                     </Button>
                                 )}
                                 <Button asChild disabled={!canEditNews}>
-                                    <Link href="/leader/news/create">
+                                    <Link href={`${demoPrefix}/leader/news/create`}>
                                         <PlusCircle className="mr-2 h-4 w-4" />
                                         Create Story
                                     </Link>

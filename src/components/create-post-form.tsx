@@ -29,6 +29,21 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
   const { data: userProfile } = useDoc(userProfileRef);
   const darkMode = userProfile?.settings?.darkMode;
 
+  const [mounted, setMounted] = React.useState(false);
+  const [currentPersona, setCurrentPersona] = React.useState('personal');
+
+  React.useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      const p = sessionStorage.getItem('sandboxPersona') || 'personal';
+      setCurrentPersona(p);
+    }
+  }, []);
+
+  const isDemo = mounted && typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const visitedId = mounted && typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
+  const effectiveCommunityId = communityId || visitedId || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : 'N3SarfGXPLxBI7XcsinX');
+
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [content, setContent] = React.useState('');
   const [image, setImage] = React.useState<string | null>(null);
@@ -36,47 +51,94 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const PERSONA_DETAILS: Record<string, { name: string; avatar: string }> = {
+    leader: { name: 'Fiona Macleod (Leader)', avatar: '' },
+    business: { name: 'Callum Stewart (Merchant)', avatar: '' },
+    personal: { name: 'Morag Campbell (Resident)', avatar: '' },
+    advertiser: { name: 'Marcus Vance (Brand Partner)', avatar: '' },
+    regional: { name: 'Alastair Roy (Regional Authority)', avatar: '' },
+  };
+
+  const activeAuthorName = userProfile?.name || user?.displayName || (mounted && isDemo ? PERSONA_DETAILS[currentPersona]?.name : 'Community Member');
+  const activeAuthorAvatar = userProfile?.avatar || user?.photoURL || (mounted && isDemo ? PERSONA_DETAILS[currentPersona]?.avatar : '');
+
   const handlePost = async () => {
-    if (!user || !userProfile) {
-        toast({ title: "Error", description: "You must be logged in to post.", variant: "destructive" });
-        return;
-    }
-    if (!communityId) {
-        toast({ title: "Error", description: "Cannot determine which community to post to.", variant: "destructive" });
-        return;
-    }
     if (!content.trim()) {
-        toast({ title: "Error", description: "Post content cannot be empty.", variant: "destructive" });
-        return;
+      toast({ title: "Error", description: "Post content cannot be empty.", variant: "destructive" });
+      return;
     }
-    
+
     setIsSubmitting(true);
     try {
+      // 1. If user is logged in, save to backend database (comfeed DB for demo 9ayHMyZf4SRw2gof1AM9, default DB for live communities)
+      if (user) {
         const result = await createPostAction({
-            authorId: user.uid,
-            content,
-            image,
-            videoUrl,
-            communityId,
+          authorId: user.uid,
+          authorName: activeAuthorName,
+          authorAvatar: activeAuthorAvatar,
+          content: content.trim(),
+          image,
+          videoUrl,
+          communityId: effectiveCommunityId,
         });
 
         if (result.success) {
-            toast({ title: "Post Submitted!", description: "Your post is live on the feed." });
-            setContent('');
-            setImage(null);
-            setVideoUrl('');
-            setIsExpanded(false);
+          toast({ title: "Post Live!", description: "Your post is saved to the database and live on the feed." });
+          setContent('');
+          setImage(null);
+          setVideoUrl('');
+          setIsExpanded(false);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('demo-posts-updated'));
+          }
+          return;
         } else {
-            throw new Error(result.error);
+          throw new Error(result.error);
         }
-    } catch (error: any) {
-        toast({ title: "Error", description: error.message || "Could not create post.", variant: "destructive" });
-    } finally {
-        setIsSubmitting(false);
-    }
-  }
+      }
 
-   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      // 2. If running in Demo mode (or unauthenticated visitor), save ONLY in browser session & local storage
+      const demoTargetCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : effectiveCommunityId;
+      const newDemoPost = {
+        id: `demo-local-${Date.now()}`,
+        author: activeAuthorName,
+        authorId: `demo-${currentPersona}-${Date.now()}`,
+        authorAvatar: activeAuthorAvatar,
+        content: content.trim(),
+        image: image || null,
+        videoUrl: videoUrl || null,
+        communityId: demoTargetCommunityId,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        timestamp: 'just now',
+        likes: 0,
+        comments: 0,
+        commentCount: 0,
+        likedBy: [],
+      };
+
+      if (typeof window !== 'undefined') {
+        const storageKey = `demo_posts_${demoTargetCommunityId}`;
+        const existing = JSON.parse(sessionStorage.getItem(storageKey) || localStorage.getItem(storageKey) || '[]');
+        const updated = [newDemoPost, ...existing];
+        sessionStorage.setItem(storageKey, JSON.stringify(updated));
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent('demo-posts-updated', { detail: newDemoPost }));
+      }
+
+      toast({ title: "Post Submitted!", description: "Your demo post is live in your browser session." });
+      setContent('');
+      setImage(null);
+      setVideoUrl('');
+      setIsExpanded(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Could not create post.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -93,11 +155,11 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
             <Avatar className="h-10 w-10 border">
-              <AvatarImage src={userProfile?.avatar} alt={userProfile?.name} />
-              <AvatarFallback>{userProfile?.name?.charAt(0) || 'U'}</AvatarFallback>
+              <AvatarImage src={activeAuthorAvatar} alt={activeAuthorName} />
+              <AvatarFallback suppressHydrationWarning>{activeAuthorName?.charAt(0) || 'U'}</AvatarFallback>
             </Avatar>
-            <div className="flex-1 text-muted-foreground">
-              What's happening in your community?
+            <div className="flex-1 text-muted-foreground text-sm" suppressHydrationWarning>
+              What&apos;s happening in {isDemo ? 'Oakridge' : 'your community'}?
             </div>
             <Button variant="ghost" size="icon" aria-label="Add image">
               <ImagePlus className="h-5 w-5" />

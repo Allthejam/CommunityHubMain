@@ -16,7 +16,9 @@ export function MembersCard() {
 
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-    const communityId = userProfile?.communityId;
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
     const membersQuery = useMemoFirebase(() => {
         if (!communityId || !db) return null;
@@ -84,7 +86,7 @@ export function MembersCard() {
             </CardContent>
             <CardFooter className="pt-0">
                 <Button asChild size="sm" variant="outline" className="w-full text-xs font-semibold border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 justify-between">
-                    <Link href="/leader/members">
+                    <Link href={`${demoPrefix}/leader/members`}>
                         <span>Manage Member Roster</span>
                         <ChevronRight className="h-3.5 w-3.5" />
                     </Link>

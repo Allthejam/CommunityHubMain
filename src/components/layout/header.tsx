@@ -39,6 +39,8 @@ import {
   UserPlus,
   Navigation,
   Bus,
+  Search,
+  Sparkles,
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -379,6 +381,14 @@ export default function AppHeader() {
     const availableDashboards: { href?: string; onClick?: () => void; label: string; icon: React.ElementType }[] = [];
     if (!userProfile) return [];
 
+    const accountType = userProfile.accountType || 'personal';
+    const role = userProfile.role || 'personal';
+
+    // Personal residents have NO backoffice dashboard links
+    if (accountType === 'personal' && role === 'personal' && !userProfile.isStaff && !userProfile.permissions?.isStaff) {
+      return [];
+    }
+
     const isPlatformStaff = userProfile.isStaff === true ||
                             userProfile.permissions?.isStaff === true || 
                             userProfile.permissions?.isAdmin === true ||
@@ -391,43 +401,45 @@ export default function AppHeader() {
       availableDashboards.push({ onClick: handleAdminDashboardClick, label: 'Admin', icon: LayoutDashboard });
     }
 
-    const isAnyLeader = isPlatformStaff ||
-                        userProfile.permissions?.actionImpersonateLeader === true ||
-                        (userProfile.role && ['president', 'leader', 'vice-president'].includes(userProfile.role)) ||
-                        (userProfile.communityRoles && Object.values(userProfile.communityRoles).some((r: any) => ['president', 'leader', 'vice-president'].includes(r.role))) ||
-                        userProfile.permissions?.hasBackOfficeAccess === true;
+    const isLeaderRole = ['president', 'leader', 'vice-president'].includes(role) ||
+                         ['president', 'leader'].includes(accountType) ||
+                         (userProfile.communityRoles && Object.values(userProfile.communityRoles).some((r: any) => ['president', 'leader', 'vice-president'].includes(r.role)));
 
-    if (isAnyLeader) {
+    // Leaders only get leader dashboard (NOT business, regional, or advertiser)
+    if (isLeaderRole || (isPlatformStaff && !['business', 'advertiser', 'national', 'regional'].includes(accountType))) {
       availableDashboards.push({ href: '/leader/dashboard', label: 'Leader', icon: Crown });
     }
 
-    if (userProfile.accountType === 'business' || userProfile.permissions?.isBusinessOwner || userProfile.permissions?.isBusinessTeamMember) {
+    // Business gets only business dashboard (NO leader dashboard)
+    if (accountType === 'business' || userProfile.permissions?.isBusinessOwner || userProfile.permissions?.isBusinessTeamMember) {
       availableDashboards.push({ href: '/business/dashboard', label: 'Business', icon: Briefcase });
     }
     
-    if (userProfile.accountType === 'enterprise' || userProfile.permissions?.isEnterpriseUser) {
+    if (accountType === 'enterprise' || userProfile.permissions?.isEnterpriseUser) {
       availableDashboards.push({ href: '/enterprise/dashboard', label: 'Enterprise', icon: Building });
     }
 
-    if (userProfile.accountType === 'advertiser' || userProfile.accountType === 'national') {
+    // National Advertiser gets only advertiser dashboard (NO leader dashboard)
+    if (accountType === 'advertiser' || accountType === 'national') {
       availableDashboards.push({ href: '/national/dashboard', label: 'Advertiser', icon: Star });
     }
 
-    if (userProfile.accountType === 'regional' || userProfile.permissions?.isRegionalNetwork) {
+    // Regional Authority gets only regional back-office dashboard (NO leader dashboard)
+    if (accountType === 'regional' || userProfile.permissions?.isRegionalNetwork) {
       availableDashboards.push({ href: '/regional/dashboard', label: 'Regional Back-Office', icon: MapIcon });
     }
 
-    if (userProfile.role === 'reporter') {
+    if (role === 'reporter') {
       availableDashboards.push({ href: '/reporter/dashboard', label: 'Reporter', icon: Newspaper });
     }
 
-    const isPoliceLiaison = (userProfile.role === 'police-liaison-officer') || 
+    const isPoliceLiaison = (role === 'police-liaison-officer') || 
                             (userProfile.communityRoles && Object.values(userProfile.communityRoles).some((r: any) => r.role === 'police-liaison-officer'));
     if (isPoliceLiaison) {
         availableDashboards.push({ href: '/leader/dashboard', label: 'Police', icon: Shield });
     }
 
-    if (userProfile.permissions?.isCourier || userProfile.accountType === 'courier') {
+    if (userProfile.permissions?.isCourier || accountType === 'courier') {
         availableDashboards.push({ href: '/courier/dashboard', label: 'Courier', icon: Truck });
     }
     
@@ -448,6 +460,12 @@ export default function AppHeader() {
         const CurrentAccountIcon = userProfile?.role ? accountTypeIcons[userProfile.role as keyof typeof accountTypeIcons] || UserIcon : UserIcon;
         return (
             <>
+              <Link href="/search">
+                <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full hover:bg-muted" title="Search Ecosystem">
+                  <Search className="h-5 w-5 text-foreground" />
+                  <span className="sr-only">Search</span>
+                </Button>
+              </Link>
               <NotificationBell />
               
               <Sheet>
@@ -514,7 +532,24 @@ export default function AppHeader() {
                           </DropdownMenuGroup>
                       )}
                       <DropdownMenuSeparator />
-                          <DropdownMenuItem asChild>
+                      {/* VIEW DEMO COMMUNITY SANDBOX (STRICT OWNER ONLY) */}
+                      {(userProfile?.accountType === 'owner' || userProfile?.role === 'owner' || userProfile?.email === 'allan_jamieson@outlook.com' || user?.email === 'allan_jamieson@outlook.com') && (
+                        <DropdownMenuItem
+                          className="font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer"
+                          onClick={() => {
+                            if (typeof window !== 'undefined') {
+                              sessionStorage.setItem('visitedCommunityId', '9ayHMyZf4SRw2gof1AM9');
+                              sessionStorage.setItem('sandboxPersona', 'leader');
+                              sessionStorage.setItem('isDemoMode', 'true');
+                            }
+                            router.push('/demo/home');
+                          }}
+                        >
+                          <Sparkles className="mr-2 h-4 w-4 text-emerald-500" />
+                          <span>View Demo Community (Sandbox)</span>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem asChild>
                           <Link href="/home">
                               <HomeIcon className="mr-2 h-4 w-4" />
                               Public Home

@@ -19,22 +19,24 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
-import { isEventLiveNow } from '@/lib/utils/event-utils';
+import { isEventLiveNow, parseEventDate } from '@/lib/utils/event-utils';
 
 type CommunityEvent = {
   id: string;
   title: string;
   category: string;
-  startDate: { toDate: () => Date } | Date | string;
-  endDate?: { toDate: () => Date } | Date | string | null;
+  startDate: { toDate: () => Date } | Date | string | any;
+  endDate?: { toDate: () => Date } | Date | string | any | null;
   repeat?: string | null;
-  repeatUntil?: { toDate: () => Date } | Date | string | null;
+  repeatUntil?: { toDate: () => Date } | Date | string | any | null;
   image: string;
   dataAiHint?: string;
 };
 
 
-const EventCard = ({ event }: { event: CommunityEvent }) => (
+const EventCard = ({ event }: { event: CommunityEvent }) => {
+  const startDate = parseEventDate(event.startDate) || new Date();
+  return (
     <Card className="flex flex-col overflow-hidden">
         <CardHeader className="p-0">
             <div className="relative w-full aspect-square bg-muted">
@@ -49,7 +51,7 @@ const EventCard = ({ event }: { event: CommunityEvent }) => (
         </CardHeader>
         <CardContent className="p-4 flex-grow">
             <h3 className="font-semibold text-base line-clamp-2">{event.title}</h3>
-            <p className="text-sm text-muted-foreground mt-1">{format(event.startDate.toDate(), "PPP")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{format(startDate, "PPP")}</p>
         </CardContent>
         <CardFooter className="p-4 pt-0 mt-auto">
             <Button asChild size="sm" className="w-full">
@@ -59,9 +61,12 @@ const EventCard = ({ event }: { event: CommunityEvent }) => (
             </Button>
         </CardFooter>
     </Card>
-);
+  );
+};
 
-const EventRow = ({ event }: { event: CommunityEvent }) => (
+const EventRow = ({ event }: { event: CommunityEvent }) => {
+  const startDate = parseEventDate(event.startDate) || new Date();
+  return (
      <Card className="flex items-center p-4">
         <div className="relative h-16 w-16 flex-shrink-0 mr-4 rounded-md overflow-hidden">
              <Image
@@ -74,13 +79,14 @@ const EventRow = ({ event }: { event: CommunityEvent }) => (
         </div>
         <div className="flex-1">
             <h3 className="font-semibold">{event.title}</h3>
-            <p className="text-sm text-muted-foreground">{format(event.startDate.toDate(), "PPP")}</p>
+            <p className="text-sm text-muted-foreground">{format(startDate, "PPP")}</p>
         </div>
         <Button asChild variant="secondary" size="sm" className="ml-4">
             <Link href={`/events/${event.id}`}>View Details</Link>
         </Button>
     </Card>
-);
+  );
+};
 
 import { mockEvents } from "@/lib/mock-data";
 
@@ -111,16 +117,18 @@ export default function EventsPage() {
   const { data: rawEvents, isLoading: eventsLoading } = useCollection<CommunityEvent>(eventsQuery);
 
   const events = React.useMemo(() => {
-    if (rawEvents && rawEvents.length > 0) return rawEvents;
-    return mockEvents.map(e => ({
-      id: e.id,
-      title: e.title,
-      category: e.category,
-      startDate: { toDate: () => new Date(e.startDate) },
-      endDate: e.endDate ? { toDate: () => new Date(e.endDate) } : undefined,
-      image: e.image?.imageUrl || "https://picsum.photos/seed/event-live/600/400",
-      dataAiHint: e.dataAiHint || "community event"
-    })) as CommunityEvent[];
+    const list = (rawEvents && rawEvents.length > 0) ? rawEvents : mockEvents;
+    return list.map(e => {
+      const start = parseEventDate(e.startDate) || new Date();
+      const end = e.endDate ? parseEventDate(e.endDate) : undefined;
+      return {
+        ...e,
+        startDate: { toDate: () => start },
+        endDate: end ? { toDate: () => end } : undefined,
+        image: (e.image as any)?.imageUrl || (typeof e.image === 'string' ? e.image : "https://picsum.photos/seed/event-live/600/400"),
+        dataAiHint: e.dataAiHint || "community event"
+      };
+    }) as CommunityEvent[];
   }, [rawEvents]);
 
   const loading = authLoading || profileLoading || eventsLoading;
@@ -134,9 +142,10 @@ export default function EventsPage() {
         const filterEnd = date.to ? endOfDay(date.to) : endOfDay(date.from);
         
         filtered = filtered.filter(event => {
-            const eventStart = startOfDay(event.startDate.toDate());
-            // If no end date, it's a single-day event
-            const eventEnd = event.endDate ? endOfDay(event.endDate.toDate()) : endOfDay(event.startDate.toDate());
+            const start = parseEventDate(event.startDate) || new Date();
+            const end = (event.endDate ? parseEventDate(event.endDate) : null) || start;
+            const eventStart = startOfDay(start);
+            const eventEnd = endOfDay(end);
             
             // Check for overlap: event starts before filter ends AND event ends after filter starts
             return eventStart <= filterEnd && eventEnd >= filterStart;
@@ -148,8 +157,10 @@ export default function EventsPage() {
     return filtered.sort((a, b) => {
         let valA: string | number, valB: string | number;
         if (key === 'startDate') {
-            valA = a.startDate.toDate().getTime();
-            valB = b.startDate.toDate().getTime();
+            const dateA = parseEventDate(a.startDate) || new Date();
+            const dateB = parseEventDate(b.startDate) || new Date();
+            valA = dateA.getTime();
+            valB = dateB.getTime();
         } else { // title
             valA = a.title.toLowerCase();
             valB = b.title.toLowerCase();
@@ -165,13 +176,17 @@ export default function EventsPage() {
 
   const now = new Date();
   const liveEvents = filteredAndSortedEvents.filter(event => {
-      const startDate = event.startDate.toDate();
-      const endDate = event.endDate?.toDate() || startDate;
+      const startDate = parseEventDate(event.startDate) || new Date();
+      const rawEnd = (event.endDate ? parseEventDate(event.endDate) : null) || startDate;
+      const endDate = new Date(rawEnd);
       endDate.setHours(23, 59, 59, 999);
       return startDate <= now && now <= endDate;
   });
 
-  const upcomingEvents = filteredAndSortedEvents.filter(event => event.startDate.toDate() > now);
+  const upcomingEvents = filteredAndSortedEvents.filter(event => {
+    const startDate = parseEventDate(event.startDate) || new Date();
+    return startDate > now;
+  });
   
   const isFiltered = !!date;
 

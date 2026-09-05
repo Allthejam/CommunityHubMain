@@ -15,7 +15,9 @@ export function EmergencyPlanCard() {
 
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile } = useDoc(userProfileRef);
-    const communityId = userProfile?.communityId;
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
     const communityDocRef = useMemoFirebase(() => (communityId && db ? doc(db, 'communities', communityId) : null), [communityId, db]);
     const { data: communityData } = useDoc(communityDocRef);
@@ -58,12 +60,12 @@ export function EmergencyPlanCard() {
             </CardContent>
             <CardFooter className="pt-0 flex gap-2">
                 <Button asChild size="sm" variant="outline" className="flex-1 text-xs font-semibold border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-700 dark:text-red-300">
-                    <Link href="/leader/emergency-plan">
+                    <Link href={`${demoPrefix}/leader/emergency-plan`}>
                         Plan Master <ChevronRight className="ml-1 h-3 w-3" />
                     </Link>
                 </Button>
                 <Button asChild size="sm" className="flex-1 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white shadow-xs">
-                    <Link href="/leader/emergency-plan/sop?hazard=wildfire">
+                    <Link href={`${demoPrefix}/leader/emergency-plan/sop?hazard=wildfire`}>
                         Incident SOPs <ChevronRight className="ml-1 h-3 w-3" />
                     </Link>
                 </Button>

@@ -584,7 +584,7 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({
                     <form onSubmit={handleSearch} className="flex-1 min-w-[260px] flex gap-2">
                         <Input 
                             type="text"
-                            placeholder={showPresets ? "Search boundary or region (e.g. Cairngorms National Park, Highland Region)..." : "Search boundary or township (e.g. Grantown-on-Spey, Aviemore)..."}
+                            placeholder={showPresets ? "Search boundary or region (e.g. National Park, Regional District)..." : "Search boundary or township (e.g. Oakridge, DemoVille)..."}
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
                             disabled={disabled}

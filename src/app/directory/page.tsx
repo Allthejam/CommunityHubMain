@@ -406,11 +406,28 @@ function BusinessDirectoryContent() {
 }
 
 export default function BusinessesPage() {
+    const pathname = useSearchParams();
+    const [isDemo, setIsDemo] = React.useState(false);
+
+    React.useEffect(() => {
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/demo')) {
+            setIsDemo(true);
+        }
+    }, []);
+
+    const content = (
+        <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <BusinessDirectoryContent />
+        </React.Suspense>
+    );
+
+    if (isDemo) {
+        return content;
+    }
+
     return (
         <MainAppLayout>
-           <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-                <BusinessDirectoryContent />
-            </React.Suspense>
+            {content}
         </MainAppLayout>
-    )
+    );
 }

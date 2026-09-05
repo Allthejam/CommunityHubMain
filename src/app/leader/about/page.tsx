@@ -109,7 +109,9 @@ export default function LeaderAboutPage() {
   );
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const communityId = userProfile?.communityId;
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
   const communityProfileRef = useMemoFirebase(() => {
     if (!communityId || !db) return null;

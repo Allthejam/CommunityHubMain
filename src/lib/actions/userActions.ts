@@ -67,7 +67,7 @@ export async function deleteUserAccountAction(params: { userId: string }): Promi
 export async function checkAndCreateMailingListsAction(userId: string): Promise<ActionResponse> {
     console.log("Checking and creating mailing lists for user", userId);
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const userRef = firestore.collection('users').doc(userId);
         // By default, users are subscribed to all lists.
         // They can opt-out in settings.
@@ -86,7 +86,7 @@ export async function checkAndCreateMailingListsAction(userId: string): Promise<
 
 export async function findUser(userId: string): Promise<{ id: string, name: string, avatar: string } | null> {
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const userDoc = await firestore.collection('users').doc(userId).get();
         if (userDoc.exists) {
             const userData = userDoc.data();
@@ -114,7 +114,7 @@ export async function updateUserCommunityAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
     const communityRef = firestore.collection('communities').doc(communityId);
 
@@ -148,7 +148,7 @@ export async function returnToHomeCommunityAction(params: { userId: string }): P
     return { success: false, error: "User ID is required." };
   }
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
     const userDoc = await userRef.get();
 
@@ -200,7 +200,7 @@ export async function saveUserSettingsAction(
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
     const validSettings = Object.entries(settings).reduce((acc, [key, value]) => {
       if (value !== undefined) {
@@ -224,7 +224,7 @@ export async function updateUserFavouriteCommunitiesAction(params: { userId: str
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
 
     if (isFavourited) {
@@ -251,7 +251,7 @@ export async function updateUserBusinessFavouritesAction(params: { userId: strin
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
 
     if (isFavourited) {
@@ -281,7 +281,7 @@ export async function updateUserCartAction(params: {
     return { success: false, error: 'User ID is required to update the cart.' };
   }
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
     await userRef.set({ cart }, { merge: true });
     return { success: true };
@@ -302,7 +302,7 @@ export async function changeAccountTypeAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
     const userDoc = await userRef.get();
     if (!userDoc.exists) {
@@ -362,7 +362,7 @@ export async function downgradeAccountAction(params: { userId: string }): Promis
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
     const businessesRef = firestore.collection('businesses');
     const ownedBusinessesQuery = businessesRef.where('ownerId', '==', userId);
@@ -408,7 +408,7 @@ export async function resignAsPresidentAction(params: {
     return { success: false, error: 'User ID and Community ID are required.' };
   }
 
-  const { firestore } = initializeAdminApp();
+  const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
   const userRef = firestore.collection('users').doc(userId);
   const communityRef = firestore.collection('communities').doc(communityId);
   let communityNameForNotification: string | null = null;
@@ -544,7 +544,7 @@ export async function acceptTermsAction(params: { userId: string, termsField: st
     return { success: false, error: 'User ID and terms field are required.' };
   }
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
     await userRef.set({
       [termsField]: Timestamp.now(),
@@ -557,7 +557,7 @@ export async function acceptTermsAction(params: { userId: string, termsField: st
 }
 
 export async function setNationalAdvertiserCommunity(userId: string): Promise<ActionResponse> {
-  const { firestore } = initializeAdminApp();
+  const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
   try {
     const communityQuery = firestore.collection('communities').where('name', '==', 'Atlantis').limit(1);
     const communitySnapshot = await communityQuery.get();
@@ -591,7 +591,7 @@ export async function updateWelcomeStatusAction(userId: string): Promise<ActionR
     return { success: false, error: 'User ID is required.' };
   }
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
     await userRef.set({
       hasSeenWelcome: true,
@@ -610,7 +610,7 @@ export async function changeHomeCommunityAction(params: { userId: string; newCom
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
     const communityRef = firestore.collection('communities').doc(newCommunityId);
 
@@ -644,7 +644,7 @@ export async function migrateBusinessAndChangeCommunityAction(params: {
     return { success: false, error: 'User ID, new Community ID, and migration plan are required.' };
   }
 
-  const { firestore } = initializeAdminApp();
+  const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
   try {
     // --- Step 1: Gather subscription data OUTSIDE the transaction ---
     const subscriptionsToCancel: string[] = [];

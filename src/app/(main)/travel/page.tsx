@@ -106,19 +106,19 @@ export default function TravelPage() {
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userProfileRef);
 
-  const effectiveCommunityId = userProfile?.communityId || 'c_showhome';
+  const effectiveCommunityId = userProfile?.communityId || '9ayHMyZf4SRw2gof1AM9';
 
   const communityDocRef = useMemoFirebase(() => (effectiveCommunityId && db ? doc(db, 'communities', effectiveCommunityId) : null), [effectiveCommunityId, db]);
   const { data: communityData } = useDoc(communityDocRef);
 
-  const communityName = communityData?.name || userProfile?.communityName || 'Grantown-on-Spey & Strathspey';
+  const communityName = communityData?.name || userProfile?.communityName || 'Show Home Community, "Display Only"';
 
   // Read custom travel services from community if saved, or fallback to default for sample community
   const travelServices: TravelServiceItem[] = React.useMemo(() => {
     if (communityData?.travelServices && Array.isArray(communityData.travelServices)) {
       return communityData.travelServices.filter((s: TravelServiceItem) => s.isActive !== false);
     }
-    if (effectiveCommunityId === 'c_showhome' || (communityName && communityName.toLowerCase().includes('grantown'))) {
+    if (effectiveCommunityId === '9ayHMyZf4SRw2gof1AM9' || effectiveCommunityId === 'c_showhome' || (communityName && (communityName.toLowerCase().includes('oakridge') || communityName.toLowerCase().includes('show') || communityName.toLowerCase().includes('demo')))) {
       return DEFAULT_TRAVEL_SERVICES;
     }
     return [];

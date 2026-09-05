@@ -202,7 +202,7 @@ export default function RegionalDashboardPage() {
 
   // Demo perimeter corners for visual reference
   const perimeterCorners = [
-    { label: 'Northern Perimeter', location: 'Grantown-on-Spey / Glenlivet Boundary' },
+    { label: 'Northern Perimeter', location: 'Oakridge / North Valley Boundary' },
     { label: 'Southern Perimeter', location: 'Blair Atholl & Glen Shee Corridor' },
     { label: 'Eastern Perimeter', location: 'Strathdee & Ballater Fringes' },
     { label: 'Western Perimeter', location: 'Monadhliath Mountains Corridor' },

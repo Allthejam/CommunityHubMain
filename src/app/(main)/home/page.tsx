@@ -120,6 +120,12 @@ function HomePageContent() {
     }
 
     const syncHomeCommunity = () => {
+      const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+      if (isDemo) {
+        setActiveCommunityId('9ayHMyZf4SRw2gof1AM9');
+        return;
+      }
+
       if (urlCommunityId) {
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('visitedCommunityId', urlCommunityId);
@@ -136,7 +142,8 @@ function HomePageContent() {
       } else if (lockedHomeId) {
         setActiveCommunityId(lockedHomeId);
       } else {
-        setActiveCommunityId(null);
+        // Fallback to Show Home Community so visitors and demo users immediately see the feed
+        setActiveCommunityId('9ayHMyZf4SRw2gof1AM9');
       }
     };
 
@@ -178,15 +185,24 @@ function HomePageContent() {
   const { data: platformAnnouncementsData, isLoading: platformLoading } = useCollection<Announcement>(platformAnnouncementsQuery);
 
   const communityAnnouncementsQuery = useMemoFirebase(() => {
-      if (!db || !activeCommunityId) return null;
+      if (!db) return null;
       return query(
           collection(db, "announcements"), 
           where("scope", "==", "community"),
-          where("targetCommunityIds", "array-contains", activeCommunityId),
           where("status", "==", "Live")
       );
-  }, [db, activeCommunityId]);
-  const { data: communityAnnouncementsData, isLoading: communityAnnouncementsLoading } = useCollection<Announcement>(communityAnnouncementsQuery);
+  }, [db]);
+  const { data: rawCommunityAnnouncements, isLoading: communityAnnouncementsLoading } = useCollection<Announcement>(communityAnnouncementsQuery);
+
+  const filteredCommunityAnnouncements = useMemo(() => {
+    if (!rawCommunityAnnouncements || !activeCommunityId) return [];
+    return rawCommunityAnnouncements.filter((ann: any) => {
+      if (ann.communityId === activeCommunityId) return true;
+      if (Array.isArray(ann.targetCommunityIds) && ann.targetCommunityIds.includes(activeCommunityId)) return true;
+      if (ann.audience?.communities && Array.isArray(ann.audience.communities) && ann.audience.communities.includes(activeCommunityId)) return true;
+      return false;
+    });
+  }, [rawCommunityAnnouncements, activeCommunityId]);
 
   const regionalBroadcastsQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -284,7 +300,7 @@ function HomePageContent() {
     });
   }, [platformAnnouncementsData, activeCommunity]);
 
-  const allAnnouncements = [...(filteredPlatformAnnouncements || []), ...(communityAnnouncementsData || []), ...(targetedRegionalBroadcasts || [])];
+  const allAnnouncements = [...(filteredPlatformAnnouncements || []), ...(filteredCommunityAnnouncements || []), ...(targetedRegionalBroadcasts || [])];
   
   // The main loading condition now depends on having the essential user/profile data AND a community ID.
   const isLoading = authLoading || profileLoading || communityLoading || !activeCommunityId;

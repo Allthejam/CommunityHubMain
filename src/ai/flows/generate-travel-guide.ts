@@ -1,6 +1,6 @@
 'use server';
 
-import { z } from 'genkit';
+import { z } from 'zod';
 import { type TravelServiceItem } from '@/lib/types/travel';
 
 const GenerateTravelGuideInputSchema = z.object({

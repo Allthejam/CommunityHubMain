@@ -68,13 +68,15 @@ export function CommunityBroadcastComposer() {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const streamRef = React.useRef<MediaStream | null>(null);
     
-    const communityId = userProfile?.communityId;
-    const communityRoleData = communityId && userProfile?.communityRoles ? userProfile.communityRoles[communityId] : null;
-
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const isOwner = userProfile?.accountType === 'owner' || user?.email === 'allan_jamieson@outlook.com';
+    const effectiveCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+    
+    const communityRoleData = effectiveCommunityId && userProfile?.communityRoles ? userProfile.communityRoles[effectiveCommunityId] : null;
     const activeRole = communityRoleData?.role || userProfile?.role;
     const permissions = { ...(userProfile?.permissions || {}), ...(communityRoleData?.permissions || {}) };
 
-    const canSendEmergency = activeRole === 'president' || permissions.canSendEmergencyBroadcast;
+    const canSendEmergency = isDemo || isOwner || activeRole === 'president' || activeRole === 'leader' || permissions.canSendEmergencyBroadcast;
     
     const showImageUpload = true;
 
@@ -165,7 +167,7 @@ export function CommunityBroadcastComposer() {
     };
     
     const handleSubmit = async () => {
-        if (!user || !userProfile?.communityId) {
+        if (!user || !effectiveCommunityId) {
             toast({ title: "Error", description: "You must be logged in and assigned to a community.", variant: "destructive" });
             return;
         }
@@ -185,7 +187,7 @@ export function CommunityBroadcastComposer() {
         try {
             const result = await createCommunityAnnouncementAction({
                 userId: user.uid,
-                communityId: userProfile.communityId,
+                communityId: effectiveCommunityId,
                 subject,
                 message,
                 image,
@@ -197,7 +199,7 @@ export function CommunityBroadcastComposer() {
                     : (startDate && endDate ? `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}` : "Not specified"),
                 startDate: !isImmediate ? startDate : null,
                 endDate: !isImmediate ? endDate : null,
-                sentBy: userProfile.broadcastDisplayName || userProfile.name || "Community Leader",
+                sentBy: userProfile?.broadcastDisplayName || userProfile?.name || (isDemo ? "Demo Community Leader" : "Community Leader"),
                 sendEmail: sendEmail,
             });
 

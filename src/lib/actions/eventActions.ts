@@ -28,7 +28,7 @@ type EventData = {
 
 export async function createEventAction(data: EventData): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         let businessData: any;
         let businessName: string | null = null;
         let communityId: string | null = null;
@@ -128,7 +128,7 @@ export async function updateEventAction(eventId: string, data: Partial<EventData
     return { success: false, error: "Event ID is required." };
   }
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const eventRef = firestore.collection('events').doc(eventId);
     
     const updateData: any = { 
@@ -196,7 +196,7 @@ export async function updateEventStatusAction(params: {
     status: string;
 }): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const eventRef = firestore.collection('events').doc(params.eventId);
         await eventRef.update({ status: params.status });
         return { success: true };
@@ -210,7 +210,7 @@ export async function deleteEventAction(params: {
     eventId: string;
 }): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         await firestore.collection('events').doc(params.eventId).delete();
         return { success: true };
     } catch (error: any) {

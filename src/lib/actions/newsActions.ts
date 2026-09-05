@@ -16,7 +16,7 @@ export async function updateNewsStoryStatus(params: {
 }): Promise<ActionResponse> {
   console.log('Updating news story status with params:', params);
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const storyRef = firestore.collection('news').doc(params.storyId);
     const updateData: { status: string; amendmentReason?: string | FieldValue, publishedAt?: Timestamp } = {
         status: params.status,
@@ -81,7 +81,7 @@ export async function runCreateNewsStory(params: {
 }): Promise<ActionResponse> {
     console.log('Creating or updating news story with params:', params);
      try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const { storyId, ...storyData } = params;
         
         let dataToSave: any = {
@@ -129,7 +129,7 @@ export async function deleteNewsStoryAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     await firestore.collection('news').doc(storyId).delete();
     return { success: true };
   } catch (error: any) {

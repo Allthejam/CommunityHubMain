@@ -432,21 +432,23 @@ export default function LeaderMembersPage() {
   const [isUserSearchOpen, setIsUserSearchOpen] = React.useState(false);
   const [userSearchQuery, setUserSearchQuery] = React.useState("");
 
-  const communityId = userProfile?.communityId;
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+  const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
-  const communityRef = useMemoFirebase(() => (communityId ? doc(db, 'communities', communityId) : null), [communityId, db]);
+  const communityRef = useMemoFirebase(() => (communityId && db ? doc(db, 'communities', communityId) : null), [communityId, db]);
   const { data: communityData, isLoading: communityLoading } = useDoc(communityRef);
   const currentCourierId = communityData?.courierId || null;
 
     React.useEffect(() => {
-        if (!userProfile?.communityId || !db || !user) {
+        if (!communityId || !db) {
             setLoading(isUserLoading || profileLoading);
             return;
         }
 
         const q = query(
             collection(db, "users"),
-            where("memberOf", "array-contains", userProfile.communityId)
+            where("memberOf", "array-contains", communityId)
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -454,11 +456,12 @@ export default function LeaderMembersPage() {
             snapshot.forEach(docSnap => {
                 const data = docSnap.data();
                 
-                const isActualMember = data.homeCommunityId === userProfile.communityId || 
-                                    (data.communityRoles && data.communityRoles[userProfile.communityId]);
+                const isActualMember = data.homeCommunityId === communityId || 
+                                    (data.communityRoles && data.communityRoles[communityId]) ||
+                                    (data.memberOf && Array.isArray(data.memberOf) && data.memberOf.includes(communityId));
 
                 if (isActualMember) {
-                    const communityRoleData = data.communityRoles?.[userProfile.communityId];
+                    const communityRoleData = data.communityRoles?.[communityId];
                     membersData.push({
                         id: docSnap.id,
                         ...data,
@@ -479,7 +482,7 @@ export default function LeaderMembersPage() {
         return () => {
             unsubscribe();
         };
-    }, [userProfile?.communityId, isUserLoading, profileLoading, toast, user, db]);
+    }, [communityId, isUserLoading, profileLoading, toast, user, db]);
   
   const handleSort = (key: keyof Member) => {
       setSorting(prev => ({
@@ -489,12 +492,12 @@ export default function LeaderMembersPage() {
   }
   
     const handleAppointCourier = async (userId: string) => {
-        if (!userProfile?.communityId) {
+        if (!communityId) {
             toast({ title: "Error", description: "Community information not found.", variant: "destructive" });
             return;
         }
 
-        const result = await appointCommunityCourierAction({ userId, communityId: userProfile.communityId });
+        const result = await appointCommunityCourierAction({ userId, communityId });
 
         if (result.success) {
             toast({
@@ -511,10 +514,10 @@ export default function LeaderMembersPage() {
     };
 
     const handleUnappointCourier = async () => {
-        if (!userProfile?.communityId || !communityData?.courierId) return;
+        if (!communityId || !communityData?.courierId) return;
         const result = await unappointCommunityCourierAction({
             userId: communityData.courierId,
-            communityId: userProfile.communityId,
+            communityId,
         });
         if (result.success) {
             toast({ title: 'Courier Unappointed' });
@@ -533,9 +536,9 @@ export default function LeaderMembersPage() {
     };
 
   const handleRemoveMember = async (member: Member) => {
-    if (!userProfile?.communityId) return;
+    if (!communityId) return;
     if (window.confirm(`Are you sure you want to remove ${member.name} from the community?`)) {
-        const result = await removeMemberFromCommunityAction({ memberId: member.id, communityId: userProfile.communityId });
+        const result = await removeMemberFromCommunityAction({ memberId: member.id, communityId });
         if (result.success) {
             toast({ title: 'Member Removed', description: `${member.name} has been removed.` });
         } else {
@@ -545,7 +548,7 @@ export default function LeaderMembersPage() {
   };
 
     const handleUpdateRole = async () => {
-        if(!memberToEdit || !user || !userProfile?.communityId) return;
+        if(!memberToEdit || !user || !communityId) return;
         setIsUpdatingRole(true);
         
         const finalRole = newCommunityRole === 'none' ? '' : newCommunityRole;
@@ -557,13 +560,13 @@ export default function LeaderMembersPage() {
 
         // Handle account type change
         if (newAccountType !== memberToEdit.accountType) {
-            await changeAccountTypeAction({ userId: memberToEdit.id, newType: newAccountType, communityId: userProfile.communityId });
+            await changeAccountTypeAction({ userId: memberToEdit.id, newType: newAccountType, communityId });
         }
 
         // Handle community role change
         const result = await updateMemberRoleAction({ 
             memberId: memberToEdit.id, 
-            communityId: userProfile.communityId,
+            communityId,
             newRole: finalRole, 
             newTitle: finalTitle,
         });

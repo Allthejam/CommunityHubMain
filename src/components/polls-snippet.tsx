@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { collection, query, orderBy, limit, where } from 'firebase/firestore';
-import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useFirestore, useMemoFirebase, useCollection, useUser } from '@/firebase';
 import { Poll } from '@/lib/types/polls';
 import { BarChart3, ArrowRight, CheckCircle2, Trophy, Loader2 } from 'lucide-react';
 
@@ -48,37 +48,32 @@ function MiniResultBar({ poll }: { poll: Poll }) {
 
 export function PollsSnippet({ communityId }: PollsSnippetProps) {
   const db = useFirestore();
+  const { user } = useUser();
 
-  // Active polls — grab up to 2
-  const activeQuery = useMemoFirebase(
+  // Simple single-field query to avoid missing composite index errors on Firestore
+  const allPollsQuery = useMemoFirebase(
     () =>
-      communityId
+      communityId && user && db
         ? query(
             collection(db, 'communities', communityId, 'polls'),
-            where('status', '==', 'active'),
-            orderBy('createdAt', 'desc'),
-            limit(2)
+            limit(15)
           )
         : null,
-    [db, communityId]
+    [db, communityId, user]
   );
 
-  // Closed polls — grab up to 2 for results
-  const closedQuery = useMemoFirebase(
-    () =>
-      communityId
-        ? query(
-            collection(db, 'communities', communityId, 'polls'),
-            where('status', '==', 'closed'),
-            orderBy('createdAt', 'desc'),
-            limit(2)
-          )
-        : null,
-    [db, communityId]
-  );
+  const { data: allPolls, isLoading: loadingPolls } = useCollection<Poll>(allPollsQuery);
 
-  const { data: activePolls, isLoading: loadingActive } = useCollection<Poll>(activeQuery);
-  const { data: closedPolls, isLoading: loadingClosed } = useCollection<Poll>(closedQuery);
+  const activePolls = React.useMemo(() => {
+    return (allPolls || []).filter((p) => p.status === 'active').slice(0, 2);
+  }, [allPolls]);
+
+  const closedPolls = React.useMemo(() => {
+    return (allPolls || []).filter((p) => p.status === 'closed' || p.status === 'archived').slice(0, 2);
+  }, [allPolls]);
+
+  const loadingActive = loadingPolls;
+  const loadingClosed = loadingPolls;
 
   const sanitizePoll = (p: any): Poll => {
     const title = p.title || p.question || 'Untitled Consultation';

@@ -118,7 +118,9 @@ function LeaderBusinessesContent() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
     const [isDeleting, setIsDeleting] = React.useState(false);
 
-    const communityId = (userProfile as any)?.impersonating?.communityId || userProfile?.communityId;
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
     const communityRef = useMemoFirebase(() => (communityId && db ? doc(db, 'communities', communityId) : null), [communityId, db]);
     const { data: communityData, isLoading: communityIsLoading } = useDoc(communityRef);
 
@@ -346,7 +348,7 @@ function LeaderBusinessesContent() {
                     <AlertDescription>
                         You must connect your Stripe account before you can approve new businesses.
                         <Button asChild variant="link" className="p-0 h-auto ml-1">
-                            <Link href="/leader/financials">Go to Financials to connect.</Link>
+                            <Link href={`${demoPrefix}/leader/financials`}>Go to Financials to connect.</Link>
                         </Button>
                     </AlertDescription>
                 </Alert>

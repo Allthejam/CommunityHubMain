@@ -19,7 +19,7 @@ export async function acceptLeadershipInvitationAction(params: {
 }): Promise<ActionResponse> {
     const { userId, communityId, notificationId } = params;
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const batch = firestore.batch();
 
         // Update user's role to president
@@ -51,7 +51,7 @@ export async function appointCommunityLeaderAction(params: {userId: string, comm
     }
 
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const userRef = firestore.collection('users').doc(userId);
         const notificationRef = firestore.collection('notifications').doc();
 
@@ -104,7 +104,7 @@ export async function requestLiaisonAssignmentAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
 
     const usersRef = firestore.collection('users');
     let leaderQuery = usersRef.where(`communityRoles.${communityId}.role`, 'in', ['president', 'leader']).limit(1);
@@ -150,7 +150,7 @@ export async function inviteTeamMemberAction(params: { recipientName: string, wo
     }
 
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const inviteRef = firestore.collection('staff_profiles').doc(); 
 
         const inviteData = {
@@ -200,7 +200,7 @@ export async function searchUserByEmailAction(params: { email: string }): Promis
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const usersRef = firestore.collection('users');
     const q = usersRef.where('email', '==', email).limit(1);
     const snapshot = await q.get();
@@ -232,7 +232,7 @@ export async function addTeamMemberAction(params: { businessId: string; user: { 
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const businessRef = firestore.collection('businesses').doc(businessId);
 
     const businessDoc = await businessRef.get();
@@ -323,7 +323,7 @@ export async function removeTeamMemberAction(params: { businessId: string; membe
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const businessRef = firestore.collection('businesses').doc(businessId);
 
     await firestore.runTransaction(async (transaction) => {
@@ -360,7 +360,7 @@ export async function updateTeamMemberAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const businessRef = firestore.collection('businesses').doc(businessId);
 
     let permissions = {};
@@ -417,7 +417,7 @@ export async function searchCommunityMembersAction(params: {
   if (!communityId) return { users: [] };
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const usersRef = firestore.collection('users');
 
     const snapshot = await usersRef.where('memberOf', 'array-contains', communityId).get();
@@ -461,7 +461,7 @@ export async function removeMemberFromCommunityAction(params: { memberId: string
     }
 
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         await firestore.runTransaction(async (transaction) => {
             const userRef = firestore.collection('users').doc(memberId);
             const communityRef = firestore.collection('communities').doc(communityId);
@@ -535,7 +535,7 @@ export async function updateMemberRoleAction(params: {
     if (newRole === 'president') {
         return { success: false, error: "The 'President' role can only be assigned through the leadership handover process in settings." };
     }
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.doc(`users/${memberId}`);
     const communityRef = firestore.doc(`communities/${communityId}`);
 
@@ -598,7 +598,7 @@ export async function runSaveCommunityTeamPermissions(params: {
     }
 
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const userRef = firestore.collection('users').doc(memberId);
 
         const updateData: { [key: string]: any } = {};
@@ -621,7 +621,7 @@ export async function runSaveCommunityTeamPermissions(params: {
 }
 
 export async function getStaffProfile(employeeId: string) {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.doc(`users/${employeeId}`);
     const profileRef = firestore.doc(`staff_profiles/${employeeId}`);
 
@@ -635,7 +635,7 @@ export async function getStaffProfile(employeeId: string) {
 
 export async function saveStaffProfileAction(employeeId: string, profile: any): Promise<ActionResponse> {
      try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const profileRef = firestore.doc(`staff_profiles/${employeeId}`);
         await profileRef.set(profile, { merge: true });
         return { success: true };
@@ -651,7 +651,7 @@ export async function promoteToStaffAction(params: { userId: string; role: strin
     return { success: false, error: "User ID and role are required." };
   }
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
 
     const roleKey = role.toLowerCase().replace(/\s+/g, '-');
@@ -732,7 +732,7 @@ export async function runHandoverLeadership(params: {
     if (!currentLeaderId || !newLeaderId) {
         return { success: false, error: 'Both current and new leader IDs are required.' };
     }
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     try {
         let communityId: string;
         let communityName: string;
@@ -813,7 +813,7 @@ export async function runHandoverLeadership(params: {
 
 export async function savePlatformRolesAction(roles: { name: string, description: string }[], communityId: string): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const communityRef = firestore.collection('communities').doc(communityId);
         await communityRef.update({ communityTeamRoles: roles });
         return { success: true };
@@ -832,7 +832,7 @@ export async function runAddCommunityToLeadership(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const userRef = firestore.collection('users').doc(userId);
     const communityRef = firestore.collection('communities').doc(communityId);
 

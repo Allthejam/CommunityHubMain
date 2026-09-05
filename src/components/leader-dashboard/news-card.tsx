@@ -21,7 +21,9 @@ export function NewsCard() {
 
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-    const communityId = userProfile?.communityId;
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
     const newsQuery = useMemoFirebase(() => {
         if (!communityId || !db) return null;
@@ -76,7 +78,7 @@ export function NewsCard() {
                                         <p className="text-[10px] text-muted-foreground">by {story.author || 'Contributor'}</p>
                                     </div>
                                     <Button asChild variant="secondary" size="sm" className="h-7 px-2.5 text-xs font-semibold bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 hover:bg-purple-200">
-                                        <Link href="/leader/news">Review</Link>
+                                        <Link href={`${demoPrefix}/leader/news`}>Review</Link>
                                     </Button>
                                 </div>
                             ))
@@ -90,7 +92,7 @@ export function NewsCard() {
             </CardContent>
             <CardFooter className="pt-0">
                 <Button asChild size="sm" variant="outline" className="w-full text-xs font-semibold border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-700 dark:text-purple-300 justify-between">
-                    <Link href="/leader/news">
+                    <Link href={`${demoPrefix}/leader/news`}>
                         <span>Publish & Manage Stories</span>
                         <ChevronRight className="h-3.5 w-3.5" />
                     </Link>

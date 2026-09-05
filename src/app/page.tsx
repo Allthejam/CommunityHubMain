@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Auth, setPersistence, browserLocalPersistence, browserSessionPersistence, signInWithEmailAndPassword, sendEmailVerification, type User } from 'firebase/auth'
-import { Eye, EyeOff, Loader2, ArrowLeft, Megaphone, Info } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ArrowLeft, Megaphone, Info, Sparkles } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -333,7 +333,14 @@ export default function SignInPage() {
                     </Dialog>
                 </div>
 
-                <div className="pt-2 border-t border-border/40 w-full flex items-center justify-center">
+                <div className="pt-2 border-t border-border/40 w-full flex flex-col items-center justify-center gap-1.5">
+                    <Link
+                        href="/showcase"
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-emerald-400 transition-colors py-1 px-3 rounded-full hover:bg-muted/50 border border-transparent hover:border-border/60"
+                    >
+                        <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>Explore the <strong className="font-semibold text-emerald-400 underline underline-offset-2">Interactive Showcase & Demo</strong> (No Sign-Up)</span>
+                    </Link>
                     <Link
                         href="/about?source=login"
                         className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1 px-3 rounded-full hover:bg-muted/50 border border-transparent hover:border-border/60"

@@ -10,7 +10,7 @@ import {
   Globe,
   Map,
   HelpCircle,
-  Mic, Play, Pause, ChevronRight
+  Mic, Play, Pause, ChevronRight, Sparkles
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation';
@@ -241,10 +241,19 @@ export default function AccountTypePage() {
             ))}
           </CardContent>
         </Card>
-        <div className="mt-4 text-center text-sm text-muted-foreground">
-          Already have an account?{' '}
-          <Link href="/" className="font-medium text-primary hover:underline">
-            Sign In
+        <div className="mt-4 flex flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+          <div>
+            Already have an account?{' '}
+            <Link href="/" className="font-medium text-primary hover:underline">
+              Sign In
+            </Link>
+          </div>
+          <Link
+            href="/showcase"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-sky-500 transition-colors py-1 px-3 rounded-full hover:bg-muted/50 border border-transparent hover:border-border/60"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-sky-500" />
+            <span>Want to test drive first? <strong className="font-semibold text-sky-500 underline underline-offset-2">Explore the Interactive Sandbox</strong></span>
           </Link>
         </div>
       </div>

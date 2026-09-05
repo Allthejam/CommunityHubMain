@@ -22,7 +22,7 @@ export async function createPollAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const pollRef = firestore.collection(`communities/${communityId}/polls`).doc();
     
     const pollOptions = options.map(optionText => ({
@@ -60,7 +60,7 @@ export async function updatePollStatusAction(params: {
     }
 
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         const pollRef = firestore.doc(`communities/${communityId}/polls/${pollId}`);
         await pollRef.update({ status });
         return { success: true };
@@ -78,7 +78,7 @@ export async function deletePollAction(params: {
         return { success: false, error: "Missing required fields." };
     }
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
         await firestore.doc(`communities/${communityId}/polls/${pollId}`).delete();
         return { success: true };
     } catch (error: any) {
@@ -99,7 +99,7 @@ export async function voteOnPollAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
     const pollRef = firestore.collection(`communities/${communityId}/polls`).doc(pollId);
 
     await firestore.runTransaction(async (transaction) => {

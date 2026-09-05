@@ -37,7 +37,7 @@ function itemToPost(item: Item): Post {
     }
 }
 
-function LostAndFoundContent() {
+export function LostAndFoundContent() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
@@ -195,9 +195,23 @@ function LostAndFoundContent() {
 
 
 export default function LostAndFoundPage() {
+    const [isDemo, setIsDemo] = React.useState(false);
+
+    React.useEffect(() => {
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/demo')) {
+            setIsDemo(true);
+        }
+    }, []);
+
+    const content = <LostAndFoundContent />;
+
+    if (isDemo) {
+        return content;
+    }
+
     return (
         <MainAppLayout>
-            <LostAndFoundContent />
+            {content}
         </MainAppLayout>
-    )
+    );
 }

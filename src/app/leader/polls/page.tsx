@@ -346,7 +346,7 @@ export default function LeaderPollsPage() {
   // Read user's communityId
   const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userDocRef);
-  const communityId: string | null = userProfile?.communityId ?? null;
+  const communityId: string | null = communityId ?? null;
 
   // Subscribe to polls
   const pollsQuery = useMemoFirebase(

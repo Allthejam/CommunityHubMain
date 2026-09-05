@@ -329,7 +329,7 @@ export default function LeaderCampaignsPage() {
   // Read user's communityId
   const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userDocRef);
-  const communityId: string | null = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || null;
+  const communityId: string | null = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || (userProfile as any)?.communityId || null;
 
   // Subscribe to petitions (without restrictive orderBy to safely load all existing docs)
   const campaignsQuery = useMemoFirebase(

@@ -55,7 +55,9 @@ const NewsStoryCard = ({ story }: { story: MappedNewsStory }) => (
         <CardContent className="p-4 flex-grow">
             <Badge variant="secondary" className="mb-2">{story.category}</Badge>
             <h3 className="font-semibold text-lg line-clamp-2">{story.title}</h3>
-            <p className="text-sm text-muted-foreground mt-1">By {story.author} on {story.date instanceof Date ? format(story.date, "PPP") : format(new Date(story.date), "PPP")}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+                By {story.author || 'Community Editorial'} on {story.date && !isNaN(story.date.getTime()) ? format(story.date, "PPP") : 'Recently'}
+            </p>
         </CardContent>
         <CardFooter className="p-4 pt-0">
             <Button asChild size="sm" className="w-full">
@@ -85,7 +87,16 @@ export function NewsFeed({ communityId }: { communityId: string | null }) {
     const sourceData = (liveNews && liveNews.length > 0) ? liveNews : mockNews;
     
     return sourceData.map(story => {
-        const storyDate = (story.date as any)?.toDate ? (story.date as any).toDate() : new Date(story.date);
+        const rawDate = (story as any).date || (story as any).publishedAt || (story as any).createdAt;
+        let storyDate: Date = new Date();
+        if (rawDate && typeof rawDate.toDate === 'function') {
+            storyDate = rawDate.toDate();
+        } else if (rawDate) {
+            const parsed = new Date(rawDate);
+            if (!isNaN(parsed.getTime())) {
+                storyDate = parsed;
+            }
+        }
         
         return {
             id: String(story.id),
