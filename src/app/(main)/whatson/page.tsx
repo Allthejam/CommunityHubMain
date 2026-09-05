@@ -62,7 +62,11 @@ const OpeningHours = ({ hours }: { hours: any }) => {
     )
 }
 
-const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => (
+const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => {
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+
+    return (
     <>
         <DialogHeader className="p-6 pb-0">
             <DialogTitle className="text-2xl">{item.title}</DialogTitle>
@@ -116,7 +120,7 @@ const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => (
         <DialogFooter className="p-6 pt-4 border-t flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
           {item.id ? (
             <Button variant="default" asChild className="w-full sm:w-auto font-medium">
-              <Link href={`/whatson/${item.id}`}>
+              <Link href={`${demoPrefix}/whatson/${item.id}`}>
                 See More / Full Details <ExternalLink className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -133,7 +137,8 @@ const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => (
           </Button>
         </DialogFooter>
     </>
-);
+    );
+};
 
 
 const WhatsonRow = ({ item }: { item: WhatsonItem }) => (

@@ -61,7 +61,11 @@ const OpeningHours = ({ hours }: { hours: any }) => {
     )
 }
 
-const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => (
+const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => {
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+
+    return (
     <>
         <DialogHeader className="p-6 pb-0">
             <DialogTitle className="text-2xl">{item.title}</DialogTitle>
@@ -115,7 +119,7 @@ const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => (
         <DialogFooter className="p-6 pt-4 border-t flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
           {item.id ? (
             <Button variant="default" asChild className="w-full sm:w-auto font-medium">
-              <Link href={`/whatson/${item.id}`}>
+              <Link href={`${demoPrefix}/whatson/${item.id}`}>
                 See More / Full Details <ExternalLink className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -132,7 +136,8 @@ const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => (
           </Button>
         </DialogFooter>
     </>
-);
+    );
+};
 
 
 const WhatsonCard = ({ item }: { item: WhatsonItem }) => (
@@ -166,25 +171,47 @@ const WhatsonCard = ({ item }: { item: WhatsonItem }) => (
 
 export function WhatsonFeed({ communityId }: { communityId: string | null }) {
   const db = useFirestore();
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+  const activeCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : communityId;
+
+  const [localDemoItems, setLocalDemoItems] = React.useState<WhatsonItem[]>([]);
+
+  React.useEffect(() => {
+    if (isDemo && typeof window !== 'undefined') {
+      try {
+        const stored = JSON.parse(
+          sessionStorage.getItem(`demo_whatson_${activeCommunityId}`) || 
+          localStorage.getItem(`demo_whatson_${activeCommunityId}`) || '[]'
+        );
+        setLocalDemoItems(stored.filter((i: any) => i.status === 'Active' || !i.status));
+      } catch (e) {}
+    }
+  }, [isDemo, activeCommunityId]);
 
   const whatsonQuery = useMemoFirebase(() => {
-    if (!communityId || !db) {
+    if (!activeCommunityId || !db) {
       return null;
     }
     return query(
       collection(db, "whatson"),
-      where("communityId", "==", communityId),
-      where("status", "==", "Active")
+      where("communityId", "==", activeCommunityId),
+      where("status", "in", ["Active", "Live", "approved"])
     );
-  }, [db, communityId]);
+  }, [db, activeCommunityId]);
 
   const { data: whatsonItems, isLoading: itemsLoading } = useCollection<WhatsonItem>(whatsonQuery);
   
-  const itemsToDisplay = (whatsonItems && whatsonItems.length > 0) ? whatsonItems : mockWhatsOn.map(item => ({
-    ...item,
-    image: item.image?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
-    dataAiHint: item.image?.imageHint || 'local attraction'
-  }));
+  const itemsToDisplay = React.useMemo(() => {
+    const dbItems = whatsonItems || [];
+    const combined = [...localDemoItems, ...dbItems.filter(d => !localDemoItems.some(l => l.id === d.id))];
+    if (combined.length > 0) return combined;
+    return mockWhatsOn.map(item => ({
+      ...item,
+      image: item.image?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
+      dataAiHint: item.image?.imageHint || 'local attraction'
+    }));
+  }, [whatsonItems, localDemoItems]);
     
   if (itemsLoading) {
       return (
@@ -217,7 +244,7 @@ export function WhatsonFeed({ communityId }: { communityId: string | null }) {
       </CardContent>
       <CardFooter>
             <Button variant="outline" asChild>
-                <Link href="/whatson">See All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                <Link href={`${demoPrefix}/whatson`}>See All <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
       </CardFooter>
     </Card>

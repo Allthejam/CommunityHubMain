@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { doc } from "firebase/firestore";
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { mockWhatsOn } from "@/lib/mock-data";
 import {
   ArrowLeft,
   Loader2,
@@ -67,14 +68,51 @@ export default function WhatsonDetailPage() {
   const { itemId } = params;
   const db = useFirestore();
 
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+
   const itemRef = useMemoFirebase(() => {
     if (!itemId || !db) return null;
     return doc(db, "whatson", itemId as string);
   }, [itemId, db]);
 
-  const { data: item, isLoading: loading } = useDoc<WhatsonItem>(itemRef);
+  const { data: dbItem, isLoading: loading } = useDoc<WhatsonItem>(itemRef);
 
-  if (loading) {
+  const [localItem, setLocalItem] = React.useState<WhatsonItem | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && itemId) {
+      try {
+        const activeCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (sessionStorage.getItem('visitedCommunityId') || '');
+        const stored: any[] = JSON.parse(
+          sessionStorage.getItem(`demo_whatson_${activeCommunityId}`) || 
+          localStorage.getItem(`demo_whatson_${activeCommunityId}`) || 
+          sessionStorage.getItem('demo_whatson_9ayHMyZf4SRw2gof1AM9') || 
+          localStorage.getItem('demo_whatson_9ayHMyZf4SRw2gof1AM9') || '[]'
+        );
+        const foundLocal = stored.find((i: any) => String(i.id) === String(itemId));
+        if (foundLocal) {
+          setLocalItem(foundLocal);
+          return;
+        }
+
+        const foundMock = mockWhatsOn.find((i: any) => String(i.id) === String(itemId));
+        if (foundMock) {
+          setLocalItem({
+            ...foundMock,
+            image: foundMock.image?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
+            dataAiHint: foundMock.image?.imageHint || 'local attraction',
+            description: foundMock.description || ''
+          } as WhatsonItem);
+          return;
+        }
+      } catch (e) {}
+    }
+  }, [isDemo, itemId]);
+
+  const item = dbItem || localItem;
+
+  if (loading && !item) {
     return (
       <div className="container max-w-4xl py-12 flex justify-center items-center min-h-[50vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -88,7 +126,7 @@ export default function WhatsonDetailPage() {
         <h2 className="text-2xl font-bold">Listing Not Found</h2>
         <p className="text-muted-foreground">The What&apos;s On listing you are looking for may have been removed or is no longer available.</p>
         <Button asChild variant="outline">
-          <Link href="/whatson">
+          <Link href={`${demoPrefix}/whatson`}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to What&apos;s On
           </Link>
         </Button>
@@ -104,7 +142,7 @@ export default function WhatsonDetailPage() {
       {/* Navigation Bar */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild className="gap-2">
-          <Link href="/whatson">
+          <Link href={`${demoPrefix}/whatson`}>
             <ArrowLeft className="h-4 w-4" /> Back to What&apos;s On
           </Link>
         </Button>
