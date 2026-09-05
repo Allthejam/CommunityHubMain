@@ -49,10 +49,13 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
 
-  const homeCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
-  const homeCommunityName = userProfile?.primaryHomeCommunityName || userProfile?.homeCommunityName || userProfile?.communityName || 'Home Community';
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
 
-  const effectiveCommunityId = activeCommunityId || homeCommunityId;
+  const homeCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId);
+  const homeCommunityName = isDemo ? (activeCommunity?.name || 'Oakridge & DemoVille') : (userProfile?.primaryHomeCommunityName || userProfile?.homeCommunityName || userProfile?.communityName || 'Home Community');
+
+  const effectiveCommunityId = activeCommunityId || homeCommunityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : null);
   const effectiveCommunityName = activeCommunity?.name || (effectiveCommunityId === homeCommunityId ? homeCommunityName : 'Visiting Community');
   
   const isVisiting = Boolean(effectiveCommunityId && homeCommunityId && effectiveCommunityId !== homeCommunityId);
@@ -174,7 +177,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                     <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                       {activePolls && activePolls.length > 0 && (
                         <Button variant="default" size="sm" asChild className="h-7 text-xs gap-1.5 flex-1 sm:flex-initial">
-                          <Link href={`/community/${effectiveCommunityId}/polls`}>
+                          <Link href={`${demoPrefix}/community/${effectiveCommunityId}/polls`}>
                             <Vote className="h-4 w-4" />
                             <span>Vote in Active Poll</span>
                           </Link>
@@ -182,7 +185,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                       )}
                       {activePetitions && activePetitions.length > 0 && (
                         <Button variant="outline" size="sm" asChild className="h-7 text-xs gap-1.5 flex-1 sm:flex-initial">
-                          <Link href={`/community/${effectiveCommunityId}/petitions`}>
+                          <Link href={`${demoPrefix}/community/${effectiveCommunityId}/petitions`}>
                             <Target className="h-4 w-4" />
                             <span>View & Sign Petitions</span>
                           </Link>
@@ -207,14 +210,14 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
             <div className="flex items-center gap-1.5">
               {isRedAlert && (
                 <Button size="sm" asChild className="h-6 px-2 text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white gap-1 animate-pulse shadow-sm">
-                  <Link href={`/community/${effectiveCommunityId}/emergency`}>
+                  <Link href={`${demoPrefix}/community/${effectiveCommunityId}/emergency`}>
                     <ShieldAlert className="h-3 w-3" /> See Alert
                   </Link>
                 </Button>
               )}
               {isAmberAlert && (
                 <Button size="sm" asChild className="h-6 px-2 text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 gap-1 shadow-sm">
-                  <Link href={`/community/${effectiveCommunityId}/emergency`}>
+                  <Link href={`${demoPrefix}/community/${effectiveCommunityId}/emergency`}>
                     <AlertTriangle className="h-3 w-3" /> See Alert
                   </Link>
                 </Button>
@@ -295,7 +298,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                 <HomeIcon className="mr-1.5 h-3.5 w-3.5" /> Return to {homeCommunityName}
               </Button>
               <Button variant="outline" size="sm" asChild className="text-xs font-semibold border-emerald-300 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 shrink-0">
-                <Link href={`/community/${effectiveCommunityId}/about`}>
+                <Link href={`${demoPrefix}/community/${effectiveCommunityId}/about`}>
                   About {effectiveCommunityName}
                 </Link>
               </Button>
@@ -312,14 +315,14 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
               {/* Discrete Alert Button if Red or Amber Alert with Active Notice */}
               {isRedAlert && (
                 <Button size="sm" asChild className="h-6 px-2.5 text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white gap-1 animate-pulse shadow-sm">
-                  <Link href={`/community/${effectiveCommunityId || userProfile?.communityId}/emergency`}>
+                  <Link href={`${demoPrefix}/community/${effectiveCommunityId || userProfile?.communityId}/emergency`}>
                     <ShieldAlert className="h-3 w-3" /> See Alert
                   </Link>
                 </Button>
               )}
               {isAmberAlert && (
                 <Button size="sm" asChild className="h-6 px-2.5 text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 gap-1 shadow-sm">
-                  <Link href={`/community/${effectiveCommunityId || userProfile?.communityId}/emergency`}>
+                  <Link href={`${demoPrefix}/community/${effectiveCommunityId || userProfile?.communityId}/emergency`}>
                     <AlertTriangle className="h-3 w-3" /> See Alert
                   </Link>
                 </Button>
@@ -370,7 +373,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                         isRedAlert ? "bg-red-600 hover:bg-red-500 text-white" : "bg-amber-500 hover:bg-amber-600 text-slate-950"
                       )}
                     >
-                      <Link href={`/community/${effectiveCommunityId || userProfile?.communityId}/emergency`}>
+                      <Link href={`${demoPrefix}/community/${effectiveCommunityId || userProfile?.communityId}/emergency`}>
                         View Bulletin
                       </Link>
                     </Button>
@@ -378,7 +381,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                 )}
 
                 <Button variant="outline" size="sm" asChild className="text-xs font-semibold">
-                  <Link href={`/community/${effectiveCommunityId || userProfile?.communityId}/about`}>About {homeCommunityName}</Link>
+                  <Link href={`${demoPrefix}/community/${effectiveCommunityId || userProfile?.communityId}/about`}>About {homeCommunityName}</Link>
                 </Button>
               </div>
             )}

@@ -73,6 +73,9 @@ export default function CommunityAboutPage() {
     const communityId = params.communityId as string;
     const db = useFirestore();
 
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+
     const [aboutData, setAboutData] = React.useState<CommunityProfileData | null>(null);
     const [communityName, setCommunityName] = React.useState("");
     const [loading, setLoading] = React.useState(true);
@@ -96,15 +99,88 @@ export default function CommunityAboutPage() {
 
                 if (communitySnap.exists()) {
                     const communityData = communitySnap.data() as CommunityData;
-                    setCommunityName(communityData.name || "");
+                    setCommunityName(communityData.name || (isDemo ? "Oakridge & DemoVille" : ""));
 
                     if (communityData.profileId) {
                         const profileRef = doc(db, 'community_profiles', communityData.profileId);
                         const profileSnap = await getDoc(profileRef);
                         if (profileSnap.exists()) {
                             setAboutData(profileSnap.data() as CommunityProfileData);
+                        } else if (isDemo) {
+                            setAboutData({
+                                headline: "About Oakridge & DemoVille",
+                                introduction: "Welcome to Oakridge & DemoVille — our model demonstration community showcasing the future of connected towns and local business support.",
+                                population: "14,850",
+                                area: "18.4 sq km",
+                                yearEstablished: "1842",
+                                mainContent: "<p>Oakridge & DemoVille combines historic market town charm with modern digital civic infrastructure. Our community hub provides real-time emergency coordination, a thriving virtual high street, active community discussions, and comprehensive visitor guides.</p>",
+                                usefulInformation: [
+                                    { name: "Town Council Hall", number: "01632 960001", address: "1 High Street, Oakridge, DE1 4MO" },
+                                    { name: "Community Medical Centre", number: "01632 960002", address: "Oakridge Health Park, Station Road" },
+                                    { name: "Tourist Information & Heritage", number: "01632 960003", address: "Market Place, Oakridge" }
+                                ],
+                                communityInformation: [
+                                    { name: "Fiona Macleod", title: "Community Council President & Hub Leader", email: "leader@oakridge-community.co.uk", phone: "07700 900123" }
+                                ],
+                                policeContact: {
+                                    stationName: "Oakridge Neighbourhood Police Station",
+                                    officerName: "Inspector Dave Campbell",
+                                    contactEmail: "neighbourhood@demo-police.pnn.police.uk",
+                                    contactPhone: "101 (Non-Emergency) / 999 (Emergency)"
+                                },
+                                showLeadershipOnAboutPage: true,
+                            });
                         }
+                    } else if (isDemo) {
+                        setAboutData({
+                            headline: "About Oakridge & DemoVille",
+                            introduction: "Welcome to Oakridge & DemoVille — our model demonstration community showcasing the future of connected towns and local business support.",
+                            population: "14,850",
+                            area: "18.4 sq km",
+                            yearEstablished: "1842",
+                            mainContent: "<p>Oakridge & DemoVille combines historic market town charm with modern digital civic infrastructure. Our community hub provides real-time emergency coordination, a thriving virtual high street, active community discussions, and comprehensive visitor guides.</p>",
+                            usefulInformation: [
+                                { name: "Town Council Hall", number: "01632 960001", address: "1 High Street, Oakridge, DE1 4MO" },
+                                { name: "Community Medical Centre", number: "01632 960002", address: "Oakridge Health Park, Station Road" },
+                                { name: "Tourist Information & Heritage", number: "01632 960003", address: "Market Place, Oakridge" }
+                            ],
+                            communityInformation: [
+                                { name: "Fiona Macleod", title: "Community Council President & Hub Leader", email: "leader@oakridge-community.co.uk", phone: "07700 900123" }
+                            ],
+                            policeContact: {
+                                stationName: "Oakridge Neighbourhood Police Station",
+                                officerName: "Inspector Dave Campbell",
+                                contactEmail: "neighbourhood@demo-police.pnn.police.uk",
+                                contactPhone: "101 (Non-Emergency) / 999 (Emergency)"
+                            },
+                            showLeadershipOnAboutPage: true,
+                        });
                     }
+                } else if (isDemo) {
+                    setCommunityName("Oakridge & DemoVille");
+                    setAboutData({
+                        headline: "About Oakridge & DemoVille",
+                        introduction: "Welcome to Oakridge & DemoVille — our model demonstration community showcasing the future of connected towns and local business support.",
+                        population: "14,850",
+                        area: "18.4 sq km",
+                        yearEstablished: "1842",
+                        mainContent: "<p>Oakridge & DemoVille combines historic market town charm with modern digital civic infrastructure. Our community hub provides real-time emergency coordination, a thriving virtual high street, active community discussions, and comprehensive visitor guides.</p>",
+                        usefulInformation: [
+                            { name: "Town Council Hall", number: "01632 960001", address: "1 High Street, Oakridge, DE1 4MO" },
+                            { name: "Community Medical Centre", number: "01632 960002", address: "Oakridge Health Park, Station Road" },
+                            { name: "Tourist Information & Heritage", number: "01632 960003", address: "Market Place, Oakridge" }
+                        ],
+                        communityInformation: [
+                            { name: "Fiona Macleod", title: "Community Council President & Hub Leader", email: "leader@oakridge-community.co.uk", phone: "07700 900123" }
+                        ],
+                        policeContact: {
+                            stationName: "Oakridge Neighbourhood Police Station",
+                            officerName: "Inspector Dave Campbell",
+                            contactEmail: "neighbourhood@demo-police.pnn.police.uk",
+                            contactPhone: "101 (Non-Emergency) / 999 (Emergency)"
+                        },
+                        showLeadershipOnAboutPage: true,
+                    });
                 }
 
                 // Check if Emergency Action Plan is public
@@ -113,6 +189,8 @@ export default function CommunityAboutPage() {
                 if (planSnap.exists()) {
                     const planData = planSnap.data();
                     setIsEmergencyPublic(planData?.isPublicOnAboutPage === true);
+                } else if (isDemo) {
+                    setIsEmergencyPublic(true);
                 }
             } catch (error) {
                 console.error("Failed to fetch community data:", error);
@@ -121,7 +199,7 @@ export default function CommunityAboutPage() {
             }
         };
         fetchAboutData();
-    }, [communityId, db]);
+    }, [communityId, db, isDemo]);
     
     const handleScrollToFaq = () => {
         document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -141,7 +219,7 @@ export default function CommunityAboutPage() {
                 <h1 className="text-2xl font-bold">About {communityName}</h1>
                 <p className="text-muted-foreground mt-4">This community hasn't created their "About" page yet.</p>
                 <Button asChild variant="link" className="mt-4">
-                    <Link href="/home"><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Link>
+                    <Link href={`${demoPrefix}/home`}><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Link>
                 </Button>
             </div>
         );
@@ -164,7 +242,7 @@ export default function CommunityAboutPage() {
                             size="sm"
                             className="bg-red-500/10 border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/20 font-bold gap-2 shadow-sm"
                         >
-                            <Link href={`/community/${communityId}/emergency`}>
+                            <Link href={`${demoPrefix}/community/${communityId}/emergency`}>
                                 <ShieldAlert className="h-4 w-4 text-red-500" />
                                 Emergency & Resilience
                             </Link>

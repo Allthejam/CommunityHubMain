@@ -278,6 +278,9 @@ export default function CommunityEmergencyPortalPage() {
   const { user } = useUser();
   const { toast } = useToast();
 
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userProfileRef);
 
@@ -454,13 +457,13 @@ export default function CommunityEmergencyPortalPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button asChild variant="ghost" size="sm">
-            <Link href={`/community/${communityId}/about`}>
+            <Link href={`${demoPrefix}/community/${communityId}/about`}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to About {communityName}
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href="/home">
+            <Link href={`${demoPrefix}/home`}>
               <Home className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
               Home
             </Link>
