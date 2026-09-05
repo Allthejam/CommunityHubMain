@@ -12,13 +12,16 @@ type ActionResponse = {
 };
 
 type EventData = {
-    ownerId: string;
+    ownerId?: string;
+    communityId?: string;
     businessId?: string;
+    businessName?: string;
     title: string;
     category: string;
     description: string;
     startDate: Date;
     endDate?: Date;
+    repeatUntil?: Date;
     startTime?: string;
     image: string | null;
     metaTitle?: string;
@@ -28,33 +31,37 @@ type EventData = {
 
 export async function createEventAction(data: EventData): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
+        let communityId: string | null = data.communityId || null;
         let businessData: any;
-        let businessName: string | null = null;
-        let communityId: string | null = null;
+        let businessName: string | null = data.businessName || null;
+
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
 
         // If a businessId is provided, fetch its data
-        if (data.businessId) {
+        if (data.businessId && data.businessId !== 'community_event') {
             const businessDoc = await firestore.collection('businesses').doc(data.businessId).get();
-            if (!businessDoc.exists) {
-                return { success: false, error: "Selected business does not exist." };
+            if (businessDoc.exists) {
+                businessData = businessDoc.data();
+                businessName = businessData?.businessName || businessName;
+                communityId = businessData?.primaryCommunityId || communityId;
             }
-            businessData = businessDoc.data();
-            businessName = businessData?.businessName;
-            communityId = businessData?.primaryCommunityId;
-        } else {
-            // If no businessId, it's a community event created by a leader. Get community from leader's profile.
+        } else if (!communityId && data.ownerId) {
+            // If no communityId, get community from leader's profile.
             const userDoc = await firestore.collection('users').doc(data.ownerId).get();
-            if (!userDoc.exists) {
-                return { success: false, error: "Event creator not found." };
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                communityId = userData?.communityId;
             }
-            const userData = userDoc.data();
-            communityId = userData?.communityId;
-            businessName = "Community"; // Changed from "Community Event"
+            if (!businessName) businessName = "Community";
         }
 
         if (!communityId) {
              return { success: false, error: "Could not determine a community for this event." };
+        }
+
+        if (!businessName) {
+            businessName = "Community";
         }
 
         let initialStatus: 'Pending Approval' | 'Live' | 'Upcoming' = 'Pending Approval';
@@ -123,12 +130,14 @@ export async function createEventAction(data: EventData): Promise<ActionResponse
 }
 
 
-export async function updateEventAction(eventId: string, data: Partial<EventData>): Promise<ActionResponse> {
+export async function updateEventAction(eventId: string, data: Partial<EventData>, communityId?: string): Promise<ActionResponse> {
   if (!eventId) {
     return { success: false, error: "Event ID is required." };
   }
   try {
-    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
+    const targetCommunityId = communityId || data.communityId;
+    const isDemo = targetCommunityId === '9ayHMyZf4SRw2gof1AM9' || targetCommunityId === 'c_showhome';
+    const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
     const eventRef = firestore.collection('events').doc(eventId);
     
     const updateData: any = { 
@@ -146,43 +155,7 @@ export async function updateEventAction(eventId: string, data: Partial<EventData
       updateData.repeatUntil = data.repeatUntil ? Timestamp.fromDate(new Date(data.repeatUntil)) : null;
     }
 
-
     await eventRef.update(updateData);
-    
-     // Notify leader
-    const eventDoc = await eventRef.get();
-    const fullEventData = eventDoc.data();
-    if (fullEventData && fullEventData.communityId) {
-        const usersRef = firestore.collection('users');
-        const roleQuery = usersRef
-            .where(`communityRoles.${fullEventData.communityId}.role`, 'in', ['leader', 'president'])
-            .limit(1);
-        let leaderSnapshot = await roleQuery.get();
-
-        if (leaderSnapshot.empty) {
-            const primaryLeaderQuery = usersRef
-                .where('homeCommunityId', '==', fullEventData.communityId)
-                .where('role', 'in', ['leader', 'president'])
-                .limit(1);
-            leaderSnapshot = await primaryLeaderQuery.get();
-        }
-
-        if (!leaderSnapshot.empty) {
-            const leaderId = leaderSnapshot.docs[0].id;
-            await firestore.collection('notifications').add({
-                recipientId: leaderId,
-                communityId: fullEventData.communityId,
-                type: 'Event Request',
-                subject: `Event updated, needs re-approval: ${fullEventData.title}`,
-                from: fullEventData.businessName || 'Community Member',
-                date: Timestamp.now(),
-                status: 'new',
-                relatedId: eventId,
-                targetApp: 'main'
-            });
-        }
-    }
-
     return { success: true };
   } catch (error: any) {
     console.error(`Error updating event ${eventId}:`, error);
@@ -190,13 +163,14 @@ export async function updateEventAction(eventId: string, data: Partial<EventData
   }
 }
 
-
 export async function updateEventStatusAction(params: {
     eventId: string;
     status: string;
+    communityId?: string;
 }): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
+        const isDemo = params.communityId === '9ayHMyZf4SRw2gof1AM9' || params.communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         const eventRef = firestore.collection('events').doc(params.eventId);
         await eventRef.update({ status: params.status });
         return { success: true };
@@ -208,9 +182,11 @@ export async function updateEventStatusAction(params: {
 
 export async function deleteEventAction(params: {
     eventId: string;
+    communityId?: string;
 }): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
+        const isDemo = params.communityId === '9ayHMyZf4SRw2gof1AM9' || params.communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         await firestore.collection('events').doc(params.eventId).delete();
         return { success: true };
     } catch (error: any) {

@@ -229,6 +229,36 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
   const db = useFirestore();
   const [upcomingCount, setUpcomingCount] = React.useState(3);
 
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+
+  const [demoEvents, setDemoEvents] = React.useState<CommunityEvent[]>([]);
+
+  React.useEffect(() => {
+    if (isDemo && typeof window !== 'undefined' && communityId) {
+      try {
+        const stored = JSON.parse(
+          sessionStorage.getItem(`demo_events_${communityId}`) || 
+          localStorage.getItem(`demo_events_${communityId}`) || '[]'
+        );
+        setDemoEvents(stored);
+      } catch {
+        setDemoEvents([]);
+      }
+
+      const handleUpdate = () => {
+        try {
+          const stored = JSON.parse(
+            sessionStorage.getItem(`demo_events_${communityId}`) || 
+            localStorage.getItem(`demo_events_${communityId}`) || '[]'
+          );
+          setDemoEvents(stored);
+        } catch {}
+      };
+      window.addEventListener('demo_events_updated', handleUpdate);
+      return () => window.removeEventListener('demo_events_updated', handleUpdate);
+    }
+  }, [isDemo, communityId]);
+
   // Only query when we have both db and communityId
   const eventsQuery = useMemoFirebase(() => {
     if (!db || !communityId) return null;
@@ -244,22 +274,26 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
   const now = React.useMemo(() => new Date(), []);
 
   const eventsToDisplay = React.useMemo(() => {
-    const rawList =
-      liveEventsData && liveEventsData.length > 0
-        ? liveEventsData
-        : mockEvents.map((e) => ({
-            ...e,
-            image: e.image?.imageUrl || '',
-            description: e.description || '',
-            startDate: new Date(e.startDate),
-            endDate: e.endDate ? new Date(e.endDate) : undefined,
-          }));
+    let rawList: CommunityEvent[] = [];
+    if (liveEventsData && liveEventsData.length > 0) {
+      rawList = isDemo ? [...demoEvents, ...liveEventsData.filter(d => !demoEvents.some(l => l.id === d.id))] : liveEventsData;
+    } else if (demoEvents.length > 0) {
+      rawList = demoEvents;
+    } else {
+      rawList = mockEvents.map((e) => ({
+        ...e,
+        image: e.image?.imageUrl || '',
+        description: e.description || '',
+        startDate: new Date(e.startDate),
+        endDate: e.endDate ? new Date(e.endDate) : undefined,
+      }));
+    }
 
     return rawList.map((event) => {
       const { updatedEvent } = getAdvancedRepeatingEvent(event, now);
       return updatedEvent;
     });
-  }, [liveEventsData, now]);
+  }, [liveEventsData, demoEvents, isDemo, now]);
 
   // Auto-advance repeating events in Firestore (side-effect only)
   React.useEffect(() => {

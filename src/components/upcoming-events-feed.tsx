@@ -105,21 +105,53 @@ export function UpcomingEventsFeed() {
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
+  const [demoEvents, setDemoEvents] = React.useState<CommunityEvent[]>([]);
+
+  React.useEffect(() => {
+    if (isDemo && typeof window !== 'undefined' && communityId) {
+      try {
+        const stored = JSON.parse(
+          sessionStorage.getItem(`demo_events_${communityId}`) || 
+          localStorage.getItem(`demo_events_${communityId}`) || '[]'
+        );
+        setDemoEvents(stored);
+      } catch {
+        setDemoEvents([]);
+      }
+
+      const handleUpdate = () => {
+        try {
+          const stored = JSON.parse(
+            sessionStorage.getItem(`demo_events_${communityId}`) || 
+            localStorage.getItem(`demo_events_${communityId}`) || '[]'
+          );
+          setDemoEvents(stored);
+        } catch {}
+      };
+      window.addEventListener('demo_events_updated', handleUpdate);
+      return () => window.removeEventListener('demo_events_updated', handleUpdate);
+    }
+  }, [isDemo, communityId]);
+
   const eventsQuery = useMemoFirebase(() => {
-    if (!userProfile?.communityId || !db) return null;
+    if (!communityId || !db) return null;
     return query(
         collection(db, "events"), 
-        where("communityId", "==", userProfile.communityId),
+        where("communityId", "==", communityId),
         where("status", "in", ["Upcoming", "Live"])
     );
-  }, [db, userProfile?.communityId]);
+  }, [db, communityId]);
   
   const { data: events, isLoading: eventsLoading } = useCollection<CommunityEvent>(eventsQuery);
 
   const upcomingEvents = React.useMemo(() => {
-    if (!events) return [];
+    const rawEvents = events || [];
+    const combined = isDemo ? [...demoEvents, ...rawEvents.filter(d => !demoEvents.some(l => l.id === d.id))] : rawEvents;
     const now = new Date();
-    return events
+    return combined
         .filter(event => {
           const d = parseEventDate(event.startDate);
           return d ? d > now : false;
@@ -129,7 +161,7 @@ export function UpcomingEventsFeed() {
           const dateB = parseEventDate(b.startDate) || new Date(0);
           return dateA.getTime() - dateB.getTime();
         });
-  }, [events]);
+  }, [events, demoEvents, isDemo]);
 
   const loading = profileLoading || eventsLoading;
 

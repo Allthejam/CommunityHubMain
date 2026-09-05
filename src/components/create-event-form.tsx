@@ -128,11 +128,12 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
   const startDate = form.watch('startDate');
   const repeat = form.watch('repeat');
 
-  const communityId = userProfile?.communityId;
-  const communityRoleData = communityId ? userProfile?.communityRoles?.[communityId] : null;
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const effectiveCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
+  const communityRoleData = effectiveCommunityId ? userProfile?.communityRoles?.[effectiveCommunityId] : null;
 
-  const activeRole = communityRoleData?.role || userProfile?.role;
-  const isLeader = ['president', 'leader', 'administrator'].includes(activeRole);
+  const activeRole = communityRoleData?.role || userProfile?.role || (isDemo ? 'leader' : undefined);
+  const isLeader = isDemo || ['president', 'leader', 'administrator'].includes(activeRole || '');
 
   const ownedBusinessesQuery = useMemoFirebase(() => (user ? query(collection(db, "businesses"), where("ownerId", "==", user.uid)) : null), [user, db]);
   const teamBusinessesQuery = useMemoFirebase(() => (user ? query(collection(db, "businesses"), where("teamMemberIds", "array-contains", user.uid)) : null), [user, db]);
@@ -231,8 +232,8 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
   };
 
   async function onSubmit(values: z.infer<typeof eventFormSchema>) {
-    if (!user || !userProfile?.communityId) {
-        toast({ title: "Error", description: "You must be logged in and part of a community.", variant: "destructive" });
+    if (!effectiveCommunityId) {
+        toast({ title: "Error", description: "Could not determine community.", variant: "destructive" });
         return;
     }
 
@@ -244,7 +245,7 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
     
     form.clearErrors();
 
-    const isCommunityEvent = values.businessId === 'community_event';
+    const isCommunityEvent = values.businessId === 'community_event' || !values.businessId;
     const selectedBusiness = !isCommunityEvent && values.businessId ? businesses?.find(b => b.id === values.businessId) : null;
 
     // End date is completely optional for single-day events
@@ -266,29 +267,66 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
     const eventDataForAction = { 
         ...values,
         businessId: isCommunityEvent ? undefined : values.businessId,
-        businessName: selectedBusiness ? selectedBusiness.businessName : (isLeader ? 'Community' : userProfile.name),
+        businessName: selectedBusiness ? selectedBusiness.businessName : (isLeader ? 'Community' : (userProfile?.name || 'Community')),
         image, 
         category: finalCategory,
         endDate: finalEndDate || undefined,
         repeatUntil: values.repeatUntil || undefined,
     };
     
-    const result = event?.id 
-      ? await updateEventAction(event.id, eventDataForAction)
-      : await createEventAction({
-          ...eventDataForAction,
-          communityId: userProfile.communityId,
-          ownerId: user.uid,
-      });
+    if (user) {
+      const result = event?.id 
+        ? await updateEventAction(event.id, eventDataForAction, effectiveCommunityId)
+        : await createEventAction({
+            ...eventDataForAction,
+            communityId: effectiveCommunityId,
+            ownerId: user.uid,
+        });
 
-
-    if (result.success) {
-      toast({ title: `Event ${event ? 'Updated' : 'Created'}`, description: `Your event has been successfully ${event ? 'updated' : 'submitted'}.` });
-      form.reset();
-      setImage(null);
-      if(onSaveSuccess) onSaveSuccess();
+      if (result.success) {
+        toast({ title: `Event ${event ? 'Updated' : 'Created'}`, description: `Your event has been successfully ${event ? 'updated' : 'submitted'}.` });
+        form.reset();
+        setImage(null);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('demo_events_updated'));
+        }
+        if(onSaveSuccess) onSaveSuccess();
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
+      }
     } else {
-      toast({ title: "Error", description: result.error, variant: "destructive" });
+      // Browser demo mode for guest users
+      const newEvent = {
+        id: event?.id || `demo_${Date.now()}`,
+        communityId: effectiveCommunityId,
+        ...eventDataForAction,
+        startDate: values.startDate.toISOString(),
+        endDate: finalEndDate ? finalEndDate.toISOString() : null,
+        repeatUntil: values.repeatUntil ? values.repeatUntil.toISOString() : null,
+        status: values.startDate <= new Date() ? 'Live' : 'Upcoming',
+        createdAt: new Date().toISOString(),
+      };
+      try {
+        const stored = JSON.parse(
+          sessionStorage.getItem(`demo_events_${effectiveCommunityId}`) || 
+          localStorage.getItem(`demo_events_${effectiveCommunityId}`) || '[]'
+        );
+        const updated = event?.id
+          ? stored.map((e: any) => e.id === event.id ? newEvent : e)
+          : [newEvent, ...stored];
+        sessionStorage.setItem(`demo_events_${effectiveCommunityId}`, JSON.stringify(updated));
+        localStorage.setItem(`demo_events_${effectiveCommunityId}`, JSON.stringify(updated));
+        
+        toast({ title: `Event ${event ? 'Updated' : 'Created'}`, description: `Your event has been saved in your browser demo session.` });
+        form.reset();
+        setImage(null);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('demo_events_updated'));
+        }
+        if(onSaveSuccess) onSaveSuccess();
+      } catch (e: any) {
+        toast({ title: "Error", description: e.message || "Failed to save event.", variant: "destructive" });
+      }
     }
   }
 

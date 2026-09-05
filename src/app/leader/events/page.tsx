@@ -218,9 +218,21 @@ export default function MyEventsPage() {
   const demoPrefix = isDemo ? '/demo' : '';
   const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
+  const loadDemoEvents = React.useCallback(() => {
+    if (!isDemo || typeof window === 'undefined') return [];
+    try {
+      return JSON.parse(
+        sessionStorage.getItem(`demo_events_${communityId}`) || 
+        localStorage.getItem(`demo_events_${communityId}`) || '[]'
+      );
+    } catch {
+      return [];
+    }
+  }, [isDemo, communityId]);
+
   React.useEffect(() => {
     if (!communityId || !db) {
-        setEvents([]);
+        setEvents(loadDemoEvents());
         setLoading(false);
         return;
     }
@@ -234,19 +246,56 @@ export default function MyEventsPage() {
             id: doc.id,
             ...doc.data()
         })) as CommunityEvent[];
-        setEvents(eventsData);
+
+        if (isDemo) {
+            const localEvents = loadDemoEvents();
+            const combined = [...localEvents, ...eventsData.filter(d => !localEvents.some(l => l.id === d.id))];
+            setEvents(combined);
+        } else {
+            setEvents(eventsData);
+        }
         setLoading(false);
     }, (error) => {
         console.error("Error fetching events:", error);
-        toast({ title: "Error", description: "Failed to load events.", variant: "destructive" });
+        if (isDemo) {
+            setEvents(loadDemoEvents());
+        } else {
+            toast({ title: "Error", description: "Failed to load events.", variant: "destructive" });
+        }
         setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [communityId, db, toast]);
+    const handleDemoEventsUpdated = () => {
+      if (isDemo) {
+        const localEvents = loadDemoEvents();
+        setEvents(prev => [...localEvents, ...prev.filter(d => !localEvents.some(l => l.id === d.id))]);
+      }
+    };
+
+    window.addEventListener('demo_events_updated', handleDemoEventsUpdated);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('demo_events_updated', handleDemoEventsUpdated);
+    };
+  }, [communityId, db, isDemo, loadDemoEvents, toast]);
 
   const handleDeleteEvent = async (eventId: string) => {
-    const result = await deleteEventAction({ eventId });
+    if (eventId.startsWith('demo_') || !user) {
+      try {
+        const stored = loadDemoEvents();
+        const updated = stored.filter((e: any) => e.id !== eventId);
+        sessionStorage.setItem(`demo_events_${communityId}`, JSON.stringify(updated));
+        localStorage.setItem(`demo_events_${communityId}`, JSON.stringify(updated));
+        setEvents(prev => prev.filter(e => e.id !== eventId));
+        toast({ title: "Event Deleted", description: "The demo event has been deleted." });
+      } catch (e: any) {
+        toast({ title: "Error", description: e.message || "Failed to delete event.", variant: "destructive" });
+      }
+      return;
+    }
+
+    const result = await deleteEventAction({ eventId, communityId });
     if (result.success) {
       toast({ title: "Event Deleted", description: "The event has been permanently deleted." });
     } else {
@@ -255,7 +304,21 @@ export default function MyEventsPage() {
   };
 
   const handleUpdateStatus = async (eventId: string, status: CommunityEvent['status']) => {
-    const result = await updateEventStatusAction({ eventId, status });
+    if (eventId.startsWith('demo_') || !user) {
+      try {
+        const stored = loadDemoEvents();
+        const updated = stored.map((e: any) => e.id === eventId ? { ...e, status } : e);
+        sessionStorage.setItem(`demo_events_${communityId}`, JSON.stringify(updated));
+        localStorage.setItem(`demo_events_${communityId}`, JSON.stringify(updated));
+        setEvents(prev => prev.map(e => e.id === eventId ? { ...e, status } : e));
+        toast({ title: "Event Updated", description: `Event status changed to ${status}.` });
+      } catch (e: any) {
+        toast({ title: "Error", description: e.message || "Failed to update event.", variant: "destructive" });
+      }
+      return;
+    }
+
+    const result = await updateEventStatusAction({ eventId, status, communityId });
     if (result.success) {
       toast({ title: "Event Updated", description: `Event status changed to ${status}.` });
     } else {
@@ -264,7 +327,7 @@ export default function MyEventsPage() {
   };
 
   const handleCreateEventClick = () => {
-    if (userProfile?.role === 'president' || userProfile?.role === 'leader' || userProfile?.role === 'administrator') {
+    if (isDemo || userProfile?.role === 'president' || userProfile?.role === 'leader' || userProfile?.role === 'administrator' || ['owner', 'admin'].includes((userProfile as any)?.accountType)) {
       setIsCreateDialogOpen(true);
     } else {
       toast({ title: "Permission Denied", description: "Only Leaders can create community events directly.", variant: "destructive" });
