@@ -13,10 +13,12 @@ import {
     Settings,
     ChevronRight,
     MapPin,
-    Navigation
+    Navigation,
+    Tv
 } from "lucide-react";
 import { BusinessesCard } from "@/components/leader-dashboard/businesses-card";
 import { EventsCard } from "@/components/leader-dashboard/events-card";
+import { WhatsonCard } from "@/components/leader-dashboard/whatson-card";
 import { NotificationsCard } from "@/components/leader-dashboard/notifications-card";
 import { MembersCard } from "@/components/leader-dashboard/members-card";
 import { NewsCard } from "@/components/leader-dashboard/news-card";
@@ -115,13 +117,18 @@ export default function LeaderDashboardPage() {
                             </Link>
                         </Button>
                         <Button asChild size="sm" variant="outline" className="font-semibold text-xs bg-background/80 hover:bg-muted">
-                            <Link href={`${demoPrefix}/leader/travel`}>
-                                <Navigation className="mr-1.5 h-3.5 w-3.5 text-sky-600" /> Travel Guide
+                            <Link href={`${demoPrefix}/leader/events`}>
+                                <CalendarPlus className="mr-1.5 h-3.5 w-3.5 text-indigo-600" /> Post Event
                             </Link>
                         </Button>
                         <Button asChild size="sm" variant="outline" className="font-semibold text-xs bg-background/80 hover:bg-muted">
-                            <Link href={`${demoPrefix}/leader/events`}>
-                                <CalendarPlus className="mr-1.5 h-3.5 w-3.5 text-indigo-600" /> Post Event
+                            <Link href={`${demoPrefix}/leader/whatson`}>
+                                <Tv className="mr-1.5 h-3.5 w-3.5 text-teal-600" /> Manage What&apos;s On
+                            </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="outline" className="font-semibold text-xs bg-background/80 hover:bg-muted">
+                            <Link href={`${demoPrefix}/leader/travel`}>
+                                <Navigation className="mr-1.5 h-3.5 w-3.5 text-sky-600" /> Travel Guide
                             </Link>
                         </Button>
                     </div>
@@ -138,6 +145,7 @@ export default function LeaderDashboardPage() {
                 {hasAccess('viewUsers') && <MembersCard />}
                 {hasAccess('viewBusinesses') && <BusinessesCard />}
                 {hasAccess('viewEvents') && <EventsCard />}
+                {hasAccess('viewWhatson') && <WhatsonCard />}
                 {hasAccess('viewNewsManagement') && <NewsCard />}
                 {hasAccess('viewReports') && <ReportsCard />}
                 {hasAccess('viewNotifications') && <NotificationsCard />}
