@@ -13,12 +13,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 
+import { getJobSeekerAction, deleteJobSeekerProfileAction } from '@/lib/actions/jobActions';
+
 type SeekerData = {
     id: string;
     name: string;
     summary: string;
     profile: string;
-    availableFrom?: { toDate: () => Date };
+    availableFrom?: any;
     linkedin?: string;
     portfolio?: string;
     email?: string;
@@ -34,14 +36,46 @@ export default function SeekerProfilePage() {
     const { user } = useUser();
     const db = useFirestore();
 
+    const isDemo = typeof window !== 'undefined' && (
+        window.location.pathname.startsWith('/demo') ||
+        sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
+        sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
+        sessionStorage.getItem('isDemoMode') === 'true'
+    );
+    const demoPrefix = isDemo ? '/demo' : '';
+
     const seekerRef = useMemoFirebase(() => {
-        if (!seekerId || !db) return null;
+        if (isDemo || !seekerId || !db) return null;
         return doc(db, 'jobSeekers', seekerId as string);
-    }, [seekerId, db]);
+    }, [seekerId, db, isDemo]);
 
-    const { data: seeker, isLoading: loading } = useDoc<SeekerData>(seekerRef);
+    const { data: firestoreSeeker, isLoading: firestoreLoading } = useDoc<SeekerData>(seekerRef);
+    const [demoSeeker, setDemoSeeker] = useState<SeekerData | null>(null);
+    const [isDemoLoading, setIsDemoLoading] = useState(false);
 
-    const isOwner = user?.uid === seeker?.ownerId;
+    useEffect(() => {
+        if (seekerId) {
+            const cid = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') || '9ayHMyZf4SRw2gof1AM9' : '9ayHMyZf4SRw2gof1AM9';
+            const localKey = `demo_job_seekers_${cid}`;
+            const localSeekers = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(localKey) || '[]') : [];
+            const found = localSeekers.find((s: any) => s.id === seekerId);
+            if (found) {
+                setDemoSeeker(found);
+            } else {
+                setIsDemoLoading(true);
+                getJobSeekerAction(seekerId as string, cid).then(res => {
+                    if (res.success && res.data) {
+                        setDemoSeeker(res.data);
+                    }
+                }).finally(() => setIsDemoLoading(false));
+            }
+        }
+    }, [seekerId]);
+
+    const seeker = isDemo ? (demoSeeker || firestoreSeeker) : (firestoreSeeker || demoSeeker);
+    const loading = isDemo ? (isDemoLoading && !seeker) : (firestoreLoading && !seeker);
+
+    const isOwner = user?.uid === seeker?.ownerId || (isDemo && seeker?.ownerId === 'demo-personal');
     
     if (loading) {
         return (
@@ -57,7 +91,7 @@ export default function SeekerProfilePage() {
                 <h1 className="text-2xl font-bold">Job Seeker Not Found</h1>
                 <p className="text-muted-foreground">The profile you are looking for does not exist or has been removed.</p>
                 <Button asChild variant="link" className="mt-4">
-                    <Link href="/jobs">
+                    <Link href={`${demoPrefix}/jobs`}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Job Board
                     </Link>
@@ -66,10 +100,26 @@ export default function SeekerProfilePage() {
         )
     }
 
+    const formattedAvailableFrom = () => {
+        if (!seeker.availableFrom) return null;
+        try {
+            if (seeker.availableFrom?.toDate) {
+                return format(seeker.availableFrom.toDate(), 'PPP');
+            }
+            if (typeof seeker.availableFrom === 'string') {
+                return format(new Date(seeker.availableFrom), 'PPP');
+            }
+            if (seeker.availableFrom instanceof Date) {
+                return format(seeker.availableFrom, 'PPP');
+            }
+        } catch (e) {}
+        return null;
+    };
+
     return (
         <div className="max-w-4xl mx-auto py-8 px-4">
              <Button asChild variant="ghost" className="mb-4">
-                <Link href="/jobs">
+                <Link href={`${demoPrefix}/jobs`}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Job Board
                 </Link>
@@ -88,10 +138,10 @@ export default function SeekerProfilePage() {
                             <CardDescription className="text-lg mt-2">
                                {seeker.summary}
                             </CardDescription>
-                             {seeker.availableFrom && (
+                             {formattedAvailableFrom() && (
                                 <div className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
                                     <Calendar className="h-4 w-4" />
-                                    Available from {format(seeker.availableFrom.toDate(), 'PPP')}
+                                    Available from {formattedAvailableFrom()}
                                 </div>
                             )}
                         </div>

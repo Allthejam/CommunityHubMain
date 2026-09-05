@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { useToast } from "@/hooks/use-toast";
-import { applyForCharityListingAction } from "@/lib/actions/charityActions";
+import { applyForCharityListingAction, getCharitiesAction } from "@/lib/actions/charityActions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
@@ -246,7 +246,11 @@ const ApplyForListingDialog = () => {
     };
 
     const handleSubmit = async () => {
-        if (!userProfile?.communityId) {
+        const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+        const effectiveCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (userProfile?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || 'N3SarfGXPLxBI7XcsinX');
+        const effectiveUserId = user?.uid || (isDemo ? 'demo-personal' : '');
+
+        if (!effectiveCommunityId) {
             toast({ variant: "destructive", title: "Error", description: "Could not determine your community." });
             return;
         }
@@ -256,6 +260,25 @@ const ApplyForListingDialog = () => {
         }
 
         setIsSubmitting(true);
+        const newCharityItem: Charity = {
+            id: `charity-${Date.now()}`,
+            title,
+            description,
+            website: website || undefined,
+            category: "Community Support",
+            image: image || "https://picsum.photos/seed/charity/600/400",
+        };
+
+        if (isDemo && typeof window !== 'undefined') {
+            try {
+                const existing = JSON.parse(sessionStorage.getItem(`demo_charities_${effectiveCommunityId}`) || localStorage.getItem(`demo_charities_${effectiveCommunityId}`) || '[]');
+                existing.unshift(newCharityItem);
+                sessionStorage.setItem(`demo_charities_${effectiveCommunityId}`, JSON.stringify(existing));
+                localStorage.setItem(`demo_charities_${effectiveCommunityId}`, JSON.stringify(existing));
+                window.dispatchEvent(new CustomEvent('demo_charities_updated', { detail: existing }));
+            } catch (e) {}
+        }
+
         const result = await applyForCharityListingAction({
             title,
             description,
@@ -263,14 +286,20 @@ const ApplyForListingDialog = () => {
             contactPerson,
             contactNumber,
             image,
-            communityId: userProfile.communityId,
-            userId: user?.uid || "",
+            communityId: effectiveCommunityId,
+            userId: effectiveUserId,
         });
         setIsSubmitting(false);
 
-        if (result.success) {
-            toast({ title: "Application Submitted", description: "Your application has been sent for review." });
+        if (result.success || isDemo) {
+            toast({ title: isDemo ? "Charity Listed!" : "Application Submitted", description: isDemo ? "Your charity listing is now live in the demo." : "Your application has been sent for review." });
             setOpen(false);
+            setTitle("");
+            setDescription("");
+            setWebsite("");
+            setContactPerson("");
+            setContactNumber("");
+            setImage(null);
         } else {
             toast({ variant: "destructive", title: "Submission Failed", description: result.error });
         }
@@ -368,25 +397,78 @@ export default function CharitiesPage() {
   const { user, isUserLoading: authLoading } = useUser();
   const db = useFirestore();
 
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const activeCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+  const activeCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
   const charitiesQuery = useMemoFirebase(() => {
-    if (!activeCommunityId || !db) return null;
+    if (!activeCommunityId || !db || isDemo) return null;
     return query(
         collection(db, "charities"),
         where("communityId", "==", activeCommunityId)
     );
-  }, [db, activeCommunityId]);
+  }, [db, activeCommunityId, isDemo]);
 
   const { data: charitiesData, isLoading: itemsLoading } = useCollection<Charity>(charitiesQuery);
 
-  useEffect(() => {
-      setLoading(authLoading || profileLoading || itemsLoading);
+  const loadCharities = React.useCallback(async () => {
+    if (!activeCommunityId) return;
+    
+    // Check local / session storage first for demo mode
+    let localItems: Charity[] = [];
+    if (isDemo && typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem(`demo_charities_${activeCommunityId}`) || localStorage.getItem(`demo_charities_${activeCommunityId}`);
+        if (cached) localItems = JSON.parse(cached);
+      } catch (e) {}
+    }
+
+    if (isDemo) {
+      setLoading(true);
+      const res = await getCharitiesAction(activeCommunityId);
+      let serverItems: Charity[] = [];
+      if (res.success && res.data) {
+        serverItems = res.data.map(item => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          image: item.image,
+          category: item.category || "Community Support",
+          website: item.website,
+        }));
+      }
+      // Combine unique
+      const combined = [...localItems];
+      for (const s of serverItems) {
+        if (!combined.some(c => c.id === s.id || c.title === s.title)) {
+          combined.push(s);
+        }
+      }
+      setCharities(combined);
+      setLoading(false);
+    } else {
       setCharities(charitiesData || []);
-  }, [authLoading, profileLoading, itemsLoading, charitiesData]);
+      setLoading(authLoading || profileLoading || itemsLoading);
+    }
+  }, [activeCommunityId, isDemo, charitiesData, authLoading, profileLoading, itemsLoading]);
+
+  useEffect(() => {
+    loadCharities();
+  }, [loadCharities]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      loadCharities();
+    };
+    window.addEventListener('demo_charities_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('demo_charities_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [loadCharities]);
 
   const categories = useMemo(() => {
     if (!charities) return ["All"];

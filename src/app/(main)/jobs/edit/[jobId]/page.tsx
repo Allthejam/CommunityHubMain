@@ -40,7 +40,7 @@ import {
 import Link from "next/link";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { updateJobVacancyAction } from "@/lib/actions/jobActions";
+import { updateJobVacancyAction, getJobVacancyAction } from "@/lib/actions/jobActions";
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -78,11 +78,22 @@ export default function EditVacancyPage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const isDemo = typeof window !== 'undefined' && (
+    window.location.pathname.startsWith('/demo') ||
+    sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
+    sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
+    sessionStorage.getItem('isDemoMode') === 'true'
+  );
+  const demoPrefix = isDemo ? '/demo' : '';
+
   const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userProfileRef);
 
-  const jobRef = useMemoFirebase(() => (jobId ? doc(db, 'jobs', jobId) : null), [jobId, db]);
-  const { data: existingJob, isLoading: jobLoading } = useDoc<any>(jobRef);
+  const jobRef = useMemoFirebase(() => (isDemo || !jobId || !db ? null : doc(db, 'jobs', jobId)), [jobId, db, isDemo]);
+  const { data: firestoreJob, isLoading: jobLoading } = useDoc<any>(jobRef);
+
+  const [demoJob, setDemoJob] = React.useState<any>(null);
+  const [isDemoJobLoading, setIsDemoJobLoading] = React.useState(false);
 
   // Form State
   const [vacancyBusinessId, setVacancyBusinessId] = React.useState("");
@@ -102,11 +113,32 @@ export default function EditVacancyPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const userBusinessesQuery = useMemoFirebase(() => {
-    if (!user?.uid || !db) return null;
+    if (isDemo || !user?.uid || !db) return null;
     return query(collection(db, "businesses"), where("ownerId", "==", user.uid));
-  }, [user?.uid, db]);
+  }, [user?.uid, db, isDemo]);
 
   const { data: userBusinesses, isLoading: businessesLoading } = useCollection<any>(userBusinessesQuery);
+
+  React.useEffect(() => {
+    if (jobId) {
+      const cid = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') || '9ayHMyZf4SRw2gof1AM9' : '9ayHMyZf4SRw2gof1AM9';
+      const localKey = `demo_jobs_${cid}`;
+      const localJobs = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(localKey) || '[]') : [];
+      const found = localJobs.find((j: any) => j.id === jobId);
+      if (found) {
+        setDemoJob(found);
+      } else {
+        setIsDemoJobLoading(true);
+        getJobVacancyAction(jobId, cid).then(res => {
+          if (res.success && res.data) {
+            setDemoJob(res.data);
+          }
+        }).finally(() => setIsDemoJobLoading(false));
+      }
+    }
+  }, [jobId]);
+
+  const existingJob = isDemo ? (demoJob || firestoreJob) : (firestoreJob || demoJob);
 
   React.useEffect(() => {
       if (existingJob) {
@@ -135,15 +167,19 @@ export default function EditVacancyPage() {
   }, [existingJob]);
 
   const handleUpdate = async () => {
-    if (!user || !jobId) return;
+    const effectiveUserId = user?.uid || (isDemo ? 'demo-personal' : null);
+    const effectiveCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : null);
+
+    if (!effectiveUserId || !jobId) return;
 
     setIsSubmitting(true);
     
     const formattedSalary = vacancySalary ? `£${vacancySalary} ${payFrequencies.find(f => f.value === vacancySalaryFrequency)?.label || 'per year'}` : "Not specified";
+    const companyName = vacancyBusinessId === 'other' ? (vacancyOtherBusiness || 'Local Community Enterprise') : userBusinesses?.find(b => b.id === vacancyBusinessId)?.businessName || vacancyOtherBusiness;
 
     const result = await updateJobVacancyAction(jobId, {
         title: vacancyJobTitle,
-        company: vacancyBusinessId === 'other' ? vacancyOtherBusiness : userBusinesses?.find(b => b.id === vacancyBusinessId)?.businessName,
+        company: companyName,
         companyLogo: customLogo,
         businessId: vacancyBusinessId === 'other' ? null : vacancyBusinessId,
         jobType: vacancyJobType,
@@ -155,12 +191,38 @@ export default function EditVacancyPage() {
         applicationPhone,
         indeedApplyUrl,
         linkedinApplyUrl,
-        ownerId: user.uid,
+        ownerId: effectiveUserId,
+        communityId: effectiveCommunityId || undefined,
     });
 
     if (result.success) {
+        if (isDemo && typeof window !== 'undefined' && effectiveCommunityId) {
+            const localKey = `demo_jobs_${effectiveCommunityId}`;
+            const localJobs = JSON.parse(sessionStorage.getItem(localKey) || '[]');
+            const idx = localJobs.findIndex((j: any) => j.id === jobId);
+            if (idx >= 0) {
+                localJobs[idx] = {
+                    ...localJobs[idx],
+                    title: vacancyJobTitle,
+                    company: companyName,
+                    companyLogo: customLogo,
+                    businessId: vacancyBusinessId === 'other' ? null : vacancyBusinessId,
+                    jobType: vacancyJobType,
+                    salary: formattedSalary,
+                    shortDescription: vacancyShortDesc,
+                    fullDescription: vacancyLongDesc,
+                    website: vacancyWebsite,
+                    applicationEmail,
+                    applicationPhone,
+                    indeedApplyUrl,
+                    linkedinApplyUrl,
+                };
+                sessionStorage.setItem(localKey, JSON.stringify(localJobs));
+                window.dispatchEvent(new CustomEvent('demo_jobs_updated'));
+            }
+        }
         toast({ title: "Vacancy Updated" });
-        router.push('/jobs');
+        router.push(`${demoPrefix}/jobs`);
     } else {
         toast({ title: "Update Failed", description: result.error, variant: "destructive" });
     }
@@ -185,7 +247,7 @@ export default function EditVacancyPage() {
     <div className="space-y-8 max-w-4xl mx-auto py-8">
         <div>
             <Button asChild variant="ghost" className="mb-4">
-                <Link href="/jobs">
+                <Link href={`${demoPrefix}/jobs`}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Job Board
                 </Link>

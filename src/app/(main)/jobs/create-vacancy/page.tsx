@@ -85,6 +85,14 @@ export default function CreateVacancyPage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const isDemo = typeof window !== 'undefined' && (
+    window.location.pathname.startsWith('/demo') ||
+    sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
+    sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
+    sessionStorage.getItem('isDemoMode') === 'true'
+  );
+  const demoPrefix = isDemo ? '/demo' : '';
+
   const [userBusinesses, setUserBusinesses] = React.useState<UserBusiness[]>([]);
   
   // State for Job Vacancy Form
@@ -122,13 +130,19 @@ export default function CreateVacancyPage() {
   const { data: rawUserBusinesses, isLoading: businessesLoading } = useCollection<any>(userBusinessesQuery);
 
   React.useEffect(() => {
-      if (rawUserBusinesses) {
+      if (rawUserBusinesses && rawUserBusinesses.length > 0) {
           const businessesData = rawUserBusinesses.map(
                 (doc) => ({ id: doc.id, name: doc.businessName, logoImage: doc.logoImage || null } as UserBusiness)
             );
           setUserBusinesses(businessesData);
+      } else if (isDemo) {
+          setUserBusinesses([
+            { id: 'biz-demo-1', name: 'Speyside Artisan Butchery & Deli', logoImage: null },
+            { id: 'biz-demo-2', name: 'Highland River Outfitting & Co.', logoImage: null },
+            { id: 'biz-demo-3', name: 'Spey Valley Bakery & Cafe', logoImage: null },
+          ]);
       }
-  }, [rawUserBusinesses]);
+  }, [rawUserBusinesses, isDemo]);
 
   React.useEffect(() => {
     const getCameraStream = async () => {
@@ -205,14 +219,17 @@ export default function CreateVacancyPage() {
   };
   
   const handlePostVacancy = async () => {
-    if (!user || !userProfile?.communityId) {
+    const effectiveCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : null);
+    const effectiveUserId = user?.uid || (isDemo ? 'demo-personal' : null);
+
+    if (!effectiveUserId || !effectiveCommunityId) {
         toast({ title: "Error", description: "You must be logged in to post a vacancy.", variant: "destructive" });
         return;
     }
 
-    const isOtherBusiness = vacancyBusinessId === 'other';
+    const isOtherBusiness = vacancyBusinessId === 'other' || !vacancyBusinessId;
     const selectedBusiness = userBusinesses.find(b => b.id === vacancyBusinessId);
-    const companyName = isOtherBusiness ? vacancyOtherBusiness : selectedBusiness?.name;
+    const companyName = isOtherBusiness ? (vacancyOtherBusiness || 'Local Community Enterprise') : selectedBusiness?.name;
     const companyLogo = isOtherBusiness ? customLogo : selectedBusiness?.logoImage;
 
     if (!companyName || !vacancyJobTitle || !vacancyShortDesc || !vacancyLongDesc) {
@@ -229,7 +246,7 @@ export default function CreateVacancyPage() {
         company: companyName,
         companyLogo: companyLogo,
         businessId: isOtherBusiness ? null : vacancyBusinessId,
-        jobType: vacancyJobType,
+        jobType: vacancyJobType || 'Full Time',
         salary: formattedSalary,
         shortDescription: vacancyShortDesc,
         fullDescription: vacancyLongDesc,
@@ -238,13 +255,39 @@ export default function CreateVacancyPage() {
         applicationPhone: applicationPhone,
         indeedApplyUrl: indeedApplyUrl,
         linkedinApplyUrl: linkedinApplyUrl,
-        communityId: userProfile.communityId,
-        ownerId: user.uid,
+        communityId: effectiveCommunityId,
+        ownerId: effectiveUserId,
     });
 
     if (result.success) {
+        if (isDemo && typeof window !== 'undefined') {
+            const localKey = `demo_jobs_${effectiveCommunityId}`;
+            const existing = JSON.parse(sessionStorage.getItem(localKey) || '[]');
+            const newJob = {
+                id: `demo-job-${Date.now()}`,
+                title: vacancyJobTitle,
+                company: companyName,
+                companyLogo: companyLogo,
+                businessId: isOtherBusiness ? null : vacancyBusinessId,
+                jobType: vacancyJobType || 'Full Time',
+                salary: formattedSalary,
+                shortDescription: vacancyShortDesc,
+                fullDescription: vacancyLongDesc,
+                website: vacancyWebsite,
+                applicationEmail: applicationEmail,
+                applicationPhone: applicationPhone,
+                indeedApplyUrl: indeedApplyUrl,
+                linkedinApplyUrl: linkedinApplyUrl,
+                communityId: effectiveCommunityId,
+                ownerId: effectiveUserId,
+                createdAt: new Date().toISOString(),
+                expiresAt: new Date(Date.now() + 28 * 86400000).toISOString(),
+            };
+            sessionStorage.setItem(localKey, JSON.stringify([newJob, ...existing]));
+            window.dispatchEvent(new CustomEvent('demo_jobs_updated'));
+        }
         toast({ title: "Success", description: "Your job vacancy has been posted." });
-        router.push('/jobs');
+        router.push(`${demoPrefix}/jobs`);
     } else {
         toast({ title: "Error", description: result.error || "Could not post job vacancy.", variant: "destructive" });
     }
@@ -256,7 +299,7 @@ export default function CreateVacancyPage() {
         <div className="space-y-8 max-w-4xl mx-auto py-8">
              <div>
                 <Button asChild variant="ghost" className="mb-4">
-                    <Link href="/jobs">
+                    <Link href={`${demoPrefix}/jobs`}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Job Board
                     </Link>

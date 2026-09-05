@@ -109,23 +109,76 @@ export default function JobsPage() {
   }, [user, db]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const communityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+  const isDemo = typeof window !== 'undefined' && (
+    window.location.pathname.startsWith('/demo') ||
+    sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
+    sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
+    sessionStorage.getItem('isDemoMode') === 'true'
+  );
+  const demoPrefix = isDemo ? '/demo' : '';
+
+  const communityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : null);
 
   const [isDeleting, setIsDeleting] = React.useState<string | null>(null);
 
   // Data queries
   const jobsQuery = useMemoFirebase(() => {
-      if (!db || !communityId) return null;
+      if (isDemo || !db || !communityId) return null;
       return query(collection(db, "jobs"), where("communityId", "==", communityId));
-  }, [db, communityId]);
+  }, [db, communityId, isDemo]);
   
   const seekersQuery = useMemoFirebase(() => {
-      if (!db || !communityId) return null;
+      if (isDemo || !db || !communityId) return null;
       return query(collection(db, "jobSeekers"), where("communityId", "==", communityId));
-  }, [db, communityId]);
+  }, [db, communityId, isDemo]);
 
   const { data: rawJobs, isLoading: jobsLoading } = useCollection<Job>(jobsQuery);
   const { data: rawSeekers, isLoading: seekersLoading } = useCollection<Seeker>(seekersQuery);
+
+  const [demoJobs, setDemoJobs] = React.useState<Job[]>([]);
+  const [demoSeekers, setDemoSeekers] = React.useState<Seeker[]>([]);
+  const [isDemoLoading, setIsDemoLoading] = React.useState(false);
+
+  const loadDemoData = React.useCallback(async () => {
+    if (!communityId) return;
+    setIsDemoLoading(true);
+    try {
+      const [jobsRes, seekersRes] = await Promise.all([
+        getJobsAction(communityId),
+        getJobSeekersAction(communityId),
+      ]);
+      const sJobs = jobsRes.success && jobsRes.data ? jobsRes.data : [];
+      const sSeekers = seekersRes.success && seekersRes.data ? seekersRes.data : [];
+
+      const localJobsKey = `demo_jobs_${communityId}`;
+      const localSeekersKey = `demo_job_seekers_${communityId}`;
+      const localJobs: Job[] = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(localJobsKey) || '[]') : [];
+      const localSeekers: Seeker[] = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(localSeekersKey) || '[]') : [];
+
+      setDemoJobs([...localJobs, ...sJobs.filter(s => !localJobs.some(l => l.id === s.id))] as any);
+      setDemoSeekers([...localSeekers, ...sSeekers.filter(s => !localSeekers.some(l => l.id === s.id))] as any);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDemoLoading(false);
+    }
+  }, [communityId]);
+
+  React.useEffect(() => {
+    if (isDemo && communityId) {
+      loadDemoData();
+    }
+  }, [isDemo, communityId, loadDemoData]);
+
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      if (isDemo && communityId) {
+        loadDemoData();
+      }
+    };
+    window.addEventListener('demo_jobs_updated', handleUpdate);
+    return () => window.removeEventListener('demo_jobs_updated', handleUpdate);
+  }, [isDemo, communityId, loadDemoData]);
 
   const filterExpired = React.useCallback((item: any) => {
     const now = new Date();
@@ -134,12 +187,22 @@ export default function JobsPage() {
     return isAfter(expiryDate, now);
   }, []);
 
-  const jobs = React.useMemo(() => rawJobs?.filter(filterExpired) || [], [rawJobs, filterExpired]);
-  const seekers = React.useMemo(() => rawSeekers?.filter(filterExpired) || [], [rawSeekers, filterExpired]);
+  const activeRawJobs = isDemo ? demoJobs : rawJobs;
+  const activeRawSeekers = isDemo ? demoSeekers : rawSeekers;
+
+  const jobs = React.useMemo(() => activeRawJobs?.filter(filterExpired) || [], [activeRawJobs, filterExpired]);
+  const seekers = React.useMemo(() => activeRawSeekers?.filter(filterExpired) || [], [activeRawSeekers, filterExpired]);
 
   const handleDeleteJob = async (id: string) => {
     setIsDeleting(id);
-    const result = await deleteJobVacancyAction(id);
+    if (isDemo && communityId) {
+      const localJobsKey = `demo_jobs_${communityId}`;
+      const localJobs: Job[] = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(localJobsKey) || '[]') : [];
+      const updated = localJobs.filter(j => j.id !== id);
+      sessionStorage.setItem(localJobsKey, JSON.stringify(updated));
+      setDemoJobs(prev => prev.filter(j => j.id !== id));
+    }
+    const result = await deleteJobVacancyAction(id, communityId || undefined);
     if (result.success) {
         toast({ title: "Vacancy Removed" });
     } else {
@@ -150,7 +213,14 @@ export default function JobsPage() {
 
   const handleDeleteSeeker = async (id: string) => {
     setIsDeleting(id);
-    const result = await deleteJobSeekerProfileAction(id);
+    if (isDemo && communityId) {
+      const localSeekersKey = `demo_job_seekers_${communityId}`;
+      const localSeekers: Seeker[] = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(localSeekersKey) || '[]') : [];
+      const updated = localSeekers.filter(s => s.id !== id);
+      sessionStorage.setItem(localSeekersKey, JSON.stringify(updated));
+      setDemoSeekers(prev => prev.filter(s => s.id !== id));
+    }
+    const result = await deleteJobSeekerProfileAction(id, communityId || undefined);
     if (result.success) {
         toast({ title: "Profile Removed" });
     } else {
@@ -159,10 +229,7 @@ export default function JobsPage() {
     setIsDeleting(null);
   };
 
-  const [activePagination, setActivePagination] = React.useState({ pageIndex: 0, pageSize: 10 });
-  const [activeSeekersPagination, setActiveSeekersPagination] = React.useState({ pageIndex: 0, pageSize: 10 });
-
-  const loading = isUserLoading || profileLoading || jobsLoading || seekersLoading;
+  const loading = (isUserLoading || profileLoading || jobsLoading || seekersLoading || isDemoLoading) && !jobs.length && !seekers.length;
 
   if (loading) {
     return (
@@ -228,13 +295,13 @@ export default function JobsPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/jobs/create-vacancy">
+                  <Link href={`${demoPrefix}/jobs/create-vacancy`}>
                     <FileText className="mr-2 h-4 w-4 text-emerald-600" />
                     Post a Job Vacancy
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/jobs/create-seeker">
+                  <Link href={`${demoPrefix}/jobs/create-seeker`}>
                     <UserPlus className="mr-2 h-4 w-4 text-teal-600" />
                     Post a Job Seeker Profile
                   </Link>
@@ -293,7 +360,7 @@ export default function JobsPage() {
                     <TableBody>
                       {jobs && jobs.length > 0 ? (
                         jobs.map((job) => {
-                          const isOwner = user?.uid === job.ownerId;
+                          const isOwner = user?.uid === job.ownerId || (isDemo && job.ownerId === 'demo-personal');
                           return (
                             <ContextMenu key={job.id}>
                                 <ContextMenuTrigger asChild>
@@ -335,10 +402,10 @@ export default function JobsPage() {
                                             <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                             <DropdownMenuItem asChild>
-                                                <Link href={`/jobs/${job.id}`}>View Listing</Link>
+                                                <Link href={`${demoPrefix}/jobs/${job.id}`}>View Listing</Link>
                                             </DropdownMenuItem>
                                             <DropdownMenuItem asChild>
-                                                <Link href={`/jobs/edit/${job.id}`}><Pencil className="mr-2 h-4 w-4" /> Edit Listing</Link>
+                                                <Link href={`${demoPrefix}/jobs/edit/${job.id}`}><Pencil className="mr-2 h-4 w-4" /> Edit Listing</Link>
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteJob(job.id)}>
@@ -348,7 +415,7 @@ export default function JobsPage() {
                                         </DropdownMenu>
                                         ) : (
                                         <Button asChild variant="outline" size="sm">
-                                            <Link href={`/jobs/${job.id}`}>View Listing</Link>
+                                            <Link href={`${demoPrefix}/jobs/${job.id}`}>View Listing</Link>
                                         </Button>
                                         )}
                                     </TableCell>
@@ -357,10 +424,10 @@ export default function JobsPage() {
                                  <ContextMenuContent>
                                     <ContextMenuLabel>Job: {job.title}</ContextMenuLabel>
                                     <ContextMenuSeparator />
-                                    <ContextMenuItem asChild><Link href={`/jobs/${job.id}`}>View Listing</Link></ContextMenuItem>
+                                    <ContextMenuItem asChild><Link href={`${demoPrefix}/jobs/${job.id}`}>View Listing</Link></ContextMenuItem>
                                     {isOwner && (
                                     <>
-                                        <ContextMenuItem asChild><Link href={`/jobs/edit/${job.id}`}><Pencil className="mr-2 h-4 w-4" /> Edit Listing</Link></ContextMenuItem>
+                                        <ContextMenuItem asChild><Link href={`${demoPrefix}/jobs/edit/${job.id}`}><Pencil className="mr-2 h-4 w-4" /> Edit Listing</Link></ContextMenuItem>
                                         <ContextMenuSeparator />
                                         <ContextMenuItem className="text-destructive" onSelect={() => handleDeleteJob(job.id)}><Trash2 className="mr-2 h-4 w-4" /> Remove Listing</ContextMenuItem>
                                     </>
@@ -409,7 +476,7 @@ export default function JobsPage() {
                     <TableBody>
                       {seekers && seekers.length > 0 ? (
                         seekers.map((seeker) => {
-                          const isOwner = user?.uid === seeker.ownerId;
+                          const isOwner = user?.uid === seeker.ownerId || (isDemo && seeker.ownerId === 'demo-personal');
                           return (
                             <ContextMenu key={seeker.id}>
                                 <ContextMenuTrigger asChild>
@@ -431,10 +498,10 @@ export default function JobsPage() {
                                         <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                         <DropdownMenuItem asChild>
-                                            <Link href={`/jobs/seeker/${seeker.id}`}>View Profile</Link>
+                                            <Link href={`${demoPrefix}/jobs/seeker/${seeker.id}`}>View Profile</Link>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem asChild>
-                                            <Link href={`/jobs/seeker/edit/${seeker.id}`}><Pencil className="mr-2 h-4 w-4" /> Edit Profile</Link>
+                                            <Link href={`${demoPrefix}/jobs/seeker/edit/${seeker.id}`}><Pencil className="mr-2 h-4 w-4" /> Edit Profile</Link>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteSeeker(seeker.id)}>
@@ -444,7 +511,7 @@ export default function JobsPage() {
                                     </DropdownMenu>
                                     ) : (
                                     <Button asChild variant="outline" size="sm">
-                                        <Link href={`/jobs/seeker/${seeker.id}`}>View Profile</Link>
+                                        <Link href={`${demoPrefix}/jobs/seeker/${seeker.id}`}>View Profile</Link>
                                     </Button>
                                     )}
                                 </TableCell>
@@ -454,11 +521,11 @@ export default function JobsPage() {
                                     <ContextMenuLabel>Seeker: {seeker.name}</ContextMenuLabel>
                                     <ContextMenuSeparator />
                                     <ContextMenuItem asChild>
-                                        <Link href={`/jobs/seeker/${seeker.id}`}>View Profile</Link>
+                                        <Link href={`${demoPrefix}/jobs/seeker/${seeker.id}`}>View Profile</Link>
                                     </ContextMenuItem>
                                     {isOwner && (
                                     <>
-                                        <ContextMenuItem asChild><Link href={`/jobs/seeker/edit/${seeker.id}`}><Pencil className="mr-2 h-4 w-4" /> Edit Profile</Link></ContextMenuItem>
+                                        <ContextMenuItem asChild><Link href={`${demoPrefix}/jobs/seeker/edit/${seeker.id}`}><Pencil className="mr-2 h-4 w-4" /> Edit Profile</Link></ContextMenuItem>
                                         <ContextMenuSeparator />
                                         <ContextMenuItem className="text-destructive" onSelect={() => handleDeleteSeeker(seeker.id)}><Trash2 className="mr-2 h-4 w-4" /> Remove Profile</ContextMenuItem>
                                     </>

@@ -31,30 +31,50 @@ export type CharityApplicationData = {
     contactNumber: string;
     image: string | null;
     communityId: string;
-    userId: string;
+    userId?: string;
 };
 
+export async function getCharitiesAction(communityId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    if (!communityId) return { success: false, error: 'Community ID required' };
+    try {
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
+        const snapshot = await firestore.collection('charities')
+            .where('communityId', '==', communityId)
+            .get();
+        const items = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+        return { success: true, data: items };
+    } catch (error: any) {
+        console.error('Error fetching charities:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function applyForCharityListingAction(data: CharityApplicationData): Promise<ActionResponse> {
-    if (!data.communityId || !data.title || !data.description || !data.userId) {
+    const isDemo = data.communityId === '9ayHMyZf4SRw2gof1AM9' || data.communityId === 'c_showhome';
+    const effectiveUserId = data.userId || (isDemo ? 'demo-personal' : '');
+    if (!data.communityId || !data.title || !data.description || !effectiveUserId) {
         return { success: false, error: 'Missing required application fields.' };
     }
     try {
-        const isDemo = data.communityId === '9ayHMyZf4SRw2gof1AM9' || data.communityId === 'c_showhome';
         const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         const batch = firestore.batch();
         
         const charityRef = firestore.collection('charities').doc();
         batch.set(charityRef, {
             title: data.title,
-            category: 'Uncategorized',
+            category: 'Community Support',
             description: data.description,
-            website: data.website,
-            image: data.image,
+            website: data.website || '',
+            image: data.image || null,
             communityId: data.communityId,
-            submittedBy: data.userId,
+            submittedBy: effectiveUserId,
             contactPerson: data.contactPerson,
             contactNumber: data.contactNumber,
-            status: 'Pending',
+            status: isDemo ? 'Active' : 'Pending', // In demo mode make it active immediately so user sees their work
             createdAt: Timestamp.now(),
         });
 

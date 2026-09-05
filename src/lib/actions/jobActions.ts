@@ -28,24 +28,155 @@ type JobVacancyParams = {
     ownerId: string;
 };
 
+export async function getJobsAction(communityId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    if (!communityId) return { success: false, error: 'Community ID required' };
+    try {
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
+        const snapshot = await firestore.collection('jobs').where('communityId', '==', communityId).get();
+        const data = snapshot.docs.map(doc => {
+            const d = doc.data();
+            return {
+                id: doc.id,
+                ...d,
+                createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+                expiresAt: d.expiresAt?.toDate ? d.expiresAt.toDate().toISOString() : d.expiresAt,
+            };
+        });
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Error fetching jobs:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getJobVacancyAction(jobId: string, communityId?: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
+        const doc = await firestore.collection('jobs').doc(jobId).get();
+        if (!doc.exists) {
+            if (!isDemo) {
+                const { firestore: comfeedDb } = initializeAdminApp('comfeed');
+                const comDoc = await comfeedDb.collection('jobs').doc(jobId).get();
+                if (comDoc.exists) {
+                    const d = comDoc.data()!;
+                    return {
+                        success: true,
+                        data: {
+                            id: comDoc.id,
+                            ...d,
+                            createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+                            expiresAt: d.expiresAt?.toDate ? d.expiresAt.toDate().toISOString() : d.expiresAt,
+                        }
+                    };
+                }
+            }
+            return { success: false, error: 'Job not found' };
+        }
+        const d = doc.data()!;
+        return {
+            success: true,
+            data: {
+                id: doc.id,
+                ...d,
+                createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+                expiresAt: d.expiresAt?.toDate ? d.expiresAt.toDate().toISOString() : d.expiresAt,
+            }
+        };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getJobSeekersAction(communityId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    if (!communityId) return { success: false, error: 'Community ID required' };
+    try {
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
+        const snapshot = await firestore.collection('jobSeekers').where('communityId', '==', communityId).get();
+        const data = snapshot.docs.map(doc => {
+            const d = doc.data();
+            return {
+                id: doc.id,
+                ...d,
+                createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+                expiresAt: d.expiresAt?.toDate ? d.expiresAt.toDate().toISOString() : d.expiresAt,
+                availableFrom: d.availableFrom?.toDate ? d.availableFrom.toDate().toISOString() : d.availableFrom,
+            };
+        });
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Error fetching job seekers:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getJobSeekerAction(seekerId: string, communityId?: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
+        const doc = await firestore.collection('jobSeekers').doc(seekerId).get();
+        if (!doc.exists) {
+            if (!isDemo) {
+                const { firestore: comfeedDb } = initializeAdminApp('comfeed');
+                const comDoc = await comfeedDb.collection('jobSeekers').doc(seekerId).get();
+                if (comDoc.exists) {
+                    const d = comDoc.data()!;
+                    return {
+                        success: true,
+                        data: {
+                            id: comDoc.id,
+                            ...d,
+                            createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+                            expiresAt: d.expiresAt?.toDate ? d.expiresAt.toDate().toISOString() : d.expiresAt,
+                            availableFrom: d.availableFrom?.toDate ? d.availableFrom.toDate().toISOString() : d.availableFrom,
+                        }
+                    };
+                }
+            }
+            return { success: false, error: 'Job seeker not found' };
+        }
+        const d = doc.data()!;
+        return {
+            success: true,
+            data: {
+                id: doc.id,
+                ...d,
+                createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+                expiresAt: d.expiresAt?.toDate ? d.expiresAt.toDate().toISOString() : d.expiresAt,
+                availableFrom: d.availableFrom?.toDate ? d.availableFrom.toDate().toISOString() : d.availableFrom,
+            }
+        };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
 export async function postJobVacancyAction(params: JobVacancyParams): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = params.communityId === '9ayHMyZf4SRw2gof1AM9' || params.communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         const now = new Date();
         const expiresAt = addDays(now, 28);
         
         let logoUrl = params.companyLogo;
         
         if (logoUrl && logoUrl.startsWith('data:image')) {
-            const path = `job_logos/${params.ownerId}/${Date.now()}`;
-            const uploadResult = await uploadImageAction({ base64Data: logoUrl, path });
-            if (uploadResult.success && uploadResult.url) {
-                logoUrl = uploadResult.url;
+            try {
+                const path = `job_logos/${params.ownerId || 'demo'}/${Date.now()}`;
+                const uploadResult = await uploadImageAction({ base64Data: logoUrl, path });
+                if (uploadResult.success && uploadResult.url) {
+                    logoUrl = uploadResult.url;
+                }
+            } catch (e) {
+                console.error("Logo upload fallback:", e);
             }
         }
 
         await firestore.collection('jobs').add({
             ...params,
+            ownerId: params.ownerId || (isDemo ? 'demo-personal' : ''),
             companyLogo: logoUrl,
             createdAt: Timestamp.fromDate(now),
             expiresAt: Timestamp.fromDate(expiresAt),
@@ -59,15 +190,20 @@ export async function postJobVacancyAction(params: JobVacancyParams): Promise<Ac
 
 export async function updateJobVacancyAction(jobId: string, params: Partial<JobVacancyParams>): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = params.communityId === '9ayHMyZf4SRw2gof1AM9' || params.communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         const jobRef = firestore.collection('jobs').doc(jobId);
         
         let logoUrl = params.companyLogo;
         if (logoUrl && logoUrl.startsWith('data:image')) {
-            const path = `job_logos/${params.ownerId || 'updated'}/${Date.now()}`;
-            const uploadResult = await uploadImageAction({ base64Data: logoUrl, path });
-            if (uploadResult.success && uploadResult.url) {
-                logoUrl = uploadResult.url;
+            try {
+                const path = `job_logos/${params.ownerId || 'updated'}/${Date.now()}`;
+                const uploadResult = await uploadImageAction({ base64Data: logoUrl, path });
+                if (uploadResult.success && uploadResult.url) {
+                    logoUrl = uploadResult.url;
+                }
+            } catch (e) {
+                console.error("Logo upload fallback:", e);
             }
         }
 
@@ -83,9 +219,10 @@ export async function updateJobVacancyAction(jobId: string, params: Partial<JobV
     }
 }
 
-export async function deleteJobVacancyAction(jobId: string): Promise<ActionResponse> {
+export async function deleteJobVacancyAction(jobId: string, communityId?: string): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         await firestore.collection('jobs').doc(jobId).delete();
         return { success: true };
     } catch (error: any) {
@@ -108,12 +245,14 @@ type JobSeekerParams = {
 
 export async function postJobSeekerProfileAction(params: JobSeekerParams): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = params.communityId === '9ayHMyZf4SRw2gof1AM9' || params.communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         const now = new Date();
         const expiresAt = addDays(now, 28);
 
         const payload: any = { 
             ...params,
+            ownerId: params.ownerId || (isDemo ? 'demo-personal' : ''),
             createdAt: Timestamp.fromDate(now),
             expiresAt: Timestamp.fromDate(expiresAt),
         };
@@ -130,7 +269,8 @@ export async function postJobSeekerProfileAction(params: JobSeekerParams): Promi
 
 export async function updateJobSeekerProfileAction(seekerId: string, params: Partial<JobSeekerParams>): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = params.communityId === '9ayHMyZf4SRw2gof1AM9' || params.communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         const payload: any = { ...params, updatedAt: Timestamp.now() };
         if (params.availableFrom) {
             payload.availableFrom = Timestamp.fromDate(new Date(params.availableFrom));
@@ -142,9 +282,10 @@ export async function updateJobSeekerProfileAction(seekerId: string, params: Par
     }
 }
 
-export async function deleteJobSeekerProfileAction(seekerId: string): Promise<ActionResponse> {
+export async function deleteJobSeekerProfileAction(seekerId: string, communityId?: string): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         await firestore.collection('jobSeekers').doc(seekerId).delete();
         return { success: true };
     } catch (error: any) {

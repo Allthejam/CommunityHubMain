@@ -59,8 +59,8 @@ type MarketplaceItem = {
   listingType: 'For Sale' | 'To Swap' | 'Free' | 'Looking For';
   price?: number;
   image?: string;
-  createdAt: Timestamp;
-  expiresAt: Timestamp;
+  createdAt: any;
+  expiresAt: any;
 };
 
 const ItemForm = ({ onSave }: { onSave: () => void }) => {
@@ -70,6 +70,13 @@ const ItemForm = ({ onSave }: { onSave: () => void }) => {
   const { data: userProfile } = useDoc(userProfileRef);
   const { toast } = useToast();
 
+  const isDemo = typeof window !== 'undefined' && (
+    window.location.pathname.startsWith('/demo') ||
+    sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
+    sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
+    sessionStorage.getItem('isDemoMode') === 'true'
+  );
+
   const [title, setTitle] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [listingType, setListingType] = React.useState<'For Sale' | 'To Swap' | 'Free' | 'Looking For'>('For Sale');
@@ -78,7 +85,11 @@ const ItemForm = ({ onSave }: { onSave: () => void }) => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const handleSubmit = async () => {
-    if (!user || !userProfile?.communityId) {
+    const effectiveCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : null);
+    const effectiveUserId = user?.uid || (isDemo ? 'demo-personal' : null);
+    const effectiveUserName = userProfile?.name || (isDemo ? 'Demo Resident' : null);
+
+    if (!effectiveUserId || !effectiveCommunityId) {
       toast({ title: 'Error', description: 'You must be logged in to a community.', variant: 'destructive' });
       return;
     }
@@ -89,10 +100,10 @@ const ItemForm = ({ onSave }: { onSave: () => void }) => {
 
     setIsSubmitting(true);
     const result = await createMarketplaceListingAction({
-      ownerId: user.uid,
-      ownerName: userProfile.name,
-      ownerAvatar: userProfile.avatar,
-      communityId: userProfile.communityId,
+      ownerId: effectiveUserId,
+      ownerName: effectiveUserName || 'Demo Resident',
+      ownerAvatar: userProfile?.avatar || '',
+      communityId: effectiveCommunityId,
       title,
       description,
       listingType,
@@ -102,6 +113,24 @@ const ItemForm = ({ onSave }: { onSave: () => void }) => {
     setIsSubmitting(false);
 
     if (result.success) {
+      if (isDemo && typeof window !== 'undefined') {
+        const key = `demo_marketplace_${effectiveCommunityId}`;
+        const existing = JSON.parse(sessionStorage.getItem(key) || '[]');
+        const newItem = {
+          id: `demo-${Date.now()}`,
+          ownerId: effectiveUserId,
+          ownerName: effectiveUserName || 'Demo Resident',
+          title,
+          description,
+          listingType,
+          price: listingType === 'For Sale' ? parseFloat(price) || 0 : 0,
+          image,
+          createdAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 21 * 86400000).toISOString(),
+        };
+        sessionStorage.setItem(key, JSON.stringify([newItem, ...existing]));
+        window.dispatchEvent(new CustomEvent('demo_marketplace_updated'));
+      }
       toast({ title: 'Success', description: 'Your listing has been posted.' });
       onSave(); // Close dialog on success
     } else {
@@ -174,7 +203,7 @@ const MarketplaceItemCard = ({ item, onDelete }: { item: MarketplaceItem, onDele
     const router = useRouter();
     const { toast } = useToast();
     const [isContacting, setIsContacting] = React.useState(false);
-    const isOwner = user?.uid === item.ownerId;
+    const isOwner = user?.uid === item.ownerId || item.ownerId === 'demo-personal';
   
     const handleContactSeller = async () => {
         if (!user) {
@@ -201,6 +230,23 @@ const MarketplaceItemCard = ({ item, onDelete }: { item: MarketplaceItem, onDele
             toast({ title: 'Error', description: result.error || 'Could not start a conversation.', variant: 'destructive' });
         }
     };
+
+    const formattedDate = React.useMemo(() => {
+      try {
+        if (item.createdAt?.toDate) {
+          return formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true });
+        }
+        if (typeof item.createdAt === 'string') {
+          return formatDistanceToNow(new Date(item.createdAt), { addSuffix: true });
+        }
+        if (item.createdAt instanceof Date) {
+          return formatDistanceToNow(item.createdAt, { addSuffix: true });
+        }
+      } catch (e) {
+        // fallback
+      }
+      return 'recently';
+    }, [item.createdAt]);
   
     return (
       <Card className="flex flex-col">
@@ -212,7 +258,7 @@ const MarketplaceItemCard = ({ item, onDelete }: { item: MarketplaceItem, onDele
         <CardHeader>
           <CardTitle>{item.title}</CardTitle>
           <CardDescription>
-            Posted by {item.ownerName} - {formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true })}
+            Posted by {item.ownerName} - {formattedDate}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-grow">
@@ -245,17 +291,62 @@ export default function MarketplacePage() {
   const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const communityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+  const isDemo = typeof window !== 'undefined' && (
+    window.location.pathname.startsWith('/demo') ||
+    sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
+    sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
+    sessionStorage.getItem('isDemoMode') === 'true'
+  );
+
+  const communityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
 
   const marketplaceQuery = useMemoFirebase(() => {
-    if (!communityId || !db) return null;
+    if (isDemo || !communityId || !db) return null;
     return query(
       collection(db, `communities/${communityId}/marketplace`),
       where('expiresAt', '>', Timestamp.now())
     );
-  }, [communityId, db]);
-  const { data: items, isLoading: itemsLoading } = useCollection<MarketplaceItem>(marketplaceQuery);
+  }, [communityId, db, isDemo]);
+  const { data: firestoreItems, isLoading: itemsLoading } = useCollection<MarketplaceItem>(marketplaceQuery);
+
+  const [demoItems, setDemoItems] = React.useState<MarketplaceItem[]>([]);
+  const [isDemoLoading, setIsDemoLoading] = React.useState(false);
+
+  const loadDemoItems = React.useCallback(async () => {
+    if (!communityId) return;
+    setIsDemoLoading(true);
+    try {
+      const res = await getMarketplaceListingsAction(communityId);
+      const serverItems = res.success && res.data ? res.data : [];
+      const localKey = `demo_marketplace_${communityId}`;
+      const localItems: MarketplaceItem[] = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(localKey) || '[]') : [];
+      const combined = [...localItems, ...serverItems.filter(s => !localItems.some(l => l.id === s.id))];
+      setDemoItems(combined as any);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDemoLoading(false);
+    }
+  }, [communityId]);
+
+  React.useEffect(() => {
+    if (isDemo && communityId) {
+      loadDemoItems();
+    }
+  }, [isDemo, communityId, loadDemoItems]);
+
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      if (isDemo && communityId) {
+        loadDemoItems();
+      }
+    };
+    window.addEventListener('demo_marketplace_updated', handleUpdate);
+    return () => window.removeEventListener('demo_marketplace_updated', handleUpdate);
+  }, [isDemo, communityId, loadDemoItems]);
+
+  const items = isDemo ? demoItems : firestoreItems;
 
   const forSaleCount = React.useMemo(() => items?.filter((item) => item.listingType === 'For Sale').length ?? 0, [items]);
   const toSwapCount = React.useMemo(() => items?.filter((item) => item.listingType === 'To Swap').length ?? 0, [items]);
@@ -264,10 +355,17 @@ export default function MarketplacePage() {
 
   const handleDelete = async (itemId: string) => {
     if (!communityId) return;
-    await deleteMarketplaceListingAction({ communityId, itemId, userId: user!.uid });
+    if (isDemo) {
+      const localKey = `demo_marketplace_${communityId}`;
+      const existing: MarketplaceItem[] = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(localKey) || '[]') : [];
+      const updated = existing.filter(i => i.id !== itemId);
+      sessionStorage.setItem(localKey, JSON.stringify(updated));
+      setDemoItems(prev => prev.filter(i => i.id !== itemId));
+    }
+    await deleteMarketplaceListingAction({ communityId, itemId, userId: user?.uid || 'demo-personal' });
   }
 
-  const loading = isUserLoading || profileLoading || itemsLoading;
+  const loading = (isUserLoading || profileLoading || itemsLoading || isDemoLoading) && !items?.length;
 
   const renderTabContent = (listingType: MarketplaceItem['listingType']) => {
     const filteredItems = items?.filter(item => item.listingType === listingType);

@@ -13,6 +13,8 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 
+import { getJobVacancyAction } from '@/lib/actions/jobActions';
+
 type JobData = {
     id: string;
     title: string;
@@ -28,6 +30,7 @@ type JobData = {
     indeedApplyUrl: string;
     linkedinApplyUrl?: string;
     ownerId: string;
+    communityId?: string;
 };
 
 
@@ -38,14 +41,47 @@ export default function JobListingPage() {
     const { user } = useUser();
     const db = useFirestore();
 
-    const jobRef = useMemoFirebase(() => {
-        if (!jobId || !db) return null;
-        return doc(db, 'jobs', jobId as string);
-    }, [jobId, db]);
+    const isDemo = typeof window !== 'undefined' && (
+        window.location.pathname.startsWith('/demo') ||
+        sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
+        sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
+        sessionStorage.getItem('isDemoMode') === 'true'
+    );
+    const demoPrefix = isDemo ? '/demo' : '';
 
-    const { data: job, isLoading: loading } = useDoc<JobData>(jobRef);
+    const jobRef = useMemoFirebase(() => {
+        if (isDemo || !jobId || !db) return null;
+        return doc(db, 'jobs', jobId as string);
+    }, [jobId, db, isDemo]);
+
+    const { data: firestoreJob, isLoading: firestoreLoading } = useDoc<JobData>(jobRef);
+    const [demoJob, setDemoJob] = useState<JobData | null>(null);
+    const [isDemoLoading, setIsDemoLoading] = useState(false);
+
+    useEffect(() => {
+        if (jobId) {
+            const cid = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') || '9ayHMyZf4SRw2gof1AM9' : '9ayHMyZf4SRw2gof1AM9';
+            // Check session storage first
+            const localKey = `demo_jobs_${cid}`;
+            const localJobs = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(localKey) || '[]') : [];
+            const found = localJobs.find((j: any) => j.id === jobId);
+            if (found) {
+                setDemoJob(found);
+            } else {
+                setIsDemoLoading(true);
+                getJobVacancyAction(jobId as string, cid).then(res => {
+                    if (res.success && res.data) {
+                        setDemoJob(res.data);
+                    }
+                }).finally(() => setIsDemoLoading(false));
+            }
+        }
+    }, [jobId]);
+
+    const job = isDemo ? (demoJob || firestoreJob) : (firestoreJob || demoJob);
+    const loading = isDemo ? (isDemoLoading && !job) : (firestoreLoading && !job);
     
-    const isOwner = user?.uid === job?.ownerId;
+    const isOwner = user?.uid === job?.ownerId || (isDemo && job?.ownerId === 'demo-personal');
     
     if (loading) {
         return (
@@ -61,7 +97,7 @@ export default function JobListingPage() {
                 <h1 className="text-2xl font-bold">Job Not Found</h1>
                 <p className="text-muted-foreground">The job listing you are looking for does not exist or has been removed.</p>
                 <Button asChild variant="link" className="mt-4">
-                    <Link href="/jobs">
+                    <Link href={`${demoPrefix}/jobs`}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Job Board
                     </Link>
@@ -73,7 +109,7 @@ export default function JobListingPage() {
     return (
         <div className="max-w-4xl mx-auto py-8 px-4">
              <Button asChild variant="ghost" className="mb-4">
-                <Link href="/jobs">
+                <Link href={`${demoPrefix}/jobs`}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Job Board
                 </Link>
@@ -113,8 +149,14 @@ export default function JobListingPage() {
                          <div className="flex flex-col gap-2 w-full sm:w-auto">
                             {isOwner && (
                                 <div className="flex gap-2 mb-2">
-                                    <Button variant="outline" className="flex-1" size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
-                                    <Button variant="destructive" className="flex-1" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
+                                    <Button asChild variant="outline" className="flex-1" size="sm">
+                                        <Link href={`${demoPrefix}/jobs/edit/${job.id}`}><Pencil className="mr-2 h-4 w-4" /> Edit</Link>
+                                    </Button>
+                                    <Button variant="destructive" className="flex-1" size="sm" onClick={async () => {
+                                        const cid = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') || undefined : undefined;
+                                        await deleteJobVacancyAction(job.id, cid);
+                                        router.push(`${demoPrefix}/jobs`);
+                                    }}><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
                                 </div>
                             )}
                              {job.linkedinApplyUrl && (

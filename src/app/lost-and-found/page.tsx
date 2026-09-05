@@ -15,25 +15,37 @@ import { Loader2 } from 'lucide-react';
 import { type Item as LeaderItem } from '../leader/lost-and-found/page';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
+import { getLostAndFoundAction } from '@/lib/actions/lostAndFoundActions';
+
 type Item = Omit<LeaderItem, 'date'> & {
-    date: Timestamp;
+    date: any;
     reporterName: string;
     communityId: string;
 };
 
 function itemToPost(item: Item): Post {
+    let dateStr = 'Recently';
+    try {
+        const raw = item.date;
+        if (raw?.toDate) {
+            dateStr = raw.toDate().toLocaleDateString();
+        } else if (raw) {
+            dateStr = new Date(raw).toLocaleDateString();
+        }
+    } catch (e) {}
+
     return {
         id: item.id,
         author: item.reporterName,
-        authorId: (item as any).ownerId, // Assuming ownerId is on the item for contact purposes
-        authorAvatar: '', // This can be improved later to fetch author's avatar
-        timestamp: item.date.toDate().toLocaleDateString(),
+        authorId: (item as any).ownerId,
+        authorAvatar: '',
+        timestamp: dateStr,
         content: `${item.description}. Last seen near ${item.location}.`,
         image: item.image || null,
         likes: 0,
         comments: 0,
         status: item.status,
-        communityId: item.communityId, // Pass communityId through
+        communityId: item.communityId,
     }
 }
 
@@ -41,22 +53,26 @@ export function LostAndFoundContent() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
   const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-  const communityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+  const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
   
+  const [demoItems, setDemoItems] = React.useState<Item[]>([]);
+  const [demoLoading, setDemoLoading] = React.useState(false);
+
   const activeItemsQuery = useMemoFirebase(() => 
-    communityId && db
+    communityId && db && !isDemo
       ? query(
           collection(db, 'lostAndFound'),
           where('status', '==', 'active'),
           where('communityId', '==', communityId)
         )
       : null
-  , [communityId, db]);
+  , [communityId, db, isDemo]);
 
   const userPendingItemsQuery = useMemoFirebase(() =>
-    user?.uid && communityId && db
+    user?.uid && communityId && db && !isDemo
       ? query(
           collection(db, 'lostAndFound'),
           where('status', '==', 'pending_approval'),
@@ -64,34 +80,88 @@ export function LostAndFoundContent() {
           where('communityId', '==', communityId)
         )
       : null
-  , [user?.uid, communityId, db]);
-
+  , [user?.uid, communityId, db, isDemo]);
 
   const { data: activeItems, isLoading: activeLoading } = useCollection<Item>(activeItemsQuery);
   const { data: pendingItems, isLoading: pendingLoading } = useCollection<Item>(userPendingItemsQuery);
 
-  const loading = isUserLoading || profileLoading || activeLoading || pendingLoading;
+  const loadDemoItems = React.useCallback(async () => {
+    if (!isDemo || !communityId) return;
+    setDemoLoading(true);
+
+    let localItems: Item[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem(`demo_lost_found_${communityId}`) || localStorage.getItem(`demo_lost_found_${communityId}`);
+        if (cached) localItems = JSON.parse(cached);
+      } catch (e) {}
+    }
+
+    const res = await getLostAndFoundAction(communityId);
+    let serverItems: Item[] = [];
+    if (res.success && res.data) {
+      serverItems = res.data.map(item => ({
+        id: item.id,
+        type: item.type,
+        description: item.description,
+        location: item.location,
+        date: item.date,
+        image: item.image,
+        ownerId: item.ownerId,
+        communityId: item.communityId,
+        reporterName: item.reporterName || 'Resident',
+        status: item.status || 'active',
+      }));
+    }
+
+    const combined = [...localItems];
+    for (const s of serverItems) {
+      if (!combined.some(c => c.id === s.id)) {
+        combined.push(s);
+      }
+    }
+    setDemoItems(combined);
+    setDemoLoading(false);
+  }, [communityId, isDemo]);
+
+  React.useEffect(() => {
+    if (isDemo) {
+      loadDemoItems();
+    }
+  }, [isDemo, loadDemoItems]);
+
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      if (isDemo) loadDemoItems();
+    };
+    window.addEventListener('demo_lost_found_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('demo_lost_found_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [isDemo, loadDemoItems]);
+
+  const loading = isDemo ? demoLoading : (isUserLoading || profileLoading || activeLoading || pendingLoading);
 
   const allItems = React.useMemo(() => {
+    if (isDemo) return demoItems;
     const combined = [...(activeItems || []), ...(pendingItems || [])];
     const twentyEightDaysAgo = new Date();
     twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
     
     return combined.filter(item => {
         try {
-            // Try the 'date' field first, then fall back to 'createdAt'
             const rawDate = item.date || (item as any).createdAt;
-            if (!rawDate) return false; // No date at all — hide it
+            if (!rawDate) return false;
             const itemDate = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate);
-            if (isNaN(itemDate.getTime())) return false; // Invalid date — hide it
+            if (isNaN(itemDate.getTime())) return false;
             return itemDate >= twentyEightDaysAgo;
         } catch (e) {
-            console.error("Error parsing date for item:", item, e);
-            return false; // If we can't parse the date, assume it's expired
+            return false;
         }
     });
-  }, [activeItems, pendingItems]);
-
+  }, [isDemo, demoItems, activeItems, pendingItems]);
 
   const lostPosts = allItems?.filter(item => item.type === 'lost').map(itemToPost) || [];
   const foundPosts = allItems?.filter(item => item.type === 'found').map(itemToPost) || [];

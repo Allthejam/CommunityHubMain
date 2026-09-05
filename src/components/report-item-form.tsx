@@ -136,8 +136,13 @@ export function ReportItemForm() {
     }
 
     const handleSubmit = async () => {
-        if (!user || !userProfile?.communityId) {
-            toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to a community to report an item.'});
+        const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+        const effectiveCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (userProfile?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || 'N3SarfGXPLxBI7XcsinX');
+        const effectiveOwnerId = user?.uid || (isDemo ? 'demo-personal' : '');
+        const effectiveReporterName = userProfile?.name || (isDemo ? 'Demo Resident' : 'Community Member');
+
+        if (!effectiveCommunityId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not determine your community.'});
             return;
         }
         if (!description || !location || !date) {
@@ -146,19 +151,42 @@ export function ReportItemForm() {
         }
 
         setIsSubmitting(true);
+        const newItem = {
+            id: `lf-${Date.now()}`,
+            type: itemType,
+            description,
+            location,
+            date: date.toISOString(),
+            image,
+            ownerId: effectiveOwnerId,
+            communityId: effectiveCommunityId,
+            reporterName: effectiveReporterName,
+            status: 'active',
+        };
+
+        if (isDemo && typeof window !== 'undefined') {
+            try {
+                const existing = JSON.parse(sessionStorage.getItem(`demo_lost_found_${effectiveCommunityId}`) || localStorage.getItem(`demo_lost_found_${effectiveCommunityId}`) || '[]');
+                existing.unshift(newItem);
+                sessionStorage.setItem(`demo_lost_found_${effectiveCommunityId}`, JSON.stringify(existing));
+                localStorage.setItem(`demo_lost_found_${effectiveCommunityId}`, JSON.stringify(existing));
+                window.dispatchEvent(new CustomEvent('demo_lost_found_updated', { detail: existing }));
+            } catch (e) {}
+        }
+
         const result = await reportLostOrFoundItemAction({
             type: itemType,
             description,
             location,
             date,
             image,
-            ownerId: user.uid,
-            communityId: userProfile.communityId,
-            reporterName: userProfile.name,
+            ownerId: effectiveOwnerId,
+            communityId: effectiveCommunityId,
+            reporterName: effectiveReporterName,
         });
 
-        if (result.success) {
-            toast({ title: 'Report Submitted', description: 'Your report has been sent for review.' });
+        if (result.success || isDemo) {
+            toast({ title: isDemo ? 'Item Reported!' : 'Report Submitted', description: isDemo ? 'Your report is now live in the demo.' : 'Your report has been sent for review.' });
             setOpen(false);
             resetForm();
         } else {

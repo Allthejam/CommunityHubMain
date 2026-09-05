@@ -20,20 +20,43 @@ type ReportItemParams = {
     reporterName: string;
 }
 
+export async function getLostAndFoundAction(communityId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    if (!communityId) return { success: false, error: 'Community ID required' };
+    try {
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
+        const snapshot = await firestore.collection('lostAndFound')
+            .where('communityId', '==', communityId)
+            .get();
+        const items = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+        return { success: true, data: items };
+    } catch (error: any) {
+        console.error('Error fetching lost and found:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function reportLostOrFoundItemAction(params: ReportItemParams): Promise<ActionResponse> {
-    if (!params.communityId || !params.ownerId) {
+    const isDemo = params.communityId === '9ayHMyZf4SRw2gof1AM9' || params.communityId === 'c_showhome';
+    const effectiveOwnerId = params.ownerId || (isDemo ? 'demo-personal' : '');
+    if (!params.communityId || !effectiveOwnerId) {
         return { success: false, error: 'User or community information is missing.' };
     }
     
     try {
-        const { firestore } = initializeAdminApp();
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         const batch = firestore.batch();
         
         const itemRef = firestore.collection('lostAndFound').doc();
         batch.set(itemRef, {
             ...params,
-            date: Timestamp.fromDate(params.date),
-            status: 'new', // Items must be approved by a leader
+            ownerId: effectiveOwnerId,
+            reporterName: params.reporterName || (isDemo ? 'Demo Resident' : 'Community Member'),
+            date: Timestamp.fromDate(new Date(params.date)),
+            status: isDemo ? 'active' : 'new', // Items in demo mode are active immediately
             createdAt: Timestamp.now(), 
         });
         
@@ -59,7 +82,7 @@ export async function reportLostOrFoundItemAction(params: ReportItemParams): Pro
                     recipientId: leaderDoc.id,
                     type: 'Lost & Found Report',
                     subject: `New ${params.type} item (#${itemRef.id.substring(0, 6)})`,
-                    from: params.reporterName,
+                    from: params.reporterName || 'Resident',
                     date: Timestamp.now(),
                     status: 'new',
                     relatedId: itemRef.id,
@@ -88,7 +111,8 @@ export async function updateLostAndFoundStatusAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+    const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
     const itemRef = firestore.collection('lostAndFound').doc(itemId);
     await itemRef.update({ status: status });
     return { success: true };
@@ -100,14 +124,16 @@ export async function updateLostAndFoundStatusAction(params: {
 
 export async function deleteLostAndFoundItemAction(params: {
   itemId: string;
+  communityId?: string;
 }): Promise<ActionResponse> {
-  const { itemId } = params;
+  const { itemId, communityId } = params;
   if (!itemId) {
     return { success: false, error: 'Item ID is required.' };
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+    const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
     await firestore.collection('lostAndFound').doc(itemId).delete();
     return { success: true };
   } catch (error: any) {

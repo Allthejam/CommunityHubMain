@@ -26,7 +26,7 @@ import Link from "next/link";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import { updateJobSeekerProfileAction } from "@/lib/actions/jobActions";
+import { updateJobSeekerProfileAction, getJobSeekerAction } from "@/lib/actions/jobActions";
 import { RichTextEditor } from "@/components/rich-text-editor";
 
 export default function EditSeekerPage() {
@@ -37,8 +37,19 @@ export default function EditSeekerPage() {
     const { toast } = useToast();
     const router = useRouter();
 
-    const seekerRef = useMemoFirebase(() => (seekerId ? doc(db, 'jobSeekers', seekerId) : null), [seekerId, db]);
-    const { data: existingSeeker, isLoading: seekerLoading } = useDoc<any>(seekerRef);
+    const isDemo = typeof window !== 'undefined' && (
+        window.location.pathname.startsWith('/demo') ||
+        sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
+        sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
+        sessionStorage.getItem('isDemoMode') === 'true'
+    );
+    const demoPrefix = isDemo ? '/demo' : '';
+
+    const seekerRef = useMemoFirebase(() => (isDemo || !seekerId || !db ? null : doc(db, 'jobSeekers', seekerId)), [seekerId, db, isDemo]);
+    const { data: firestoreSeeker, isLoading: seekerLoading } = useDoc<any>(seekerRef);
+
+    const [demoSeeker, setDemoSeeker] = React.useState<any>(null);
+    const [isDemoSeekerLoading, setIsDemoSeekerLoading] = React.useState(false);
 
     const [seekerName, setSeekerName] = React.useState("");
     const [seekerSummary, setSeekerSummary] = React.useState("");
@@ -51,11 +62,34 @@ export default function EditSeekerPage() {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     
     React.useEffect(() => {
+        if (seekerId) {
+            const cid = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') || '9ayHMyZf4SRw2gof1AM9' : '9ayHMyZf4SRw2gof1AM9';
+            const localKey = `demo_job_seekers_${cid}`;
+            const localSeekers = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(localKey) || '[]') : [];
+            const found = localSeekers.find((s: any) => s.id === seekerId);
+            if (found) {
+                setDemoSeeker(found);
+            } else {
+                setIsDemoSeekerLoading(true);
+                getJobSeekerAction(seekerId, cid).then(res => {
+                    if (res.success && res.data) {
+                        setDemoSeeker(res.data);
+                    }
+                }).finally(() => setIsDemoSeekerLoading(false));
+            }
+        }
+    }, [seekerId]);
+
+    const existingSeeker = isDemo ? (demoSeeker || firestoreSeeker) : (firestoreSeeker || demoSeeker);
+
+    React.useEffect(() => {
         if (existingSeeker) {
             setSeekerName(existingSeeker.name || "");
             setSeekerSummary(existingSeeker.summary || "");
             setSeekerProfile(existingSeeker.profile || "");
-            setSeekerAvailableFrom(existingSeeker.availableFrom?.toDate ? existingSeeker.availableFrom.toDate() : undefined);
+            
+            const avail = existingSeeker.availableFrom?.toDate ? existingSeeker.availableFrom.toDate() : (existingSeeker.availableFrom ? new Date(existingSeeker.availableFrom) : undefined);
+            setSeekerAvailableFrom(avail);
             setSeekerLinkedIn(existingSeeker.linkedin || "");
             setSeekerPortfolio(existingSeeker.portfolio || "");
             setSeekerEmail(existingSeeker.email || "");
@@ -64,7 +98,10 @@ export default function EditSeekerPage() {
     }, [existingSeeker]);
     
     const handleUpdate = async () => {
-        if (!user || !seekerId) return;
+        const effectiveUserId = user?.uid || (isDemo ? 'demo-personal' : null);
+        const effectiveCommunityId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') || '9ayHMyZf4SRw2gof1AM9' : '9ayHMyZf4SRw2gof1AM9';
+
+        if (!effectiveUserId || !seekerId) return;
 
         setIsSubmitting(true);
         const result = await updateJobSeekerProfileAction(seekerId, {
@@ -76,25 +113,46 @@ export default function EditSeekerPage() {
             portfolio: seekerPortfolio,
             email: seekerEmail,
             phone: seekerPhone,
+            communityId: effectiveCommunityId,
         });
         
         if (result.success) {
+            if (isDemo && typeof window !== 'undefined' && effectiveCommunityId) {
+                const localKey = `demo_job_seekers_${effectiveCommunityId}`;
+                const localSeekers = JSON.parse(sessionStorage.getItem(localKey) || '[]');
+                const idx = localSeekers.findIndex((s: any) => s.id === seekerId);
+                if (idx >= 0) {
+                    localSeekers[idx] = {
+                        ...localSeekers[idx],
+                        name: seekerName,
+                        summary: seekerSummary,
+                        profile: seekerProfile,
+                        availableFrom: seekerAvailableFrom?.toISOString(),
+                        linkedin: seekerLinkedIn,
+                        portfolio: seekerPortfolio,
+                        email: seekerEmail,
+                        phone: seekerPhone,
+                    };
+                    sessionStorage.setItem(localKey, JSON.stringify(localSeekers));
+                    window.dispatchEvent(new CustomEvent('demo_jobs_updated'));
+                }
+            }
             toast({ title: "Profile Updated" });
-            router.push('/jobs');
+            router.push(`${demoPrefix}/jobs`);
         } else {
             toast({ title: "Update Failed", description: result.error, variant: "destructive" });
         }
         setIsSubmitting(false);
     };
 
-    if (seekerLoading || isUserLoading) {
+    if (seekerLoading || isUserLoading || isDemoSeekerLoading) {
         return <div className="flex justify-center items-center h-96"><Loader2 className="animate-spin h-8 w-8" /></div>
     }
 
     return (
         <div className="space-y-8 max-w-4xl mx-auto py-8">
             <Button asChild variant="ghost" className="mb-4">
-                <Link href="/jobs">
+                <Link href={`${demoPrefix}/jobs`}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Job Board
                 </Link>

@@ -41,6 +41,13 @@ export default function CreateSeekerPage() {
     const { toast } = useToast();
     const router = useRouter();
 
+    const isDemo = typeof window !== 'undefined' && (
+        window.location.pathname.startsWith('/demo') ||
+        sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
+        sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
+        sessionStorage.getItem('isDemoMode') === 'true'
+    );
+    const demoPrefix = isDemo ? '/demo' : '';
 
     const [seekerName, setSeekerName] = React.useState("");
     const [seekerSummary, setSeekerSummary] = React.useState("");
@@ -54,13 +61,19 @@ export default function CreateSeekerPage() {
     
     React.useEffect(() => {
         if (userProfile) {
-            setSeekerName(userProfile.name);
-            setSeekerEmail(userProfile.email);
+            setSeekerName(userProfile.name || '');
+            setSeekerEmail(userProfile.email || '');
+        } else if (isDemo) {
+            setSeekerName('Alex Morgan');
+            setSeekerEmail('alex.morgan@example.com');
         }
-    }, [userProfile]);
+    }, [userProfile, isDemo]);
     
     const handlePostSeekerProfile = async () => {
-        if (!user || !userProfile?.communityId) {
+        const effectiveCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : null);
+        const effectiveUserId = user?.uid || (isDemo ? 'demo-personal' : null);
+
+        if (!effectiveUserId || !effectiveCommunityId) {
             toast({ title: "Error", description: "You must be logged in to create a profile.", variant: "destructive" });
             return;
         }
@@ -80,13 +93,34 @@ export default function CreateSeekerPage() {
             portfolio: seekerPortfolio,
             email: seekerEmail,
             phone: seekerPhone,
-            communityId: userProfile.communityId,
-            ownerId: user.uid,
+            communityId: effectiveCommunityId,
+            ownerId: effectiveUserId,
         });
         
         if (result.success) {
+            if (isDemo && typeof window !== 'undefined') {
+                const localKey = `demo_job_seekers_${effectiveCommunityId}`;
+                const existing = JSON.parse(sessionStorage.getItem(localKey) || '[]');
+                const newSeeker = {
+                    id: `demo-seeker-${Date.now()}`,
+                    name: seekerName,
+                    summary: seekerSummary,
+                    profile: seekerProfile,
+                    availableFrom: seekerAvailableFrom?.toISOString(),
+                    linkedin: seekerLinkedIn,
+                    portfolio: seekerPortfolio,
+                    email: seekerEmail,
+                    phone: seekerPhone,
+                    communityId: effectiveCommunityId,
+                    ownerId: effectiveUserId,
+                    createdAt: new Date().toISOString(),
+                    expiresAt: new Date(Date.now() + 28 * 86400000).toISOString(),
+                };
+                sessionStorage.setItem(localKey, JSON.stringify([newSeeker, ...existing]));
+                window.dispatchEvent(new CustomEvent('demo_jobs_updated'));
+            }
             toast({ title: "Success", description: "Your job seeker profile has been posted." });
-            router.push('/jobs');
+            router.push(`${demoPrefix}/jobs`);
         } else {
             toast({ title: "Error", description: result.error || "Could not post your profile.", variant: "destructive" });
         }
@@ -97,7 +131,7 @@ export default function CreateSeekerPage() {
     return (
         <div className="space-y-8 max-w-4xl mx-auto py-8">
             <Button asChild variant="ghost" className="mb-4">
-                <Link href="/jobs">
+                <Link href={`${demoPrefix}/jobs`}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Job Board
                 </Link>
