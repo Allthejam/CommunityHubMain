@@ -117,7 +117,18 @@ export default function EditVacancyPage() {
     return query(collection(db, "businesses"), where("ownerId", "==", user.uid));
   }, [user?.uid, db, isDemo]);
 
-  const { data: userBusinesses, isLoading: businessesLoading } = useCollection<any>(userBusinessesQuery);
+  const { data: rawUserBusinesses, isLoading: businessesLoading } = useCollection<any>(userBusinessesQuery);
+
+  const userBusinesses = React.useMemo(() => {
+    if (isDemo) {
+      return [
+        { id: 'biz-demo-1', businessName: 'Speyside Artisan Butchery & Deli' },
+        { id: 'biz-demo-2', businessName: 'Highland River Outfitting & Co.' },
+        { id: 'biz-demo-3', businessName: 'Spey Valley Bakery & Cafe' },
+      ];
+    }
+    return rawUserBusinesses || [];
+  }, [isDemo, rawUserBusinesses]);
 
   React.useEffect(() => {
     if (jobId) {

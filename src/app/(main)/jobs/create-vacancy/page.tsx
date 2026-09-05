@@ -123,24 +123,26 @@ export default function CreateVacancyPage() {
   const streamRef = React.useRef<MediaStream | null>(null);
 
   const userBusinessesQuery = useMemoFirebase(() => {
-    if (!user?.uid || !db) return null;
+    if (isDemo || !user?.uid || !db) return null;
     return query(collection(db, "businesses"), where("ownerId", "==", user.uid));
-  }, [user?.uid, db]);
+  }, [user?.uid, db, isDemo]);
 
   const { data: rawUserBusinesses, isLoading: businessesLoading } = useCollection<any>(userBusinessesQuery);
 
   React.useEffect(() => {
-      if (rawUserBusinesses && rawUserBusinesses.length > 0) {
-          const businessesData = rawUserBusinesses.map(
-                (doc) => ({ id: doc.id, name: doc.businessName, logoImage: doc.logoImage || null } as UserBusiness)
-            );
-          setUserBusinesses(businessesData);
-      } else if (isDemo) {
+      if (isDemo) {
           setUserBusinesses([
             { id: 'biz-demo-1', name: 'Speyside Artisan Butchery & Deli', logoImage: null },
             { id: 'biz-demo-2', name: 'Highland River Outfitting & Co.', logoImage: null },
             { id: 'biz-demo-3', name: 'Spey Valley Bakery & Cafe', logoImage: null },
           ]);
+      } else if (rawUserBusinesses && rawUserBusinesses.length > 0) {
+          const businessesData = rawUserBusinesses.map(
+                (doc) => ({ id: doc.id, name: doc.businessName, logoImage: doc.logoImage || null } as UserBusiness)
+            );
+          setUserBusinesses(businessesData);
+      } else {
+          setUserBusinesses([]);
       }
   }, [rawUserBusinesses, isDemo]);
 
