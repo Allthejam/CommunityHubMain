@@ -1,7 +1,7 @@
 'use client';
 
-import PageComponent from '@/app/(main)/about/page';
+import { AboutContent } from '@/components/about/about-content';
 
-export default function DemoWrappedPage(props: any) {
-  return <PageComponent {...props} />;
+export default function DemoWrappedPage() {
+  return <AboutContent />;
 }

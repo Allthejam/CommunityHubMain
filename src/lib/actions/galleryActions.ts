@@ -58,6 +58,44 @@ export async function addGalleryImageAction(params: {
   }
 }
 
+export async function updateBusinessGalleryImageDescriptionAction(params: {
+  businessId: string;
+  imageUrl: string;
+  description: string;
+}): Promise<ActionResponse> {
+  const { businessId, imageUrl, description } = params;
+  if (!businessId || !imageUrl) {
+    return { success: false, error: "Business ID and Image URL are required." };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const businessRef = firestore.collection('businesses').doc(businessId);
+    const docSnap = await businessRef.get();
+    if (!docSnap.exists) {
+      return { success: false, error: "Business not found." };
+    }
+
+    const gallery = docSnap.data()?.gallery || [];
+    const updatedGallery = gallery.map((img: any) => {
+      if (img.url === imageUrl) {
+        return { ...img, description };
+      }
+      return img;
+    });
+
+    await businessRef.update({
+      gallery: updatedGallery,
+      updatedAt: Timestamp.now(),
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating image description:", error);
+    return { success: false, error: "Could not update description." };
+  }
+}
+
 export async function updateGalleryImageMetadataAction(params: {
   userId: string;
   imageId: string;
