@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from "react";
@@ -10,7 +9,7 @@ import {
     FileEdit,
     Clock,
     Loader2,
-} from "lucide-react"
+} from "lucide-react";
 import { collection, query, where, onSnapshot, doc } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
@@ -21,14 +20,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuLabel,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import {
   Table,
   TableBody,
@@ -74,7 +65,6 @@ export type Advert = {
   createdAt: { toDate: () => Date };
 };
 
-
 const TABS: { value: string; label: string }[] = [
     { value: "all", label: "All" },
     { value: "Pending Approval", label: "Pending" },
@@ -86,12 +76,15 @@ const TABS: { value: string; label: string }[] = [
     { value: "Draft", label: "Drafts" },
 ];
 
-
 export default function LeaderAdvertsPage() {
     const { user, isUserLoading } = useUser();
     const db = useFirestore();
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
+
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
     const [adverts, setAdverts] = React.useState<Advert[]>([]);
     const [loading, setLoading] = React.useState(true);
@@ -104,7 +97,6 @@ export default function LeaderAdvertsPage() {
     const [removalReason, setRemovalReason] = React.useState("");
     const [isSubmittingAmendment, setIsSubmittingAmendment] = React.useState(false);
 
-
     React.useEffect(() => {
         if (isUserLoading || profileLoading || !communityId || !db) {
             setLoading(false);
@@ -113,11 +105,7 @@ export default function LeaderAdvertsPage() {
 
         setLoading(true);
 
-        const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
-    const demoPrefix = isDemo ? '/demo' : '';
-    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
         const advertsRef = collection(db, "adverts");
-
         const q = query(advertsRef, where("communityId", "==", communityId));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -175,7 +163,7 @@ export default function LeaderAdvertsPage() {
             setRemovalReason("");
             setIsSubmittingAmendment(false);
         });
-    }
+    };
 
     const filteredAdverts = React.useMemo(() => {
         if (activeTab === "all") return adverts;
@@ -246,10 +234,10 @@ export default function LeaderAdvertsPage() {
                                                                 <DropdownMenuItem onClick={() => handleAction(advert, 'approve')}>
                                                                     <CheckCircle className="mr-2 h-4 w-4" /> Approve
                                                                 </DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => { setStoryToAction(advert); setActionType('request-edit')}}>
+                                                                <DropdownMenuItem onClick={() => { setStoryToAction(advert); setActionType('request-edit'); }}>
                                                                     <FileEdit className="mr-2 h-4 w-4" /> Request Amendment
                                                                 </DropdownMenuItem>
-                                                                <DropdownMenuItem className="text-destructive" onClick={() => { setStoryToAction(advert); setActionType('decline')}}>
+                                                                <DropdownMenuItem className="text-destructive" onClick={() => { setStoryToAction(advert); setActionType('decline'); }}>
                                                                     <XCircle className="mr-2 h-4 w-4" /> Decline
                                                                 </DropdownMenuItem>
                                                             </>
