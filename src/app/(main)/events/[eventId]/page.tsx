@@ -31,14 +31,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { downloadIcsFile, openGoogleCalendarUrl } from "@/lib/utils/calendar-export";
+import { parseEventDate } from "@/lib/utils/event-utils";
 
 
 type CommunityEvent = {
     id: string;
     title: string;
     category: string;
-    startDate: { toDate: () => Date };
-    endDate?: { toDate: () => Date };
+    startDate: any;
+    endDate?: any;
+    repeat?: string | null;
     startTime?: string;
     description: string;
     image?: string;
@@ -56,6 +58,9 @@ export default function EventDetailPage() {
     const { user } = useUser();
     const { toast } = useToast();
 
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+
     const eventRef = useMemoFirebase(() => {
         if (!eventId || !db) return null;
         return doc(db, 'events', eventId as string);
@@ -63,6 +68,19 @@ export default function EventDetailPage() {
 
     const { data: event, isLoading: loading } = useDoc<CommunityEvent>(eventRef);
     
+    const startDateObj = event ? parseEventDate(event.startDate) : null;
+    const endDateObj = event ? parseEventDate(event.endDate) : null;
+    const isMultiDay = startDateObj && endDateObj && format(startDateObj, "yyyy-MM-dd") !== format(endDateObj, "yyyy-MM-dd");
+
+    const formatRepeatLabel = (rep?: string | null) => {
+        if (!rep || rep === 'none') return null;
+        if (rep === 'yearly') return 'Repeats Yearly (Annual event)';
+        if (rep === 'monthly') return 'Repeats Monthly';
+        if (rep === 'weekly') return 'Repeats Weekly';
+        if (rep === 'bi-weekly') return 'Repeats Every 2 Weeks';
+        return `Repeats ${rep}`;
+    };
+
     const handleAddToCalendar = async () => {
         if (!user || !event) {
             toast({ title: "Please log in", description: "You must be logged in to add events to your calendar.", variant: "destructive"});
@@ -73,7 +91,7 @@ export default function EventDetailPage() {
             userId: user.uid,
             event: {
                 title: event.title,
-                date: event.startDate.toDate().toISOString(),
+                date: startDateObj ? startDateObj.toISOString() : new Date().toISOString(),
                 time: event.startTime || "All Day",
                 type: event.category,
             },
@@ -97,11 +115,11 @@ export default function EventDetailPage() {
 
     if (!event) {
         return (
-            <div className="text-center">
+            <div className="text-center py-12">
                 <h1 className="text-2xl font-bold">Event Not Found</h1>
                 <p className="text-muted-foreground">This event could not be found.</p>
                 <Button asChild variant="link" className="mt-4">
-                    <Link href="/events"><ArrowLeft className="mr-2 h-4 w-4" />Back to Events</Link>
+                    <Link href={`${demoPrefix}/events`}><ArrowLeft className="mr-2 h-4 w-4" />Back to Events</Link>
                 </Button>
             </div>
         );
@@ -127,16 +145,23 @@ export default function EventDetailPage() {
                         </div>
                     )}
                     <header className="mb-8">
-                        <Badge variant="secondary" className="mb-4">{event.category}</Badge>
+                        <div className="flex items-center gap-2 mb-4 flex-wrap">
+                            <Badge variant="secondary">{event.category}</Badge>
+                            {event.repeat && event.repeat !== 'none' && (
+                                <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5">
+                                    {formatRepeatLabel(event.repeat)}
+                                </Badge>
+                            )}
+                        </div>
                         <h1 className="text-4xl md:text-5xl font-bold tracking-tight font-headline mb-4">
                             {event.title}
                         </h1>
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground mt-4">
                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4" />
-                                <span>
-                                    {format(event.startDate.toDate(), "PPP")}
-                                    {event.endDate && ` - ${format(event.endDate.toDate(), "PPP")}`}
+                                <Calendar className="h-4 w-4 text-primary" />
+                                <span className="font-medium text-foreground">
+                                    {startDateObj ? format(startDateObj, "PPP") : ""}
+                                    {isMultiDay && endDateObj && ` - ${format(endDateObj, "PPP")}`}
                                 </span>
                             </div>
                             {event.startTime && (

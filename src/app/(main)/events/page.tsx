@@ -19,7 +19,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
-import { isEventLiveNow, parseEventDate } from '@/lib/utils/event-utils';
+import { isEventLiveNow, isEventUpcoming, getAdvancedRepeatingEvent, parseEventDate } from '@/lib/utils/event-utils';
 
 type CommunityEvent = {
   id: string;
@@ -35,7 +35,12 @@ type CommunityEvent = {
 
 
 const EventCard = ({ event }: { event: CommunityEvent }) => {
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
   const startDate = parseEventDate(event.startDate) || new Date();
+  const endDate = event.endDate ? parseEventDate(event.endDate) : null;
+  const isMultiDay = startDate && endDate && format(startDate, 'yyyy-MM-dd') !== format(endDate, 'yyyy-MM-dd');
+
   return (
     <Card className="flex flex-col overflow-hidden">
         <CardHeader className="p-0">
@@ -50,12 +55,23 @@ const EventCard = ({ event }: { event: CommunityEvent }) => {
             </div>
         </CardHeader>
         <CardContent className="p-4 flex-grow">
+            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+              <Badge variant="secondary" className="text-xs">{event.category}</Badge>
+              {event.repeat && event.repeat !== 'none' && (
+                <Badge variant="outline" className="text-[10px] border-primary/40 text-primary bg-primary/5">
+                  {event.repeat === 'yearly' ? 'Yearly' : event.repeat}
+                </Badge>
+              )}
+            </div>
             <h3 className="font-semibold text-base line-clamp-2">{event.title}</h3>
-            <p className="text-sm text-muted-foreground mt-1">{format(startDate, "PPP")}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {format(startDate, "PPP")}
+              {isMultiDay && endDate && ` - ${format(endDate, "PPP")}`}
+            </p>
         </CardContent>
         <CardFooter className="p-4 pt-0 mt-auto">
             <Button asChild size="sm" className="w-full">
-                <Link href={`/events/${event.id}`}>
+                <Link href={`${demoPrefix}/events/${event.id}`}>
                 View Details
                 </Link>
             </Button>
@@ -65,7 +81,12 @@ const EventCard = ({ event }: { event: CommunityEvent }) => {
 };
 
 const EventRow = ({ event }: { event: CommunityEvent }) => {
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
   const startDate = parseEventDate(event.startDate) || new Date();
+  const endDate = event.endDate ? parseEventDate(event.endDate) : null;
+  const isMultiDay = startDate && endDate && format(startDate, 'yyyy-MM-dd') !== format(endDate, 'yyyy-MM-dd');
+
   return (
      <Card className="flex items-center p-4">
         <div className="relative h-16 w-16 flex-shrink-0 mr-4 rounded-md overflow-hidden">
@@ -78,11 +99,22 @@ const EventRow = ({ event }: { event: CommunityEvent }) => {
             />
         </div>
         <div className="flex-1">
+            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+              <Badge variant="secondary" className="text-xs">{event.category}</Badge>
+              {event.repeat && event.repeat !== 'none' && (
+                <Badge variant="outline" className="text-[10px] border-primary/40 text-primary bg-primary/5">
+                  {event.repeat === 'yearly' ? 'Yearly' : event.repeat}
+                </Badge>
+              )}
+            </div>
             <h3 className="font-semibold">{event.title}</h3>
-            <p className="text-sm text-muted-foreground">{format(startDate, "PPP")}</p>
+            <p className="text-sm text-muted-foreground">
+              {format(startDate, "PPP")}
+              {isMultiDay && endDate && ` - ${format(endDate, "PPP")}`}
+            </p>
         </div>
         <Button asChild variant="secondary" size="sm" className="ml-4">
-            <Link href={`/events/${event.id}`}>View Details</Link>
+            <Link href={`${demoPrefix}/events/${event.id}`}>View Details</Link>
         </Button>
     </Card>
   );
@@ -174,19 +206,9 @@ export default function EventsPage() {
   }, [events, date, sortOption]);
 
 
-  const now = new Date();
-  const liveEvents = filteredAndSortedEvents.filter(event => {
-      const startDate = parseEventDate(event.startDate) || new Date();
-      const rawEnd = (event.endDate ? parseEventDate(event.endDate) : null) || startDate;
-      const endDate = new Date(rawEnd);
-      endDate.setHours(23, 59, 59, 999);
-      return startDate <= now && now <= endDate;
-  });
-
-  const upcomingEvents = filteredAndSortedEvents.filter(event => {
-    const startDate = parseEventDate(event.startDate) || new Date();
-    return startDate > now;
-  });
+  const now = React.useMemo(() => new Date(), []);
+  const liveEvents = filteredAndSortedEvents.filter(event => isEventLiveNow(event, now));
+  const upcomingEvents = filteredAndSortedEvents.filter(event => isEventUpcoming(event, now));
   
   const isFiltered = !!date;
 

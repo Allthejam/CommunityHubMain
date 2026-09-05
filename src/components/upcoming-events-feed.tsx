@@ -40,6 +40,11 @@ type CommunityEvent = {
 const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
   const startDate = parseEventDate(event.startDate) || new Date();
   const endDate = event.endDate ? parseEventDate(event.endDate) : null;
+  const isMultiDay = startDate && endDate && format(startDate, "yyyy-MM-dd") !== format(endDate, "yyyy-MM-dd");
+
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+
   return (
     <>
         <DialogHeader className="p-6 pb-2">
@@ -62,10 +67,10 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
                 <div className="space-y-4 pr-1 pb-4">
                     <div className="flex flex-col gap-2 text-sm text-muted-foreground">
                         <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            <span>
+                            <Calendar className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-foreground">
                                 {format(startDate, "PPP")}
-                                {endDate && ` - ${format(endDate, "PPP")}`}
+                                {isMultiDay && endDate && ` - ${format(endDate, "PPP")}`}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -84,7 +89,7 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
         </div>
         <DialogFooter className="p-6 pt-4 border-t">
             <Button asChild>
-                <Link href={`/events/${event.id}`}>
+                <Link href={`${demoPrefix}/events/${event.id}`}>
                     View Full Details <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
             </Button>
@@ -180,7 +185,7 @@ export function UpcomingEventsFeed() {
       </CardContent>
        <CardFooter>
         <Button variant="outline" size="sm" asChild className="w-full">
-            <Link href="/events">
+            <Link href={`${typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo')) ? '/demo' : ''}/events`}>
                 View all events
             </Link>
         </Button>

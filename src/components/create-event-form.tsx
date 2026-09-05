@@ -247,7 +247,21 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
     const isCommunityEvent = values.businessId === 'community_event';
     const selectedBusiness = !isCommunityEvent && values.businessId ? businesses?.find(b => b.id === values.businessId) : null;
 
-    const finalEndDate = values.endDate && values.endDate >= values.startDate ? values.endDate : values.startDate;
+    // End date is completely optional for single-day events
+    let finalEndDate: Date | null = null;
+    if (values.endDate && values.endDate > values.startDate) {
+      const isSameDayEvent = format(values.startDate, 'yyyy-MM-dd') === format(values.endDate, 'yyyy-MM-dd');
+      if (!isSameDayEvent) {
+        // Multi-day event
+        const diffDays = Math.round((values.endDate.getTime() - values.startDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (values.repeat && values.repeat !== 'none' && diffDays > 14) {
+          // User set end date to a future year/months thinking it was repeat-until; reset end date to null
+          finalEndDate = null;
+        } else {
+          finalEndDate = values.endDate;
+        }
+      }
+    }
 
     const eventDataForAction = { 
         ...values,
@@ -255,7 +269,7 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
         businessName: selectedBusiness ? selectedBusiness.businessName : (isLeader ? 'Community' : userProfile.name),
         image, 
         category: finalCategory,
-        endDate: finalEndDate,
+        endDate: finalEndDate || undefined,
         repeatUntil: values.repeatUntil || undefined,
     };
     
@@ -375,8 +389,11 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
                   name="startDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Start Date</FormLabel>
+                      <FormLabel>Start Date *</FormLabel>
                        <DatePicker date={field.value} setDate={field.onChange} />
+                      <FormDescription className="text-xs">
+                        The date the event takes place.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -386,13 +403,13 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
                   name="endDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>End Date (Event Duration)</FormLabel>
+                      <FormLabel>End Date (Optional for multi-day)</FormLabel>
                       <DatePicker
                         date={field.value}
                         setDate={field.onChange}
                       />
                       <FormDescription className="text-xs">
-                        Date this event occurrence ends (e.g. same day for a 1-day event).
+                        Optional. Leave blank for a single-day event. Only set if event spans multiple days.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -417,8 +434,10 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
                             
                             if (predictedNext) {
                               toast({
-                                title: "Recurrence Pattern Selected",
-                                description: `Next predicted date: ${format(predictedNext, "dd/MM/yyyy")}. You can freely edit or change any dates below.`
+                                title: value === 'yearly' ? "Yearly Recurrence Selected" : "Recurrence Pattern Selected",
+                                description: value === 'yearly' 
+                                  ? `This event will repeat on ${format(predictedNext, "dd/MM/yyyy")} next year. (It does not run continuously for the whole year).`
+                                  : `Next predicted occurrence: ${format(predictedNext, "dd/MM/yyyy")}.`
                               });
                             }
                           }
@@ -431,15 +450,15 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">Does not repeat</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="none">Does not repeat (Single event)</SelectItem>
+                          <SelectItem value="weekly">Weekly (Every week)</SelectItem>
                           <SelectItem value="bi-weekly">Every 2 Weeks</SelectItem>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                          <SelectItem value="yearly">Yearly</SelectItem>
+                          <SelectItem value="monthly">Monthly (Same day each month)</SelectItem>
+                          <SelectItem value="yearly">Yearly (Repeats same date next year)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription className="text-xs">
-                        Select if this event recurs. All date fields remain 100% editable.
+                        Yearly repeats automatically on the same date each year.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -456,7 +475,7 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
                       <FormLabel>Repeat Until (Optional)</FormLabel>
                       <DatePicker date={field.value} setDate={field.onChange} />
                       <FormDescription className="text-xs">
-                        Date after which this event stops repeating (leave blank for indefinite).
+                        Optional date after which this recurrence stops (leave blank to repeat indefinitely).
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

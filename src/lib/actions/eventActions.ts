@@ -75,7 +75,7 @@ export async function createEventAction(data: EventData): Promise<ActionResponse
             createdAt: Timestamp.now(),
             submittedAt: Timestamp.now(),
             startDate: Timestamp.fromDate(startDate),
-            endDate: data.endDate ? Timestamp.fromDate(new Date(data.endDate)) : Timestamp.fromDate(startDate),
+            endDate: data.endDate ? Timestamp.fromDate(new Date(data.endDate)) : null,
             repeatUntil: data.repeatUntil ? Timestamp.fromDate(new Date(data.repeatUntil)) : null,
         };
 
@@ -139,11 +139,11 @@ export async function updateEventAction(eventId: string, data: Partial<EventData
     if (data.startDate) {
       updateData.startDate = Timestamp.fromDate(new Date(data.startDate));
     }
-    if (data.endDate) {
-      updateData.endDate = Timestamp.fromDate(new Date(data.endDate));
+    if ('endDate' in data) {
+      updateData.endDate = data.endDate ? Timestamp.fromDate(new Date(data.endDate)) : null;
     }
-    if (data.repeatUntil) {
-      updateData.repeatUntil = Timestamp.fromDate(new Date(data.repeatUntil));
+    if ('repeatUntil' in data) {
+      updateData.repeatUntil = data.repeatUntil ? Timestamp.fromDate(new Date(data.repeatUntil)) : null;
     }
 
 

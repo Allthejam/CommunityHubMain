@@ -72,6 +72,19 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
   const [isSaving, setIsSaving] = React.useState(false);
   const startDateObj = parseEventDate(event.startDate);
   const endDateObj = parseEventDate(event.endDate);
+  const isMultiDay = startDateObj && endDateObj && format(startDateObj, 'yyyy-MM-dd') !== format(endDateObj, 'yyyy-MM-dd');
+
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const demoPrefix = isDemo ? '/demo' : '';
+
+  const formatRepeatLabel = (rep?: string | null) => {
+    if (!rep || rep === 'none') return null;
+    if (rep === 'yearly') return 'Repeats Yearly (Annual event)';
+    if (rep === 'monthly') return 'Repeats Monthly';
+    if (rep === 'weekly') return 'Repeats Weekly';
+    if (rep === 'bi-weekly') return 'Repeats Every 2 Weeks';
+    return `Repeats ${rep}`;
+  };
 
   const handleSaveToAppCalendar = async () => {
     if (!user) {
@@ -125,7 +138,14 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
             <Image src={event.image} alt={event.title} fill className="object-cover" priority />
           </div>
         )}
-        <Badge variant="secondary" className="mb-2 w-fit">{event.category}</Badge>
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <Badge variant="secondary" className="w-fit">{event.category}</Badge>
+          {event.repeat && event.repeat !== 'none' && (
+            <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 text-xs">
+              {formatRepeatLabel(event.repeat)}
+            </Badge>
+          )}
+        </div>
         <DialogTitle className="text-2xl">{event.title}</DialogTitle>
       </DialogHeader>
 
@@ -134,12 +154,10 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
           <div className="space-y-4 pr-1 pb-4">
             <div className="flex flex-col gap-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <span>
+                <Calendar className="h-4 w-4 text-primary" />
+                <span className="font-medium text-foreground">
                   {startDateObj ? format(startDateObj, 'PPP') : ''}
-                  {endDateObj && startDateObj && format(startDateObj, 'yyyy-MM-dd') !== format(endDateObj, 'yyyy-MM-dd')
-                    ? ` - ${format(endDateObj, 'PPP')}`
-                    : ''}
+                  {isMultiDay && endDateObj ? ` - ${format(endDateObj, 'PPP')}` : ''}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -170,7 +188,7 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
       <DialogFooter className="p-6 pt-4 border-t flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
         {event.id ? (
           <Button variant="outline" asChild className="w-full sm:w-auto font-medium">
-            <Link href={`/events/${event.id}`}>
+            <Link href={`${demoPrefix}/events/${event.id}`}>
               See More / Full Details <ExternalLink className="ml-2 h-4 w-4" />
             </Link>
           </Button>
@@ -296,7 +314,12 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {liveEvents.slice(0, 3).map((event) => (
+              {liveEvents.slice(0, 3).map((event) => {
+                const startDateObj = parseEventDate(event.startDate);
+                const endDateObj = parseEventDate(event.endDate);
+                const isMultiDay = startDateObj && endDateObj && format(startDateObj, 'yyyy-MM-dd') !== format(endDateObj, 'yyyy-MM-dd');
+
+                return (
                 <Dialog key={event.id}>
                   <DialogTrigger asChild>
                     <Card className="flex flex-col overflow-hidden bg-background cursor-pointer hover:shadow-lg transition-shadow duration-300">
@@ -312,11 +335,22 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
                         </div>
                       </CardHeader>
                       <CardContent className="p-4 flex-grow">
-                        <Badge variant="secondary" className="mb-2">{event.category}</Badge>
+                        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                          <Badge variant="secondary">{event.category}</Badge>
+                          {event.repeat === 'yearly' && (
+                            <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                              Annual Event
+                            </Badge>
+                          )}
+                        </div>
                         <h3 className="font-semibold text-lg">{event.title}</h3>
-                        {event.endDate && (
+                        {isMultiDay && endDateObj ? (
                           <p className="text-sm text-muted-foreground mt-1">
-                            Ends {parseEventDate(event.endDate) ? format(parseEventDate(event.endDate)!, 'PPP') : ''}
+                            Runs until {format(endDateObj, 'PPP')}
+                          </p>
+                        ) : (
+                          <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 mt-1">
+                            Happening Today
                           </p>
                         )}
                       </CardContent>
@@ -329,7 +363,8 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
                     <EventDialogContent event={event} />
                   </DialogContent>
                 </Dialog>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -362,6 +397,9 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {upcomingEvents.slice(0, upcomingCount).map((event) => {
                   const startObj = parseEventDate(event.startDate);
+                  const endObj = parseEventDate(event.endDate);
+                  const isMultiDay = startObj && endObj && format(startObj, 'yyyy-MM-dd') !== format(endObj, 'yyyy-MM-dd');
+
                   return (
                     <Dialog key={event.id}>
                       <DialogTrigger asChild>
@@ -380,9 +418,19 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
                             </div>
                           </CardHeader>
                           <CardContent className="p-4 flex-grow">
-                            <Badge variant="secondary" className="mb-2">{event.category}</Badge>
+                            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                              <Badge variant="secondary">{event.category}</Badge>
+                              {event.repeat && event.repeat !== 'none' && (
+                                <Badge variant="outline" className="text-[10px] border-primary/40 text-primary bg-primary/5">
+                                  {event.repeat === 'yearly' ? 'Yearly' : event.repeat}
+                                </Badge>
+                              )}
+                            </div>
                             <h3 className="font-semibold text-lg">{event.title}</h3>
-                            <p className="text-sm text-muted-foreground mt-1">{startObj ? format(startObj, 'PPP') : ''}</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {startObj ? format(startObj, 'PPP') : ''}
+                              {isMultiDay && endObj ? ` - ${format(endObj, 'PPP')}` : ''}
+                            </p>
                           </CardContent>
                           <CardFooter className="p-4 pt-0">
                             <p className="text-sm font-medium text-primary w-full text-center">View Details</p>
@@ -399,7 +447,7 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
             </CardContent>
             <CardFooter>
               <Button variant="outline" asChild>
-                <Link href="/events">
+                <Link href={`${typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo')) ? '/demo' : ''}/events`}>
                   See All Events <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>

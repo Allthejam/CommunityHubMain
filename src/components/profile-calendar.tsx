@@ -71,7 +71,10 @@ function isEventOnDate(event: NormalizedEvent, targetDate: Date): boolean {
     return false;
   }
 
-  const durationDays = Math.max(0, Math.round((endDay.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24)));
+  let durationDays = Math.max(0, Math.round((endDay.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24)));
+  if (repeat !== 'none' && durationDays > 14) {
+    durationDays = 0;
+  }
 
   if (repeat === 'yearly') {
     const occStart = new Date(targetDay.getFullYear(), startDay.getMonth(), startDay.getDate());

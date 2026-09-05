@@ -77,17 +77,19 @@ const EventRow = React.memo(({ event, onDelete, onUpdateStatus }: { event: Commu
     }
     const formatRepeatLabel = (rep?: string) => {
         if (!rep || rep === 'none') return 'Single Event';
-        if (rep === 'yearly') return 'Yearly Repeat';
-        if (rep === 'monthly') return 'Monthly Repeat';
-        if (rep === 'weekly') return 'Weekly Repeat';
-        if (rep === 'bi-weekly') return 'Bi-Weekly Repeat';
+        if (rep === 'yearly') return 'Repeats Yearly (Annual)';
+        if (rep === 'monthly') return 'Repeats Monthly';
+        if (rep === 'weekly') return 'Repeats Weekly';
+        if (rep === 'bi-weekly') return 'Repeats Bi-Weekly';
         return rep;
     };
 
     const now = new Date();
     const startDateObj = parseEventDate(event.startDate);
-    const endDateObj = parseEventDate(event.endDate) || startDateObj;
-    const isPassed = event.status !== 'Archived' && (!event.repeat || event.repeat === 'none') && endDateObj && endDateObj < now;
+    const endDateObj = parseEventDate(event.endDate);
+    const isMultiDay = startDateObj && endDateObj && format(startDateObj, 'yyyy-MM-dd') !== format(endDateObj, 'yyyy-MM-dd');
+    const effectiveEnd = isMultiDay ? endDateObj : startDateObj;
+    const isPassed = event.status !== 'Archived' && (!event.repeat || event.repeat === 'none') && effectiveEnd && effectiveEnd < now;
 
     return (
         <TableRow className={cn(isPassed && "bg-amber-500/10 dark:bg-amber-950/30 border-l-4 border-l-amber-500 font-medium", event.status === 'Archived' && "opacity-75 bg-muted/30")}>
@@ -106,7 +108,9 @@ const EventRow = React.memo(({ event, onDelete, onUpdateStatus }: { event: Commu
                 )}
             </TableCell>
             <TableCell>{startDateObj ? format(startDateObj, "PPP") : 'N/A'}</TableCell>
-            <TableCell>{endDateObj ? format(endDateObj, "PPP") : "N/A"}</TableCell>
+            <TableCell>
+                {isMultiDay && endDateObj ? format(endDateObj, "PPP") : <span className="text-muted-foreground text-xs italic">Single Day</span>}
+            </TableCell>
             <TableCell>
                 <Badge variant={event.repeat && event.repeat !== 'none' ? "outline" : "secondary"} className="capitalize">
                     {formatRepeatLabel(event.repeat)}

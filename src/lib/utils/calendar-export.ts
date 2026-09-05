@@ -2,7 +2,13 @@ import { parseEventDate } from './event-utils';
 
 export function downloadIcsFile(event: { title: string; description?: string; startDate: any; endDate?: any; businessName?: string }) {
   const start = parseEventDate(event.startDate) || new Date();
-  const end = parseEventDate(event.endDate) || new Date(start.getTime() + 3600000);
+  const rawEnd = parseEventDate(event.endDate);
+  let end: Date;
+  if (rawEnd && rawEnd.getTime() > start.getTime() && (rawEnd.getTime() - start.getTime()) <= 14 * 24 * 3600000) {
+    end = rawEnd;
+  } else {
+    end = new Date(start.getTime() + 2 * 3600000); // 2 hours default duration for single-day events
+  }
 
   const formatDateToIcs = (d: Date) => {
     return d.toISOString().replace(/-|:|\.\d+/g, '');
@@ -38,7 +44,13 @@ export function downloadIcsFile(event: { title: string; description?: string; st
 
 export function openGoogleCalendarUrl(event: { title: string; description?: string; startDate: any; endDate?: any }) {
   const start = parseEventDate(event.startDate) || new Date();
-  const end = parseEventDate(event.endDate) || new Date(start.getTime() + 3600000);
+  const rawEnd = parseEventDate(event.endDate);
+  let end: Date;
+  if (rawEnd && rawEnd.getTime() > start.getTime() && (rawEnd.getTime() - start.getTime()) <= 14 * 24 * 3600000) {
+    end = rawEnd;
+  } else {
+    end = new Date(start.getTime() + 2 * 3600000); // 2 hours default duration for single-day events
+  }
 
   const formatDateToGoogle = (d: Date) => {
     return d.toISOString().replace(/-|:|\.\d+/g, '');

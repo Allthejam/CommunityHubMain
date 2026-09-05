@@ -36,17 +36,28 @@ export function parseEventDate(d: any): Date | null {
 
 /**
  * Returns whether an event is live RIGHT NOW taking into account single duration and recurrence pattern.
+ * A yearly event repeats on the same date next year — it does NOT run for a whole year.
  */
 export function isEventLiveNow(event: EventLike, now: Date = new Date()): boolean {
   const start = parseEventDate(event.startDate);
   if (!start) return false;
 
-  const rawEnd = parseEventDate(event.endDate) || start;
+  const rawEnd = parseEventDate(event.endDate);
   const repeatUntil = parseEventDate(event.repeatUntil);
   const repeat = event.repeat || 'none';
 
   // Calculate duration of a single occurrence in milliseconds
-  const durationMs = Math.max(rawEnd.getTime() - start.getTime(), 0);
+  // If endDate is missing, or endDate is before start, or endDate is far in the future (>14 days) on a repeating event, duration is 0 (single-day event)
+  let durationMs = 0;
+  if (rawEnd && rawEnd.getTime() >= start.getTime()) {
+    const rawDiff = rawEnd.getTime() - start.getTime();
+    if (repeat !== 'none' && rawDiff > 14 * 24 * 60 * 60 * 1000) {
+      // End date was erroneously set across recurrence cycles; treat single occurrence as 1 day
+      durationMs = 0;
+    } else {
+      durationMs = rawDiff;
+    }
+  }
 
   // If repeatUntil is specified and now > repeatUntil, the entire recurrence has ended
   if (repeatUntil && now > endOfDay(repeatUntil)) {
@@ -55,11 +66,12 @@ export function isEventLiveNow(event: EventLike, now: Date = new Date()): boolea
 
   if (repeat === 'none') {
     const startOfEvent = start;
-    const endOfEvent = durationMs === 0 ? endOfDay(rawEnd) : rawEnd;
+    const endOfEvent = durationMs === 0 ? endOfDay(start) : (rawEnd || endOfDay(start));
     return now >= startOfEvent && now <= endOfEvent;
   }
 
   if (repeat === 'yearly') {
+    // Event recurs on the exact same month & day every year
     const occStart = new Date(start);
     occStart.setFullYear(now.getFullYear());
     
@@ -114,7 +126,7 @@ export function isEventLiveNow(event: EventLike, now: Date = new Date()): boolea
   }
 
   const startOfEvent = start;
-  const endOfEvent = durationMs === 0 ? endOfDay(rawEnd) : rawEnd;
+  const endOfEvent = durationMs === 0 ? endOfDay(start) : (rawEnd || endOfDay(start));
   return now >= startOfEvent && now <= endOfEvent;
 }
 
@@ -163,10 +175,16 @@ export function getEventNextOccurrenceStart(event: EventLike, now: Date = new Da
     return start;
   }
 
+  const rawEnd = parseEventDate(event.endDate);
+  let durationMs = 0;
+  if (rawEnd && rawEnd.getTime() >= start.getTime()) {
+    const rawDiff = rawEnd.getTime() - start.getTime();
+    durationMs = (repeat !== 'none' && rawDiff > 14 * 24 * 60 * 60 * 1000) ? 0 : rawDiff;
+  }
+
   if (repeat === 'yearly') {
     const occStart = new Date(start);
     occStart.setFullYear(now.getFullYear());
-    const durationMs = Math.max((parseEventDate(event.endDate) || start).getTime() - start.getTime(), 0);
     let occEnd = new Date(occStart.getTime() + durationMs);
     if (durationMs === 0) occEnd = endOfDay(occStart);
 
@@ -180,7 +198,6 @@ export function getEventNextOccurrenceStart(event: EventLike, now: Date = new Da
     const occStart = new Date(start);
     occStart.setFullYear(now.getFullYear());
     occStart.setMonth(now.getMonth(), Math.min(start.getDate(), 28));
-    const durationMs = Math.max((parseEventDate(event.endDate) || start).getTime() - start.getTime(), 0);
     let occEnd = new Date(occStart.getTime() + durationMs);
     if (durationMs === 0) occEnd = endOfDay(occStart);
 
@@ -212,7 +229,7 @@ export function getEventNextOccurrenceStart(event: EventLike, now: Date = new Da
 /**
  * Checks if a repeating event's current occurrence has passed.
  * If passed, returns the updated event object with past occurrence appended to `pastOccurrences` audit trail,
- * and `startDate` & `endDate` advanced to the next occurrence.
+ * and `startDate` & `endDate` advanced to the next occurrence (e.g. exact same date next year for yearly).
  */
 export function getAdvancedRepeatingEvent(event: any, now: Date = new Date()): { hasAdvanced: boolean; updatedEvent: any } {
   if (!event || !event.repeat || event.repeat === 'none') {
@@ -222,9 +239,13 @@ export function getAdvancedRepeatingEvent(event: any, now: Date = new Date()): {
   const start = parseEventDate(event.startDate);
   if (!start) return { hasAdvanced: false, updatedEvent: event };
 
-  const rawEnd = parseEventDate(event.endDate) || start;
-  const durationMs = Math.max(rawEnd.getTime() - start.getTime(), 0);
-  const endOfOccurrence = durationMs === 0 ? endOfDay(rawEnd) : rawEnd;
+  const rawEnd = parseEventDate(event.endDate);
+  let durationMs = 0;
+  if (rawEnd && rawEnd.getTime() >= start.getTime()) {
+    const rawDiff = rawEnd.getTime() - start.getTime();
+    durationMs = (event.repeat !== 'none' && rawDiff > 14 * 24 * 60 * 60 * 1000) ? 0 : rawDiff;
+  }
+  const endOfOccurrence = durationMs === 0 ? endOfDay(start) : new Date(start.getTime() + durationMs);
 
   const repeatUntil = parseEventDate(event.repeatUntil);
   if (repeatUntil && now > endOfDay(repeatUntil)) {
@@ -258,12 +279,12 @@ export function getAdvancedRepeatingEvent(event: any, now: Date = new Date()): {
         return { hasAdvanced: false, updatedEvent: event };
     }
 
-    const nextEnd = new Date(nextStart.getTime() + durationMs);
+    const nextEnd = durationMs === 0 ? null : new Date(nextStart.getTime() + durationMs);
 
     const pastOccurrences = Array.isArray(event.pastOccurrences) ? [...event.pastOccurrences] : [];
     pastOccurrences.push({
       startDate: start.toISOString(),
-      endDate: rawEnd.toISOString(),
+      endDate: rawEnd ? rawEnd.toISOString() : start.toISOString(),
       archivedAt: now.toISOString(),
     });
 
