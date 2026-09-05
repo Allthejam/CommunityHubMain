@@ -55,7 +55,7 @@ import { PaginationControls } from "@/components/ui/pagination";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CreateEventForm } from "@/components/create-event-form";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { parseEventDate } from "@/lib/utils/event-utils";
+import { parseEventDate, isEventLiveNow } from "@/lib/utils/event-utils";
 import { cn } from "@/lib/utils";
 
 type CommunityEvent = {
@@ -91,6 +91,46 @@ const EventRow = React.memo(({ event, onDelete, onUpdateStatus }: { event: Commu
     const effectiveEnd = isMultiDay ? endDateObj : startDateObj;
     const isPassed = event.status !== 'Archived' && (!event.repeat || event.repeat === 'none') && effectiveEnd && effectiveEnd < now;
 
+    const isLive = (event.status === 'Live' || event.status === 'Upcoming') && isEventLiveNow(event, now);
+    const isUpcoming = (event.status === 'Live' || event.status === 'Upcoming') && !isLive && !isPassed;
+
+    const renderStatusBadge = () => {
+      if (event.status === 'Archived') {
+        return <Badge variant="outline" className="border-dashed">Archived</Badge>;
+      }
+      if (event.status === 'Pending Approval') {
+        return <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-semibold">Pending Approval</Badge>;
+      }
+      if (event.status === 'Declined') {
+        return <Badge variant="destructive">Declined</Badge>;
+      }
+      if (event.status === 'Requires Amendment') {
+        return <Badge className="bg-amber-500 hover:bg-amber-600 text-white">Requires Amendment</Badge>;
+      }
+      if (isPassed) {
+        return (
+          <Badge className="bg-amber-600 hover:bg-amber-700 text-white gap-1">
+            <AlertTriangle className="h-3 w-3" /> Passed - Action Needed
+          </Badge>
+        );
+      }
+      if (isLive) {
+        return (
+          <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 font-semibold">
+            <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" /> Live Now
+          </Badge>
+        );
+      }
+      if (isUpcoming) {
+        return (
+          <Badge variant="outline" className="bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border-sky-300 dark:border-sky-700 font-semibold">
+            Upcoming
+          </Badge>
+        );
+      }
+      return <Badge variant="secondary">{event.status}</Badge>;
+    };
+
     return (
         <TableRow className={cn(isPassed && "bg-amber-500/10 dark:bg-amber-950/30 border-l-4 border-l-amber-500 font-medium", event.status === 'Archived' && "opacity-75 bg-muted/30")}>
             <TableCell className="font-medium flex items-center gap-2">
@@ -99,13 +139,7 @@ const EventRow = React.memo(({ event, onDelete, onUpdateStatus }: { event: Commu
             </TableCell>
             <TableCell>{event.businessName}</TableCell>
             <TableCell>
-                {isPassed ? (
-                  <Badge className="bg-amber-600 hover:bg-amber-700 text-white gap-1">
-                    <AlertTriangle className="h-3 w-3" /> Passed - Action Needed
-                  </Badge>
-                ) : (
-                  <Badge variant={event.status === 'Archived' ? "outline" : "default"}>{event.status}</Badge>
-                )}
+                {renderStatusBadge()}
             </TableCell>
             <TableCell>{startDateObj ? format(startDateObj, "PPP") : 'N/A'}</TableCell>
             <TableCell>

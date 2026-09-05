@@ -42,6 +42,11 @@ export function isEventLiveNow(event: EventLike, now: Date = new Date()): boolea
   const start = parseEventDate(event.startDate);
   if (!start) return false;
 
+  // If the event start date is in the future, it cannot be live now
+  if (now < start) {
+    return false;
+  }
+
   const rawEnd = parseEventDate(event.endDate);
   const repeatUntil = parseEventDate(event.repeatUntil);
   const repeat = event.repeat || 'none';

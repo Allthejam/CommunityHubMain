@@ -8,6 +8,7 @@ import { Badge } from "../ui/badge";
 import Link from "next/link";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
+import { isEventLiveNow, isEventUpcoming } from "@/lib/utils/event-utils";
 
 export function EventsCard() {
     const { user } = useUser();
@@ -34,12 +35,14 @@ export function EventsCard() {
 
     const liveCount = React.useMemo(() => {
         if (!events) return 0;
-        return events.filter(e => e.status === 'Live').length;
+        const now = new Date();
+        return events.filter(e => isEventLiveNow(e, now)).length;
     }, [events]);
 
     const upcomingCount = React.useMemo(() => {
         if (!events) return 0;
-        return events.filter(e => e.status === 'Upcoming').length;
+        const now = new Date();
+        return events.filter(e => isEventUpcoming(e, now)).length;
     }, [events]);
 
     return (
