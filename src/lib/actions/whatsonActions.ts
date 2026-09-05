@@ -27,7 +27,8 @@ type ItemData = {
 
 export async function createWhatsonItemAction(data: ItemData): Promise<ActionResponse> {
     try {
-        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
+        const isDemo = data.communityId === '9ayHMyZf4SRw2gof1AM9' || data.communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         await firestore.collection('whatson').add({
             ...data,
             status: 'Active',
@@ -43,8 +44,8 @@ export async function createWhatsonItemAction(data: ItemData): Promise<ActionRes
 export async function updateWhatsonItemAction(params: { communityId: string, itemId: string, data: Partial<ItemData> }): Promise<ActionResponse> {
     const { communityId, itemId, data } = params;
     try {
-        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
-        // In a real app, you'd add security to ensure the user has permission to edit this community's items
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         const itemRef = firestore.collection('whatson').doc(itemId);
         await itemRef.update({
             ...data,
@@ -64,9 +65,9 @@ export async function updateWhatsonStatusAction(params: {
 }): Promise<ActionResponse> {
     const { communityId, itemId, status } = params;
     try {
-        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         const itemRef = firestore.collection('whatson').doc(itemId);
-        // Security check would be important here in a real app
         await itemRef.update({ status });
         return { success: true };
     } catch (error: any) {
@@ -80,8 +81,8 @@ export async function deleteWhatsonItemAction(params: {
 }): Promise<ActionResponse> {
     const { communityId, itemId } = params;
      try {
-        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
-        // Security check
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         await firestore.collection('whatson').doc(itemId).delete();
         return { success: true };
     } catch (error: any) {

@@ -76,7 +76,7 @@ const StatusBadge = ({ status }: { status: ItemStatus }) => {
 };
 
 
-const ItemRow = React.memo(({ item, onUpdateStatus, onDelete }: { item: WhatsonItem; onUpdateStatus: (id: string, status: ItemStatus) => void; onDelete: (id: string) => void; }) => {
+const ItemRow = React.memo(({ item, onUpdateStatus, onDelete, demoPrefix = '' }: { item: WhatsonItem; onUpdateStatus: (id: string, status: ItemStatus) => void; onDelete: (id: string) => void; demoPrefix?: string; }) => {
     const { status } = item;
     return (
         <TableRow>
@@ -94,7 +94,7 @@ const ItemRow = React.memo(({ item, onUpdateStatus, onDelete }: { item: WhatsonI
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuItem asChild>
-                        <Link href={`/leader/whatson/edit/${item.id}`}><FileEdit className="mr-2 h-4 w-4" />Edit Listing</Link>
+                        <Link href={`${demoPrefix}/leader/whatson/edit/${item.id}`}><FileEdit className="mr-2 h-4 w-4" />Edit Listing</Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {status === 'Active' && <DropdownMenuItem onClick={() => onUpdateStatus(item.id, 'Temporarily Closed')}><Ban className="mr-2 h-4 w-4" />Temporarily Close</DropdownMenuItem>}
@@ -167,27 +167,67 @@ export default function LeaderWhatsonPage() {
                     ...data
                 } as WhatsonItem);
             });
-            setWhatsonItems(itemsData);
+            if (isDemo) {
+                try {
+                    const localItems: WhatsonItem[] = JSON.parse(
+                        sessionStorage.getItem(`demo_whatson_${communityId}`) || 
+                        localStorage.getItem(`demo_whatson_${communityId}`) || '[]'
+                    );
+                    const combined = [...localItems, ...itemsData.filter(d => !localItems.some(l => l.id === d.id))];
+                    setWhatsonItems(combined);
+                } catch (e) {
+                    setWhatsonItems(itemsData);
+                }
+            } else {
+                setWhatsonItems(itemsData);
+            }
             setLoading(false);
         }, (error) => {
             console.error("Error fetching what's on items:", error);
-            toast({
-                title: "Error fetching data",
-                description: "Could not retrieve what's on items from the database.",
-                variant: "destructive"
-            });
+            if (isDemo) {
+                try {
+                    const localItems: WhatsonItem[] = JSON.parse(
+                        sessionStorage.getItem(`demo_whatson_${communityId}`) || 
+                        localStorage.getItem(`demo_whatson_${communityId}`) || '[]'
+                    );
+                    setWhatsonItems(localItems);
+                } catch (e) {}
+            } else {
+                toast({
+                    title: "Error fetching data",
+                    description: "Could not retrieve what's on items from the database.",
+                    variant: "destructive"
+                });
+            }
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [userProfile, isUserLoading, isProfileLoading, db, toast]);
+    }, [userProfile, isUserLoading, isProfileLoading, db, communityId, isDemo, toast]);
 
     const onTabChange = (value: string) => {
         setActiveTab(value);
     }
     
     const handleUpdateStatus = async (id: string, status: ItemStatus) => {
-        if (!db || !communityId) return;
+        if (!communityId) return;
+        if (id.startsWith('demo_')) {
+            try {
+                const localItems: WhatsonItem[] = JSON.parse(
+                    sessionStorage.getItem(`demo_whatson_${communityId}`) || 
+                    localStorage.getItem(`demo_whatson_${communityId}`) || '[]'
+                );
+                const updated = localItems.map(item => item.id === id ? { ...item, status } : item);
+                sessionStorage.setItem(`demo_whatson_${communityId}`, JSON.stringify(updated));
+                localStorage.setItem(`demo_whatson_${communityId}`, JSON.stringify(updated));
+                setWhatsonItems(prev => prev.map(item => item.id === id ? { ...item, status } : item));
+                toast({ title: "Status Updated", description: "The item's status has been changed." });
+            } catch (e) {
+                console.error(e);
+            }
+            return;
+        }
+        if (!db) return;
         const result = await updateWhatsonStatusAction({
             communityId: communityId,
             itemId: id,
@@ -201,10 +241,27 @@ export default function LeaderWhatsonPage() {
     }
 
     const handleDelete = async (id: string) => {
-        if (!db || !communityId) return;
+        if (!communityId) return;
         if (!window.confirm("Are you sure you want to permanently delete this listing?")) {
             return;
         }
+        if (id.startsWith('demo_')) {
+            try {
+                const localItems: WhatsonItem[] = JSON.parse(
+                    sessionStorage.getItem(`demo_whatson_${communityId}`) || 
+                    localStorage.getItem(`demo_whatson_${communityId}`) || '[]'
+                );
+                const updated = localItems.filter(item => item.id !== id);
+                sessionStorage.setItem(`demo_whatson_${communityId}`, JSON.stringify(updated));
+                localStorage.setItem(`demo_whatson_${communityId}`, JSON.stringify(updated));
+                setWhatsonItems(prev => prev.filter(item => item.id !== id));
+                toast({ title: "Item Deleted", description: "The item has been permanently removed." });
+            } catch (e) {
+                console.error(e);
+            }
+            return;
+        }
+        if (!db) return;
         const result = await deleteWhatsonItemAction({
             communityId: communityId,
             itemId: id,
@@ -300,7 +357,7 @@ export default function LeaderWhatsonPage() {
                     </TableRow>
                 ) : paginatedItems.length > 0 ? (
                   paginatedItems.map((item) => (
-                    <ItemRow key={item.id} item={item} onUpdateStatus={handleUpdateStatus} onDelete={handleDelete} />
+                    <ItemRow key={item.id} item={item} onUpdateStatus={handleUpdateStatus} onDelete={handleDelete} demoPrefix={demoPrefix} />
                   ))
                 ) : (
                   <TableRow>

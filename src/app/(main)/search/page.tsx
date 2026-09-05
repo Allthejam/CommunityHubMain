@@ -61,7 +61,7 @@ function levenshteinDistance(a: string, b: string): number {
 const STOP_WORDS = new Set(['on', 'the', 'and', 'of', 'in', 'at', 'by', 'for', 'with', 'a', 'an', 'to']);
 const SHOW_HOME_ID = '9ayHMyZf4SRw2gof1AM9';
 
-export default function LiveSearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const db = useFirestore();
@@ -744,3 +744,12 @@ export default function LiveSearchPage() {
     </div>
   );
 }
+
+export default function LiveSearchPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-[50vh] flex items-center justify-center text-muted-foreground">Loading search...</div>}>
+      <SearchContent />
+    </React.Suspense>
+  );
+}
+

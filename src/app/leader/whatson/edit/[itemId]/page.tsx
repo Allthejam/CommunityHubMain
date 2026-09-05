@@ -73,8 +73,38 @@ export default function EditWhatsonItemPage() {
     const [itemCategories, setItemCategories] = React.useState<any[]>([]);
     const [loadingCategories, setLoadingCategories] = React.useState(true);
 
-    const itemRef = useMemoFirebase(() => (userProfile?.communityId && itemId ? doc(db, 'whatson', itemId) : null), [userProfile?.communityId, itemId, db]);
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const effectiveCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
+    const itemRef = useMemoFirebase(() => (effectiveCommunityId && itemId && !itemId.startsWith('demo_') ? doc(db, 'whatson', itemId) : null), [effectiveCommunityId, itemId, db]);
     const { data: itemData, isLoading } = useDoc(itemRef);
+
+    React.useEffect(() => {
+        if (itemId && itemId.startsWith('demo_')) {
+            try {
+                const stored = JSON.parse(sessionStorage.getItem(`demo_whatson_${effectiveCommunityId}`) || localStorage.getItem(`demo_whatson_${effectiveCommunityId}`) || '[]');
+                const found = stored.find((i: any) => i.id === itemId);
+                if (found) {
+                    setTitle(found.title || '');
+                    setCategory(found.category || '');
+                    setDescription(found.description || '');
+                    setAddress(found.address || '');
+                    setWebsite(found.website || '');
+                    setPhone(found.phone || '');
+                    setEmail(found.email || '');
+                    setSocial(found.social || '');
+                    setOpeningHours(found.openingHours || initialHoursState);
+                    setShowOpeningHours(!!found.openingHours && Object.keys(found.openingHours).length > 0);
+                    setImage(found.image || null);
+                    setMetaTitle(found.metaTitle || "");
+                    setMetaDescription(found.metaDescription || "");
+                }
+            } catch (e) {
+                console.error("Error loading local demo item:", e);
+            }
+        }
+    }, [itemId, effectiveCommunityId]);
 
     React.useEffect(() => {
         async function fetchCategories() {
@@ -212,7 +242,7 @@ export default function EditWhatsonItemPage() {
 
 
     const handleSave = async () => {
-        if (!userProfile?.communityId || !itemId) {
+        if (!effectiveCommunityId || !itemId) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not determine community or item.' });
             return;
         }
@@ -224,31 +254,66 @@ export default function EditWhatsonItemPage() {
         }
         
         setIsSubmitting(true);
-        const result = await updateWhatsonItemAction({
-            communityId: userProfile.communityId,
-            itemId,
-            data: { 
-                title, 
-                category: finalCategory, 
-                description, 
-                address, 
-                website, 
-                phone, 
-                email, 
-                social, 
-                openingHours: showOpeningHours ? openingHours : {}, 
-                image,
-                metaTitle,
-                metaDescription,
-            },
-        });
-        setIsSubmitting(false);
+        if (user && !itemId.startsWith('demo_')) {
+            const result = await updateWhatsonItemAction({
+                communityId: effectiveCommunityId,
+                itemId,
+                data: { 
+                    title, 
+                    category: finalCategory, 
+                    description, 
+                    address, 
+                    website, 
+                    phone, 
+                    email, 
+                    social, 
+                    openingHours: showOpeningHours ? openingHours : {}, 
+                    image,
+                    metaTitle,
+                    metaDescription,
+                },
+            });
+            setIsSubmitting(false);
 
-        if (result.success) {
-            toast({ title: "Item Updated", description: "The item has been successfully updated." });
-            router.push('/leader/whatson');
+            if (result.success) {
+                toast({ title: "Item Updated", description: "The item has been successfully updated." });
+                router.push(`${demoPrefix}/leader/whatson`);
+            } else {
+                toast({ title: "Error", description: result.error, variant: 'destructive' });
+            }
         } else {
-            toast({ title: "Error", description: result.error, variant: 'destructive' });
+            // Local demo item
+            try {
+                const stored = JSON.parse(sessionStorage.getItem(`demo_whatson_${effectiveCommunityId}`) || localStorage.getItem(`demo_whatson_${effectiveCommunityId}`) || '[]');
+                const updated = stored.map((item: any) => {
+                    if (item.id === itemId) {
+                        return {
+                            ...item,
+                            title,
+                            category: finalCategory,
+                            description,
+                            address,
+                            website,
+                            phone,
+                            email,
+                            social,
+                            openingHours: showOpeningHours ? openingHours : {},
+                            image,
+                            metaTitle,
+                            metaDescription,
+                            updatedAt: new Date().toISOString(),
+                        };
+                    }
+                    return item;
+                });
+                sessionStorage.setItem(`demo_whatson_${effectiveCommunityId}`, JSON.stringify(updated));
+                localStorage.setItem(`demo_whatson_${effectiveCommunityId}`, JSON.stringify(updated));
+            } catch (e) {
+                console.error("Error updating demo whatson item:", e);
+            }
+            setIsSubmitting(false);
+            toast({ title: "Item Updated", description: "The item has been successfully updated." });
+            router.push(`${demoPrefix}/leader/whatson`);
         }
     };
     
@@ -261,7 +326,7 @@ export default function EditWhatsonItemPage() {
             <div className="space-y-8">
                 <div>
                     <Button asChild variant="ghost" className="mb-4">
-                        <Link href="/leader/whatson">
+                        <Link href={`${demoPrefix}/leader/whatson`}>
                             <ArrowLeft className="mr-2 h-4 w-4" />
                             Back to What's On
                         </Link>

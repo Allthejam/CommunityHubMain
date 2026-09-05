@@ -406,7 +406,6 @@ function BusinessDirectoryContent() {
 }
 
 export default function BusinessesPage() {
-    const pathname = useSearchParams();
     const [isDemo, setIsDemo] = React.useState(false);
 
     React.useEffect(() => {

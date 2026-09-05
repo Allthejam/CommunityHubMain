@@ -172,7 +172,22 @@ export default function WhatsonPage() {
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, "users", user.uid) : null), [user, db]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-  const activeCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const activeCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId);
+
+  const [localDemoItems, setLocalDemoItems] = React.useState<WhatsonItem[]>([]);
+
+  React.useEffect(() => {
+    if (isDemo && typeof window !== 'undefined') {
+      try {
+        const stored = JSON.parse(
+          sessionStorage.getItem(`demo_whatson_${activeCommunityId}`) || 
+          localStorage.getItem(`demo_whatson_${activeCommunityId}`) || '[]'
+        );
+        setLocalDemoItems(stored.filter((i: any) => i.status === 'Active' || !i.status));
+      } catch (e) {}
+    }
+  }, [isDemo, activeCommunityId]);
 
   const whatsonQuery = useMemoFirebase(() => {
     if (!activeCommunityId || !db) {
@@ -191,11 +206,16 @@ export default function WhatsonPage() {
 
   const [activeFilter, setActiveFilter] = React.useState("All");
 
-  const whatsonToDisplay = (whatsonItems && whatsonItems.length > 0) ? whatsonItems : mockWhatsOn.map(item => ({
-    ...item,
-    image: item.image?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
-    dataAiHint: item.image?.imageHint || 'local attraction'
-  }));
+  const whatsonToDisplay = React.useMemo(() => {
+    const dbItems = whatsonItems || [];
+    const combined = [...localDemoItems, ...dbItems.filter(d => !localDemoItems.some(l => l.id === d.id))];
+    if (combined.length > 0) return combined;
+    return mockWhatsOn.map(item => ({
+      ...item,
+      image: item.image?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
+      dataAiHint: item.image?.imageHint || 'local attraction'
+    }));
+  }, [whatsonItems, localDemoItems]);
   
   const allCategories = React.useMemo(() => {
     if (!whatsonToDisplay) return ["All"];

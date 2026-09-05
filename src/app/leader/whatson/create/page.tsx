@@ -158,8 +158,12 @@ export default function CreateWhatsonItemPage() {
     };
 
 
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const effectiveCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
     const handleSave = async () => {
-        if (!userProfile?.communityId) {
+        if (!effectiveCommunityId) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not determine community.' });
             return;
         }
@@ -169,21 +173,53 @@ export default function CreateWhatsonItemPage() {
             return;
         }
         setIsSubmitting(true);
-        const result = await createWhatsonItemAction({
-            communityId: userProfile.communityId,
-            title, category: finalCategory, description, address, website, phone, email, social,
-            openingHours: showOpeningHours ? openingHours : {},
-            image,
-            metaTitle,
-            metaDescription,
-        });
-        setIsSubmitting(false);
+        if (user) {
+            const result = await createWhatsonItemAction({
+                communityId: effectiveCommunityId,
+                title, category: finalCategory, description, address, website, phone, email, social,
+                openingHours: showOpeningHours ? openingHours : {},
+                image,
+                metaTitle,
+                metaDescription,
+            });
+            setIsSubmitting(false);
 
-        if (result.success) {
-            toast({ title: "Item Created", description: "The new item has been added to the 'What's On' list." });
-            router.push('/leader/whatson');
+            if (result.success) {
+                toast({ title: "Item Created", description: "The new item has been added to the 'What's On' list." });
+                router.push(`${demoPrefix}/leader/whatson`);
+            } else {
+                toast({ title: "Error", description: result.error, variant: 'destructive' });
+            }
         } else {
-            toast({ title: "Error", description: result.error, variant: 'destructive' });
+            const newItem = {
+                id: `demo_${Date.now()}`,
+                communityId: effectiveCommunityId,
+                title,
+                category: finalCategory,
+                description,
+                address,
+                website,
+                phone,
+                email,
+                social,
+                openingHours: showOpeningHours ? openingHours : {},
+                image,
+                metaTitle,
+                metaDescription,
+                status: 'Active',
+                createdAt: new Date().toISOString(),
+            };
+            try {
+                const stored = JSON.parse(sessionStorage.getItem(`demo_whatson_${effectiveCommunityId}`) || localStorage.getItem(`demo_whatson_${effectiveCommunityId}`) || '[]');
+                const updated = [newItem, ...stored];
+                sessionStorage.setItem(`demo_whatson_${effectiveCommunityId}`, JSON.stringify(updated));
+                localStorage.setItem(`demo_whatson_${effectiveCommunityId}`, JSON.stringify(updated));
+            } catch (e) {
+                console.error("Error saving demo whatson item:", e);
+            }
+            setIsSubmitting(false);
+            toast({ title: "Item Created", description: "The new item has been added to the 'What's On' list." });
+            router.push(`${demoPrefix}/leader/whatson`);
         }
     };
 
@@ -191,7 +227,7 @@ export default function CreateWhatsonItemPage() {
         <div className="space-y-8">
              <div>
                 <Button asChild variant="ghost" className="mb-4">
-                    <Link href="/leader/whatson">
+                    <Link href={`${demoPrefix}/leader/whatson`}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to What's On
                     </Link>
