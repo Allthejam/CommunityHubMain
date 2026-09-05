@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
     Loader2,
     Save,
@@ -85,16 +85,17 @@ export default function CreateVacancyPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const isDemo = typeof window !== 'undefined' && (
+  const pathname = usePathname();
+  const isDemo = (pathname?.startsWith('/demo') ?? false) || (typeof window !== 'undefined' && (
     window.location.pathname.startsWith('/demo') ||
     sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
     sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
     sessionStorage.getItem('isDemoMode') === 'true'
-  );
+  ));
   const demoPrefix = isDemo ? '/demo' : '';
 
-  const [userBusinesses, setUserBusinesses] = React.useState<UserBusiness[]>([]);
-  
+  const communityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : null);
+
   // State for Job Vacancy Form
   const [vacancyBusinessId, setVacancyBusinessId] = React.useState("");
   const [vacancyOtherBusiness, setVacancyOtherBusiness] = React.useState("");
@@ -129,22 +130,35 @@ export default function CreateVacancyPage() {
 
   const { data: rawUserBusinesses, isLoading: businessesLoading } = useCollection<any>(userBusinessesQuery);
 
-  React.useEffect(() => {
-      if (isDemo) {
-          setUserBusinesses([
-            { id: 'biz-demo-1', name: 'Speyside Artisan Butchery & Deli', logoImage: null },
-            { id: 'biz-demo-2', name: 'Highland River Outfitting & Co.', logoImage: null },
-            { id: 'biz-demo-3', name: 'Spey Valley Bakery & Cafe', logoImage: null },
-          ]);
-      } else if (rawUserBusinesses && rawUserBusinesses.length > 0) {
-          const businessesData = rawUserBusinesses.map(
-                (doc) => ({ id: doc.id, name: doc.businessName, logoImage: doc.logoImage || null } as UserBusiness)
-            );
-          setUserBusinesses(businessesData);
-      } else {
-          setUserBusinesses([]);
-      }
-  }, [rawUserBusinesses, isDemo]);
+  const userBusinesses: UserBusiness[] = React.useMemo(() => {
+    if (isDemo || communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome') {
+      return [
+        { id: 'biz-demo-1', name: 'Speyside Artisan Butchery & Deli', logoImage: null },
+        { id: 'biz-demo-2', name: 'Highland River Outfitting & Co.', logoImage: null },
+        { id: 'biz-demo-3', name: 'Spey Valley Bakery & Cafe', logoImage: null },
+      ];
+    }
+    if (rawUserBusinesses && rawUserBusinesses.length > 0) {
+      const showhomeBusinessIds = [
+        '4JEyCP1QfliPiAdLMYHh', '7HunaK6lYoIResdKP0rs', 'Bloc1jCpQqFa9Onfnyds', 
+        'Qa9aGZlJrGd10XaXAgUt', 'U1iCRurpH42tDEdh6vYb', 'akB9XWJxQem8Y7mXTDmS', 
+        'dq5zDrKym7g33eab9leb', 'rzSw06P8ABzUmUjYI8fR'
+      ];
+      return rawUserBusinesses
+        .filter((doc: any) => {
+          if (showhomeBusinessIds.includes(doc.id)) return false;
+          if (doc.communityId === 'c_showhome' || doc.communityId === '9ayHMyZf4SRw2gof1AM9' || !doc.communityId) return false;
+          if (communityId && doc.communityId !== communityId) return false;
+          return true;
+        })
+        .map((doc: any) => ({
+          id: doc.id,
+          name: doc.businessName || doc.name,
+          logoImage: doc.logoImage || null,
+        }));
+    }
+    return [];
+  }, [isDemo, communityId, rawUserBusinesses]);
 
   React.useEffect(() => {
     const getCameraStream = async () => {

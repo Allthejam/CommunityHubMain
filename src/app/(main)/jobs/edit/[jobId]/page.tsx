@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, usePathname } from "next/navigation";
 import {
     Loader2,
     Save,
@@ -78,13 +78,16 @@ export default function EditVacancyPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const isDemo = typeof window !== 'undefined' && (
+  const pathname = usePathname();
+  const isDemo = (pathname?.startsWith('/demo') ?? false) || (typeof window !== 'undefined' && (
     window.location.pathname.startsWith('/demo') ||
     sessionStorage.getItem('visitedCommunityId') === '9ayHMyZf4SRw2gof1AM9' ||
     sessionStorage.getItem('visitedCommunityId') === 'c_showhome' ||
     sessionStorage.getItem('isDemoMode') === 'true'
-  );
+  ));
   const demoPrefix = isDemo ? '/demo' : '';
+
+  const communityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : null);
 
   const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userProfileRef);
@@ -120,15 +123,34 @@ export default function EditVacancyPage() {
   const { data: rawUserBusinesses, isLoading: businessesLoading } = useCollection<any>(userBusinessesQuery);
 
   const userBusinesses = React.useMemo(() => {
-    if (isDemo) {
+    if (isDemo || communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome') {
       return [
         { id: 'biz-demo-1', businessName: 'Speyside Artisan Butchery & Deli' },
         { id: 'biz-demo-2', businessName: 'Highland River Outfitting & Co.' },
         { id: 'biz-demo-3', businessName: 'Spey Valley Bakery & Cafe' },
       ];
     }
-    return rawUserBusinesses || [];
-  }, [isDemo, rawUserBusinesses]);
+    if (rawUserBusinesses && rawUserBusinesses.length > 0) {
+      const showhomeBusinessIds = [
+        '4JEyCP1QfliPiAdLMYHh', '7HunaK6lYoIResdKP0rs', 'Bloc1jCpQqFa9Onfnyds', 
+        'Qa9aGZlJrGd10XaXAgUt', 'U1iCRurpH42tDEdh6vYb', 'akB9XWJxQem8Y7mXTDmS', 
+        'dq5zDrKym7g33eab9leb', 'rzSw06P8ABzUmUjYI8fR'
+      ];
+      return rawUserBusinesses
+        .filter((doc: any) => {
+          if (showhomeBusinessIds.includes(doc.id)) return false;
+          if (doc.communityId === 'c_showhome' || doc.communityId === '9ayHMyZf4SRw2gof1AM9' || !doc.communityId) return false;
+          if (communityId && doc.communityId !== communityId) return false;
+          return true;
+        })
+        .map((doc: any) => ({
+          id: doc.id,
+          businessName: doc.businessName || doc.name,
+          logoImage: doc.logoImage || null,
+        }));
+    }
+    return [];
+  }, [isDemo, communityId, rawUserBusinesses]);
 
   React.useEffect(() => {
     if (jobId) {
