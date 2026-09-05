@@ -20,7 +20,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 
-
 const charityCategories = [
     "Community Support", "Animal Welfare", "Environment", "Youth Development", 
     "Health & Wellness", "Arts & Culture", "Education", "Other",
@@ -31,8 +30,12 @@ export default function EditCharityPage() {
     const db = useFirestore();
     const router = useRouter();
     const params = useParams();
-    const { charityId } = params;
+    const charityId = params?.charityId as string;
     const { toast } = useToast();
+
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || 'N3SarfGXPLxBI7XcsinX');
 
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [title, setTitle] = React.useState('');
@@ -53,10 +56,34 @@ export default function EditCharityPage() {
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-    const charityRef = useMemoFirebase(() => (db && charityId ? doc(db, 'charities', charityId as string) : null), [db, charityId]);
-    const { data: charityData, isLoading } = useDoc(charityRef);
+    const charityRef = useMemoFirebase(() => (db && charityId && !charityId.startsWith('demo_') ? doc(db, 'charities', charityId) : null), [db, charityId]);
+    const { data: charityData, isLoading: isDocLoading } = useDoc(charityRef);
 
     React.useEffect(() => {
+        if (charityId?.startsWith('demo_') || (isDemo && typeof window !== 'undefined')) {
+            try {
+                const stored = JSON.parse(
+                    sessionStorage.getItem(`demo_charities_${communityId}`) || 
+                    localStorage.getItem(`demo_charities_${communityId}`) || '[]'
+                );
+                const found = stored.find((c: any) => c.id === charityId);
+                if (found) {
+                    setTitle(found.title || '');
+                    setCategory(found.category || '');
+                    setDescription(found.description || '');
+                    setAddress(found.address || '');
+                    setWebsite(found.website || '');
+                    setEmail(found.email || '');
+                    setPhone(found.phone || '');
+                    setRegistrationNumber(found.registrationNumber || '');
+                    setImage(found.image || null);
+                    setMetaTitle(found.metaTitle || "");
+                    setMetaDescription(found.metaDescription || "");
+                    return;
+                }
+            } catch {}
+        }
+
         if (charityData) {
             setTitle(charityData.title || '');
             setCategory(charityData.category || '');
@@ -70,7 +97,7 @@ export default function EditCharityPage() {
             setMetaTitle(charityData.metaTitle || "");
             setMetaDescription(charityData.metaDescription || "");
         }
-    }, [charityData]);
+    }, [charityData, charityId, isDemo, communityId]);
 
     React.useEffect(() => {
         if (isCameraOpen) {
@@ -116,20 +143,49 @@ export default function EditCharityPage() {
         if (!charityId) return;
 
         setIsSubmitting(true);
-        const result = await updateCharityAction(charityId as string, {
+
+        if (charityId.startsWith('demo_') || !user) {
+            try {
+                const stored = JSON.parse(
+                    sessionStorage.getItem(`demo_charities_${communityId}`) || 
+                    localStorage.getItem(`demo_charities_${communityId}`) || '[]'
+                );
+                const updated = stored.map((c: any) => c.id === charityId ? {
+                    ...c,
+                    title, category, description, address, website, email, phone, registrationNumber, image, metaTitle, metaDescription,
+                    updatedAt: new Date().toISOString()
+                } : c);
+                sessionStorage.setItem(`demo_charities_${communityId}`, JSON.stringify(updated));
+                localStorage.setItem(`demo_charities_${communityId}`, JSON.stringify(updated));
+                toast({ title: "Listing Updated", description: "The charity information has been saved." });
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('demo_charities_updated'));
+                }
+                router.push(`${demoPrefix}/leader/charities`);
+            } catch (e: any) {
+                toast({ title: "Error", description: e.message, variant: "destructive" });
+            }
+            setIsSubmitting(false);
+            return;
+        }
+
+        const result = await updateCharityAction(charityId, {
             title, category, description, address, website, email, phone, registrationNumber, image, metaTitle, metaDescription
-        });
+        }, communityId);
 
         if (result.success) {
-            toast({ title: "Listing Updated", description: "The charity information has been saved and re-submitted for approval." });
-            router.push("/leader/charities");
+            toast({ title: "Listing Updated", description: "The charity information has been saved." });
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('demo_charities_updated'));
+            }
+            router.push(`${demoPrefix}/leader/charities`);
         } else {
             toast({ title: "Error", description: result.error, variant: "destructive" });
         }
         setIsSubmitting(false);
     };
     
-    if (isLoading) {
+    if (isDocLoading && !charityId?.startsWith('demo_')) {
         return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin"/></div>;
     }
 
@@ -138,7 +194,7 @@ export default function EditCharityPage() {
             <div className="space-y-8">
                 <div>
                     <Button asChild variant="ghost" className="mb-4">
-                        <Link href="/leader/charities">
+                        <Link href={`${demoPrefix}/leader/charities`}>
                             <ArrowLeft className="mr-2 h-4 w-4" />
                             Back to Charities
                         </Link>
@@ -158,91 +214,76 @@ export default function EditCharityPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="category">Category *</Label>
-                                <Select onValueChange={setCategory} value={category}>
-                                    <SelectTrigger id="category"><SelectValue placeholder="Select a category..." /></SelectTrigger>
+                                <Select value={category} onValueChange={setCategory}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
                                     <SelectContent>
-                                        {charityCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                        {charityCategories.map(cat => (
+                                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
+
                         <div className="space-y-2">
-                            <Label htmlFor="description">Description *</Label>
+                            <Label htmlFor="registrationNumber">Charity Registration Number (Optional)</Label>
+                            <Input id="registrationNumber" value={registrationNumber} onChange={(e) => setRegistrationNumber(e.target.value)} />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Description *</Label>
                             <RichTextEditor value={description} onChange={setDescription} />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="registration-number">Registration Number (Optional)</Label>
-                            <Input id="registration-number" value={registrationNumber} onChange={(e) => setRegistrationNumber(e.target.value)} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label>Image</Label>
-                            {image ? (
-                                <div className="relative w-48 h-36">
-                                    <Image src={image} alt="Preview" fill style={{objectFit:"cover"}} className="rounded-md" />
-                                    <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full" onClick={() => setImage(null)}><X className="h-4 w-4" /></Button>
-                                </div>
-                            ) : (
-                                <div className="flex gap-2">
-                                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2" /> Upload</Button>
-                                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                                    <Button type="button" variant="outline" onClick={() => setIsCameraOpen(true)}><Camera className="mr-2" /> Take Picture</Button>
-                                </div>
-                            )}
-                            <canvas ref={canvasRef} className="hidden" />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Address</Label>
-                            <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} />
-                        </div>
+
+                        <Separator />
+
                         <div className="grid md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <Label htmlFor="website">Website</Label>
+                                <Label htmlFor="address">Address / Area Served</Label>
+                                <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="website">Website URL</Label>
                                 <Input id="website" type="url" value={website} onChange={(e) => setWebsite(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="email">Public Email</Label>
+                                <Label htmlFor="email">Public Contact Email</Label>
                                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="phone">Public Phone</Label>
+                                <Label htmlFor="phone">Contact Phone</Label>
                                 <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
                             </div>
                         </div>
 
                         <Separator />
 
-                        <Card className="border-border/70">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><Search className="h-5 w-5" /> Search engine optimization</CardTitle>
-                                <CardDescription>
-                                Improve your ranking and how your charity page will appear in search engines results.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="p-4 border rounded-lg bg-muted/50">
-                                    <p className="text-blue-800 dark:text-blue-400 text-lg font-medium group-hover:underline truncate">{metaTitle || title || 'Charity Page Title'}</p>
-                                    <p className="text-green-700 dark:text-green-400 text-sm">https://my-community-hub.co.uk/charities/{charityId}</p>
-                                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{metaDescription || 'Your compelling meta description will appear here, helping you attract more supporters from search results.'}</p>
+                        <div className="space-y-2">
+                            <Label>Charity Logo / Image</Label>
+                            {image ? (
+                                <div className="relative w-48 h-32 rounded-lg overflow-hidden border">
+                                    <Image src={image} alt="Charity" fill className="object-cover" />
+                                    <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6" onClick={() => setImage(null)}>
+                                        <X className="h-3 w-3" />
+                                    </Button>
                                 </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <Label htmlFor="metaTitle">Meta title</Label>
-                                        <span className="text-xs text-muted-foreground">{metaTitle.length} / 70</span>
-                                    </div>
-                                    <Input id="metaTitle" placeholder="Public title for the charity page..." value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={70}/>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                                        <Upload className="mr-2 h-4 w-4" /> Upload Image
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsCameraOpen(true)}>
+                                        <Camera className="mr-2 h-4 w-4" /> Take Photo
+                                    </Button>
+                                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                                 </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <Label htmlFor="metaDescription">Meta description</Label>
-                                        <span className="text-xs text-muted-foreground">{metaDescription.length} / 160</span>
-                                    </div>
-                                    <Textarea id="metaDescription" placeholder="This description will appear in search engines..." value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} maxLength={160} />
-                                </div>
-                            </CardContent>
-                        </Card>
+                            )}
+                        </div>
                     </CardContent>
-                    <CardFooter>
+                    <CardFooter className="flex justify-between border-t p-6">
+                        <Button variant="outline" onClick={() => router.push(`${demoPrefix}/leader/charities`)}>Cancel</Button>
                         <Button onClick={handleSave} disabled={isSubmitting}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                             Save Changes
@@ -250,12 +291,20 @@ export default function EditCharityPage() {
                     </CardFooter>
                 </Card>
             </div>
-             <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Take a Picture</DialogTitle></DialogHeader>
-                    <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
-                    {hasCameraPermission === false && <Alert variant="destructive"><AlertTitle>Camera Access Required</AlertTitle><AlertDescription>Please allow camera access in your browser.</AlertDescription></Alert>}
-                    <div className="flex gap-2"><Button onClick={handleCapture} disabled={hasCameraPermission !== true}><Camera className="mr-2" /> Capture</Button><Button variant="outline" onClick={() => setIsCameraOpen(false)}>Cancel</Button></div>
+
+            <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Take Photo</DialogTitle>
+                    </DialogHeader>
+                    <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+                        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                        <canvas ref={canvasRef} className="hidden" />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setIsCameraOpen(false)}>Cancel</Button>
+                        <Button onClick={handleCapture}>Capture</Button>
+                    </div>
                 </DialogContent>
             </Dialog>
         </>

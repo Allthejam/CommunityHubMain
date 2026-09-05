@@ -28,7 +28,6 @@ import { RichTextEditor } from "@/components/rich-text-editor";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 
-
 const charityCategories = [
     "Community Support",
     "Animal Welfare",
@@ -49,6 +48,10 @@ export default function CreateCharityPage() {
     const router = useRouter();
     const { toast } = useToast();
 
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const effectiveCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [title, setTitle] = React.useState('');
     const [category, setCategory] = React.useState('');
@@ -68,7 +71,7 @@ export default function CreateCharityPage() {
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-     React.useEffect(() => {
+    React.useEffect(() => {
         if (isCameraOpen) {
             const getCameraPermission = async () => {
                 try {
@@ -109,21 +112,51 @@ export default function CreateCharityPage() {
     };
 
     const handleSubmit = async () => {
-        if (!userProfile?.communityId || !title || !description || !category) {
+        if (!effectiveCommunityId || !title || !description || !category) {
             toast({ title: "Missing Fields", description: "Please fill in title, category, and description.", variant: "destructive" });
             return;
         }
         setIsSubmitting(true);
-        const result = await createCharityAction({
-            communityId: userProfile.communityId,
-            title, category, description, address, website, email, phone, image, registrationNumber, metaTitle, metaDescription
-        });
 
-        if (result.success) {
-            toast({ title: "Listing Created", description: "The charity has been submitted for review." });
-            router.push("/leader/charities");
+        if (user) {
+            const result = await createCharityAction({
+                communityId: effectiveCommunityId,
+                title, category, description, address, website, email, phone, image, registrationNumber, metaTitle, metaDescription
+            });
+
+            if (result.success) {
+                toast({ title: "Listing Created", description: "The charity has been submitted." });
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('demo_charities_updated'));
+                }
+                router.push(`${demoPrefix}/leader/charities`);
+            } else {
+                toast({ title: "Error", description: result.error, variant: "destructive" });
+            }
         } else {
-            toast({ title: "Error", description: result.error, variant: "destructive" });
+            const newCharity = {
+                id: `demo_${Date.now()}`,
+                communityId: effectiveCommunityId,
+                title, category, description, address, website, email, phone, image, registrationNumber, metaTitle, metaDescription,
+                status: 'Active',
+                createdAt: new Date().toISOString(),
+            };
+            try {
+                const stored = JSON.parse(
+                    sessionStorage.getItem(`demo_charities_${effectiveCommunityId}`) || 
+                    localStorage.getItem(`demo_charities_${effectiveCommunityId}`) || '[]'
+                );
+                const updated = [newCharity, ...stored];
+                sessionStorage.setItem(`demo_charities_${effectiveCommunityId}`, JSON.stringify(updated));
+                localStorage.setItem(`demo_charities_${effectiveCommunityId}`, JSON.stringify(updated));
+                toast({ title: "Listing Created", description: "The charity has been saved in your browser demo session." });
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('demo_charities_updated'));
+                }
+                router.push(`${demoPrefix}/leader/charities`);
+            } catch (e: any) {
+                toast({ title: "Error", description: e.message || "Failed to save charity.", variant: "destructive" });
+            }
         }
 
         setIsSubmitting(false);
@@ -134,13 +167,13 @@ export default function CreateCharityPage() {
         <div className="space-y-8">
             <div>
                 <Button asChild variant="ghost" className="mb-4">
-                    <Link href="/leader/charities">
+                    <Link href={`${demoPrefix}/leader/charities`}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Charities
                     </Link>
                 </Button>
                 <h1 className="text-3xl font-bold tracking-tight font-headline">Create Charity Listing</h1>
-                <p className="text-muted-foreground">Add a new charity or non-profit to your community's directory.</p>
+                <p className="text-muted-foreground">Add a new charity or non-profit to your community&apos;s directory.</p>
             </div>
             <Card>
                 <CardHeader>
@@ -150,111 +183,101 @@ export default function CreateCharityPage() {
                     <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="title">Charity Name *</Label>
-                            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
+                            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Community Food Bank" />
                         </div>
-                         <div className="space-y-2">
+                        <div className="space-y-2">
                             <Label htmlFor="category">Category *</Label>
-                            <Select onValueChange={setCategory} value={category}>
-                                <SelectTrigger id="category"><SelectValue placeholder="Select a category..." /></SelectTrigger>
+                            <Select value={category} onValueChange={setCategory}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {charityCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                    {charityCategories.map(cat => (
+                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
+
                     <div className="space-y-2">
-                        <Label htmlFor="description">Description *</Label>
-                        <RichTextEditor
-                            value={description}
-                            onChange={setDescription}
-                            placeholder="Describe the charity's mission and work..."
-                        />
+                        <Label htmlFor="registrationNumber">Charity Registration Number (Optional)</Label>
+                        <Input id="registrationNumber" value={registrationNumber} onChange={(e) => setRegistrationNumber(e.target.value)} placeholder="e.g. SC012345 or 1234567" />
                     </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="registration-number">Registration Number (Optional)</Label>
-                        <Input id="registration-number" value={registrationNumber} onChange={(e) => setRegistrationNumber(e.target.value)} />
-                    </div>
+
                     <div className="space-y-2">
-                        <Label>Image</Label>
+                        <Label>Description *</Label>
+                        <RichTextEditor value={description} onChange={setDescription} />
+                    </div>
+
+                    <Separator />
+
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="address">Address / Area Served</Label>
+                            <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. High Street, Town" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="website">Website URL</Label>
+                            <Input id="website" type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Public Contact Email</Label>
+                            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@charity.org" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="phone">Contact Phone</Label>
+                            <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01234 567890" />
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                        <Label>Charity Logo / Image</Label>
                         {image ? (
-                             <div className="relative w-48 h-36">
-                                <Image src={image} alt="Preview" fill style={{objectFit:"cover"}} className="rounded-md" />
-                                <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full" onClick={() => setImage(null)}><X className="h-4 w-4" /></Button>
+                            <div className="relative w-48 h-32 rounded-lg overflow-hidden border">
+                                <Image src={image} alt="Charity" fill className="object-cover" />
+                                <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6" onClick={() => setImage(null)}>
+                                    <X className="h-3 w-3" />
+                                </Button>
                             </div>
                         ) : (
                             <div className="flex gap-2">
-                                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2" /> Upload</Button>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                                <Button type="button" variant="outline" onClick={() => setIsCameraOpen(true)}><Camera className="mr-2" /> Take Picture</Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                                    <Upload className="mr-2 h-4 w-4" /> Upload Image
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setIsCameraOpen(true)}>
+                                    <Camera className="mr-2 h-4 w-4" /> Take Photo
+                                </Button>
+                                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                             </div>
                         )}
-                        <canvas ref={canvasRef} className="hidden" />
                     </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="address">Address</Label>
-                        <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} />
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="website">Website</Label>
-                            <Input id="website" type="url" value={website} onChange={(e) => setWebsite(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Public Email</Label>
-                            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="phone">Public Phone</Label>
-                            <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                        </div>
-                    </div>
-                    <Separator />
-
-                    <Card className="border-border/70">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Search className="h-5 w-5" /> Search engine optimization</CardTitle>
-                            <CardDescription>
-                            Improve your ranking and how your charity page will appear in search engines results.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="p-4 border rounded-lg bg-muted/50">
-                                <p className="text-blue-800 dark:text-blue-400 text-lg font-medium group-hover:underline truncate">{metaTitle || title || 'Charity Page Title'}</p>
-                                <p className="text-green-700 dark:text-green-400 text-sm">https://my-community-hub.co.uk/charities/[ID will appear here]</p>
-                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{metaDescription || 'Your compelling meta description will appear here, helping you attract more supporters from search results.'}</p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <Label htmlFor="metaTitle">Meta title</Label>
-                                    <span className="text-xs text-muted-foreground">{metaTitle.length} / 70</span>
-                                </div>
-                                <Input id="metaTitle" placeholder="Public title for the charity page..." value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={70}/>
-                            </div>
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <Label htmlFor="metaDescription">Meta description</Label>
-                                    <span className="text-xs text-muted-foreground">{metaDescription.length} / 160</span>
-                                </div>
-                                <Textarea id="metaDescription" placeholder="This description will appear in search engines..." value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} maxLength={160} />
-                            </div>
-                        </CardContent>
-                    </Card>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="flex justify-between border-t p-6">
+                    <Button variant="outline" onClick={() => router.push(`${demoPrefix}/leader/charities`)}>Cancel</Button>
                     <Button onClick={handleSubmit} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Save & Submit for Review
+                        Save Charity
                     </Button>
                 </CardFooter>
             </Card>
         </div>
-         <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
-            <DialogContent>
-                <DialogHeader><DialogTitle>Take a Picture</DialogTitle></DialogHeader>
-                <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
-                {hasCameraPermission === false && <Alert variant="destructive"><AlertTitle>Camera Access Required</AlertTitle><AlertDescription>Please allow camera access in your browser.</AlertDescription></Alert>}
-                <div className="flex gap-2"><Button onClick={handleCapture} disabled={hasCameraPermission !== true}><Camera className="mr-2" /> Capture</Button><Button variant="outline" onClick={() => setIsCameraOpen(false)}>Cancel</Button></div>
+
+        <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Take Photo</DialogTitle>
+                </DialogHeader>
+                <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                    <canvas ref={canvasRef} className="hidden" />
+                </div>
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsCameraOpen(false)}>Cancel</Button>
+                    <Button onClick={handleCapture}>Capture</Button>
+                </div>
             </DialogContent>
         </Dialog>
         </>

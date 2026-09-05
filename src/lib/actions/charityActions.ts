@@ -1,5 +1,3 @@
-
-
 'use server';
 
 import { initializeAdminApp } from "@/firebase/admin-app";
@@ -34,27 +32,28 @@ export type CharityApplicationData = {
     image: string | null;
     communityId: string;
     userId: string;
-}
+};
 
 export async function applyForCharityListingAction(data: CharityApplicationData): Promise<ActionResponse> {
-     if (!data.communityId || !data.title || !data.description || !data.userId) {
+    if (!data.communityId || !data.title || !data.description || !data.userId) {
         return { success: false, error: 'Missing required application fields.' };
     }
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = data.communityId === '9ayHMyZf4SRw2gof1AM9' || data.communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         const batch = firestore.batch();
         
         const charityRef = firestore.collection('charities').doc();
         batch.set(charityRef, {
             title: data.title,
-            category: 'Uncategorized', // Default category, to be set by leader
+            category: 'Uncategorized',
             description: data.description,
             website: data.website,
             image: data.image,
             communityId: data.communityId,
             submittedBy: data.userId,
-            contactPerson: data.contactPerson, // For internal review
-            contactNumber: data.contactNumber, // For internal review
+            contactPerson: data.contactPerson,
+            contactNumber: data.contactNumber,
             status: 'Pending',
             createdAt: Timestamp.now(),
         });
@@ -104,7 +103,8 @@ export async function createCharityAction(data: CharityData): Promise<ActionResp
         return { success: false, error: 'Missing required fields.' };
     }
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = data.communityId === '9ayHMyZf4SRw2gof1AM9' || data.communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         await firestore.collection('charities').add({
             ...data,
             status: 'Pending', // All new listings must be approved
@@ -117,12 +117,13 @@ export async function createCharityAction(data: CharityData): Promise<ActionResp
     }
 }
 
-export async function updateCharityAction(id: string, data: Partial<Omit<CharityData, 'communityId'>>): Promise<ActionResponse> {
+export async function updateCharityAction(id: string, data: Partial<Omit<CharityData, 'communityId'>>, communityId?: string): Promise<ActionResponse> {
     if (!id) {
         return { success: false, error: 'Charity ID is required.' };
     }
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         await firestore.collection('charities').doc(id).update({
             ...data,
             status: 'Pending', // Require re-approval on edit
@@ -135,12 +136,13 @@ export async function updateCharityAction(id: string, data: Partial<Omit<Charity
     }
 }
 
-export async function updateCharityStatusAction(id: string, status: 'Active' | 'Archived' | 'Pending' | 'Declined' | 'Paused'): Promise<ActionResponse> {
+export async function updateCharityStatusAction(id: string, status: 'Active' | 'Archived' | 'Pending' | 'Declined' | 'Paused', communityId?: string): Promise<ActionResponse> {
     if (!id) {
         return { success: false, error: 'Charity ID is required.' };
     }
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         await firestore.collection('charities').doc(id).update({ status });
         return { success: true };
     } catch (error: any) {
@@ -149,12 +151,13 @@ export async function updateCharityStatusAction(id: string, status: 'Active' | '
     }
 }
 
-export async function deleteCharityAction(id: string): Promise<ActionResponse> {
+export async function deleteCharityAction(id: string, communityId?: string): Promise<ActionResponse> {
     if (!id) {
         return { success: false, error: 'Charity ID is required.' };
     }
     try {
-        const { firestore } = initializeAdminApp();
+        const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
+        const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
         await firestore.collection('charities').doc(id).delete();
         return { success: true };
     } catch (error: any) {
@@ -162,5 +165,3 @@ export async function deleteCharityAction(id: string): Promise<ActionResponse> {
         return { success: false, error: error.message };
     }
 }
-
-    

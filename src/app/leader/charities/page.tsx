@@ -1,5 +1,3 @@
-
-      
 "use client";
 
 import * as React from "react";
@@ -16,7 +14,7 @@ import {
     PauseCircle,
     Info,
     RotateCw,
-} from "lucide-react"
+} from "lucide-react";
 import { collection, query, where, onSnapshot, doc } from "firebase/firestore";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -68,7 +66,7 @@ export type Charity = {
   createdAt: { toDate: () => Date };
 };
 
-const CharityRow = React.memo(({ charity, onUpdateStatus, onDelete }: { charity: Charity; onUpdateStatus: (id: string, status: Charity['status']) => void; onDelete: (id: string) => void; }) => {
+const CharityRow = React.memo(({ charity, onUpdateStatus, onDelete, demoPrefix = '' }: { charity: Charity; onUpdateStatus: (id: string, status: Charity['status']) => void; onDelete: (id: string) => void; demoPrefix?: string; }) => {
     const contextMenuItems = (
         <>
             <ContextMenuLabel>Actions</ContextMenuLabel>
@@ -80,13 +78,13 @@ const CharityRow = React.memo(({ charity, onUpdateStatus, onDelete }: { charity:
                 </>
             )}
             <ContextMenuItem asChild>
-                <Link href={`/leader/charities/edit/${charity.id}`}><FileEdit className="mr-2 h-4 w-4"/>Edit Listing</Link>
+                <Link href={`${demoPrefix}/leader/charities/edit/${charity.id}`}><FileEdit className="mr-2 h-4 w-4"/>Edit Listing</Link>
             </ContextMenuItem>
             {charity.status === "Active" && (
                 <ContextMenuItem onClick={() => onUpdateStatus(charity.id, 'Paused')}><PauseCircle className="mr-2 h-4 w-4"/>Pause</ContextMenuItem>
             )}
             {charity.status === "Paused" && (
-                    <ContextMenuItem onClick={() => onUpdateStatus(charity.id, 'Active')}><RotateCw className="mr-2 h-4 w-4"/>Re-approve</ContextMenuItem>
+                <ContextMenuItem onClick={() => onUpdateStatus(charity.id, 'Active')}><RotateCw className="mr-2 h-4 w-4"/>Re-approve</ContextMenuItem>
             )}
             <ContextMenuSeparator />
             <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(charity.id)}>
@@ -133,7 +131,7 @@ const CharityRow = React.memo(({ charity, onUpdateStatus, onDelete }: { charity:
                                     </>
                                 )}
                                 <DropdownMenuItem asChild>
-                                <Link href={`/leader/charities/edit/${charity.id}`}><FileEdit className="mr-2 h-4 w-4"/>Edit Listing</Link>
+                                    <Link href={`${demoPrefix}/leader/charities/edit/${charity.id}`}><FileEdit className="mr-2 h-4 w-4"/>Edit Listing</Link>
                                 </DropdownMenuItem>
                                 {charity.status === "Active" && (
                                     <DropdownMenuItem onClick={() => onUpdateStatus(charity.id, 'Paused')}><PauseCircle className="mr-2 h-4 w-4"/>Pause</DropdownMenuItem>
@@ -164,6 +162,10 @@ export default function LeaderCharitiesPage() {
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
+    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const demoPrefix = isDemo ? '/demo' : '';
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+
     const [charities, setCharities] = React.useState<Charity[]>([]);
     const [loading, setLoading] = React.useState(true);
     const { toast } = useToast();
@@ -172,22 +174,47 @@ export default function LeaderCharitiesPage() {
     const yearlyLimit = 6;
     const additionalCost = 5;
 
+    const loadDemoCharities = React.useCallback(() => {
+        if (!isDemo || typeof window === 'undefined') return [];
+        try {
+            return JSON.parse(
+                sessionStorage.getItem(`demo_charities_${communityId}`) || 
+                localStorage.getItem(`demo_charities_${communityId}`) || '[]'
+            );
+        } catch {
+            return [];
+        }
+    }, [isDemo, communityId]);
+
     React.useEffect(() => {
-        if (isUserLoading || profileLoading || !userProfile?.communityId || !db) {
+        if (isUserLoading || profileLoading || !communityId || !db) {
+            if (isDemo) {
+                setCharities(loadDemoCharities());
+            }
             setLoading(false);
             return;
         }
 
         setLoading(true);
-        const q = query(collection(db, "charities"), where("communityId", "==", userProfile.communityId));
+        const q = query(collection(db, "charities"), where("communityId", "==", communityId));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const charitiesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Charity));
-            setCharities(charitiesData);
+            if (isDemo) {
+                const localList = loadDemoCharities();
+                const combined = [...localList, ...charitiesData.filter(d => !localList.some(l => l.id === d.id))];
+                setCharities(combined);
+            } else {
+                setCharities(charitiesData);
+            }
             setLoading(false);
         }, (error) => {
             console.error("Error fetching charities:", error);
-            toast({ variant: "destructive", title: "Error", description: "Could not fetch charities." });
+            if (isDemo) {
+                setCharities(loadDemoCharities());
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "Could not fetch charities." });
+            }
             setLoading(false);
         });
         
@@ -197,13 +224,38 @@ export default function LeaderCharitiesPage() {
         };
         fetchPlans();
 
-        return () => unsubscribe();
-    }, [userProfile, isUserLoading, profileLoading, toast, db]);
+        const handleUpdate = () => {
+            if (isDemo) {
+                const localList = loadDemoCharities();
+                setCharities(prev => [...localList, ...prev.filter(d => !localList.some(l => l.id === d.id))]);
+            }
+        };
+        window.addEventListener('demo_charities_updated', handleUpdate);
+
+        return () => {
+            unsubscribe();
+            window.removeEventListener('demo_charities_updated', handleUpdate);
+        };
+    }, [communityId, isDemo, loadDemoCharities, isUserLoading, profileLoading, toast, db]);
     
     const currentCount = charities.length;
 
     const handleUpdateStatus = async (id: string, status: Charity['status']) => {
-        const result = await updateCharityStatusAction(id, status);
+        if (id.startsWith('demo_') || !user) {
+            try {
+                const stored = loadDemoCharities();
+                const updated = stored.map((c: any) => c.id === id ? { ...c, status } : c);
+                sessionStorage.setItem(`demo_charities_${communityId}`, JSON.stringify(updated));
+                localStorage.setItem(`demo_charities_${communityId}`, JSON.stringify(updated));
+                setCharities(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+                toast({ title: 'Status Updated', description: 'The charity listing has been updated.' });
+            } catch (e: any) {
+                toast({ title: 'Error', description: e.message, variant: 'destructive' });
+            }
+            return;
+        }
+
+        const result = await updateCharityStatusAction(id, status, communityId);
         if (result.success) {
             toast({ title: 'Status Updated', description: 'The charity listing has been updated.' });
         } else {
@@ -215,7 +267,22 @@ export default function LeaderCharitiesPage() {
         if (!window.confirm("Are you sure you want to permanently delete this listing?")) {
             return;
         }
-        const result = await deleteCharityAction(id);
+
+        if (id.startsWith('demo_') || !user) {
+            try {
+                const stored = loadDemoCharities();
+                const updated = stored.filter((c: any) => c.id !== id);
+                sessionStorage.setItem(`demo_charities_${communityId}`, JSON.stringify(updated));
+                localStorage.setItem(`demo_charities_${communityId}`, JSON.stringify(updated));
+                setCharities(prev => prev.filter(c => c.id !== id));
+                toast({ title: 'Listing Deleted', description: 'The charity listing has been removed.' });
+            } catch (e: any) {
+                toast({ title: 'Error', description: e.message, variant: 'destructive' });
+            }
+            return;
+        }
+
+        const result = await deleteCharityAction(id, communityId);
         if (result.success) {
             toast({ title: 'Listing Deleted', description: 'The charity listing has been removed.' });
         } else {
@@ -255,7 +322,7 @@ export default function LeaderCharitiesPage() {
                 </CardDescription>
             </div>
             <Button asChild>
-                <Link href="/leader/charities/create">
+                <Link href={`${demoPrefix}/leader/charities/create`}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Create Listing
                 </Link>
@@ -281,7 +348,7 @@ export default function LeaderCharitiesPage() {
                             </TableRow>
                         ) : charities.length > 0 ? (
                             charities.map((charity) => (
-                                <CharityRow key={charity.id} charity={charity} onUpdateStatus={handleUpdateStatus} onDelete={handleDelete} />
+                                <CharityRow key={charity.id} charity={charity} onUpdateStatus={handleUpdateStatus} onDelete={handleDelete} demoPrefix={demoPrefix} />
                             ))
                         ) : (
                             <TableRow>
@@ -298,6 +365,3 @@ export default function LeaderCharitiesPage() {
     </div>
   );
 }
-    
-
-    
