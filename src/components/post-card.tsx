@@ -256,6 +256,8 @@ export default function PostCard({ post, className }: PostCardProps) {
   const videoInfo = React.useMemo(() => parseVideoUrl(isEditing ? editedVideoUrl : post.videoUrl), [isEditing, editedVideoUrl, post.videoUrl]);
 
 
+  const isAnonymousPost = (post as any).isAnonymous || post.author?.toLowerCase().includes('anonymous');
+
   return (
     <Card className={cn('overflow-hidden', className, isPending && 'border-dashed border-amber-500')}>
        {isPending && (
@@ -265,20 +267,27 @@ export default function PostCard({ post, className }: PostCardProps) {
         </div>
       )}
       <CardHeader className="flex flex-row items-center gap-4 p-4">
-        <Avatar className="h-10 w-10 border">
-          <AvatarImage
-            src={post.authorAvatar}
-            alt={post.author}
-          />
-          <AvatarFallback>
-            {post.author
+        <Avatar className="h-10 w-10 border bg-muted">
+          {!isAnonymousPost && (
+            <AvatarImage
+              src={post.authorAvatar}
+              alt={post.author}
+            />
+          )}
+          <AvatarFallback className={cn(isAnonymousPost && "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold")}>
+            {isAnonymousPost ? '👤' : (post.author
               ?.split(' ')
               .map((n) => n[0])
-              .join('') || 'U'}
+              .join('') || 'U')}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <p className="font-semibold">{post.author}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold">{isAnonymousPost ? 'Anonymous Neighbor' : post.author}</p>
+            {isAnonymousPost && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border font-normal">Private</span>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">{post.timestamp}</p>
         </div>
         <DropdownMenu>
@@ -290,12 +299,14 @@ export default function PostCard({ post, className }: PostCardProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem asChild>
-              <Link href={`/chat?contact=${post.authorId}&itemId=${post.id}`}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Contact Author
-              </Link>
-            </DropdownMenuItem>
+            {!isAnonymousPost && (
+              <DropdownMenuItem asChild>
+                <Link href={`/chat?contact=${post.authorId}&itemId=${post.id}`}>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Contact Author
+                </Link>
+              </DropdownMenuItem>
+            )}
              <DropdownMenuItem asChild>
               <Link href={`/report-issue?postId=${post.id}`}>
                 <span className="text-destructive flex items-center w-full">

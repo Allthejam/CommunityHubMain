@@ -16,6 +16,7 @@ type CreatePostParams = {
   authorId: string;
   authorName?: string;
   authorAvatar?: string;
+  isAnonymous?: boolean;
   content: string;
   image?: string | null;
   videoUrl?: string | null;
@@ -33,7 +34,7 @@ export async function createPostAction(params: CreatePostParams): Promise<Action
     const isDemoCommunity = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome';
     const { firestore } = initializeAdminApp(isDemoCommunity ? 'comfeed' : undefined); 
 
-    // Fetch user profile to get necessary info like name and avatar
+    let isAnonymous = !!params.isAnonymous;
     let authorName = params.authorName || 'Community Member';
     let authorAvatar = params.authorAvatar || '';
 
@@ -46,11 +47,23 @@ export async function createPostAction(params: CreatePostParams): Promise<Action
       }
       if (userDoc.exists) {
         const userData = userDoc.data()!;
-        authorName = userData.name || authorName;
-        authorAvatar = userData.avatar || authorAvatar;
+        const accountAnonymous = userData.settings?.publicProfile === false || userData.isAnonymous === true || userData.hideName === true || userData.anonymous === true;
+        if (accountAnonymous) {
+          isAnonymous = true;
+        }
+        if (!isAnonymous && !params.authorName) {
+          authorName = userData.name || authorName;
+          authorAvatar = userData.avatar || authorAvatar;
+        }
       }
     } catch (err) {
       console.warn("Could not fetch user profile for post author:", err);
+    }
+
+    if (isAnonymous || (authorName && authorName.toLowerCase().includes('anonymous'))) {
+      authorName = 'Anonymous Neighbor';
+      authorAvatar = '';
+      isAnonymous = true;
     }
     
     let imageUrl: string | null = null;
@@ -77,6 +90,7 @@ export async function createPostAction(params: CreatePostParams): Promise<Action
       authorId,
       authorName,
       authorAvatar,
+      isAnonymous,
       content,
       image: imageUrl,
       videoUrl: videoUrl || null,

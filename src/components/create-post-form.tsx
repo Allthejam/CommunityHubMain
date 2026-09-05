@@ -2,9 +2,11 @@
 'use client'
 
 import * as React from 'react';
-import { ImagePlus, Send, Loader2, Smile, Video, X } from 'lucide-react'
+import { ImagePlus, Send, Loader2, Smile, Video, X, Shield } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import {
   Card,
   CardContent,
@@ -28,6 +30,15 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
   const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userProfileRef);
   const darkMode = userProfile?.settings?.darkMode;
+
+  const isAccountPrivate = userProfile?.settings?.publicProfile === false || userProfile?.settings?.isAnonymous === true || userProfile?.isAnonymous === true || userProfile?.hideName === true;
+  const [isAnonymous, setIsAnonymous] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isAccountPrivate) {
+      setIsAnonymous(true);
+    }
+  }, [isAccountPrivate]);
 
   const [mounted, setMounted] = React.useState(false);
   const [currentPersona, setCurrentPersona] = React.useState('personal');
@@ -59,8 +70,11 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
     regional: { name: 'Alastair Roy (Regional Authority)', avatar: '' },
   };
 
-  const activeAuthorName = userProfile?.name || user?.displayName || (mounted && isDemo ? PERSONA_DETAILS[currentPersona]?.name : 'Community Member');
-  const activeAuthorAvatar = userProfile?.avatar || user?.photoURL || (mounted && isDemo ? PERSONA_DETAILS[currentPersona]?.avatar : '');
+  const rawAuthorName = userProfile?.name || user?.displayName || (mounted && isDemo ? PERSONA_DETAILS[currentPersona]?.name : 'Community Member');
+  const rawAuthorAvatar = userProfile?.avatar || user?.photoURL || (mounted && isDemo ? PERSONA_DETAILS[currentPersona]?.avatar : '');
+
+  const activeAuthorName = isAnonymous ? 'Anonymous Neighbor' : rawAuthorName;
+  const activeAuthorAvatar = isAnonymous ? '' : rawAuthorAvatar;
 
   const handlePost = async () => {
     if (!content.trim()) {
@@ -76,6 +90,7 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
           authorId: user.uid,
           authorName: activeAuthorName,
           authorAvatar: activeAuthorAvatar,
+          isAnonymous,
           content: content.trim(),
           image,
           videoUrl,
@@ -83,7 +98,7 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
         });
 
         if (result.success) {
-          toast({ title: "Post Live!", description: "Your post is saved to the database and live on the feed." });
+          toast({ title: "Post Live!", description: isAnonymous ? "Your post is live anonymously on the feed." : "Your post is saved to the database and live on the feed." });
           setContent('');
           setImage(null);
           setVideoUrl('');
@@ -104,6 +119,7 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
         author: activeAuthorName,
         authorId: `demo-${currentPersona}-${Date.now()}`,
         authorAvatar: activeAuthorAvatar,
+        isAnonymous,
         content: content.trim(),
         image: image || null,
         videoUrl: videoUrl || null,
@@ -126,7 +142,7 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
         window.dispatchEvent(new CustomEvent('demo-posts-updated', { detail: newDemoPost }));
       }
 
-      toast({ title: "Post Submitted!", description: "Your demo post is live in your browser session." });
+      toast({ title: "Post Submitted!", description: isAnonymous ? "Your post is live anonymously in your session." : "Your demo post is live in your browser session." });
       setContent('');
       setImage(null);
       setVideoUrl('');
@@ -202,7 +218,7 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
                 </div>
             </div>
         )}
-         <div className="relative sm:pl-16">
+          <div className="relative sm:pl-16">
             <Input
                 placeholder="Paste a YouTube video URL..."
                 value={videoUrl}
@@ -210,6 +226,18 @@ export default function CreatePostForm({ communityId }: { communityId?: string }
                 className="pl-8"
             />
             <Video className="absolute left-2 sm:left-18 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        </div>
+
+        <div className="flex items-center space-x-2 pt-2 sm:pl-16">
+          <Checkbox
+            id="post-anonymous-toggle"
+            checked={isAnonymous}
+            onCheckedChange={(checked) => setIsAnonymous(!!checked)}
+          />
+          <Label htmlFor="post-anonymous-toggle" className="text-xs font-medium cursor-pointer text-muted-foreground flex items-center gap-1.5 select-none">
+            <Shield className="h-3.5 w-3.5 text-primary" />
+            <span>Post Anonymously {isAccountPrivate ? '(Account set to private/hide name)' : '(Hide name & profile)'}</span>
+          </Label>
         </div>
       </CardContent>
       <CardFooter className="flex justify-between p-4 pt-0">
