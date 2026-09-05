@@ -36,7 +36,7 @@ import { RichTextEditor } from '@/components/rich-text-editor';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { doc } from 'firebase/firestore';
-import { updateCommunityProfileAction } from '@/lib/actions/communityProfileActions';
+import { updateCommunityProfileAction, getCommunityProfileAction } from '@/lib/actions/communityProfileActions';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -110,13 +110,13 @@ export default function LeaderAboutPage() {
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
   const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
-    const demoPrefix = isDemo ? '/demo' : '';
-    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+  const demoPrefix = isDemo ? '/demo' : '';
+  const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
 
   const communityProfileRef = useMemoFirebase(() => {
-    if (!communityId || !db) return null;
+    if (!communityId || !db || isDemo) return null;
     return doc(db, 'community_profiles', communityId);
-  }, [communityId, db]);
+  }, [communityId, db, isDemo]);
   const { data: communityProfileData, isLoading: communityProfileLoading } =
     useDoc(communityProfileRef);
 
@@ -128,6 +128,7 @@ export default function LeaderAboutPage() {
   const [mainContent, setMainContent] = React.useState('');
   const [mapEmbedCode, setMapEmbedCode] = React.useState('');
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isLoadingInitial, setIsLoadingInitial] = React.useState(true);
 
   const [leadershipTeam, setLeadershipTeam] = React.useState<LeadershipItem[]>([]);
   const [isLeaderDialogOpen, setIsLeaderDialogOpen] = React.useState(false);
@@ -160,52 +161,124 @@ export default function LeaderAboutPage() {
 
   const bannerInputRef = React.useRef<HTMLInputElement>(null);
 
+  const populateFields = React.useCallback((data: CommunityProfileData) => {
+    if (!data) return;
+    setHeadline(data.headline || '');
+    setIntroduction(data.introduction || '');
+    setPopulation(data.population || '');
+    setArea(data.area || '');
+    setYearEstablished(data.yearEstablished || '');
+    setMainContent(data.mainContent || '');
+    setMapEmbedCode(data.mapEmbedCode || '');
+    setBannerImage(data.bannerImage || null);
+    setBannerImageDescription(data.bannerImageDescription || '');
+    setImageOne(data.imageOne || null);
+    setImageOneDescription(data.imageOneDescription || '');
+    setImageTwo(data.imageTwo || null);
+    setImageTwoDescription(data.imageTwoDescription || '');
+    setMetaTitle(data.metaTitle || '');
+    setMetaDescription(data.metaDescription || '');
+    setShowLeadership(data.showLeadershipOnAboutPage !== false);
+    
+    if (data.communityInformation && Array.isArray(data.communityInformation)) {
+      setLeadershipTeam(
+        data.communityInformation.map((item: any, index: number) => ({
+          id: item.id || `db-leader-${index}-${Math.random()}`,
+          name: item.name || '',
+          title: item.title || '',
+          email: item.email || '',
+          phone: item.phone || '',
+        }))
+      );
+    }
+
+    if (data.usefulInformation && Array.isArray(data.usefulInformation)) {
+      setUsefulInfo(
+        data.usefulInformation.map((item: any, index: number) => ({
+          id: item.id || `db-useful-${index}-${Math.random()}`,
+          name: item.name || '',
+          number: item.number || '',
+          address: item.address || '',
+        }))
+      );
+    }
+
+    if (data.policeContact) {
+      setPoliceContact({
+        stationName: data.policeContact.stationName || '',
+        officerName: data.policeContact.officerName || '',
+        contactEmail: data.policeContact.contactEmail || '',
+        contactPhone: data.policeContact.contactPhone || '',
+      });
+    }
+  }, []);
+
   React.useEffect(() => {
     if (communityProfileData) {
-      setHeadline(communityProfileData.headline || '');
-      setIntroduction(communityProfileData.introduction || '');
-      setPopulation(communityProfileData.population || '');
-      setArea(communityProfileData.area || '');
-      setYearEstablished(communityProfileData.yearEstablished || '');
-      setMainContent(communityProfileData.mainContent || '');
-      setMapEmbedCode(communityProfileData.mapEmbedCode || '');
-      setBannerImage(communityProfileData.bannerImage || null);
-      setBannerImageDescription(communityProfileData.bannerImageDescription || '');
-      setImageOne(communityProfileData.imageOne || null);
-      setImageOneDescription(communityProfileData.imageOneDescription || '');
-      setImageTwo(communityProfileData.imageTwo || null);
-      setImageTwoDescription(communityProfileData.imageTwoDescription || '');
-      setMetaTitle(communityProfileData.metaTitle || '');
-      setMetaDescription(communityProfileData.metaDescription || '');
-      setShowLeadership(communityProfileData.showLeadershipOnAboutPage !== false);
-      
-      if (communityProfileData.communityInformation) {
-        setLeadershipTeam(
-          communityProfileData.communityInformation.map((item: any, index: number) => ({
-            id: `db-leader-${index}-${Math.random()}`,
-            ...item,
-          }))
-        );
-      }
+      populateFields(communityProfileData);
+    }
+  }, [communityProfileData, populateFields]);
 
-      if (communityProfileData.usefulInformation) {
-        setUsefulInfo(
-          communityProfileData.usefulInformation.map((item: any, index: number) => ({
-            id: `db-useful-${index}-${Math.random()}`,
-            ...item,
-          }))
-        );
-      }
+  React.useEffect(() => {
+    if (!communityId) return;
 
-      if (communityProfileData.policeContact) {
-        setPoliceContact(communityProfileData.policeContact);
+    let isMounted = true;
+    setIsLoadingInitial(true);
+
+    // 1. Check local / session storage first
+    if (typeof window !== 'undefined') {
+      const cached = sessionStorage.getItem(`demo_about_${communityId}`) || localStorage.getItem(`demo_about_${communityId}`);
+      if (cached) {
+        try {
+          populateFields(JSON.parse(cached));
+        } catch (e) {}
       }
     }
-  }, [communityProfileData]);
+
+    // 2. Fetch from server action
+    getCommunityProfileAction(communityId).then((res) => {
+      if (!isMounted) return;
+      if (res.success && res.data) {
+        populateFields(res.data);
+      } else if (isDemo && !sessionStorage.getItem(`demo_about_${communityId}`) && !localStorage.getItem(`demo_about_${communityId}`)) {
+        // Fallback default for demo if none exists yet
+        populateFields({
+          headline: "About Oakridge & DemoVille",
+          introduction: "Welcome to Oakridge & DemoVille — our model demonstration community showcasing the future of connected towns and local business support.",
+          population: "14,850",
+          area: "18.4 sq km",
+          yearEstablished: "1842",
+          mainContent: "<p>Oakridge & DemoVille combines historic market town charm with modern digital civic infrastructure. Our community hub provides real-time emergency coordination, a thriving virtual high street, active community discussions, and comprehensive visitor guides.</p>",
+          usefulInformation: [
+            { name: "Town Council Hall", number: "01632 960001", address: "1 High Street, Oakridge, DE1 4MO" },
+            { name: "Community Medical Centre", number: "01632 960002", address: "Oakridge Health Park, Station Road" },
+            { name: "Tourist Information & Heritage", number: "01632 960003", address: "Market Place, Oakridge" }
+          ],
+          communityInformation: [
+            { name: "Fiona Macleod", title: "Community Council President & Hub Leader", email: "leader@oakridge-community.co.uk", phone: "07700 900123" }
+          ],
+          policeContact: {
+            stationName: "Oakridge Neighbourhood Police Station",
+            officerName: "Inspector Dave Campbell",
+            contactEmail: "neighbourhood@demo-police.pnn.police.uk",
+            contactPhone: "101 (Non-Emergency) / 999 (Emergency)"
+          },
+          showLeadershipOnAboutPage: true,
+        });
+      }
+      setIsLoadingInitial(false);
+    }).catch(() => {
+      if (isMounted) setIsLoadingInitial(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [communityId, isDemo, populateFields]);
 
   const handleImageUpload = async (file: File, setImageCallback: (url: string | null) => void, fieldName: string) => {
-    if (!user || !communityId) {
-      toast({ title: 'Authentication Error', variant: 'destructive' });
+    if (!communityId) {
+      toast({ title: 'Error', description: 'No community selected', variant: 'destructive' });
       return;
     }
     setIsUploading(fieldName);
@@ -222,7 +295,9 @@ export default function LeaderAboutPage() {
         setImageCallback(result.url);
         toast({ title: 'Image Uploaded' });
       } else {
-        throw new Error(result.error);
+        // In local/demo mode if GCS upload fails, fallback to base64
+        setImageCallback(base64Data);
+        toast({ title: 'Image Added' });
       }
     } catch (error: any) {
       toast({ title: 'Upload Failed', description: error.message, variant: 'destructive' });
@@ -255,6 +330,14 @@ export default function LeaderAboutPage() {
       policeContact,
       showLeadershipOnAboutPage: showLeadership,
     };
+
+    // Save to local / session storage for immediate demo reactivity
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(`demo_about_${communityId}`, JSON.stringify(aboutData));
+      localStorage.setItem(`demo_about_${communityId}`, JSON.stringify(aboutData));
+      window.dispatchEvent(new CustomEvent('demo_about_updated', { detail: aboutData }));
+    }
+
     try {
       const result = await updateCommunityProfileAction({ communityId, data: aboutData });
       if (result.success) {
@@ -263,7 +346,12 @@ export default function LeaderAboutPage() {
         throw new Error(result.error);
       }
     } catch (error: any) {
-      toast({ title: 'Save Failed', description: error.message, variant: 'destructive' });
+      // In demo mode, if server action threw an error but local storage was updated, we still notify
+      if (isDemo) {
+        toast({ title: 'Saved for Session', description: 'About page information has been saved for your demo session.' });
+      } else {
+        toast({ title: 'Save Failed', description: error.message, variant: 'destructive' });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -273,13 +361,15 @@ export default function LeaderAboutPage() {
     const dataToPreview = {
       headline, introduction, population, area, yearEstablished, mainContent, mapEmbedCode,
       bannerImage, bannerImageDescription, imageOne, imageOneDescription, imageTwo, imageTwoDescription,
-      metaTitle, metaDescription, policeContact, usefulInformation: usefulInfo.map(({ id, ...rest }) => rest)
+      metaTitle, metaDescription, policeContact, usefulInformation: usefulInfo.map(({ id, ...rest }) => rest),
+      communityInformation: leadershipTeam.map(({ id, ...rest }) => rest),
+      showLeadershipOnAboutPage: showLeadership
     };
     sessionStorage.setItem('aboutPagePreview', JSON.stringify(dataToPreview));
-    window.open('/leader/about/preview', '_blank');
+    window.open(`${demoPrefix}/community/${communityId}/about`, '_blank');
   };
 
-  if (profileLoading || communityProfileLoading) {
+  if ((profileLoading && !isDemo) || (isLoadingInitial && !headline)) {
     return (
       <div className="space-y-4 p-8">
         <Skeleton className="h-10 w-3/4" />
@@ -289,6 +379,8 @@ export default function LeaderAboutPage() {
     );
   }
 
+  const displayName = isDemo ? "Oakridge & DemoVille" : (userProfile?.communityName || 'Your Community');
+
   return (
     <div className="space-y-8">
       <div>
@@ -296,7 +388,7 @@ export default function LeaderAboutPage() {
           <Info className="h-8 w-8" />
           About Our Community
         </h1>
-        <h2 className="text-2xl font-semibold text-primary mt-4">Welcome to {userProfile?.communityName || 'Your Community'}</h2>
+        <h2 className="text-2xl font-semibold text-primary mt-4">Welcome to {displayName}</h2>
       </div>
 
       <div className="space-y-2">
@@ -311,7 +403,7 @@ export default function LeaderAboutPage() {
               onClick={() => bannerInputRef.current?.click()}
               disabled={!!isUploading}
             >
-              {isUploading === 'bannerImage' ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera />}
+              {isUploading === 'bannerImage' ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4" />}
               {isUploading === 'bannerImage' ? 'Uploading...' : 'Edit Banner'}
             </Button>
             <input
@@ -568,6 +660,21 @@ export default function LeaderAboutPage() {
               <Input
                 value={currentLeaderItem?.title || ''}
                 onChange={e => setCurrentLeaderItem(p => p ? { ...p, title: e.target.value } : null)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email (Optional)</Label>
+              <Input
+                type="email"
+                value={currentLeaderItem?.email || ''}
+                onChange={e => setCurrentLeaderItem(p => p ? { ...p, email: e.target.value } : null)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone (Optional)</Label>
+              <Input
+                value={currentLeaderItem?.phone || ''}
+                onChange={e => setCurrentLeaderItem(p => p ? { ...p, phone: e.target.value } : null)}
               />
             </div>
           </div>
