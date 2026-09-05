@@ -160,6 +160,8 @@ export default function LeaderAboutPage() {
   const [showLeadership, setShowLeadership] = React.useState(true);
 
   const bannerInputRef = React.useRef<HTMLInputElement>(null);
+  const imageOneInputRef = React.useRef<HTMLInputElement>(null);
+  const imageTwoInputRef = React.useRef<HTMLInputElement>(null);
 
   const populateFields = React.useCallback((data: CommunityProfileData) => {
     if (!data) return;
@@ -392,36 +394,56 @@ export default function LeaderAboutPage() {
       </div>
 
       <div className="space-y-2">
-        <Label>Banner Image</Label>
-        <div className="relative group w-full h-64 rounded-lg overflow-hidden shadow-lg bg-muted">
-          {bannerImage && <Image src={bannerImage} alt="Banner" fill className="object-cover" priority />}
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => bannerInputRef.current?.click()}
-              disabled={!!isUploading}
-            >
-              {isUploading === 'bannerImage' ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4" />}
-              {isUploading === 'bannerImage' ? 'Uploading...' : 'Edit Banner'}
-            </Button>
-            <input
-              type="file"
-              ref={bannerInputRef}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleImageUpload(file, setBannerImage, 'bannerImage');
-              }}
-              className="hidden"
-              accept="image/*"
-            />
+        <Label>Banner Image (Recommended ~600px wide × 200px high)</Label>
+        <div className="flex flex-col items-center">
+          <div className="relative group w-full max-w-[600px] h-[200px] rounded-xl overflow-hidden shadow-md bg-muted border">
+            {bannerImage ? (
+              <Image src={bannerImage} alt="Banner" fill className="object-cover object-center" priority />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+                <Camera className="h-8 w-8" />
+                <span className="text-xs">No banner image uploaded (600 × 200)</span>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-2"
+                onClick={() => bannerInputRef.current?.click()}
+                disabled={!!isUploading}
+              >
+                {isUploading === 'bannerImage' ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4" />}
+                {isUploading === 'bannerImage' ? 'Uploading...' : (bannerImage ? 'Change Banner' : 'Upload Banner')}
+              </Button>
+              {bannerImage && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setBannerImage(null)}
+                  disabled={!!isUploading}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+              <input
+                type="file"
+                ref={bannerInputRef}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(file, setBannerImage, 'bannerImage');
+                }}
+                className="hidden"
+                accept="image/*"
+              />
+            </div>
           </div>
         </div>
         <Input
           placeholder="Banner image description (for SEO)"
           value={bannerImageDescription}
           onChange={(e) => setBannerImageDescription(e.target.value)}
+          className="max-w-[600px] mx-auto"
         />
       </div>
 
@@ -455,6 +477,122 @@ export default function LeaderAboutPage() {
           <div className="space-y-2">
             <Label htmlFor="main-content">Main Page Content</Label>
             <RichTextEditor value={mainContent} onChange={setMainContent} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Camera className="h-5 w-5" /> Additional Community Images</CardTitle>
+          <CardDescription>Upload up to 2 showcase photos (Recommended ~600px wide × 200px high).</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Image One */}
+            <div className="space-y-2 flex flex-col items-center">
+              <Label className="self-start">Feature Photo 1</Label>
+              <div className="relative group w-full max-w-[600px] h-[200px] rounded-xl overflow-hidden shadow-md bg-muted border">
+                {imageOne ? (
+                  <Image src={imageOne} alt="Photo 1" fill className="object-cover object-center" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+                    <Camera className="h-8 w-8" />
+                    <span className="text-xs">No image uploaded (600 × 200)</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => imageOneInputRef.current?.click()}
+                    disabled={!!isUploading}
+                  >
+                    {isUploading === 'imageOne' ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4" />}
+                    {isUploading === 'imageOne' ? 'Uploading...' : (imageOne ? 'Change Photo' : 'Upload Photo')}
+                  </Button>
+                  {imageOne && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setImageOne(null)}
+                      disabled={!!isUploading}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <input
+                    type="file"
+                    ref={imageOneInputRef}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file, setImageOne, 'imageOne');
+                    }}
+                    className="hidden"
+                    accept="image/*"
+                  />
+                </div>
+              </div>
+              <Input
+                placeholder="Description for Photo 1"
+                value={imageOneDescription}
+                onChange={(e) => setImageOneDescription(e.target.value)}
+                className="w-full text-xs"
+              />
+            </div>
+
+            {/* Image Two */}
+            <div className="space-y-2 flex flex-col items-center">
+              <Label className="self-start">Feature Photo 2</Label>
+              <div className="relative group w-full max-w-[600px] h-[200px] rounded-xl overflow-hidden shadow-md bg-muted border">
+                {imageTwo ? (
+                  <Image src={imageTwo} alt="Photo 2" fill className="object-cover object-center" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+                    <Camera className="h-8 w-8" />
+                    <span className="text-xs">No image uploaded (600 × 200)</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => imageTwoInputRef.current?.click()}
+                    disabled={!!isUploading}
+                  >
+                    {isUploading === 'imageTwo' ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4" />}
+                    {isUploading === 'imageTwo' ? 'Uploading...' : (imageTwo ? 'Change Photo' : 'Upload Photo')}
+                  </Button>
+                  {imageTwo && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setImageTwo(null)}
+                      disabled={!!isUploading}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <input
+                    type="file"
+                    ref={imageTwoInputRef}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file, setImageTwo, 'imageTwo');
+                    }}
+                    className="hidden"
+                    accept="image/*"
+                  />
+                </div>
+              </div>
+              <Input
+                placeholder="Description for Photo 2"
+                value={imageTwoDescription}
+                onChange={(e) => setImageTwoDescription(e.target.value)}
+                className="w-full text-xs"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

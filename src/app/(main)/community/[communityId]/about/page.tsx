@@ -265,8 +265,10 @@ export default function CommunityAboutPage() {
                 </div>
 
                 {aboutData.bannerImage && (
-                    <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden shadow-lg border">
-                        <Image src={aboutData.bannerImage} alt="Community Banner" fill className="object-cover" priority />
+                    <div className="flex justify-center w-full">
+                        <div className="relative w-full max-w-[600px] h-[200px] rounded-2xl overflow-hidden shadow-lg border bg-muted/20">
+                            <Image src={aboutData.bannerImage} alt="Community Banner" fill className="object-cover object-center" priority />
+                        </div>
                     </div>
                 )}
                 
@@ -329,18 +331,20 @@ export default function CommunityAboutPage() {
                 )}
 
                 {/* Images */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {aboutData.imageOne && (
-                        <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-md border">
-                            <Image src={aboutData.imageOne} alt="Community Image One" fill className="object-cover" />
-                        </div>
-                    )}
-                     {aboutData.imageTwo && (
-                        <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-md border">
-                            <Image src={aboutData.imageTwo} alt="Community Image Two" fill className="object-cover" />
-                        </div>
-                    )}
-                </div>
+                {(aboutData.imageOne || aboutData.imageTwo) && (
+                    <div className="flex flex-wrap justify-center items-center gap-6">
+                        {aboutData.imageOne && (
+                            <div className="relative w-full max-w-[600px] h-[200px] rounded-xl overflow-hidden shadow-md border bg-muted/20">
+                                <Image src={aboutData.imageOne} alt="Community Image One" fill className="object-cover object-center" />
+                            </div>
+                        )}
+                        {aboutData.imageTwo && (
+                            <div className="relative w-full max-w-[600px] h-[200px] rounded-xl overflow-hidden shadow-md border bg-muted/20">
+                                <Image src={aboutData.imageTwo} alt="Community Image Two" fill className="object-cover object-center" />
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {aboutData.mapEmbedCode && (
                     <div className="pt-8 border-t">
