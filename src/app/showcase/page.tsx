@@ -158,7 +158,7 @@ export default function ShowcaseBrochurePage() {
       {/* TOP PROMOTIONAL BANNER */}
       <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 border-b border-emerald-500/30 text-white text-xs py-2 px-4 text-center font-bold tracking-wide flex items-center justify-center gap-2">
         <Sparkles className="h-4 w-4 text-emerald-400 animate-pulse" />
-        <span>Official Community Hub Product Showcase • 100% Isolated Demo on comfeed DB</span>
+        <span>Official Community Hub Product Showcase • Interactive Live Model Experience</span>
         <Link href="/demo/login" className="underline font-black text-emerald-300 hover:text-emerald-200 ml-1">
           Launch Demo →
         </Link>
@@ -235,7 +235,7 @@ export default function ShowcaseBrochurePage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <Link href="/demo/login" className="w-full sm:w-auto">
               <Button size="lg" className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-base h-13 px-8 gap-2.5 shadow-xl shadow-emerald-950/60">
-                <Sparkles className="h-5 w-5" /> Launch Demo Hub (comfeed)
+                <Sparkles className="h-5 w-5" /> Launch Interactive Demo Hub
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
@@ -739,7 +739,7 @@ export default function ShowcaseBrochurePage() {
 
           <div className="flex items-center gap-4">
             <Link href="/demo/login" className="hover:text-sky-300 font-bold">
-              Demo Hub (comfeed)
+              Interactive Demo Hub
             </Link>
             <Link href="/login" className="hover:text-white">
               Member Sign In

@@ -47,7 +47,7 @@ export default function DemoGatewayPage() {
       if (res.success) {
         toast({
           title: 'Demo Database Synchronized! 🚀',
-          description: res.message || 'Show Home baseline data copied to comfeed sandbox.',
+          description: res.message || 'Demo baseline data synchronized successfully.',
         });
         await loadStatus();
       } else {
@@ -69,7 +69,7 @@ export default function DemoGatewayPage() {
 
     toast({
       title: `Entering Demo as ${personaKey.toUpperCase()}`,
-      description: 'Viewing Demo Showcase Community on comfeed DB.',
+      description: 'Viewing Demo Showcase Community.',
     });
 
     if (personaKey === 'leader') {
@@ -295,7 +295,7 @@ export default function DemoGatewayPage() {
             </div>
             <div>
               <p className="font-bold text-white text-sm">
-                Sandbox Database: <span className="font-mono text-emerald-400 font-black">comfeed</span>
+                Demo Environment: <span className="font-mono text-emerald-400 font-black">Isolated Sandbox</span>
               </p>
               <p className="text-xs text-slate-300">
                 Current baseline: <strong className="text-emerald-300">{status?.eventsCount ?? 0} events</strong>, <strong className="text-emerald-300">{status?.newsCount ?? 0} news stories</strong>

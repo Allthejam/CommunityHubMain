@@ -268,7 +268,7 @@ function DemoLayoutContent({ children }: { children: React.ReactNode }) {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
               <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/50 text-[10px] font-mono uppercase font-bold px-2 py-0.5">
-                🛡️ 100% Demo Sandbox (comfeed)
+                🛡️ 100% Interactive Demo Sandbox
               </Badge>
             </div>
           </div>
