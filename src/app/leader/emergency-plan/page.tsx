@@ -2474,7 +2474,7 @@ export default function LeaderEmergencyPlanPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <Button
               onClick={handlePrintGrabBag}
               size="sm"
@@ -2482,6 +2482,18 @@ export default function LeaderEmergencyPlanPage() {
             >
               <Printer className="h-4 w-4 text-slate-950" /> Export Grab-Bag Dossier (PDF)
             </Button>
+
+            <Link href={isDemo ? '/demo/leader/emergency-plan/compliance' : '/leader/emergency-plan/compliance'}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-slate-900/90 border-sky-400/50 text-sky-300 hover:text-white hover:bg-sky-950 hover:border-sky-300 font-bold gap-1 px-2.5 shadow-sm"
+                title="ISO 22301 Compliance, Legal Disclaimers & Auditor Brief"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">ISO 22301 Legal</span>
+              </Button>
+            </Link>
 
             <Button
               onClick={handlePrint}

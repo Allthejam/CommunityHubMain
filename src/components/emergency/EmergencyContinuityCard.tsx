@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   ShieldAlert,
   Printer,
@@ -19,7 +21,8 @@ import {
   Flame,
   Waves,
   Zap,
-  PhoneCall
+  PhoneCall,
+  HelpCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +37,8 @@ interface EmergencyContinuityCardProps {
 
 export function EmergencyContinuityCard({ data, isLeader = false }: EmergencyContinuityCardProps) {
   const { toast } = useToast();
+  const pathname = usePathname();
+  const isDemo = pathname?.startsWith('/demo') || false;
 
   const handlePrintGrabBag = () => {
     try {
@@ -87,14 +92,28 @@ export function EmergencyContinuityCard({ data, isLeader = false }: EmergencyCon
             </CardDescription>
           </div>
 
-          <Button
-            onClick={handlePrintGrabBag}
-            size="lg"
-            className="bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-slate-950 font-black text-xs sm:text-sm h-11 px-5 gap-2 shadow-lg shadow-sky-950/60 shrink-0"
-          >
-            <Printer className="h-4 w-4 text-slate-950" />
-            Export 1-Click Grab-Bag Dossier (PDF)
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              onClick={handlePrintGrabBag}
+              size="lg"
+              className="bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-slate-950 font-black text-xs sm:text-sm h-11 px-5 gap-2 shadow-lg shadow-sky-950/60"
+            >
+              <Printer className="h-4 w-4 text-slate-950" />
+              Export 1-Click Grab-Bag Dossier (PDF)
+            </Button>
+
+            <Link href={isDemo ? '/demo/leader/emergency-plan/compliance' : '/leader/emergency-plan/compliance'}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-11 w-11 rounded-xl bg-slate-900/90 border-sky-400/50 text-sky-300 hover:text-white hover:bg-sky-950 hover:border-sky-300 shadow-md transition-all font-black text-base"
+                title="Open ISO 22301 Civil Resilience Compliance, Legal Disclaimers & Auditor Brief"
+                aria-label="ISO 22301 Compliance and Legal Documentation"
+              >
+                <HelpCircle className="h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </CardHeader>
 
