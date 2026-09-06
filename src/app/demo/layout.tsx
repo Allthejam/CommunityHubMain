@@ -655,7 +655,7 @@ function DemoLayoutContent({ children }: { children: React.ReactNode }) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-56">
-                        <DropdownMenuLabel className="text-xs font-bold">Discover Speyside</DropdownMenuLabel>
+                        <DropdownMenuLabel className="text-xs font-bold">Discover Local Area</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         {discoverSubItems.map((item) => (
                           <DropdownMenuItem key={item.label} asChild>

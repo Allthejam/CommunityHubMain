@@ -5,10 +5,10 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://my-community-hub.co.uk'),
   title: 'Community Hub Showcase | Hyperlocal Civic Resilience & Digital High Street Platform',
   description:
-    'Explore the official Community Hub showcase for Scottish towns and regional authorities. Features statutory civil resilience action plans, real-time emergency alert beacons, and an algorithm-free digital high street directory.',
+    'Explore the official Community Hub showcase for modern towns, cities, and regional authorities. Features statutory civil resilience action plans, real-time emergency alert beacons, and an algorithm-free digital high street directory.',
   keywords: [
     'Community Hub',
-    'Scottish Town Hub',
+    'Town & City Hub',
     'Civic Resilience',
     'Emergency Alert Beacon',
     'Digital High Street',
@@ -40,13 +40,13 @@ export const metadata: Metadata = {
     siteName: 'Community Hub Platform',
     title: 'Community Hub Showcase — Hyperlocal Civic Resilience & Digital High Street',
     description:
-      'Discover how Scottish towns use Community Hub for verified resident communication, emergency resilience dispatch, and independent high street discovery.',
+      'Discover how modern towns and municipalities use Community Hub for verified resident communication, emergency resilience dispatch, and independent high street discovery.',
     images: [
       {
         url: 'https://my-community-hub.co.uk/images/about/hero.jpg',
         width: 1200,
         height: 675,
-        alt: 'Highland Scottish community hub connecting local residents, independent merchants, and council leaders',
+        alt: 'Hyperlocal community hub connecting local residents, independent merchants, and civic leaders',
       },
       {
         url: 'https://i.postimg.cc/ydfsPkvz/Hublogo512x512.png',
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Community Hub Showcase | Scottish Civic Resilience & High Street Platform',
+    title: 'Community Hub Showcase | Hyperlocal Civic Resilience & High Street Platform',
     description:
       'One unified platform connecting residents, merchants, community councils, and regional authorities safely.',
     images: [

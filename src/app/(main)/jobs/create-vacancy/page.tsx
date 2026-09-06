@@ -133,9 +133,9 @@ export default function CreateVacancyPage() {
   const userBusinesses: UserBusiness[] = React.useMemo(() => {
     if (isDemo || communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome') {
       return [
-        { id: 'biz-demo-1', name: 'Speyside Artisan Butchery & Deli', logoImage: null },
-        { id: 'biz-demo-2', name: 'Highland River Outfitting & Co.', logoImage: null },
-        { id: 'biz-demo-3', name: 'Spey Valley Bakery & Cafe', logoImage: null },
+        { id: 'biz-demo-1', name: 'Oakridge Artisan Butchery & Deli', logoImage: null },
+        { id: 'biz-demo-2', name: 'Oakridge River Outfitting & Co.', logoImage: null },
+        { id: 'biz-demo-3', name: 'Oakridge Valley Bakery & Cafe', logoImage: null },
       ];
     }
     if (rawUserBusinesses && rawUserBusinesses.length > 0) {

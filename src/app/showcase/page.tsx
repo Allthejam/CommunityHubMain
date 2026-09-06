@@ -278,7 +278,7 @@ export default function ShowcaseBrochurePage() {
               <Network className="h-3.5 w-3.5 text-sky-400" /> Inter-Community Network Map
             </span>
             <span className="flex items-center gap-1.5">
-              <Flame className="h-3.5 w-3.5 text-red-400" /> ISO Scottish Resilience Aligned
+              <Flame className="h-3.5 w-3.5 text-red-400" /> ISO 22301 Civil Resilience Aligned
             </span>
             <span className="flex items-center gap-1.5">
               <Store className="h-3.5 w-3.5 text-emerald-400" /> 100% High Street Centric
@@ -571,7 +571,7 @@ export default function ShowcaseBrochurePage() {
               The Civic Difference
             </Badge>
             <h2 className="text-2xl sm:text-3xl font-black text-white font-headline">
-              Why Scottish Towns are Moving Off Generic Social Networks
+              Why Towns & Municipalities are Moving Off Generic Social Networks
             </h2>
           </div>
 
@@ -619,7 +619,7 @@ export default function ShowcaseBrochurePage() {
               </CardHeader>
               <CardContent className="p-5 pt-0 text-xs text-slate-300 leading-relaxed space-y-2">
                 <p>
-                  National Parks (Cairngorms, Trossachs) and Regional Councils get aggregate multi-community visibility, mutual-aid asset coordination, and mass transport dispatching during disasters.
+                  National Parks, Regional Districts, and Municipal Councils get aggregate multi-community visibility, mutual-aid asset coordination, and mass transport dispatching during disasters.
                 </p>
               </CardContent>
             </Card>
@@ -657,7 +657,7 @@ export default function ShowcaseBrochurePage() {
                 <h4>How does Inter-Community Networking and Tourism benefit our town?</h4>
               </AccordionTrigger>
               <AccordionContent className="text-xs text-slate-300 leading-relaxed">
-                The Interactive Community Map connects all participating Scottish towns. Residents can follow neighbouring parishes, and tourists visiting the Cairngorms or Highlands discover your town’s events, high street shops, guest book reviews, and local artisans, significantly boosting local footfall.
+                The Interactive Community Map connects all participating towns and districts. Residents can follow neighbouring communities, and visitors or tourists discover your town’s events, high street shops, guest book reviews, and local artisans, significantly boosting local footfall.
               </AccordionContent>
             </AccordionItem>
 
@@ -666,7 +666,7 @@ export default function ShowcaseBrochurePage() {
                 <h4>What everyday community tools are included beyond emergency alerts?</h4>
               </AccordionTrigger>
               <AccordionContent className="text-xs text-slate-300 leading-relaxed">
-                Community Hub includes a full suite of everyday modules: Local Jobs & Careers, Lost & Found alerts, What\'s On & Event bookings, Community Courier doorstep delivery, Civic Discussions, Town Polls & Consultations, Local Charities, and Public Council Minutes archives.
+                Community Hub includes a full suite of everyday modules: Local Jobs & Careers, Lost & Found alerts, What's On & Event bookings, Community Courier doorstep delivery, Civic Discussions, Town Polls & Consultations, Local Charities, and Public Council Minutes archives.
               </AccordionContent>
             </AccordionItem>
 
@@ -684,7 +684,7 @@ export default function ShowcaseBrochurePage() {
                 <h4>Is Community Hub compliant with UK GDPR and statutory resilience standards?</h4>
               </AccordionTrigger>
               <AccordionContent className="text-xs text-slate-300 leading-relaxed">
-                Yes. Community Hub adheres strictly to UK GDPR regulations, collects zero tracking cookies, operates role-based access control, and aligns with standard Scottish Civil Resilience emergency management frameworks (ISO 22301 aligned).
+                Yes. Community Hub adheres strictly to UK GDPR regulations, collects zero tracking cookies, operates role-based access control, and aligns with statutory Civil Resilience and emergency management frameworks (ISO 22301 aligned).
               </AccordionContent>
             </AccordionItem>
 
@@ -693,7 +693,7 @@ export default function ShowcaseBrochurePage() {
                 <h4>How can a town council or community group register their own hub?</h4>
               </AccordionTrigger>
               <AccordionContent className="text-xs text-slate-300 leading-relaxed">
-                Any Scottish community group or council can claim and set up their town hub in minutes through our guided registration wizard, or explore our live Show Home sandbox demo first.
+                Any community group, town council, or municipality can claim and set up their town hub in minutes through our guided registration wizard, or explore our live Show Home sandbox demo first.
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -734,7 +734,7 @@ export default function ShowcaseBrochurePage() {
           <div className="flex items-center gap-2">
             <Radio className="h-4 w-4 text-sky-400" />
             <span className="font-bold text-slate-200">Community Hub Platform</span>
-            <span>— Scottish Hyperlocal Resilience & Digital High Street Network</span>
+            <span>— Hyperlocal Resilience & Digital High Street Network</span>
           </div>
 
           <div className="flex items-center gap-4">

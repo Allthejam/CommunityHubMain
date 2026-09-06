@@ -1,4 +1,4 @@
-﻿import { ImageResponse } from 'next/og';
+import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 export const alt = 'Community Hub Showcase — Hyperlocal Civic Resilience & Digital High Street';
@@ -70,7 +70,7 @@ export default async function Image() {
               width: 'fit-content',
             }}
           >
-            <span>Scottish Hyperlocal Civic Network</span>
+            <span>Hyperlocal Civic Resilience Network</span>
           </div>
           <h1
             style={{

@@ -13,8 +13,8 @@ export const SHOWCASE_IMAGES: Record<string, ShowcaseImageItem> = {
   hero: {
     id: 'hero',
     src: '/images/about/hero.jpg',
-    alt: 'Highland Scottish community hub connecting local residents, independent high street merchants, and town council leaders',
-    title: 'Community Hub — Scottish Hyperlocal Civic Platform',
+    alt: 'Hyperlocal community hub connecting local residents, independent high street merchants, and town council leaders',
+    title: 'Community Hub — Hyperlocal Civic Platform',
     caption: 'One unified, algorithm-free digital home for every verified resident, high street business, and civic leader.',
     width: 1200,
     height: 675,
@@ -23,7 +23,7 @@ export const SHOWCASE_IMAGES: Record<string, ShowcaseImageItem> = {
   emergencyResilience: {
     id: 'emergencyResilience',
     src: '/images/about/emergency.jpg',
-    alt: 'Real-time Scottish community emergency resilience dashboard with flood alerts, safe shelter locations, and sandbag dispatch',
+    alt: 'Real-time community emergency resilience dashboard with flood alerts, safe shelter locations, and sandbag dispatch',
     title: 'Statutory Civic Emergency Resilience & Alert Beacon',
     caption: 'Immediate emergency alert dispatch with live shelter locations, sandbag collection points, and volunteer mutual-aid coordination.',
     width: 1000,
@@ -32,7 +32,7 @@ export const SHOWCASE_IMAGES: Record<string, ShowcaseImageItem> = {
   highStreet: {
     id: 'highStreet',
     src: '/images/about/highstreet.jpg',
-    alt: 'Independent Scottish town digital high street showcase featuring local butcher, bakery, artisan crafts, and special offers',
+    alt: 'Independent town digital high street showcase featuring local butcher, bakery, artisan crafts, and special offers',
     title: 'Digital High Street & Merchant Discovery Window',
     caption: 'Empowering independent local businesses to connect directly with local residents without paying thousands to global ad networks.',
     width: 1000,

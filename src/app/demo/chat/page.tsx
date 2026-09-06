@@ -111,7 +111,7 @@ const INITIAL_CONVERSATIONS: Conversation[] = [
   {
     id: 'callum-bakery',
     name: 'Callum Stewart',
-    role: 'Speyside Artisan Bakery',
+    role: 'Oakridge Artisan Bakery',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
     type: 'business',
     status: 'Open Today 7am - 4pm',
@@ -128,7 +128,7 @@ const INITIAL_CONVERSATIONS: Conversation[] = [
         id: 'msg-callum-1',
         sender: 'contact',
         senderName: 'Callum Stewart',
-        text: 'Hello from Speyside Artisan Bakery! 🥐 Thanks for visiting our listing on the High Street directory. Fresh sourdough and pastries are available every morning!',
+        text: 'Hello from Oakridge Artisan Bakery! 🥐 Thanks for visiting our listing on the High Street directory. Fresh sourdough and pastries are available every morning!',
         timestamp: 'Yesterday',
       },
     ],
