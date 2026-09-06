@@ -117,9 +117,11 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
+      sessionStorage.removeItem('isDemoMode');
+      sessionStorage.removeItem('sandboxPersona');
       window.dispatchEvent(new Event('community-change'));
     }
-    returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
+    await returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
     toast({ title: 'Welcome Home!', description: `Returned to ${homeCommunityName}.` });
     router.push('/home');
     router.refresh();

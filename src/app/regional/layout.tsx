@@ -34,7 +34,11 @@ export default function RegionalLayout({
 
     // Public site page is accessible to everyone, but back-office management routes require an authorized regional account
     if (!isPublicSite) {
-      if (!user || !isRegionalUser) {
+      if (!user) {
+        window.location.href = '/';
+        return;
+      }
+      if (!isRegionalUser) {
         router.replace('/regional-networks');
         return;
       }

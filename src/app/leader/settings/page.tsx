@@ -23,6 +23,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { EmailAuthProvider, reauthenticateWithCredential, signOut } from "firebase/auth";
+import { performGlobalLogout } from "@/lib/auth-logout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -574,10 +575,7 @@ function PlatformSettingsContent() {
       if (result.success) {
         toast({ title: "Leadership Handed Over", description: "You are now being logged out." });
         setTimeout(async () => {
-          if (auth) {
-            await signOut(auth);
-            router.push('/');
-          }
+          await performGlobalLogout(auth, db, user);
         }, 2000);
       } else {
         throw new Error(result.error);
@@ -650,10 +648,7 @@ function PlatformSettingsContent() {
     if (result.success) {
         toast({ title: "Resignation Successful", description: "You are no longer the community president. You will be logged out." });
         setTimeout(async () => {
-          if (auth) {
-            await signOut(auth);
-            router.push('/');
-          }
+          await performGlobalLogout(auth, db, user);
         }, 3000);
     } else {
         toast({ title: "Resignation Failed", description: result.error, variant: "destructive" });

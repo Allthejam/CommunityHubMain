@@ -253,12 +253,21 @@ export default function EmergencyPlanCompliancePage() {
             </Button>
           )}
 
+          <a href="/documents/iso-22301-auditor-brief.pdf" download="ISO-22301-Auditor-Brief.pdf">
+            <Button
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5 text-xs shadow-md shadow-emerald-950/40 cursor-pointer"
+            >
+              <Download className="h-4 w-4" /> Download Official PDF
+            </Button>
+          </a>
+
           <Button
             onClick={handleDownloadComplianceBrief}
             size="sm"
             className="bg-sky-600 hover:bg-sky-500 text-white font-bold gap-2 text-xs shadow-md shadow-sky-950/40"
           >
-            <Download className="h-4 w-4" /> Download ISO 22301 Auditor Brief (PDF)
+            <Printer className="h-4 w-4" /> Generate Custom PDF
           </Button>
 
           <Button
@@ -267,7 +276,7 @@ export default function EmergencyPlanCompliancePage() {
             size="sm"
             className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-950/40 font-bold gap-2 text-xs shadow-sm"
           >
-            <Printer className="h-4 w-4 text-emerald-400" /> Export Grab-Bag Dossier (PDF)
+            <Printer className="h-4 w-4 text-emerald-400" /> Export Grab-Bag (PDF)
           </Button>
         </div>
       </div>

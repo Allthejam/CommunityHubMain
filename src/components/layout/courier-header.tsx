@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { performGlobalLogout } from '@/lib/auth-logout';
 import { Logo } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -121,15 +122,7 @@ export default function CourierHeader() {
   }, [user, userProfile, toast]);
 
   const handleLogout = async () => {
-    if (!auth || !user || !firestore) return;
-    const userStatusRef = doc(firestore, 'users', user.uid);
-    try {
-        await updateDoc(userStatusRef, { isOnline: false, lastSeen: serverTimestamp() });
-    } catch (error) {
-        console.error("Failed to set user offline before logout:", error);
-    }
-    await signOut(auth);
-    router.push('/');
+    await performGlobalLogout(auth, firestore, user);
   };
   
   const dashboards = useMemo(() => {

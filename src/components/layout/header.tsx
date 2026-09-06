@@ -41,10 +41,15 @@ import {
   Bus,
   Search,
   Sparkles,
+  FileDown,
+  Printer,
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
 import { doc, collection, query, where, onSnapshot, serverTimestamp, updateDoc, getDoc } from 'firebase/firestore';
+
+import { trigger1ClickGrabBag } from '@/lib/emergency-grab-bag-generator';
+import { performGlobalLogout } from '@/lib/auth-logout';
 
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -200,6 +205,15 @@ export default function AppHeader() {
 
       // 3. Fallback to active session storage
       const stored = sessionStorage.getItem('visitedCommunityId');
+      if (!pathname?.startsWith('/demo') && (stored === '9ayHMyZf4SRw2gof1AM9' || sessionStorage.getItem('isDemoMode') === 'true')) {
+        sessionStorage.removeItem('visitedCommunityId');
+        sessionStorage.removeItem('visitedCommunityName');
+        sessionStorage.removeItem('isDemoMode');
+        sessionStorage.removeItem('sandboxPersona');
+        setVisitedSessionId(null);
+        return;
+      }
+
       if (stored && homeCommunityId && stored === homeCommunityId) {
         sessionStorage.removeItem('visitedCommunityId');
         setVisitedSessionId(null);
@@ -260,20 +274,8 @@ export default function AppHeader() {
   }, [user, firestore]);
 
   const handleLogout = useCallback(async () => {
-    if (!auth || !user || !firestore) return;
-    sessionStorage.removeItem('visitedCommunityId');
-    sessionStorage.removeItem('visitedCommunityName');
-
-    const userStatusRef = doc(firestore, 'users', user.uid);
-    try {
-      await updateDoc(userStatusRef, { isOnline: false, lastSeen: serverTimestamp() });
-    } catch (error) {
-      console.error("Failed to set user offline before logout:", error);
-    }
-    
-    await signOut(auth);
-    router.push('/');
-  }, [auth, user, firestore, router]);
+    await performGlobalLogout(auth, firestore, user);
+  }, [auth, firestore, user]);
 
   const handleAdminDashboardClick = useCallback(() => {
     const email = user?.email || userProfile?.email;
@@ -316,12 +318,14 @@ export default function AppHeader() {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
+      sessionStorage.removeItem('isDemoMode');
+      sessionStorage.removeItem('sandboxPersona');
       window.dispatchEvent(new Event('community-change'));
     }
     setVisitedSessionId(null);
     if (user) {
       setIsSwitching(true);
-      returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
+      await returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
       setIsSwitching(false);
     }
     toast({ title: 'Returned Home', description: `Returned to your locked Home Community hub.` });
@@ -446,6 +450,34 @@ export default function AppHeader() {
     return Array.from(new Map(availableDashboards.map(item => [item.label, item])).values());
   }, [userProfile, handleAdminDashboardClick, handleAdvertiserDashboardClick]);
 
+  const hasEmergencyAccess = useMemo(() => {
+    if (!userProfile) return false;
+    const isPlatformStaff = userProfile.isStaff === true ||
+                            userProfile.permissions?.isStaff === true || 
+                            userProfile.permissions?.isAdmin === true ||
+                            userProfile.role === 'admin' || 
+                            userProfile.role === 'owner' ||
+                            userProfile.accountType === 'admin' ||
+                            userProfile.accountType === 'owner';
+    const isLeader = ['president', 'leader', 'vice-president'].includes(userProfile.role) ||
+                     ['president', 'leader'].includes(userProfile.accountType) ||
+                     (userProfile.communityRoles && Object.values(userProfile.communityRoles).some((r: any) => ['president', 'leader', 'vice-president'].includes(r.role)));
+    const hasEmergencyPermission = userProfile.permissions?.viewEmergency || 
+                                   userProfile.permissions?.emergencyCanViewPlan || 
+                                   userProfile.permissions?.isCommunityCreator ||
+                                   (userProfile.communityRoles && Object.values(userProfile.communityRoles).some((r: any) => r.permissions?.viewEmergency || r.permissions?.emergencyCanViewPlan));
+    return Boolean(isPlatformStaff || isLeader || hasEmergencyPermission);
+  }, [userProfile]);
+
+  const handleQuickGrabBag = useCallback(() => {
+    trigger1ClickGrabBag({
+      communityId: visitedCommunityIdEffective || homeCommunityId,
+      userProfile,
+      firestore,
+      toast
+    });
+  }, [visitedCommunityIdEffective, homeCommunityId, userProfile, firestore, toast]);
+
   const renderAuthControls = () => {
     if (!isClient || isUserLoading || profileLoading) {
         return (
@@ -530,6 +562,29 @@ export default function AppHeader() {
                                 </DropdownMenuItem>
                             ))}
                           </DropdownMenuGroup>
+                      )}
+                      {/* 1-CLICK EMERGENCY GRAB-BAG (LEADERS & RESILIENCE OFFICERS ONLY) */}
+                      {hasEmergencyAccess && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                            <DropdownMenuLabel className="text-[11px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                              <span>Civil Resilience</span>
+                              <span className="text-[9px] bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono px-1 py-0.2 rounded font-normal">ISO 22301</span>
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem
+                              className="font-bold text-amber-800 dark:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 dark:hover:bg-amber-500/30 cursor-pointer flex items-center justify-between py-2"
+                              onClick={handleQuickGrabBag}
+                              title="Generate 2-page A4 physical emergency action runbook with keyholder contacts and offline contingency data"
+                            >
+                              <div className="flex items-center gap-2">
+                                <FileDown className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                <span className="text-xs">1-Click Grab-Bag Dossier</span>
+                              </div>
+                              <span className="text-[10px] bg-amber-200 dark:bg-amber-900/80 text-amber-950 dark:text-amber-100 font-mono px-1.5 py-0.5 rounded font-black border border-amber-400/40">PDF</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </>
                       )}
                       <DropdownMenuSeparator />
                       {/* VIEW DEMO COMMUNITY SANDBOX (STRICT OWNER ONLY) */}

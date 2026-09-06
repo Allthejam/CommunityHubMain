@@ -44,6 +44,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { changeAccountTypeAction, resignAsPresidentAction, deleteUserAccountAction, updateUserCommunityAction, updateUserFavouriteCommunitiesAction, downgradeAccountAction, changeHomeCommunityAction, migrateBusinessAndChangeCommunityAction } from "@/lib/actions/userActions";
 import { saveLeaderProfile } from "@/lib/actions/leaderActions";
+import { performGlobalLogout } from "@/lib/auth-logout";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -543,10 +544,7 @@ export default function UserProfilePage() {
 
             if (result.success) {
                 toast({ title: "Account Deleted", description: "Your account has been permanently removed." });
-                if (auth) {
-                    await signOut(auth); // Sign out from the client
-                }
-                router.push('/'); // Redirect
+                await performGlobalLogout(auth, db, user);
             } else {
                 throw new Error(result.error || "An unexpected error occurred during account deletion.");
             }

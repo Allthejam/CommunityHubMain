@@ -39,11 +39,16 @@ import {
   Sparkles,
   HeartHandshake,
   Target,
-  Navigation
+  Navigation,
+  FileDown,
+  Printer
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
 import { doc, collection, query, where, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+
+import { trigger1ClickGrabBag } from '@/lib/emergency-grab-bag-generator';
+import { performGlobalLogout } from '@/lib/auth-logout';
 
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { Logo } from '@/components/icons';
@@ -157,17 +162,8 @@ export default function LeaderHeader() {
   }, [user, userProfile, toast]);
 
   const handleLogout = useCallback(async () => {
-    if (!auth || !user || !firestore) return;
-    const userStatusRef = doc(firestore, 'users', user.uid);
-    try {
-        await updateDoc(userStatusRef, { isOnline: false, lastSeen: serverTimestamp() });
-    } catch (error) {
-        console.error("Failed to set user offline before logout:", error);
-    }
-    
-    await signOut(auth);
-    router.push('/');
-  }, [auth, user, firestore, router]);
+    await performGlobalLogout(auth, firestore, user);
+  }, [auth, user, firestore]);
 
   useEffect(() => {
     if (!user || !firestore) {
@@ -278,6 +274,17 @@ export default function LeaderHeader() {
     return all;
   }, [userProfile]);
 
+  const handleQuickGrabBag = useCallback(() => {
+    const impersonating = (userProfile as any)?.impersonating;
+    const targetCommId = impersonating?.communityId || userProfile?.communityId || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId;
+    trigger1ClickGrabBag({
+      communityId: targetCommId,
+      userProfile,
+      firestore,
+      toast
+    });
+  }, [userProfile, firestore, toast]);
+
   const isVisiting = useMemo(() => !!(userProfile && userProfile.communityId !== userProfile.homeCommunityId), [userProfile]);
 
   return (
@@ -352,6 +359,25 @@ export default function LeaderHeader() {
                             ))}
                         </DropdownMenuGroup>
                     )}
+                    {/* 1-CLICK EMERGENCY GRAB-BAG */}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                        <DropdownMenuLabel className="text-[11px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                            <span>Civil Resilience</span>
+                            <span className="text-[9px] bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono px-1 py-0.2 rounded font-normal">ISO 22301</span>
+                        </DropdownMenuLabel>
+                        <DropdownMenuItem
+                            className="font-bold text-amber-800 dark:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 dark:hover:bg-amber-500/30 cursor-pointer flex items-center justify-between py-2"
+                            onClick={handleQuickGrabBag}
+                            title="Generate 2-page A4 physical emergency action runbook with keyholder contacts and offline contingency data"
+                        >
+                            <div className="flex items-center gap-2">
+                                <FileDown className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                <span className="text-xs">1-Click Grab-Bag Dossier</span>
+                            </div>
+                            <span className="text-[10px] bg-amber-200 dark:bg-amber-900/80 text-amber-950 dark:text-amber-100 font-mono px-1.5 py-0.5 rounded font-black border border-amber-400/40">PDF</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild><Link href="/home"><HomeIcon className="mr-2 h-4 w-4" />Public Home</Link></DropdownMenuItem>
                     <DropdownMenuSeparator />

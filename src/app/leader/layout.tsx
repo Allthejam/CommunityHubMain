@@ -39,7 +39,7 @@ export default function LeaderLayout({
     }
 
     if (!user) {
-      router.replace('/');
+      window.location.href = '/';
       return;
     }
 

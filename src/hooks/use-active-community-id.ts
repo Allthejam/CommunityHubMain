@@ -6,19 +6,23 @@ import { doc } from 'firebase/firestore';
 
 export function getActiveCommunityId(userProfile?: any): string {
   if (typeof window !== 'undefined') {
-    const isDemo = sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo');
+    const isDemo = window.location.pathname.startsWith('/demo');
     if (isDemo) {
       return sessionStorage.getItem('visitedCommunityId') || '9ayHMyZf4SRw2gof1AM9';
     }
+    // Clean up any stale demo keys when on live routes
+    if (sessionStorage.getItem('isDemoMode') === 'true') {
+      sessionStorage.removeItem('isDemoMode');
+    }
     const visitedId = sessionStorage.getItem('visitedCommunityId');
-    if (visitedId) return visitedId;
+    if (visitedId && visitedId !== '9ayHMyZf4SRw2gof1AM9') return visitedId;
   }
-  return userProfile?.communityId || userProfile?.homeCommunityId || 'N3SarfGXPLxBI7XcsinX';
+  return userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX';
 }
 
 export function getDashboardLink(targetPath: string): string {
   if (typeof window !== 'undefined') {
-    const isDemo = sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo');
+    const isDemo = window.location.pathname.startsWith('/demo');
     if (isDemo) {
       return targetPath.startsWith('/demo') ? targetPath : `/demo${targetPath}`;
     }

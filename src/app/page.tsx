@@ -51,7 +51,7 @@ export default function SignInPage() {
   const { toast } = useToast();
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false);
@@ -148,6 +148,14 @@ export default function SignInPage() {
       await setPersistence(auth, persistence);
       
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+      // On successful login, purge any stale sandbox/demo session flags
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('visitedCommunityId');
+        sessionStorage.removeItem('visitedCommunityName');
+        sessionStorage.removeItem('isDemoMode');
+        sessionStorage.removeItem('sandboxPersona');
+      }
 
       // On successful login, reset attempts for this email
       const newAttempts = { ...loginAttempts };

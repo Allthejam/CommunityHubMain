@@ -47,13 +47,13 @@ export default function LeaderDashboardPage() {
     const impersonating = (userProfile as any)?.impersonating;
     const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
     const demoPrefix = isDemo ? '/demo' : '';
-    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (impersonating?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (impersonating?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
     
     // Query the actual community doc in Firestore so any database edits update immediately
     const communityRef = useMemoFirebase(() => (communityId && db ? doc(db, 'communities', communityId) : null), [communityId, db]);
     const { data: communityData } = useDoc<any>(communityRef);
 
-    const communityName = impersonating?.communityName || communityData?.name || userProfile?.communityName || 'Community Hub';
+    const communityName = impersonating?.communityName || communityData?.name || userProfile?.primaryHomeCommunityName || userProfile?.homeCommunityName || userProfile?.communityName || 'Community Hub';
     const communityRoleData = communityId ? userProfile?.communityRoles?.[communityId] : null;
 
     const permissions = communityRoleData?.permissions || userProfile?.permissions || {};

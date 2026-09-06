@@ -54,6 +54,7 @@ import { collection, doc, orderBy, query, getDocs, where, addDoc, serverTimestam
 import { format, formatDistanceToNow, isValid } from "date-fns";
 import EmojiPicker, { Theme as EmojiTheme } from "emoji-picker-react";
 import { sendPushNotificationAction } from '@/lib/actions/notificationActions';
+import { performGlobalLogout } from '@/lib/auth-logout';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
@@ -872,9 +873,7 @@ export function ChatPageContent() {
     };
 
     const handleLogout = async () => {
-        if (!auth) return;
-        await signOut(auth);
-        router.push('/');
+        await performGlobalLogout(auth, firestore, user);
     };
 
     const getInitials = (name: string | undefined) => {

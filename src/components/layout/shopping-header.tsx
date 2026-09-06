@@ -35,6 +35,7 @@ import { signOut } from 'firebase/auth';
 import { doc, collection, query, where, onSnapshot, serverTimestamp, updateDoc, getDoc } from 'firebase/firestore';
 
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
+import { performGlobalLogout } from '@/lib/auth-logout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -239,20 +240,8 @@ export default function ShoppingHeader() {
   ], []);
 
   const handleLogout = useCallback(async () => {
-    if (!auth || !user || !firestore) return;
-    sessionStorage.removeItem('visitedCommunityId');
-    sessionStorage.removeItem('visitedCommunityName');
-
-    const userStatusRef = doc(firestore, 'users', user.uid);
-    try {
-        await updateDoc(userStatusRef, { isOnline: false, lastSeen: serverTimestamp() });
-    } catch (error) {
-        console.error("Failed to set user offline before logout:", error);
-    }
-    
-    await signOut(auth);
-    router.push('/');
-  }, [auth, user, firestore, router]);
+    await performGlobalLogout(auth, firestore, user);
+  }, [auth, user, firestore]);
 
   useEffect(() => {
     setIsClient(true);
@@ -299,11 +288,13 @@ export default function ShoppingHeader() {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
+      sessionStorage.removeItem('isDemoMode');
+      sessionStorage.removeItem('sandboxPersona');
       window.dispatchEvent(new Event('community-change'));
     }
     if (user) {
       setIsSwitching(true);
-      returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
+      await returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
       setIsSwitching(false);
     }
     toast({ title: 'Returned Home', description: `You are now back in your home community.` });

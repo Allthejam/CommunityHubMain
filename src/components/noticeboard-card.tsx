@@ -261,11 +261,13 @@ export function NoticeboardCard() {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
+      sessionStorage.removeItem('isDemoMode');
+      sessionStorage.removeItem('sandboxPersona');
       window.dispatchEvent(new Event('community-change'));
     }
     if (user) {
       setIsReturning(true);
-      returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
+      await returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
       setIsReturning(false);
     }
     toast({ title: "Returned Home", description: `You are now back at your home community hub.` });

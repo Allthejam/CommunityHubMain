@@ -4,11 +4,11 @@
 import { Logo } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { LifeBuoy, Users, Facebook, Twitter, Linkedin, Mail, Printer, Loader2 } from "lucide-react";
+import { LifeBuoy, Users, Facebook, Twitter, Linkedin, Mail, Printer, Loader2, ExternalLink, ShieldCheck, FileDown } from "lucide-react";
 import { LegalDocumentDisplay } from "@/components/legal-document-display";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import React, { useEffect, useState } from "react";
@@ -26,6 +26,7 @@ const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export default function Footer() {
     const pathname = usePathname();
+    const router = useRouter();
     const isChatPage = pathname === '/chat' || pathname === '/leader/chat' || pathname === '/admin/chat';
 
     const [pageUrl, setPageUrl] = useState('');
@@ -297,6 +298,65 @@ export default function Footer() {
                         </Dialog>
                     ) : (
                         <span className="text-sm text-muted-foreground">Cookie Policy</span>
+                    )}
+                    {isClient ? (
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <button className="text-sm hover:underline text-muted-foreground text-left flex items-center gap-1">
+                                    <span>ISO 22301 Emergency Brief</span>
+                                </button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-3xl grid grid-rows-[auto,1fr,auto] p-0 max-h-[85vh]">
+                                <DialogHeader className="p-6 pb-2 border-b flex flex-row items-center justify-between">
+                                    <div>
+                                        <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                                            <ShieldCheck className="h-5 w-5 text-sky-500" />
+                                            ISO 22301 Graceful Degradation &amp; Auditor Brief
+                                        </DialogTitle>
+                                        <DialogDescription className="text-xs text-muted-foreground mt-1">
+                                            Operational Continuity &amp; Offline Contingency Architecture (Doc Ref: O9VcW8oF4GxbSLzuiQSI)
+                                        </DialogDescription>
+                                    </div>
+                                    <Link href="/legal/iso-22301" target="_blank" className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 shrink-0">
+                                        <span>Full Page</span>
+                                        <ExternalLink className="h-3 w-3" />
+                                    </Link>
+                                </DialogHeader>
+                                <ScrollArea className="h-full">
+                                    <div className="p-6">
+                                        <LegalDocumentDisplay documentId="O9VcW8oF4GxbSLzuiQSI" />
+                                    </div>
+                                </ScrollArea>
+                                <DialogFooter className="p-6 pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+                                    <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                                        <Button
+                                            variant="default"
+                                            size="sm"
+                                            className="text-xs gap-1.5 font-bold bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                                            onClick={() => {
+                                                window.location.href = '/legal/iso-22301';
+                                            }}
+                                        >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                            Open Full Page &amp; Export
+                                        </Button>
+                                        <a href="/documents/iso-22301-auditor-brief.pdf" download="ISO-22301-Auditor-Brief.pdf">
+                                            <Button variant="outline" size="sm" className="text-xs gap-1.5 font-semibold">
+                                                <FileDown className="h-3.5 w-3.5 text-emerald-600" />
+                                                Download PDF
+                                            </Button>
+                                        </a>
+                                    </div>
+                                    <DialogClose asChild>
+                                        <Button type="button" size="sm" variant="ghost">Close</Button>
+                                    </DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    ) : (
+                        <Link href="/legal/iso-22301" className="text-sm text-muted-foreground hover:underline">
+                            ISO 22301 Emergency Brief
+                        </Link>
                     )}
                 </nav>
                 </div>

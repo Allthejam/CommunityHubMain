@@ -120,10 +120,15 @@ function HomePageContent() {
     }
 
     const syncHomeCommunity = () => {
-      const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+      const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
       if (isDemo) {
         setActiveCommunityId('9ayHMyZf4SRw2gof1AM9');
         return;
+      }
+
+      // If on live /home, purge leftover isDemoMode flag
+      if (typeof window !== 'undefined' && sessionStorage.getItem('isDemoMode') === 'true') {
+        sessionStorage.removeItem('isDemoMode');
       }
 
       if (urlCommunityId) {
@@ -137,12 +142,16 @@ function HomePageContent() {
       const visitedSession = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
       const lockedHomeId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
-      if (visitedSession) {
+      if (visitedSession && visitedSession !== '9ayHMyZf4SRw2gof1AM9') {
         setActiveCommunityId(visitedSession);
       } else if (lockedHomeId) {
+        // Clean up stale demo visitedId if lockedHomeId is available
+        if (visitedSession === '9ayHMyZf4SRw2gof1AM9' && typeof window !== 'undefined') {
+          sessionStorage.removeItem('visitedCommunityId');
+        }
         setActiveCommunityId(lockedHomeId);
       } else {
-        // Fallback to Show Home Community so visitors and demo users immediately see the feed
+        // Fallback for unauthenticated visitors without a profile
         setActiveCommunityId('9ayHMyZf4SRw2gof1AM9');
       }
     };

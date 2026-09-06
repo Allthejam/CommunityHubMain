@@ -29,6 +29,7 @@ import { signOut } from 'firebase/auth';
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { performGlobalLogout } from '@/lib/auth-logout';
 import { Logo } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -160,20 +161,7 @@ export default function NationalHeader() {
   }, [userProfile, handleAdminDashboardClick, handleAdvertiserDashboardClick, handleCourierDashboardClick]);
 
   const handleLogout = async () => {
-    if (!auth || !user || !firestore) return;
-
-    const userRef = doc(firestore, 'users', user.uid);
-    try {
-      await updateDoc(userRef, {
-        isOnline: false,
-        lastSeen: serverTimestamp(),
-      });
-    } catch (error) {
-      console.error("Failed to set user offline on logout:", error);
-    }
-    
-    await signOut(auth);
-    router.push('/');
+    await performGlobalLogout(auth, firestore, user);
   };
 
   const isVisiting = useMemo(() => !!(userProfile && userProfile.communityId !== userProfile.homeCommunityId), [userProfile]);
