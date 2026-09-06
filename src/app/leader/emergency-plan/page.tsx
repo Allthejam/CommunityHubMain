@@ -135,6 +135,8 @@ import {
   RoadAccessibilityTier
 } from '@/lib/types/emergencySop';
 import { Bus, Car, Phone } from 'lucide-react';
+import { EmergencyContinuityCard } from '@/components/emergency/EmergencyContinuityCard';
+import { generateGrabBagHtml } from '@/lib/emergency-grab-bag-generator';
 
 type HazardType = 'wildfire' | 'urbanfire' | 'flood' | 'power' | 'drought' | 'unrest' | 'defence' | 'evacuation' | 'submission' | 'messages' | 'audit';
 
@@ -2220,6 +2222,100 @@ export default function LeaderEmergencyPlanPage() {
     }, 400);
   };
 
+  const grabBagData = useMemo(() => {
+    return {
+      townshipName: townshipName || 'Local Community',
+      communityId: activeCommunityId || 'demo-community',
+      lastReviewedDate: formattedLastReviewed || undefined,
+      reviewedByName: reviewedByName || undefined,
+      reviewedByRole: reviewedByRole || undefined,
+      nextReviewDue: formattedNextDue || undefined,
+      keyholders: keyholdersList,
+      shelters: [
+        {
+          name: scenarioFacilities.wildfire?.f1?.primary || 'Village Hall Reception Centre',
+          type: 'Primary Reception Centre',
+          address: 'Main Street, Central Square',
+          capacity: '180',
+          keyholder: keyholdersList[0]?.primaryName || 'Hall Warden',
+          phone: keyholdersList[0]?.primaryPhone || '07700 900123',
+          hasGenerator: true,
+        },
+        {
+          name: scenarioFacilities.wildfire?.f2?.primary || 'Community Secondary Pavilion',
+          type: 'Secondary / Overflow Centre',
+          address: 'School Lane Campus',
+          capacity: '250',
+          keyholder: keyholdersList[1]?.primaryName || 'Deputy Warden',
+          phone: keyholdersList[1]?.primaryPhone || '07700 900456',
+          hasGenerator: false,
+        },
+      ],
+      liaisons: currentLiaisons.length > 0 ? currentLiaisons : [
+        { role: 'Community Resilience Coordinator', agencyOrName: wfCoordName || 'Fiona Macleod', telephone: wfCoordTel || '07700 900123', notes: '24/7 Incident Lead' },
+        { role: 'SFRS Incident Lead', agencyOrName: wfStationName || 'Local Fire Station', telephone: wfStationTel || '999 / Control', notes: 'Emergency Services Liaison' },
+        { role: 'Estate / Forestry Manager', agencyOrName: wfEstateName || 'Local Forestry Lead', telephone: wfEstateTel || '07700 900789', notes: 'Access & Landowner Liaison' }
+      ],
+      assets: wfAssetList,
+      transportFleet: evacuationPartners.map(p => ({
+        operatorName: p.operatorName,
+        vehicleType: p.vehicleType,
+        capacity: p.passengerCapacity,
+        phone: p.telephone247,
+      })),
+      musterPoints: collectionPoints.map(pt => ({
+        name: pt.name,
+        address: pt.address,
+        designatedVehicles: pt.designatedVehicles,
+        onSiteCoordinator: pt.onSiteCoordinator,
+        coordinatorPhone: pt.coordinatorPhone,
+      })),
+    };
+  }, [
+    townshipName,
+    activeCommunityId,
+    formattedLastReviewed,
+    reviewedByName,
+    reviewedByRole,
+    formattedNextDue,
+    keyholdersList,
+    scenarioFacilities,
+    currentLiaisons,
+    wfCoordName,
+    wfCoordTel,
+    wfStationName,
+    wfStationTel,
+    wfEstateName,
+    wfEstateTel,
+    wfAssetList,
+    evacuationPartners,
+    collectionPoints
+  ]);
+
+  const handlePrintGrabBag = () => {
+    try {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast({
+          title: 'Pop-up Blocked',
+          description: 'Please allow pop-ups for this site to generate the Emergency Grab-Bag Dossier.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const html = generateGrabBagHtml(grabBagData);
+      printWindow.document.write(html);
+      printWindow.document.close();
+      toast({
+        title: '🖨️ Exporting Grab-Bag Runbook',
+        description: 'ISO 22301 Physical Emergency Action Dossier formatted for 2-page print.',
+      });
+    } catch (e: any) {
+      console.error('Error exporting grab-bag:', e);
+      toast({ title: 'Export Failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const currentPriorities = priorities[activeHazard] || DEFAULT_PRIORITIES.wildfire;
   const currentTimelineStages = timelinesMap[activeHazard] || DEFAULT_TIMELINES_MAP[activeHazard] || [];
 
@@ -2380,12 +2476,20 @@ export default function LeaderEmergencyPlanPage() {
           {/* Action Buttons */}
           <div className="flex items-center gap-3 flex-wrap">
             <Button
+              onClick={handlePrintGrabBag}
+              size="sm"
+              className="bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-slate-950 font-black gap-2 shadow-lg shadow-sky-950/50"
+            >
+              <Printer className="h-4 w-4 text-slate-950" /> Export Grab-Bag Dossier (PDF)
+            </Button>
+
+            <Button
               onClick={handlePrint}
               variant="outline"
               size="sm"
               className="bg-slate-900/80 hover:bg-slate-800 border-slate-700 text-white gap-2 font-medium shadow-sm"
             >
-              <Printer className="h-4 w-4 text-cyan-400" /> Print Master Document
+              <FileText className="h-4 w-4 text-cyan-400" /> Print Master Document
             </Button>
 
             <Button
@@ -2572,6 +2676,9 @@ export default function LeaderEmergencyPlanPage() {
           </Link>
         </div>
       </div>
+
+      {/* ISO 22301 GRACEFUL DEGRADATION & OFFLINE 1-CLICK RUNBOOK CARD */}
+      <EmergencyContinuityCard data={grabBagData} isLeader={true} />
 
       {/* ========================================================================= */}
       {/* INDEPENDENT LIVE THREAT LEVEL & PUBLIC ALERT COMMAND CENTER               */}

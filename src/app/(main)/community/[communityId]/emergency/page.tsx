@@ -83,6 +83,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { registerResilienceVolunteerAction, ScenarioFacilitiesMap } from "@/lib/actions/emergencyPlanActions";
+import { EmergencyContinuityCard } from "@/components/emergency/EmergencyContinuityCard";
 
 type CommunityData = {
   name?: string;
@@ -449,6 +450,66 @@ export default function CommunityEmergencyPortalPage() {
 
   // Scenario Multi-Agency Liaisons
   const planLiaisons = emergencyPlan?.scenarioLiaisons?.[selectedPlan] || [];
+
+  const grabBagData = React.useMemo(() => {
+    return {
+      townshipName: communityName || 'Local Community',
+      communityId: Array.isArray(communityId) ? communityId[0] : communityId,
+      lastReviewedDate: formattedLastReviewed || undefined,
+      reviewedByName: emergencyPlan?.reviewedByName || undefined,
+      reviewedByRole: emergencyPlan?.reviewedByRole || undefined,
+      nextReviewDue: formattedNextDue || undefined,
+      keyholders: emergencyPlan?.keyholdersList || [],
+      shelters: [
+        {
+          name: f1?.primary || 'Village Hall Reception Centre',
+          type: 'Primary Reception Centre',
+          address: 'Main Street, Central Square',
+          capacity: '180',
+          keyholder: emergencyPlan?.keyholdersList?.[0]?.primaryName || 'Hall Warden',
+          phone: emergencyPlan?.keyholdersList?.[0]?.primaryPhone || '07700 900123',
+          hasGenerator: true,
+        },
+        {
+          name: f2?.primary || 'Community Secondary Pavilion',
+          type: 'Secondary / Overflow Centre',
+          address: 'School Lane Campus',
+          capacity: '250',
+          keyholder: emergencyPlan?.keyholdersList?.[1]?.primaryName || 'Deputy Warden',
+          phone: emergencyPlan?.keyholdersList?.[1]?.primaryPhone || '07700 900456',
+          hasGenerator: false,
+        },
+      ],
+      liaisons: planLiaisons.length > 0 ? planLiaisons : [
+        { role: 'Community Resilience Coordinator', agencyOrName: 'Fiona Macleod', telephone: '07700 900123', notes: '24/7 Incident Lead' },
+        { role: 'SFRS Incident Lead', agencyOrName: 'Local Fire Station', telephone: '999 / Control', notes: 'Emergency Services Liaison' },
+        { role: 'Estate / Forestry Manager', agencyOrName: 'Local Forestry Lead', telephone: '07700 900789', notes: 'Access & Landowner Liaison' }
+      ],
+      assets: emergencyPlan?.wildfireAssetList || [],
+      transportFleet: (emergencyPlan?.evacuationPartners || DEFAULT_EVACUATION_PARTNERS).map((p: any) => ({
+        operatorName: p.operatorName,
+        vehicleType: p.vehicleType,
+        capacity: p.passengerCapacity,
+        phone: p.telephone247,
+      })),
+      musterPoints: (emergencyPlan?.collectionPoints || DEFAULT_COLLECTION_POINTS).map((pt: any) => ({
+        name: pt.name,
+        address: pt.address,
+        designatedVehicles: pt.designatedVehicles,
+        onSiteCoordinator: pt.onSiteCoordinator,
+        coordinatorPhone: pt.coordinatorPhone,
+      })),
+    };
+  }, [
+    communityName,
+    communityId,
+    formattedLastReviewed,
+    emergencyPlan,
+    formattedNextDue,
+    f1,
+    f2,
+    planLiaisons
+  ]);
 
   return (
     <div className="container max-w-6xl mx-auto py-6 sm:py-8 space-y-6 pb-16">
@@ -1032,7 +1093,10 @@ export default function CommunityEmergencyPortalPage() {
 
       </div>
 
-      {/* 5. NATIONAL & REGIONAL CRISIS HELPLINES (ALWAYS AT BOTTOM) */}
+      {/* 5. ISO 22301 GRACEFUL DEGRADATION & 1-CLICK PHYSICAL GRAB-BAG RUNBOOK */}
+      <EmergencyContinuityCard data={grabBagData} isLeader={false} />
+
+      {/* 6. NATIONAL & REGIONAL CRISIS HELPLINES (ALWAYS AT BOTTOM) */}
       <Card className="border-2 shadow-md bg-card">
         <CardHeader className="p-4 sm:p-5 pb-3 bg-muted/20 border-b">
           <CardTitle className="text-base font-black flex items-center gap-2 text-slate-950 dark:text-white">
