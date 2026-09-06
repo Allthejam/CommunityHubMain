@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import { doc, collection, query, orderBy, limit } from "firebase/firestore";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import {
@@ -279,7 +279,8 @@ export default function CommunityEmergencyPortalPage() {
   const { user } = useUser();
   const { toast } = useToast();
 
-  const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+  const pathname = usePathname();
+  const isDemo = pathname?.startsWith('/demo') || communityId === '9ayHMyZf4SRw2gof1AM9';
   const demoPrefix = isDemo ? '/demo' : '';
 
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
@@ -410,19 +411,6 @@ export default function CommunityEmergencyPortalPage() {
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   }, [emergencyPlan?.nextReviewDueAt]);
 
-  if (isCommLoading || isPlanLoading) {
-    return (
-      <div className="flex flex-col justify-center items-center h-96 space-y-4">
-        <Loader2 className="h-10 w-10 animate-spin text-red-500" />
-        <p className="text-sm font-medium text-muted-foreground">Connecting to Live Emergency Portal...</p>
-      </div>
-    );
-  }
-
-  // Official Situation Notice State
-  const officialNotice = emergencyPlan?.officialNotice;
-  const hasActiveNotice = officialNotice?.isActive && (officialNotice?.message || officialNotice?.headline);
-
   // Selected Plan Metadata & Facilities Resolution
   const activeMeta = SCENARIO_METADATA[selectedPlan] || SCENARIO_METADATA.wildfire;
   const ActiveIcon = activeMeta.icon;
@@ -510,6 +498,19 @@ export default function CommunityEmergencyPortalPage() {
     f2,
     planLiaisons
   ]);
+
+  if (isCommLoading || isPlanLoading) {
+    return (
+      <div className="flex flex-col justify-center items-center h-96 space-y-4">
+        <Loader2 className="h-10 w-10 animate-spin text-red-500" />
+        <p className="text-sm font-medium text-muted-foreground">Connecting to Live Emergency Portal...</p>
+      </div>
+    );
+  }
+
+  // Official Situation Notice State
+  const officialNotice = emergencyPlan?.officialNotice;
+  const hasActiveNotice = officialNotice?.isActive && (officialNotice?.message || officialNotice?.headline);
 
   return (
     <div className="container max-w-6xl mx-auto py-6 sm:py-8 space-y-6 pb-16">

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import { doc, getDoc, collection, query, orderBy } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { updateCommunityProfileAction, getCommunityProfileAction } from '@/lib/actions/communityProfileActions';
@@ -74,7 +74,8 @@ export default function CommunityAboutPage() {
     const communityId = params.communityId as string;
     const db = useFirestore();
 
-    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo') || communityId === '9ayHMyZf4SRw2gof1AM9');
+    const pathname = usePathname();
+    const isDemo = pathname?.startsWith('/demo') || communityId === '9ayHMyZf4SRw2gof1AM9';
     const demoPrefix = isDemo ? '/demo' : '';
 
     const [aboutData, setAboutData] = React.useState<CommunityProfileData | null>(null);
