@@ -7,7 +7,7 @@ interface ShowcaseSeoSchemaProps {
 
 export function ShowcaseSeoSchema({
   townshipName = 'Oakridge',
-  baseUrl = 'https://communityhub.app'
+  baseUrl = 'https://my-community-hub.co.uk'
 }: ShowcaseSeoSchemaProps) {
   const schemaData = {
     '@context': 'https://schema.org',

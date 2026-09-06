@@ -153,7 +153,7 @@ export default function ShowcaseBrochurePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-sky-500 selection:text-slate-950">
       {/* GOOGLE SEO STRUCTURED DATA INJECTION (JSON-LD) */}
-      <ShowcaseSeoSchema townshipName="Oakridge" baseUrl="https://communityhub.app" />
+      <ShowcaseSeoSchema townshipName="Oakridge" baseUrl="https://my-community-hub.co.uk" />
 
       {/* TOP PROMOTIONAL BANNER */}
       <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 border-b border-emerald-500/30 text-white text-xs py-2 px-4 text-center font-bold tracking-wide flex items-center justify-center gap-2">
