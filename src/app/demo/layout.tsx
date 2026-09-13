@@ -225,8 +225,22 @@ function DemoLayoutContent({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('sandboxPersona') || 'leader';
-      setCurrentPersona(saved);
+      if (pathname.startsWith('/demo/leader')) {
+        sessionStorage.setItem('sandboxPersona', 'leader');
+        setCurrentPersona('leader');
+      } else if (pathname.startsWith('/demo/business')) {
+        sessionStorage.setItem('sandboxPersona', 'business');
+        setCurrentPersona('business');
+      } else if (pathname.startsWith('/demo/national')) {
+        sessionStorage.setItem('sandboxPersona', 'advertiser');
+        setCurrentPersona('advertiser');
+      } else if (pathname.startsWith('/demo/regional')) {
+        sessionStorage.setItem('sandboxPersona', 'regional');
+        setCurrentPersona('regional');
+      } else {
+        const saved = sessionStorage.getItem('sandboxPersona') || 'leader';
+        setCurrentPersona(saved);
+      }
     }
   }, [pathname]);
 

@@ -135,10 +135,65 @@ const MarketingImageGallery = () => {
     )
 }
 
+const DEFAULT_CAMPAIGNS = [
+    {
+        id: 'merchant-outreach-1',
+        headline: 'High Street Merchant Invitation: Boost Local Footfall & Online Orders for £20/mo',
+        audience: 'Local Shops, Cafés & Trades',
+        feature: 'Virtual High Street & Directory',
+        body: `<h3>Join Your Town's Official Digital High Street</h3>
+<p>Dear Local Business Owner,</p>
+<p>Our Community Council has launched the official <strong>Community Hub</strong> digital platform to defend and revitalise local independent trade. For just <strong>£20/month</strong>, your business receives:</p>
+<ul>
+  <li>A dedicated interactive storefront profile in the town's official mobile app and web portal.</li>
+  <li>Option for Click &amp; Collect ordering and local doorstep courier delivery.</li>
+  <li>Direct reach to verified local residents without paying advertising fees to big-tech social media monopolies.</li>
+  <li><strong>Civic Reinvestment:</strong> Up to 60% of your subscription is returned directly to our Council Treasury to fund town projects, lights, defibs, and floral displays.</li>
+</ul>
+<p>Visit <strong>my-community-hub.co.uk</strong> to register your business today and put your shop on our digital town map!</p>`,
+        socialMediaPost: `🏪 Local business owners in our community! Put your shop, cafe, or trade on our town's official mobile app for just £20/mo. Get online orders, doorstep courier delivery, and keep local trade thriving. Register today at my-community-hub.co.uk!`,
+        updatedAt: { toDate: () => new Date() }
+    },
+    {
+        id: 'resident-launch-2',
+        headline: 'Resident Town Launch: Download Your Official Parish App & Web Portal',
+        audience: 'Verified Town Residents',
+        feature: 'Community Feed & Emergency Siren',
+        body: `<h3>Your Town's Official Community Hub is Now Live!</h3>
+<p>Stay informed and connected with zero social media clutter, algorithms, or trolling.</p>
+<ul>
+  <li><strong>Instant Emergency Alerts:</strong> Real-time SMS and siren broadcasts during severe storms, flooding, or road blocks.</li>
+  <li><strong>Local High Street Shopping:</strong> Browse products and menus from local independent butchers, bakers, and shops with same-day local courier delivery.</li>
+  <li><strong>What's On &amp; Events:</strong> Comprehensive community calendar for ceilidhs, markets, sports matches, and parish council meetings.</li>
+  <li><strong>Lost &amp; Found:</strong> Instant alerts for missing pets, keys, and found property.</li>
+</ul>
+<p>Download the app or visit our community portal online today.</p>`,
+        socialMediaPost: `📢 Our town's official Community Hub is live! 100% focused on our parish: local news, emergency weather alerts, high street shopping with doorstep delivery, and community events. Get the app now at my-community-hub.co.uk!`,
+        updatedAt: { toDate: () => new Date() }
+    },
+    {
+        id: 'courier-launch-3',
+        headline: 'Virtual High Street Doorstep Courier Delivery Network',
+        audience: 'Shoppers & Local Merchants',
+        feature: 'Local Courier Network',
+        body: `<h3>Same-Day Doorstep Delivery from Your Favourite Local Shops</h3>
+<p>You can now order online from independent butchers, bakeries, pharmacies, and local retailers with rapid doorstep delivery provided by our appointed local green couriers.</p>
+<ul>
+  <li>Support local high street businesses from the comfort of your home.</li>
+  <li>Fast, reliable delivery keeping local jobs and spending inside our parish.</li>
+  <li>Click &amp; Collect or Home Delivery available across all participating stores.</li>
+</ul>`,
+        socialMediaPost: `🚚 Fresh local groceries, bakery items, and high street goods delivered straight to your door! Support independent shops across our town by ordering through the official Community Hub.`,
+        updatedAt: { toDate: () => new Date() }
+    }
+];
+
 export default function LeaderMarketingPage() {
     const db = useFirestore();
     const campaignsQuery = useMemoFirebase(() => db ? query(collection(db, 'marketing_campaigns'), orderBy('updatedAt', 'desc')) : null, [db]);
-    const { data: campaigns, isLoading } = useCollection<MarketingCampaign>(campaignsQuery);
+    const { data: dbCampaigns, isLoading } = useCollection<MarketingCampaign>(campaignsQuery);
+
+    const campaigns = (dbCampaigns && dbCampaigns.length > 0) ? dbCampaigns : DEFAULT_CAMPAIGNS;
 
     return (
         <div className="space-y-8">
