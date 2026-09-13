@@ -47,7 +47,7 @@ type Topic = {
   categoryId: string;
 };
 
-const PostCard = ({ post }: { post: Post }) => {
+const PostCard = ({ post, isOriginalPost }: { post: Post; isOriginalPost?: boolean }) => {
   const isAnonymous = post.isAnonymous || post.authorIsPrivate || post.authorName?.toLowerCase().includes('anonymous');
   const authorName = isAnonymous ? 'Anonymous Member' : post.authorName;
   const authorAvatar = isAnonymous ? '' : post.authorAvatar;
@@ -57,21 +57,33 @@ const PostCard = ({ post }: { post: Post }) => {
 
   return (
     <div className="flex gap-4">
-      <Avatar>
+      <Avatar className="h-10 w-10 shrink-0 border-2 border-primary/20 shadow-xs">
         <AvatarImage src={authorAvatar} alt={authorName} />
-        <AvatarFallback>{isAnonymous ? '👤' : authorInitial}</AvatarFallback>
+        <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+          {isAnonymous ? '👤' : authorInitial}
+        </AvatarFallback>
       </Avatar>
-      <div className="flex-1">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="font-semibold">{authorName}</span>
-          <span className="text-muted-foreground">
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-foreground">{authorName}</span>
+          {isAnonymous && (
+            <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300">
+              Anonymous
+            </span>
+          )}
+          {isOriginalPost && (
+            <span className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium border border-primary/20">
+              Author
+            </span>
+          )}
+          <span className="text-muted-foreground text-xs">
             {post.createdAt
-              ? new Date(post.createdAt.toDate()).toLocaleString()
+              ? (post.createdAt.toDate ? new Date(post.createdAt.toDate()).toLocaleString() : new Date(post.createdAt).toLocaleString())
               : 'Just now'}
           </span>
         </div>
         <div
-          className="mt-2 text-foreground prose dark:prose-invert max-w-none text-sm"
+          className="mt-3 text-foreground prose dark:prose-invert max-w-none text-sm leading-relaxed"
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
       </div>
@@ -228,16 +240,16 @@ export default function TopicPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center">
+      <div className="text-center py-12">
         <h1 className="text-2xl font-bold">Topic Not Found</h1>
-        <p className="text-muted-foreground">{error}</p>
+        <p className="text-muted-foreground mt-2">{error}</p>
         <Button asChild variant="link" className="mt-4">
           <Link href="/forum">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -253,16 +265,18 @@ export default function TopicPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <Button asChild variant="ghost" className="mb-4">
+    <div className="space-y-6">
+      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border border-primary/20 rounded-2xl p-6 shadow-sm">
+        <Button asChild variant="ghost" size="sm" className="mb-3 hover:bg-primary/10">
           <Link href={`/forum/${categoryId}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Topics
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2">
-          <MessageSquare className="h-8 w-8 text-primary" />
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline flex items-center gap-3">
+          <span className="p-2 rounded-xl bg-primary/10 text-primary">
+            <MessageSquare className="h-6 w-6 sm:h-7 sm:w-7" />
+          </span>
           {topic.title}
         </h1>
       </div>
@@ -271,13 +285,13 @@ export default function TopicPage() {
         {posts.map((post, index) => (
           <React.Fragment key={post.id}>
             {index === 0 ? (
-              <Card>
+              <Card className="border shadow-sm">
                 <CardHeader>
-                  <PostCard post={post} />
+                  <PostCard post={post} isOriginalPost={true} />
                 </CardHeader>
               </Card>
             ) : (
-              <Card>
+              <Card className="border shadow-sm">
                 <CardContent className="pt-6">
                   <PostCard post={post} />
                 </CardContent>
@@ -286,7 +300,10 @@ export default function TopicPage() {
             {index === 0 && posts.length > 1 && (
               <>
                 <Separator />
-                <h3 className="text-xl font-semibold">Replies</h3>
+                <h3 className="text-xl font-semibold flex items-center gap-2">
+                  <span>Replies</span>
+                  <span className="text-sm font-normal text-muted-foreground">({posts.length - 1})</span>
+                </h3>
               </>
             )}
           </React.Fragment>
