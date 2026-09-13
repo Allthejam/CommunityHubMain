@@ -446,10 +446,25 @@ export default function LeaderPollsPage() {
     setEditingCategoryPollId(null);
   }
 
+  // Helper to determine effective poll status including expiration
+  const getEffectivePollStatus = (p: Poll): Poll['status'] => {
+    if (p.status === 'draft') return 'draft';
+    if (p.status === 'paused') return 'paused';
+    if (p.status === 'closed') return 'closed';
+    if (p.endDate) {
+      const targetDate = p.endDate.toDate ? p.endDate.toDate() : new Date(p.endDate);
+      if (Date.now() > targetDate.getTime()) {
+        return 'closed';
+      }
+    }
+    return p.status;
+  };
+
   // ── Filter ───────────────────────────────────────────────────────────────────
   const visible = polls.filter((p) => {
+    const effectiveStatus = getEffectivePollStatus(p);
     if (catFilter !== 'all' && p.category !== catFilter) return false;
-    if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+    if (statusFilter !== 'all' && effectiveStatus !== statusFilter) return false;
     return true;
   });
 

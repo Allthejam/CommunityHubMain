@@ -14,11 +14,25 @@ import {
 import { collection, doc, updateDoc, arrayUnion, query, orderBy, serverTimestamp } from 'firebase/firestore';
 
 
+// Helper to determine effective poll status including expiration
+const getEffectivePollStatus = (p: Poll): Poll['status'] => {
+  if (p.status === 'draft') return 'draft';
+  if (p.status === 'paused') return 'paused';
+  if (p.status === 'closed') return 'closed';
+  if (p.endDate) {
+    const targetDate = p.endDate.toDate ? p.endDate.toDate() : new Date(p.endDate);
+    if (Date.now() > targetDate.getTime()) {
+      return 'closed';
+    }
+  }
+  return p.status;
+};
+
 // ─── Analytics sidebar ────────────────────────────────────────────────────────
 function AnalyticsWidget({ polls }: { polls: Poll[] }) {
   const totalVotes = polls.reduce((t, p) => t + p.options.reduce((s, o) => s + o.votes, 0), 0);
-  const activeCount = polls.filter((p) => p.status === 'active').length;
-  const closedCount = polls.filter((p) => p.status === 'closed').length;
+  const activeCount = polls.filter((p) => getEffectivePollStatus(p) === 'active').length;
+  const closedCount = polls.filter((p) => getEffectivePollStatus(p) === 'closed').length;
 
   return (
     <div className="bg-white rounded-2xl p-6 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col gap-5">
@@ -248,8 +262,9 @@ export default function PollsPage() {
   // ── Filter ──────────────────────────────────────────────────────────────────
   const visible = polls.filter((p) => {
     if (p.status === 'draft') return false;
+    const effectiveStatus = getEffectivePollStatus(p);
     if (catFilter !== 'all' && p.category !== catFilter) return false;
-    if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+    if (statusFilter !== 'all' && effectiveStatus !== statusFilter) return false;
     return true;
   });
 

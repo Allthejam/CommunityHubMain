@@ -64,12 +64,18 @@ export function PollsSnippet({ communityId }: PollsSnippetProps) {
 
   const { data: allPolls, isLoading: loadingPolls } = useCollection<Poll>(allPollsQuery);
 
+  const isExpired = (p: any) => {
+    if (!p.endDate) return false;
+    const targetDate = p.endDate.toDate ? p.endDate.toDate() : new Date(p.endDate);
+    return Date.now() > targetDate.getTime();
+  };
+
   const activePolls = React.useMemo(() => {
-    return (allPolls || []).filter((p) => p.status === 'active').slice(0, 2);
+    return (allPolls || []).filter((p) => p.status === 'active' && !isExpired(p)).slice(0, 2);
   }, [allPolls]);
 
   const closedPolls = React.useMemo(() => {
-    return (allPolls || []).filter((p) => p.status === 'closed' || p.status === 'archived').slice(0, 2);
+    return (allPolls || []).filter((p) => p.status === 'closed' || p.status === 'archived' || isExpired(p)).slice(0, 2);
   }, [allPolls]);
 
   const loadingActive = loadingPolls;

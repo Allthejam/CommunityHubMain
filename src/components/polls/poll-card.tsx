@@ -58,15 +58,7 @@ function PollCountdown({ endDate }: { endDate: any }) {
     return () => clearInterval(interval);
   }, [endDate]);
 
-  if (!timeLeft) return null;
-
-  if (timeLeft === 'Finished') {
-    return (
-      <span className="text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-        Ended
-      </span>
-    );
-  }
+  if (!timeLeft || timeLeft === 'Finished') return null;
 
   return (
     <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 uppercase tracking-wider">
@@ -79,7 +71,7 @@ function StatusBadge({ status }: { status: Poll['status'] }) {
   if (status === 'active')
     return (
       <span className="flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-        <PulseDot /> Open Consult
+        <PulseDot /> Active Poll
       </span>
     );
   if (status === 'paused')
@@ -91,12 +83,12 @@ function StatusBadge({ status }: { status: Poll['status'] }) {
   if (status === 'draft')
     return (
       <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-        Unpublished Draft
+        Draft
       </span>
     );
   return (
-    <span className="text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-      Consultation Finished
+    <span className="text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+      Closed
     </span>
   );
 }
