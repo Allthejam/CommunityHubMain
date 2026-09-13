@@ -1,16 +1,17 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
     BookOpen, Star, Loader2, User, SlidersHorizontal, ArrowUpDown, Image as ImageIcon, X,
+    PenLine, Send, Camera, CheckCircle2, Sparkles, Plus,
 } from 'lucide-react';
-import { collection, query, where, orderBy, getDocs, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
@@ -19,7 +20,38 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import { uploadImageAction } from '@/lib/actions/storageActions';
+
+// ─── Star picker ───────────────────────────────────────────────────────────────
+const StarPicker = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => {
+    const [hovered, setHovered] = useState(0);
+    return (
+        <div className="flex items-center gap-1.5">
+            {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                    key={star}
+                    type="button"
+                    className="focus:outline-none transition-transform hover:scale-115 active:scale-95"
+                    onMouseEnter={() => setHovered(star)}
+                    onMouseLeave={() => setHovered(0)}
+                    onClick={() => onChange(star)}
+                >
+                    <Star
+                        className={cn(
+                            'h-8 w-8 transition-colors',
+                            star <= (hovered || value)
+                                ? 'fill-amber-400 text-amber-400 drop-shadow-sm'
+                                : 'text-slate-300 dark:text-slate-600'
+                        )}
+                    />
+                </button>
+            ))}
+        </div>
+    );
+};
 
 // ─── Star display ──────────────────────────────────────────────────────────────
 const StarDisplay = ({ rating }: { rating: number }) => (
@@ -48,35 +80,37 @@ const ReviewCard = ({ entry, onImageClick }: { entry: any; onImageClick?: (url: 
     const initials = entry.isAnonymous ? 'A' : (entry.authorName || 'A').split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2);
 
     return (
-        <Card className="overflow-hidden hover:shadow-md transition-shadow">
-            {entry.imageUrl && (
-                <div
-                    className="relative w-full aspect-[16/9] overflow-hidden bg-muted cursor-pointer group"
-                    onClick={() => onImageClick?.(entry.imageUrl)}
-                >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={entry.imageUrl} alt="Review photo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                        <ImageIcon className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 drop-shadow-lg" />
-                    </div>
-                </div>
-            )}
-            <CardContent className="p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 shrink-0">
-                            {!entry.isAnonymous && <AvatarImage src={entry.authorAvatar} />}
-                            <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">{initials}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="font-semibold text-sm">{displayName}</p>
-                            <p className="text-xs text-muted-foreground">{isValid(entryDate) ? format(entryDate, 'dd MMM yyyy') : ''}</p>
+        <Card className="overflow-hidden hover:shadow-md transition-all duration-300 border-slate-100 flex flex-col justify-between h-full">
+            <div>
+                {entry.imageUrl && (
+                    <div
+                        className="relative w-full aspect-[16/9] overflow-hidden bg-muted cursor-pointer group"
+                        onClick={() => onImageClick?.(entry.imageUrl)}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={entry.imageUrl} alt="Review photo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                            <ImageIcon className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 drop-shadow-lg" />
                         </div>
                     </div>
-                    <StarDisplay rating={entry.rating} />
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">&ldquo;{entry.content}&rdquo;</p>
-            </CardContent>
+                )}
+                <CardContent className="p-5 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9 shrink-0 border">
+                                {!entry.isAnonymous && <AvatarImage src={entry.authorAvatar} />}
+                                <AvatarFallback className="text-xs font-bold bg-amber-100 text-amber-800">{initials}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-semibold text-sm leading-tight text-slate-800">{displayName}</p>
+                                <p className="text-xs text-muted-foreground">{isValid(entryDate) ? format(entryDate, 'dd MMM yyyy') : ''}</p>
+                            </div>
+                        </div>
+                        <StarDisplay rating={entry.rating} />
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed">&ldquo;{entry.content}&rdquo;</p>
+                </CardContent>
+            </div>
         </Card>
     );
 };
@@ -105,10 +139,10 @@ const FiltersSheet = ({ filters, onApply }: { filters: Filters; onApply: (f: Fil
     return (
         <Sheet>
             <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="relative">
-                    <SlidersHorizontal className="mr-2 h-4 w-4" />
+                <Button variant="outline" size="sm" className="relative font-bold text-xs h-9 rounded-xl">
+                    <SlidersHorizontal className="mr-2 h-3.5 w-3.5" />
                     Filters
-                    {activeCount > 0 && <Badge className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-xs rounded-full">{activeCount}</Badge>}
+                    {activeCount > 0 && <Badge className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-xs rounded-full bg-amber-600">{activeCount}</Badge>}
                 </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-80">
@@ -153,7 +187,7 @@ const FiltersSheet = ({ filters, onApply }: { filters: Filters; onApply: (f: Fil
                                 { value: false, label: 'Without photos' },
                             ].map((opt) => (
                                 <div key={String(opt.value)} className="flex items-center gap-3 cursor-pointer" onClick={() => setLocal((f) => ({ ...f, hasImage: opt.value }))}>
-                                    <div className={cn('h-4 w-4 rounded-full border-2 transition-colors', local.hasImage === opt.value ? 'border-primary bg-primary' : 'border-muted-foreground/40')} />
+                                    <div className={cn('h-4 w-4 rounded-full border-2 transition-colors', local.hasImage === opt.value ? 'border-amber-600 bg-amber-600' : 'border-muted-foreground/40')} />
                                     <span className="text-sm">{opt.label}</span>
                                 </div>
                             ))}
@@ -171,7 +205,7 @@ const FiltersSheet = ({ filters, onApply }: { filters: Filters; onApply: (f: Fil
                                 { value: 'asc', label: 'Oldest first' },
                             ].map((opt) => (
                                 <div key={opt.value} className="flex items-center gap-3 cursor-pointer" onClick={() => setLocal((f) => ({ ...f, dateOrder: opt.value as 'asc' | 'desc' }))}>
-                                    <div className={cn('h-4 w-4 rounded-full border-2 transition-colors', local.dateOrder === opt.value ? 'border-primary bg-primary' : 'border-muted-foreground/40')} />
+                                    <div className={cn('h-4 w-4 rounded-full border-2 transition-colors', local.dateOrder === opt.value ? 'border-amber-600 bg-amber-600' : 'border-muted-foreground/40')} />
                                     <span className="text-sm">{opt.label}</span>
                                 </div>
                             ))}
@@ -182,7 +216,7 @@ const FiltersSheet = ({ filters, onApply }: { filters: Filters; onApply: (f: Fil
                     <Button variant="outline" className="flex-1" onClick={() => { setLocal(defaultFilters); onApply(defaultFilters); }}>
                         Clear All
                     </Button>
-                    <Button className="flex-1" onClick={() => onApply(local)}>
+                    <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" onClick={() => onApply(local)}>
                         Apply Filters
                     </Button>
                 </div>
@@ -193,13 +227,26 @@ const FiltersSheet = ({ filters, onApply }: { filters: Filters; onApply: (f: Fil
 
 // ─── Main page ─────────────────────────────────────────────────────────────────
 export default function GuestBookPage() {
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
     const db = useFirestore();
+    const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const [activeTab, setActiveTab] = useState<string>('reviews');
     const [entries, setEntries] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<Filters>(defaultFilters);
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+    // Form states
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [newRating, setNewRating] = useState(0);
+    const [newContent, setNewContent] = useState('');
+    const [selectedImage, setSelectedImage] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [hasSubmitted, setHasSubmitted] = useState(false);
+    const [isAnonymous, setIsAnonymous] = useState(false);
 
     // Determine community from session / user profile
     const [communityId, setCommunityId] = useState<string | null>(null);
@@ -233,6 +280,91 @@ export default function GuestBookPage() {
 
     useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            toast({ title: 'Image too large', description: 'Please choose an image under 5MB.', variant: 'destructive' });
+            return;
+        }
+        setSelectedImage(file);
+        setImagePreview(URL.createObjectURL(file));
+    };
+
+    const clearImage = () => {
+        setSelectedImage(null);
+        setImagePreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleSubmitReview = async () => {
+        if (!user) {
+            toast({ title: 'Sign In Required', description: 'Please sign in to leave a review.', variant: 'destructive' });
+            return;
+        }
+        if (!communityId || !db) {
+            toast({ title: 'Community not found', description: 'Could not resolve active community.', variant: 'destructive' });
+            return;
+        }
+        if (newRating === 0) {
+            toast({ title: 'Rating required', description: 'Please select a star rating.', variant: 'destructive' });
+            return;
+        }
+        if (newContent.trim().length < 10) {
+            toast({ title: 'Review too short', description: 'Please write at least 10 characters.', variant: 'destructive' });
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            let imageUrl = '';
+            if (selectedImage) {
+                const reader = new FileReader();
+                reader.readAsDataURL(selectedImage);
+                const base64Data = await new Promise<string>((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = error => reject(error);
+                });
+                const path = `guestbook/${communityId}/${Date.now()}-${selectedImage.name}`;
+                const uploadResult = await uploadImageAction({ base64Data, path });
+                if (!uploadResult.success || !uploadResult.url) {
+                    throw new Error(uploadResult.error || "Failed to upload image.");
+                }
+                imageUrl = uploadResult.url;
+            }
+
+            const authorName = userProfile?.displayName || userProfile?.name || user.displayName || user.email?.split('@')[0] || 'Community Visitor';
+            const authorAvatar = userProfile?.avatar || user.photoURL || '';
+
+            await addDoc(collection(db, 'communities', communityId, 'guestbook'), {
+                authorId: user.uid,
+                authorName,
+                authorAvatar,
+                content: newContent.trim(),
+                rating: newRating,
+                imageUrl,
+                isAnonymous,
+                status: 'Pending',
+                createdAt: serverTimestamp(),
+            });
+
+            setHasSubmitted(true);
+            setDialogOpen(false);
+            setNewContent('');
+            setNewRating(0);
+            clearImage();
+            setIsAnonymous(false);
+            toast({
+                title: '🎉 Thank you for your review!',
+                description: 'Your message has been submitted and is awaiting approval from the local community team.',
+            });
+        } catch (err: any) {
+            toast({ title: 'Submission Failed', description: err.message || 'Could not submit review.', variant: 'destructive' });
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const DEMO_GUESTBOOK_ENTRIES = [
       {
         id: 'demo-1',
@@ -241,9 +373,8 @@ export default function GuestBookPage() {
         visitType: 'Tourist / Visitor',
         visitDate: '2026-07-28',
         rating: 5,
-        message: 'Absolutely stunning community! We visited for the weekend market and loved the warm hospitality and beautiful trails.',
+        content: 'Absolutely stunning community! We visited for the weekend market and loved the warm hospitality and beautiful trails.',
         status: 'Live',
-        likesCount: 14,
         createdAt: new Date().toISOString()
       },
       {
@@ -253,9 +384,8 @@ export default function GuestBookPage() {
         visitType: 'Resident',
         visitDate: '2026-08-01',
         rating: 5,
-        message: 'Proud to call this town home. The recent community hub events have brought so many of us together!',
+        content: 'Proud to call this town home. The recent community hub events have brought so many of us together!',
         status: 'Live',
-        likesCount: 9,
         createdAt: new Date().toISOString()
       }
     ];
@@ -312,8 +442,18 @@ export default function GuestBookPage() {
                         </h1>
 
                         <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                            Approved visitor feedback, tourist memories, and resident experiences for <span className="font-semibold text-foreground">{communityName || 'your community'}</span>.
+                            Share your feedback, tourist memories, and resident experiences for <span className="font-semibold text-foreground">{communityName || 'your community'}</span>.
                         </p>
+
+                        {/* Direct action button in hero */}
+                        <div className="pt-2 flex items-center gap-3">
+                            <Button
+                                onClick={() => setActiveTab('sign')}
+                                className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-xs py-2.5 px-5 rounded-xl shadow-md flex items-center gap-2 transition-all hover:shadow-lg"
+                            >
+                                <PenLine className="h-4 w-4" /> Sign the Guestbook
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
@@ -340,82 +480,272 @@ export default function GuestBookPage() {
                 </div>
             </div>
 
-            {/* Summary stats */}
-            {!loading && displayEntries.length > 0 && (
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex flex-col md:flex-row gap-6 md:items-center">
-                            <div className="flex items-center gap-3">
-                                <span className="text-5xl font-bold">{avgRating.toFixed(1)}</span>
-                                <div>
-                                    <div className="flex items-center gap-0.5 mb-1">
-                                        {[1, 2, 3, 4, 5].map((s) => (
-                                            <Star key={s} className={cn('h-5 w-5', s <= Math.round(avgRating) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/20')} />
-                                        ))}
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">{displayEntries.length} review{displayEntries.length !== 1 ? 's' : ''}</p>
-                                </div>
-                            </div>
-                            <div className="flex-1 space-y-1.5 min-w-0">
-                                {starCounts.map(({ star, count }) => {
-                                    const pct = displayEntries.length > 0 ? (count / displayEntries.length) * 100 : 0;
-                                    return (
-                                        <div key={star} className="flex items-center gap-2 text-xs">
-                                            <span className="w-4 text-right shrink-0">{star}</span>
-                                            <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
-                                            <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
-                                                <div className="bg-amber-400 h-full rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+            {/* Navigation Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+                <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto bg-slate-100 p-1 rounded-xl h-11">
+                    <TabsTrigger value="reviews" className="rounded-lg text-xs font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                        📖 View Reviews ({displayEntries.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="sign" className="rounded-lg text-xs font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                        ✍️ Sign the Guestbook
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* Tab 1: All Reviews Feed */}
+                <TabsContent value="reviews" className="space-y-6">
+                    {/* Summary stats */}
+                    {!loading && displayEntries.length > 0 && (
+                        <Card className="border-slate-100 shadow-sm">
+                            <CardContent className="pt-6">
+                                <div className="flex flex-col md:flex-row gap-6 md:items-center">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-5xl font-bold text-slate-800">{avgRating.toFixed(1)}</span>
+                                        <div>
+                                            <div className="flex items-center gap-0.5 mb-1">
+                                                {[1, 2, 3, 4, 5].map((s) => (
+                                                    <Star key={s} className={cn('h-5 w-5', s <= Math.round(avgRating) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/20')} />
+                                                ))}
                                             </div>
-                                            <span className="w-4 text-muted-foreground shrink-0">{count}</span>
+                                            <p className="text-sm text-muted-foreground">{displayEntries.length} review{displayEntries.length !== 1 ? 's' : ''}</p>
                                         </div>
-                                    );
-                                })}
+                                    </div>
+                                    <div className="flex-1 space-y-1.5 min-w-0">
+                                        {starCounts.map(({ star, count }) => {
+                                            const pct = displayEntries.length > 0 ? (count / displayEntries.length) * 100 : 0;
+                                            return (
+                                                <div key={star} className="flex items-center gap-2 text-xs">
+                                                    <span className="w-4 text-right shrink-0 font-bold text-slate-500">{star}</span>
+                                                    <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
+                                                    <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                                        <div className="bg-amber-400 h-full rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+                                                    </div>
+                                                    <span className="w-4 text-muted-foreground shrink-0">{count}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Toolbar */}
+                    <div className="flex items-center justify-between gap-4 flex-wrap bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                        <p className="text-xs font-semibold text-slate-500">
+                            {loading ? 'Loading...' : `Showing ${filtered.length} of ${displayEntries.length} review${displayEntries.length !== 1 ? 's' : ''}`}
+                            {activeFiltersCount > 0 && ` (${activeFiltersCount} filter active)`}
+                        </p>
+                        <div className="flex items-center gap-2">
+                            {activeFiltersCount > 0 && (
+                                <Button variant="ghost" size="sm" className="text-xs font-bold h-9" onClick={() => setFilters(defaultFilters)}>
+                                    <X className="mr-1 h-3.5 w-3.5" /> Clear filters
+                                </Button>
+                            )}
+                            <FiltersSheet filters={filters} onApply={setFilters} />
+                            <Button
+                                size="sm"
+                                onClick={() => setActiveTab('sign')}
+                                className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold h-9 rounded-xl shadow-sm"
+                            >
+                                <PenLine className="mr-1.5 h-3.5 w-3.5" /> Leave a Review
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Results */}
+                    {loading ? (
+                        <div className="flex justify-center items-center h-48">
+                            <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
+                        </div>
+                    ) : filtered.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-48 text-center gap-3 border border-dashed rounded-2xl bg-slate-50/50 p-8">
+                            <BookOpen className="h-10 w-10 text-slate-300" />
+                            <div>
+                                <p className="font-bold text-slate-700">No reviews found</p>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    {displayEntries.length === 0 ? 'No approved reviews yet.' : 'Try adjusting your filter settings.'}
+                                </p>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Toolbar */}
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-                <p className="text-sm text-muted-foreground">
-                    {loading ? 'Loading...' : `Showing ${filtered.length} of ${displayEntries.length} review${displayEntries.length !== 1 ? 's' : ''}`}
-                    {activeFiltersCount > 0 && ` (${activeFiltersCount} filter${activeFiltersCount > 1 ? 's' : ''} active)`}
-                </p>
-                <div className="flex items-center gap-2">
-                    {activeFiltersCount > 0 && (
-                        <Button variant="ghost" size="sm" onClick={() => setFilters(defaultFilters)}>
-                            <X className="mr-1 h-3.5 w-3.5" /> Clear filters
-                        </Button>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {filtered.map((entry) => (
+                                <ReviewCard key={entry.id} entry={entry} onImageClick={setLightboxUrl} />
+                            ))}
+                        </div>
                     )}
-                    <FiltersSheet filters={filters} onApply={setFilters} />
-                </div>
-            </div>
+                </TabsContent>
 
-            {/* Results */}
-            {loading ? (
-                <div className="flex justify-center items-center h-48">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-            ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-48 text-center gap-3 border rounded-xl bg-muted/20">
-                    <BookOpen className="h-12 w-12 text-muted-foreground/30" />
-                    <div>
-                        <p className="font-medium">No reviews found</p>
-                        <p className="text-sm text-muted-foreground">
-                            {displayEntries.length === 0 ? 'No approved reviews yet.' : 'Try adjusting your filters.'}
-                        </p>
-                    </div>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {filtered.map((entry) => (
-                        <ReviewCard key={entry.id} entry={entry} onImageClick={setLightboxUrl} />
-                    ))}
-                </div>
-            )}
+                {/* Tab 2: Sign the Guestbook Form */}
+                <TabsContent value="sign">
+                    <Card className="max-w-2xl mx-auto border-slate-100 shadow-md">
+                        <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100/60 rounded-t-xl">
+                            <div className="flex items-center gap-2 text-amber-700 text-xs font-bold uppercase tracking-wider mb-1">
+                                <Sparkles className="h-4 w-4" /> Guestbook Submission
+                            </div>
+                            <CardTitle className="text-2xl font-extrabold text-slate-800">
+                                Sign the Community Guestbook
+                            </CardTitle>
+                            <CardDescription className="text-xs text-slate-500">
+                                Share your experiences, recommend local spots, or leave a message for neighbours and visitors. Reviews are reviewed by the community leadership before appearing publicly.
+                            </CardDescription>
+                        </CardHeader>
 
-            {/* Lightbox */}
+                        <CardContent className="p-6 space-y-6">
+                            {hasSubmitted ? (
+                                <div className="text-center py-10 space-y-4">
+                                    <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                                        <CheckCircle2 className="h-8 w-8" />
+                                    </div>
+                                    <h3 className="text-xl font-extrabold text-slate-800">Thank You for Signing!</h3>
+                                    <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                                        Your guestbook entry has been successfully submitted and will appear on the guestbook once approved by the community moderator team.
+                                    </p>
+                                    <div className="pt-2 flex justify-center gap-3">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                setHasSubmitted(false);
+                                                setActiveTab('reviews');
+                                            }}
+                                            className="text-xs font-bold"
+                                        >
+                                            View Guestbook Entries
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => setHasSubmitted(false)}
+                                            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold"
+                                        >
+                                            Submit Another Entry
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-5">
+                                    {/* Star Rating */}
+                                    <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                                            Your Overall Rating *
+                                        </label>
+                                        <div className="flex items-center justify-between">
+                                            <StarPicker value={newRating} onChange={setNewRating} />
+                                            <span className="text-xs font-extrabold text-amber-600">
+                                                {newRating > 0 ? `${newRating} of 5 Stars` : 'Select a rating'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Review message */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                            Your Message or Experience *
+                                        </label>
+                                        <Textarea
+                                            placeholder="Tell us what you love about this community, local events, recommendations..."
+                                            value={newContent}
+                                            onChange={(e) => setNewContent(e.target.value)}
+                                            rows={5}
+                                            maxLength={500}
+                                            className="text-sm bg-white focus-visible:ring-1 focus-visible:ring-amber-500"
+                                        />
+                                        <div className="flex justify-between items-center text-[10px] text-slate-400 font-medium">
+                                            <span>Minimum 10 characters</span>
+                                            <span>{newContent.length} / 500</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Anonymous toggle */}
+                                    <div className="flex items-center gap-2 py-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                        <Checkbox 
+                                            id="page-anonymous-review" 
+                                            checked={isAnonymous} 
+                                            onCheckedChange={(checked) => setIsAnonymous(!!checked)} 
+                                        />
+                                        <Label htmlFor="page-anonymous-review" className="text-xs font-bold text-slate-700 cursor-pointer">
+                                            Post review anonymously (hide my name and avatar)
+                                        </Label>
+                                    </div>
+
+                                    {/* Photo upload */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                            Add a Photo <span className="text-slate-400 font-normal lowercase">(optional, max 5MB)</span>
+                                        </label>
+                                        {imagePreview ? (
+                                            <div className="relative rounded-xl overflow-hidden border border-slate-200">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={imagePreview} alt="Preview" className="w-full object-cover max-h-48" />
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    className="absolute top-2 right-2 h-7 w-7 rounded-full shadow-md"
+                                                    onClick={clearImage}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="flex-1 text-xs font-bold h-10 rounded-xl"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                >
+                                                    <ImageIcon className="mr-2 h-4 w-4 text-slate-500" /> Choose Photo
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="flex-1 text-xs font-bold h-10 rounded-xl"
+                                                    onClick={() => {
+                                                        if (fileInputRef.current) {
+                                                            fileInputRef.current.setAttribute('capture', 'environment');
+                                                            fileInputRef.current.click();
+                                                        }
+                                                    }}
+                                                >
+                                                    <Camera className="mr-2 h-4 w-4 text-slate-500" /> Take Photo
+                                                </Button>
+                                            </div>
+                                        )}
+                                        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+                                    </div>
+
+                                    {/* Submit action button */}
+                                    <div className="pt-3">
+                                        <Button
+                                            onClick={handleSubmitReview}
+                                            disabled={submitting || !user || isUserLoading}
+                                            className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold text-sm py-3 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all"
+                                        >
+                                            {submitting ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin" /> Submitting Review...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Send className="h-4 w-4" /> Submit Guestbook Entry
+                                                </>
+                                            )}
+                                        </Button>
+                                        {!user && !isUserLoading && (
+                                            <p className="text-[11px] text-amber-700 text-center mt-2 font-medium">
+                                                Please sign in to your account to sign the community guestbook.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+
+            {/* Lightbox for full screen photo view */}
             <Dialog open={!!lightboxUrl} onOpenChange={() => setLightboxUrl(null)}>
                 <DialogContent className="max-w-3xl p-2 bg-black/90 border-0">
                     {lightboxUrl && (
