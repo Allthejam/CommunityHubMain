@@ -128,14 +128,16 @@ export async function getLeaderMarketingHubDataAction(isDemo = false): Promise<{
             campaignsSnap = await comfeedDb.collection('marketing_campaigns').get();
         }
 
-        const campaigns = campaignsSnap.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                updatedAt: data.updatedAt ? data.updatedAt.toDate().toISOString() : new Date().toISOString(),
-            };
-        });
+        const campaigns = campaignsSnap.docs
+            .map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    updatedAt: data.updatedAt ? data.updatedAt.toDate().toISOString() : new Date().toISOString(),
+                };
+            })
+            .filter((c: any) => c.isMainAppVisible === true);
 
         // 2. Fetch platform marketing gallery
         let gallerySnap = await primaryDb.collection('platform_marketing_gallery').get();
