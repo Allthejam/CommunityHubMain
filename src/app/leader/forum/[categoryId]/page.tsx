@@ -8,10 +8,11 @@ import Link from "next/link";
 import { type ForumCategory, type Topic } from "@/lib/forum-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useParams } from "next/navigation";
-import { doc, collection, query, where } from "firebase/firestore";
+import { doc, collection, query, where, getDoc } from "firebase/firestore";
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import * as React from "react";
 import { format, isValid } from 'date-fns';
+import { runSanitizeForumTopicsPrivacy } from "@/lib/actions/forumActions";
 
 export default function LeaderForumCategoryPage() {
     const params = useParams();
@@ -31,14 +32,60 @@ export default function LeaderForumCategoryPage() {
     const { data: category, isLoading: categoryLoading, error: categoryError } = useDoc<ForumCategory>(categoryRef);
     const { data: topics, isLoading: topicsLoading, error: topicsError } = useCollection<Topic>(topicsQuery);
     
-    const loading = categoryLoading || topicsLoading;
-    const error = categoryError || topicsError;
+    const [privacyMap, setPrivacyMap] = React.useState<Record<string, { isPrivate: boolean; realName?: string }>>({});
+
+    React.useEffect(() => {
+        runSanitizeForumTopicsPrivacy().catch(console.error);
+    }, []);
+
+    React.useEffect(() => {
+        if (!topics || !db) return;
+        const authorIds = Array.from(new Set(topics.map(t => (t as any).authorId).filter(Boolean)));
+        if (authorIds.length === 0) return;
+
+        const fetchPrivacy = async () => {
+            const newMap: Record<string, { isPrivate: boolean; realName?: string }> = {};
+            for (const authorId of authorIds) {
+                try {
+                    const userRef = doc(db, 'users', authorId);
+                    const userSnap = await getDoc(userRef);
+                    if (userSnap.exists()) {
+                        const userData = userSnap.data();
+                        newMap[authorId] = {
+                            isPrivate: userData?.settings?.publicProfile === false,
+                            realName: userData?.name
+                        };
+                    }
+                } catch (err) {
+                    console.error("Error fetching author privacy:", err);
+                }
+            }
+            setPrivacyMap(newMap);
+        };
+
+        fetchPrivacy();
+    }, [topics, db]);
 
     const formatDate = (date: any) => {
         if (!date) return 'N/A';
-        const d = date.toDate ? date.toDate() : new Date(date);
-        return isValid(d) ? format(d, "dd/MM/yyyy HH:mm") : 'Invalid Date';
+        try {
+            if (typeof date?.toDate === 'function') {
+                const d = date.toDate();
+                return isValid(d) ? format(d, "dd/MM/yyyy HH:mm") : 'N/A';
+            }
+            if (date?.seconds) {
+                const d = new Date(date.seconds * 1000);
+                return isValid(d) ? format(d, "dd/MM/yyyy HH:mm") : 'N/A';
+            }
+            const d = new Date(date);
+            return isValid(d) ? format(d, "dd/MM/yyyy HH:mm") : 'N/A';
+        } catch {
+            return 'N/A';
+        }
     };
+
+    const loading = categoryLoading || topicsLoading;
+    const error = categoryError || topicsError;
 
     if (loading) {
         return (
@@ -104,9 +151,13 @@ export default function LeaderForumCategoryPage() {
                         </TableHeader>
                         <TableBody>
                             {topics && topics.map((topic) => {
-                                const isAnon = (topic as any).isAnonymous || topic.authorName?.toLowerCase().includes('anonymous');
-                                const authorDisplayName = isAnon ? 'Anonymous Member' : topic.authorName;
+                                const userPrivacy = (topic as any).authorId ? privacyMap[(topic as any).authorId] : undefined;
+                                const isAnon = (topic as any).isAnonymous || 
+                                               userPrivacy?.isPrivate === true || 
+                                               topic.authorName?.toLowerCase().includes('anonymous');
+                                const authorDisplayName = isAnon ? 'Anonymous Member' : (userPrivacy?.realName || topic.authorName);
                                 const authorAvatarSrc = isAnon ? '' : topic.authorAvatar;
+                                const realNameForLeader = (topic as any).authorRealName || userPrivacy?.realName;
                                 return (
                                 <TableRow key={topic.id}>
                                     <TableCell>
@@ -119,8 +170,8 @@ export default function LeaderForumCategoryPage() {
                                                  <Link href={`/leader/forum/${categoryId}/${topic.id}`} className="font-medium hover:underline">{topic.title}</Link>
                                                 <p className="text-sm text-muted-foreground">
                                                   by {authorDisplayName}
-                                                  {isAnon && (topic as any).authorRealName && (
-                                                    <span className="text-xs text-muted-foreground ml-1">({(topic as any).authorRealName})</span>
+                                                  {isAnon && realNameForLeader && (
+                                                    <span className="text-xs text-muted-foreground ml-1">({realNameForLeader})</span>
                                                   )}
                                                 </p>
                                             </div>

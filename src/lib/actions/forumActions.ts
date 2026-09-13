@@ -195,3 +195,61 @@ export async function runAddPostToTopic(params: {
         return { success: false, error: error.message };
     }
 }
+
+export async function runSanitizeForumTopicsPrivacy(): Promise<ActionResponse> {
+    try {
+        const { firestore } = initializeAdminApp();
+        const usersSnap = await firestore.collection('users').get();
+        const privateUserMap = new Map<string, string>(); // userId -> name
+
+        usersSnap.forEach(doc => {
+            const data = doc.data();
+            if (data?.settings?.publicProfile === false) {
+                privateUserMap.set(doc.id, data.name || 'Member');
+            }
+        });
+
+        const topicsSnap = await firestore.collection('forum-topics').get();
+        const batch = firestore.batch();
+        let updateCount = 0;
+
+        for (const topicDoc of topicsSnap.docs) {
+            const topicData = topicDoc.data();
+            if (privateUserMap.has(topicData.authorId)) {
+                const realName = privateUserMap.get(topicData.authorId)!;
+                batch.update(topicDoc.ref, {
+                    authorName: 'Anonymous Member',
+                    authorAvatar: '',
+                    authorRealName: topicData.authorRealName || realName || topicData.authorName,
+                    isAnonymous: true,
+                });
+                updateCount++;
+            }
+
+            // Check posts in this topic
+            const postsSnap = await topicDoc.ref.collection('posts').get();
+            for (const postDoc of postsSnap.docs) {
+                const postData = postDoc.data();
+                if (privateUserMap.has(postData.authorId)) {
+                    const realName = privateUserMap.get(postData.authorId)!;
+                    batch.update(postDoc.ref, {
+                        authorName: 'Anonymous Member',
+                        authorAvatar: '',
+                        authorRealName: postData.authorRealName || realName || postData.authorName,
+                        isAnonymous: true,
+                    });
+                    updateCount++;
+                }
+            }
+        }
+
+        if (updateCount > 0) {
+            await batch.commit();
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error sanitizing forum topics privacy:", error);
+        return { success: false, error: error.message };
+    }
+}
