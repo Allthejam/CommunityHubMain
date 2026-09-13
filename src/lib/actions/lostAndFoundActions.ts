@@ -56,11 +56,11 @@ export async function reportLostOrFoundItemAction(params: ReportItemParams): Pro
             ownerId: effectiveOwnerId,
             reporterName: params.reporterName || (isDemo ? 'Demo Resident' : 'Community Member'),
             date: Timestamp.fromDate(new Date(params.date)),
-            status: isDemo ? 'active' : 'new', // Items in demo mode are active immediately
+            status: 'active', // Lost & Found items go live immediately
             createdAt: Timestamp.now(), 
         });
         
-        // Notify leaders
+        // Notify leaders for moderation
         const usersRef = firestore.collection('users');
         const roleQuery = usersRef
             .where(`communityRoles.${params.communityId}.role`, 'in', ['leader', 'president'])
@@ -81,7 +81,7 @@ export async function reportLostOrFoundItemAction(params: ReportItemParams): Pro
                 batch.set(notificationRef, {
                     recipientId: leaderDoc.id,
                     type: 'Lost & Found Report',
-                    subject: `New ${params.type} item (#${itemRef.id.substring(0, 6)})`,
+                    subject: `New live ${params.type} item reported (#${itemRef.id.substring(0, 6)})`,
                     from: params.reporterName || 'Resident',
                     date: Timestamp.now(),
                     status: 'new',

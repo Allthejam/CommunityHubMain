@@ -186,7 +186,7 @@ export function ReportItemForm() {
         });
 
         if (result.success || isDemo) {
-            toast({ title: isDemo ? 'Item Reported!' : 'Report Submitted', description: isDemo ? 'Your report is now live in the demo.' : 'Your report has been sent for review.' });
+            toast({ title: '🎉 Item Reported Live!', description: 'Your report is now live on the community lost & found board.' });
             setOpen(false);
             resetForm();
         } else {
@@ -208,7 +208,7 @@ export function ReportItemForm() {
         <DialogHeader>
           <DialogTitle>Report a Lost or Found Item</DialogTitle>
           <DialogDescription>
-            Fill out the details below to report an item. This will be reviewed by a community leader.
+            Fill out the details below to report a lost or found item. Your report goes live on the community board immediately.
           </DialogDescription>
         </DialogHeader>
          <Alert>

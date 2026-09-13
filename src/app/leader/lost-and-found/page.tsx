@@ -131,18 +131,18 @@ const StatusBadge = ({ status }: { status: ItemStatus }) => {
     },
     active: {
       className:
-        'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
-      text: 'Active',
+        'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
+      text: 'Live',
     },
     resolved: {
       className:
-        'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
+        'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
       text: 'Resolved',
     },
     rejected: {
       className:
-        'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
-      text: 'Rejected',
+        'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300',
+      text: 'Removed / Inappropriate',
     },
     deleted: {
       className:
@@ -170,6 +170,7 @@ function ItemTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Type</TableHead>
             <TableHead>Description</TableHead>
             <TableHead>Location</TableHead>
             <TableHead>Date Reported</TableHead>
@@ -181,7 +182,7 @@ function ItemTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center">
+              <TableCell colSpan={7} className="h-24 text-center">
                 <Loader2 className="animate-spin mx-auto" />
               </TableCell>
             </TableRow>
@@ -190,6 +191,11 @@ function ItemTable({
               const displayDate = item.createdAt ? item.createdAt.toDate() : item.date.toDate();
               return (
               <TableRow key={item.id}>
+                <TableCell>
+                  <Badge variant={item.type === 'lost' ? 'destructive' : 'secondary'} className="capitalize">
+                    {item.type}
+                  </Badge>
+                </TableCell>
                 <TableCell className="max-w-xs truncate">
                   <div className="flex items-center gap-2">
                     {item.image && (
@@ -198,10 +204,10 @@ function ItemTable({
                         alt={item.description}
                         width={40}
                         height={40}
-                        className="rounded-sm object-cover"
+                        className="rounded-sm object-cover shrink-0"
                       />
                     )}
-                    <span>{item.description}</span>
+                    <span className="truncate font-medium">{item.description}</span>
                   </div>
                 </TableCell>
                 <TableCell>{item.location}</TableCell>
@@ -217,36 +223,55 @@ function ItemTable({
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal />
+                                <MoreHorizontal className="h-4 w-4" />
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuLabel>Moderation & Actions</DropdownMenuLabel>
+                                
+                                <DialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                        <MessageSquare className="mr-2 h-4 w-4" /> Contact Author
+                                    </DropdownMenuItem>
+                                </DialogTrigger>
+
+                                {item.status === 'active' && (
+                                    <>
+                                        <DropdownMenuItem onClick={() => handleUpdateStatus(item.id, 'resolved')}>
+                                            <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" /> Mark as Resolved
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleUpdateStatus(item.id, 'rejected')} className="text-rose-600 dark:text-rose-400">
+                                            <XCircle className="mr-2 h-4 w-4" /> Remove / Inappropriate
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+
+                                {item.status === 'rejected' && (
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(item.id, 'active')}>
+                                        <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" /> Restore to Live Feed
+                                    </DropdownMenuItem>
+                                )}
+
+                                {item.status === 'resolved' && (
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(item.id, 'active')}>
+                                        <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" /> Reopen / Make Live
+                                    </DropdownMenuItem>
+                                )}
+
                                 {item.status === 'new' && (
                                     <>
                                         <DropdownMenuItem onClick={() => handleUpdateStatus(item.id, 'active')}>
-                                            <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                                            <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" /> Publish Live
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleUpdateStatus(item.id, 'rejected')} className="text-destructive">
-                                            <XCircle className="mr-2 h-4 w-4" /> Reject
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
-                                {item.status === 'active' && (
-                                    <>
-                                        <DialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                                <MessageSquare className="mr-2 h-4 w-4" /> Contact Author
-                                            </DropdownMenuItem>
-                                        </DialogTrigger>
-                                        <DropdownMenuItem onClick={() => handleUpdateStatus(item.id, 'resolved')}>
-                                            <CheckCircle className="mr-2 h-4 w-4" /> Mark as Resolved
+                                        <DropdownMenuItem onClick={() => handleUpdateStatus(item.id, 'rejected')} className="text-rose-600 dark:text-rose-400">
+                                            <XCircle className="mr-2 h-4 w-4" /> Reject / Remove
                                         </DropdownMenuItem>
                                     </>
                                 )}
+
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-destructive">
-                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete Permanently
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -257,7 +282,7 @@ function ItemTable({
             )})
           ) : (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center">
+              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                 No items in this category.
               </TableCell>
             </TableRow>
@@ -307,7 +332,7 @@ export default function LeaderLostAndFoundPage() {
       communityId: userProfile?.communityId || '',
     });
     if (result.success) {
-      toast({ title: 'Status Updated' });
+      toast({ title: 'Status Updated', description: `Item is now marked as ${status}.` });
     } else {
       toast({
         title: 'Error',
@@ -318,9 +343,9 @@ export default function LeaderLostAndFoundPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const result = await deleteLostAndFoundItemAction({ itemId: id });
+    const result = await deleteLostAndFoundItemAction({ itemId: id, communityId: userProfile?.communityId });
     if (result.success) {
-      toast({ title: 'Item Deleted' });
+      toast({ title: 'Item Deleted', description: 'Item has been permanently removed.' });
     } else {
       toast({
         title: 'Error',
@@ -333,30 +358,20 @@ export default function LeaderLostAndFoundPage() {
   const twentyEightDaysAgo = new Date();
   twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
 
-  const pendingItems = items.filter((item) => item.status === 'new');
-  const activeLostItems = items.filter(
-    (item) => {
-      if (item.status !== 'active' || item.type !== 'lost') return false;
-      try {
-        const itemDate = item.date?.toDate ? item.date.toDate() : new Date(item.date as any);
-        return itemDate >= twentyEightDaysAgo;
-      } catch {
-        return true;
-      }
+  const allLiveItems = items.filter((item) => {
+    if (item.status !== 'active') return false;
+    try {
+      const itemDate = item.date?.toDate ? item.date.toDate() : new Date(item.date as any);
+      return itemDate >= twentyEightDaysAgo;
+    } catch {
+      return true;
     }
-  );
-  const activeFoundItems = items.filter(
-    (item) => {
-      if (item.status !== 'active' || item.type !== 'found') return false;
-      try {
-        const itemDate = item.date?.toDate ? item.date.toDate() : new Date(item.date as any);
-        return itemDate >= twentyEightDaysAgo;
-      } catch {
-        return true;
-      }
-    }
-  );
+  });
+
+  const activeLostItems = allLiveItems.filter((item) => item.type === 'lost');
+  const activeFoundItems = allLiveItems.filter((item) => item.type === 'found');
   const resolvedItems = items.filter((item) => item.status === 'resolved');
+  const moderatedItems = items.filter((item) => item.status === 'rejected' || item.status === 'deleted');
 
   return (
     <div className="space-y-8">
@@ -366,30 +381,39 @@ export default function LeaderLostAndFoundPage() {
           Manage Lost & Found
         </h1>
         <p className="text-muted-foreground">
-          Review and manage lost and found item reports for your community.
+          Community reports go live immediately. As a leader, you can review live items, contact reporters, mark items resolved, or remove inappropriate posts.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Item Submissions</CardTitle>
+          <CardTitle>Community Lost & Found Items</CardTitle>
           <CardDescription>
-            Review, approve, and manage all submitted items.
+            Live items are shown directly to the public. Moderate, resolve, or remove any report as needed.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="pending">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="pending">
-                Pending Approval ({pendingItems.length})
+          <Tabs defaultValue="all_live">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto gap-1">
+              <TabsTrigger value="all_live" className="py-2">
+                All Live ({allLiveItems.length})
               </TabsTrigger>
-              <TabsTrigger value="lost">Active Lost ({activeLostItems.length})</TabsTrigger>
-              <TabsTrigger value="found">Active Found ({activeFoundItems.length})</TabsTrigger>
-              <TabsTrigger value="resolved">Resolved ({resolvedItems.length})</TabsTrigger>
+              <TabsTrigger value="lost" className="py-2">
+                Live Lost ({activeLostItems.length})
+              </TabsTrigger>
+              <TabsTrigger value="found" className="py-2">
+                Live Found ({activeFoundItems.length})
+              </TabsTrigger>
+              <TabsTrigger value="resolved" className="py-2">
+                Resolved ({resolvedItems.length})
+              </TabsTrigger>
+              <TabsTrigger value="moderated" className="py-2">
+                Moderated / Removed ({moderatedItems.length})
+              </TabsTrigger>
             </TabsList>
-            <TabsContent value="pending" className="mt-4">
+            <TabsContent value="all_live" className="mt-4">
               <ItemTable
-                items={pendingItems}
+                items={allLiveItems}
                 loading={loading}
                 handleUpdateStatus={handleUpdateStatus}
                 handleDelete={handleDelete}
@@ -414,6 +438,14 @@ export default function LeaderLostAndFoundPage() {
             <TabsContent value="resolved" className="mt-4">
               <ItemTable
                 items={resolvedItems}
+                loading={loading}
+                handleUpdateStatus={handleUpdateStatus}
+                handleDelete={handleDelete}
+              />
+            </TabsContent>
+            <TabsContent value="moderated" className="mt-4">
+              <ItemTable
+                items={moderatedItems}
                 loading={loading}
                 handleUpdateStatus={handleUpdateStatus}
                 handleDelete={handleDelete}
