@@ -201,12 +201,6 @@ function DemoLayoutContent({ children }: { children: React.ReactNode }) {
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc<any>(userProfileRef);
 
-  const isOwner = (
-    user?.email === 'allan_jamieson@outlook.com' ||
-    userProfile?.accountType === 'owner' ||
-    userProfile?.role === 'owner'
-  );
-
   const [currentPersona, setCurrentPersona] = useState<string>('leader');
   const [isCommunityDialogOpen, setIsCommunityDialogOpen] = useState(false);
   const [communitySelection, setCommunitySelection] = useState<CommunitySelection | null>({
@@ -863,35 +857,7 @@ function DemoLayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* 3. MAIN DEMO CONTENT */}
         <main className="flex-1">
-          {(!isOwner && (isLeaderBackoffice || isBusinessBackoffice || isNationalBackoffice || isRegionalBackoffice)) ? (
-            <div className="container max-w-2xl mx-auto py-16 px-4 text-center space-y-6">
-              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-500 shadow-md">
-                <Crown className="w-8 h-8" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-2xl font-black font-headline text-foreground">
-                  Owner Privilege Required
-                </h1>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Only the platform Owner (<code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary">allan_jamieson@outlook.com</code>) has administrative privileges to configure and edit backoffice showcase data.
-                </p>
-              </div>
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Button asChild className="font-bold shadow">
-                  <Link href="/demo/home">
-                    Explore Public Demo Hub →
-                  </Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="/">
-                    Sign In as Owner on Live Hub
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          ) : (
-            children
-          )}
+          {children}
         </main>
       </div>
   );
