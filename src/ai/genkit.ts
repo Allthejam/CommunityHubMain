@@ -1,15 +1,13 @@
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/google-genai';
 
-// Explicitly pass the API key from the environment variables
-// This makes the dependency on the GEMINI_API_KEY clear and can resolve
-// issues where the environment variable isn't automatically detected.
-const geminiApiKey = process.env.GEMINI_API_KEY;
+const DEFAULT_GEMINI_KEY = 'AIzaSyDzbik9uEALmhNwtiY9JKzrP9lcdN1KD1s';
 
-if (!geminiApiKey) {
-  // This log helps debug setup issues.
-  console.log("AI SYSTEM-WIDE WARNING: GEMINI_API_KEY environment variable not found. AI features will fail.");
-}
+const geminiApiKey = process.env.GOOGLE_GENAI_API_KEY ||
+                     process.env.GEMINI_API_KEY ||
+                     process.env.GOOGLE_API_KEY ||
+                     process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
+                     DEFAULT_GEMINI_KEY;
 
 export const ai = genkit({
   plugins: [
