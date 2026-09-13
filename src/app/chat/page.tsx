@@ -89,7 +89,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { deleteMessageAction } from '@/lib/actions/chatActions';
+import { deleteMessageAction, findOrCreateChatForLostFoundItem } from '@/lib/actions/chatActions';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 
@@ -222,8 +222,28 @@ export function ChatPageContent() {
         if (conversationIdFromUrl) {
             setCurrentChatId(conversationIdFromUrl);
             setIsMobileChatOpen(true);
+            return;
         }
-    }, [searchParams]);
+
+        const contactFromUrl = searchParams.get('contact');
+        const itemIdFromUrl = searchParams.get('itemId');
+        if (contactFromUrl && user && user.uid !== contactFromUrl && contactFromUrl !== 'demo-personal') {
+            const autoConnect = async () => {
+                const res = await findOrCreateChatForLostFoundItem({
+                    currentUserId: user.uid,
+                    reporterId: contactFromUrl,
+                    itemId: itemIdFromUrl || 'general',
+                    itemDescription: 'Community item inquiry',
+                    communityId: communityId || undefined,
+                });
+                if (res.success && res.conversationId) {
+                    setCurrentChatId(res.conversationId);
+                    setIsMobileChatOpen(true);
+                }
+            };
+            autoConnect();
+        }
+    }, [searchParams, user, communityId]);
 
     React.useEffect(() => {
         const storedPinned = localStorage.getItem('pinnedLeaderChats');

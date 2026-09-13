@@ -62,9 +62,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { CommentSheet } from './comment-sheet';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { RichTextEditor } from './rich-text-editor';
 import { Input } from './ui/input';
 import { AspectRatio } from './ui/aspect-ratio';
+import { findOrCreateChatForLostFoundItem } from '@/lib/actions/chatActions';
 
 
 export type Post = {
@@ -126,6 +128,7 @@ const parseVideoUrl = (url: string | null | undefined): { type: 'youtube' | 'vim
 export default function PostCard({ post, className }: PostCardProps) {
   const isPending = post.status === 'new';
   const { user } = useUser();
+  const router = useRouter();
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
@@ -133,6 +136,59 @@ export default function PostCard({ post, className }: PostCardProps) {
   const [editedVideoUrl, setEditedVideoUrl] = React.useState(post.videoUrl || '');
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isStartingChat, setIsStartingChat] = React.useState(false);
+
+  const handleContactAuthor = async () => {
+    if (!user) {
+      toast({
+        title: "Please sign in",
+        description: "You must be signed in to send a private message to the author.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (user.uid === post.authorId || post.authorId === 'demo-personal') {
+      toast({
+        title: "Your own report",
+        description: "You cannot start a chat with yourself about your own post.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsStartingChat(true);
+    try {
+      const itemDetails = (post as any).itemDetails;
+      const result = await findOrCreateChatForLostFoundItem({
+        currentUserId: user.uid,
+        reporterId: post.authorId,
+        itemId: String(post.id),
+        itemDescription: itemDetails?.description || plainTextContent,
+        itemLocation: itemDetails?.location || '',
+        itemType: itemDetails?.type || 'lost',
+        communityId: post.communityId,
+      });
+
+      if (result.success && result.conversationId) {
+        toast({ title: "Connected", description: "Opening your private conversation..." });
+        router.push(`/chat?conversationId=${result.conversationId}`);
+      } else {
+        toast({
+          title: "Could not start chat",
+          description: result.error || "Please try again later.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to start conversation.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStartingChat(false);
+    }
+  };
   
   const plainTextContent = React.useMemo(() => {
     if (typeof window === 'undefined') {
@@ -299,12 +355,14 @@ export default function PostCard({ post, className }: PostCardProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            {!isAnonymousPost && (
-              <DropdownMenuItem asChild>
-                <Link href={`/chat?contact=${post.authorId}&itemId=${post.id}`}>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Contact Author
-                </Link>
+            {user?.uid !== post.authorId && (
+              <DropdownMenuItem onClick={handleContactAuthor} disabled={isStartingChat}>
+                {isStartingChat ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <MessageSquare className="mr-2 h-4 w-4 text-primary" />
+                )}
+                <span>{(post as any).itemDetails ? 'Contact Reporter' : 'Contact Author'}</span>
               </DropdownMenuItem>
             )}
              <DropdownMenuItem asChild>
@@ -462,29 +520,52 @@ export default function PostCard({ post, className }: PostCardProps) {
 
       </CardContent>
       <Separator />
-      <CardFooter className="flex justify-between p-2">
-        <Button variant="ghost" className="flex-1" onClick={handleLike}>
-          <ThumbsUp className={cn("mr-2 h-4 w-4", hasLiked && "fill-current text-primary")} />
-          {post.likes} Likes
-        </Button>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="ghost" className="flex-1">
-              <MessageCircle className="mr-2 h-4 w-4" />
-              {post.commentCount || 0} Comments
+      {(post as any).itemDetails ? (
+        <CardFooter className="flex items-center justify-between gap-2 p-3 bg-muted/20">
+          {user?.uid !== post.authorId && post.authorId !== 'demo-personal' ? (
+            <Button
+              size="sm"
+              className="flex-1 gap-2 font-medium"
+              onClick={handleContactAuthor}
+              disabled={isStartingChat}
+            >
+              {isStartingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+              Contact Reporter
             </Button>
-          </DialogTrigger>
-          <DialogContent className="p-0 max-h-[80vh] flex flex-col">
-            <DialogHeader className="p-6 pb-2">
-                <DialogTitle>Comments on {post.author}'s post</DialogTitle>
-            </DialogHeader>
-            <CommentSheet postId={String(post.id)} communityId={post.communityId} />
-          </DialogContent>
-        </Dialog>
-        <Button variant="ghost" className="flex-1" onClick={handleShare}>
-          <Share2 className="h-4 w-4" />
-        </Button>
-      </CardFooter>
+          ) : (
+            <div className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">
+              Your Report
+            </div>
+          )}
+          <Button variant="outline" size="sm" onClick={handleShare}>
+            <Share2 className="h-4 w-4 mr-1.5" /> Share
+          </Button>
+        </CardFooter>
+      ) : (
+        <CardFooter className="flex justify-between p-2">
+          <Button variant="ghost" className="flex-1" onClick={handleLike}>
+            <ThumbsUp className={cn("mr-2 h-4 w-4", hasLiked && "fill-current text-primary")} />
+            {post.likes} Likes
+          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" className="flex-1">
+                <MessageCircle className="mr-2 h-4 w-4" />
+                {post.commentCount || 0} Comments
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="p-0 max-h-[80vh] flex flex-col">
+              <DialogHeader className="p-6 pb-2">
+                  <DialogTitle>Comments on {post.author}&apos;s post</DialogTitle>
+              </DialogHeader>
+              <CommentSheet postId={String(post.id)} communityId={post.communityId} />
+            </DialogContent>
+          </Dialog>
+          <Button variant="ghost" className="flex-1" onClick={handleShare}>
+            <Share2 className="h-4 w-4" />
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   )
 }

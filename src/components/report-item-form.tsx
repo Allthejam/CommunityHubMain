@@ -17,6 +17,7 @@ import { PlusCircle, Loader2, Upload, Camera, X, RefreshCw } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
 import { DatePicker } from "./ui/date-picker";
+import { Checkbox } from "./ui/checkbox";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useDoc, useMemoFirebase, useFirestore } from "@/firebase";
@@ -32,6 +33,7 @@ export function ReportItemForm() {
     const [location, setLocation] = useState('');
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [image, setImage] = useState<string | null>(null);
+    const [isAnonymous, setIsAnonymous] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -133,6 +135,7 @@ export function ReportItemForm() {
         setLocation('');
         setDate(new Date());
         setImage(null);
+        setIsAnonymous(false);
     }
 
     const handleSubmit = async () => {
@@ -161,6 +164,7 @@ export function ReportItemForm() {
             ownerId: effectiveOwnerId,
             communityId: effectiveCommunityId,
             reporterName: effectiveReporterName,
+            isAnonymous,
             status: 'active',
         };
 
@@ -183,6 +187,7 @@ export function ReportItemForm() {
             ownerId: effectiveOwnerId,
             communityId: effectiveCommunityId,
             reporterName: effectiveReporterName,
+            isAnonymous,
         });
 
         if (result.success || isDemo) {
@@ -214,7 +219,7 @@ export function ReportItemForm() {
          <Alert>
             <AlertTitle>Communication Disclaimer</AlertTitle>
             <AlertDescription>
-                You will be contacted via the platform's chat page regarding this item. Please refer to the generated Item ID in your correspondence.
+                You will be contacted via the platform&apos;s chat page regarding this item. Please refer to the generated Item ID in your correspondence.
             </AlertDescription>
         </Alert>
         <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
@@ -241,6 +246,22 @@ export function ReportItemForm() {
             <div className="space-y-2">
                 <Label htmlFor="date">Date Lost/Found *</Label>
                 <DatePicker date={date} setDate={setDate} />
+            </div>
+            <div className="flex items-start space-x-3 p-3 bg-muted/40 rounded-lg border">
+                <Checkbox
+                    id="anonymous-report"
+                    checked={isAnonymous}
+                    onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+                    className="mt-0.5"
+                />
+                <div className="grid gap-1.5 leading-none">
+                    <Label htmlFor="anonymous-report" className="text-sm font-medium cursor-pointer">
+                        Hide my name on the public board
+                    </Label>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        Your post will display as &quot;Community Neighbor&quot; to the public. Your name remains visible in private chats with respondents and to community leaders for safety.
+                    </p>
+                </div>
             </div>
              <div className="space-y-2">
                 <Label>Image</Label>

@@ -18,6 +18,7 @@ type ReportItemParams = {
     ownerId: string;
     communityId: string;
     reporterName: string;
+    isAnonymous?: boolean;
 }
 
 export async function getLostAndFoundAction(communityId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
@@ -55,6 +56,7 @@ export async function reportLostOrFoundItemAction(params: ReportItemParams): Pro
             ...params,
             ownerId: effectiveOwnerId,
             reporterName: params.reporterName || (isDemo ? 'Demo Resident' : 'Community Member'),
+            isAnonymous: params.isAnonymous ?? false,
             date: Timestamp.fromDate(new Date(params.date)),
             status: 'active', // Lost & Found items go live immediately
             createdAt: Timestamp.now(), 

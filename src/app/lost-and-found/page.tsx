@@ -34,9 +34,12 @@ function itemToPost(item: Item): Post {
         }
     } catch (e) {}
 
+    const isAnon = (item as any).isAnonymous === true;
+    const authorDisplayName = isAnon ? 'Community Neighbor' : (item.reporterName || 'Community Member');
+
     return {
         id: item.id,
-        author: item.reporterName,
+        author: authorDisplayName,
         authorId: (item as any).ownerId,
         authorAvatar: '',
         timestamp: dateStr,
@@ -46,7 +49,18 @@ function itemToPost(item: Item): Post {
         comments: 0,
         status: item.status,
         communityId: item.communityId,
-    }
+        isAnonymous: isAnon,
+        itemDetails: {
+            id: item.id,
+            type: item.type,
+            description: item.description,
+            location: item.location,
+            date: dateStr,
+            ownerId: (item as any).ownerId,
+            reporterName: item.reporterName,
+            isAnonymous: isAnon,
+        }
+    } as any;
 }
 
 export function LostAndFoundContent() {

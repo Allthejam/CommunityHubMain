@@ -71,7 +71,8 @@ export type Item = {
   image?: string;
   status: ItemStatus;
   reporterName: string;
-  contactPreference: 'leader' | 'direct';
+  isAnonymous?: boolean;
+  contactPreference?: 'leader' | 'direct';
   contactEmail?: string;
   contactPhone?: string;
   createdAt?: { toDate: () => Date };
@@ -214,7 +215,16 @@ function ItemTable({
                 <TableCell>
                   {format(displayDate, 'PPP')}
                 </TableCell>
-                <TableCell>{item.reporterName}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{item.reporterName}</span>
+                    {item.isAnonymous && (
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-normal">
+                        🔒 Hidden publicly
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   <StatusBadge status={item.status} />
                 </TableCell>

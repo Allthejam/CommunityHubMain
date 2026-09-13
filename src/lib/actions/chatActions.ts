@@ -97,6 +97,109 @@ export async function findOrCreateChatForItem(params: {
   }
 }
 
+export async function findOrCreateChatForLostFoundItem(params: {
+  currentUserId: string;
+  reporterId: string;
+  itemId: string;
+  itemDescription: string;
+  itemLocation?: string;
+  itemType?: 'lost' | 'found';
+  communityId?: string;
+}): Promise<ActionResponse> {
+  const { currentUserId, reporterId, itemId, itemDescription, itemLocation, itemType = 'lost', communityId } = params;
+  if (!currentUserId || !reporterId || !itemId) {
+    return { success: false, error: 'Missing required information to start chat.' };
+  }
+
+  if (currentUserId === reporterId) {
+    return { success: false, error: 'You cannot message yourself about your own report.' };
+  }
+
+  try {
+    const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || communityId === 'c_showhome' || currentUserId.startsWith('demo-') || reporterId.startsWith('demo-');
+    const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
+    const conversationsRef = firestore.collection('conversations');
+
+    // Check for an existing private chat between the two users
+    const query1 = conversationsRef
+      .where('memberIds', '==', [currentUserId, reporterId])
+      .where('scope', '==', 'private')
+      .limit(1);
+
+    const query2 = conversationsRef
+      .where('memberIds', '==', [reporterId, currentUserId])
+      .where('scope', '==', 'private')
+      .limit(1);
+
+    const [snapshot1, snapshot2] = await Promise.all([query1.get(), query2.get()]);
+    const existingChat = snapshot1.docs[0] || snapshot2.docs[0];
+
+    if (existingChat) {
+      // Add a message referencing the item inquiry in existing conversation
+      const userRef = firestore.collection('users').doc(currentUserId);
+      const userDoc = await userRef.get();
+      const userName = userDoc.exists ? (userDoc.data()?.name || 'A neighbor') : 'A neighbor';
+
+      const inquiryMsg = {
+        senderId: 'system',
+        sender: 'System',
+        text: `🔍 ${userName} sent an inquiry regarding the ${itemType} item: "${itemDescription}" (Ref: #${itemId.substring(0, 6)}${itemLocation ? `, Location: ${itemLocation}` : ''}).`,
+        timestamp: Timestamp.now(),
+      };
+      await existingChat.ref.collection('messages').add(inquiryMsg);
+      await existingChat.ref.update({
+        lastMessage: `Inquiry about ${itemType} item: ${itemDescription.substring(0, 30)}...`,
+        lastMessageTimestamp: Timestamp.now(),
+      });
+
+      return { success: true, conversationId: existingChat.id };
+    }
+
+    // Lookup user and reporter data for new conversation
+    const userRef = firestore.collection('users').doc(currentUserId);
+    const reporterRef = firestore.collection('users').doc(reporterId);
+    const [userDoc, reporterDoc] = await Promise.all([userRef.get(), reporterRef.get()]);
+
+    const userName = userDoc.exists ? (userDoc.data()?.name || 'Community Member') : 'Community Member';
+    const reporterName = reporterDoc.exists ? (reporterDoc.data()?.name || 'Community Member') : 'Community Member';
+    
+    const effectiveCommunityId = 
+      reporterDoc.data()?.primaryHomeCommunityId ||
+      reporterDoc.data()?.homeCommunityId ||
+      reporterDoc.data()?.communityId ||
+      userDoc.data()?.primaryHomeCommunityId ||
+      userDoc.data()?.communityId ||
+      communityId ||
+      'N3SarfGXPLxBI7XcsinX';
+
+    const newConversationData = {
+      name: `${userName} / ${reporterName}`,
+      memberIds: [currentUserId, reporterId],
+      scope: 'private',
+      communityId: effectiveCommunityId,
+      lastMessage: `Inquiry about ${itemType} item: ${itemDescription.substring(0, 30)}...`,
+      lastMessageTimestamp: Timestamp.now(),
+      createdAt: Timestamp.now(),
+      createdBy: currentUserId,
+      archivedBy: [],
+    };
+    
+    const newConvoRef = await conversationsRef.add(newConversationData);
+
+    const initialMessage = {
+      senderId: 'system',
+      sender: 'System',
+      text: `🔍 ${userName} started a conversation with ${reporterName} regarding the ${itemType} item: "${itemDescription}" (Ref: #${itemId.substring(0, 6)}${itemLocation ? `, Last seen near: ${itemLocation}` : ''}).`,
+      timestamp: Timestamp.now(),
+    };
+    await newConvoRef.collection('messages').add(initialMessage);
+
+    return { success: true, conversationId: newConvoRef.id };
+  } catch (error: any) {
+    console.error("Error finding or creating chat for lost/found item:", error);
+    return { success: false, error: error.message || "Could not initiate conversation." };
+  }
+}
 
 export async function resetChats(): Promise<ActionResponse> {
   try {
