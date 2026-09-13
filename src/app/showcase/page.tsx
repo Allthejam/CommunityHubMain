@@ -41,7 +41,8 @@ import {
   DollarSign,
   TrendingUp,
   Share2,
-  Network
+  Network,
+  Crown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
