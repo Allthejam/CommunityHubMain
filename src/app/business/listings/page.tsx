@@ -246,6 +246,7 @@ function BusinessListingsContent() {
         purchaseType: isStorefront ? 'storefront_subscription' : 'listing_subscription',
         mode: 'subscription',
         successUrlPath: '/business/listings?payment=success',
+        cancelUrlPath: '/business/listings',
         businessId: businessId, 
         communityId: communityId,
         subscriptionType: isStorefront ? 'storefront' : 'listing',

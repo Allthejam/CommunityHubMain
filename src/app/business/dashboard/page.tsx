@@ -276,6 +276,7 @@ function BusinessDashboardPageContent() {
         purchaseType: isStorefront ? 'storefront_subscription' : 'listing_subscription',
         mode: 'subscription',
         successUrlPath: `/business/dashboard?payment=success`,
+        cancelUrlPath: `/business/dashboard`,
         businessId: businessId,
         communityId: communityId,
         subscriptionType: isStorefront ? 'storefront' : 'listing',

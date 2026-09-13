@@ -165,6 +165,7 @@ export default function MyEventsPage() {
             mode: 'payment',
             purchaseType: 'additional_event',
             successUrlPath: '/business/events?payment=success',
+            cancelUrlPath: '/business/events',
             metadata: {
                 userId: user.uid,
                 purchaseType: 'additional_event',

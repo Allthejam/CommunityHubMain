@@ -146,6 +146,7 @@ export default function MyAdvertsPage() {
                 mode: 'payment',
                 purchaseType: 'additional_advert',
                 successUrlPath: '/business/adverts/create?payment=success',
+                cancelUrlPath: '/business/adverts',
                 metadata: {
                     userId: user.uid,
                     purchaseType: 'additional_advert',
