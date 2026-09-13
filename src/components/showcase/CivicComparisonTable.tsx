@@ -51,7 +51,7 @@ export function CivicComparisonTable() {
         <CardTitle className="text-2xl sm:text-3xl font-extrabold font-headline">
           Traditional Town Struggles vs. The Community Hub Model
         </CardTitle>
-        <CardDescription className="text-sm">
+        <CardDescription className="text-sm text-slate-800 dark:text-slate-200 font-medium mt-1">
           Why forward-thinking UK Community Councils, Parishes, and Business Chambers are modernizing with Community Hub.
         </CardDescription>
       </CardHeader>
@@ -59,13 +59,13 @@ export function CivicComparisonTable() {
       <CardContent className="p-0">
         <div className="divide-y">
           {/* Table Header (Desktop) */}
-          <div className="hidden md:grid md:grid-cols-12 bg-muted/60 text-xs font-extrabold uppercase tracking-wider text-muted-foreground p-4">
+          <div className="hidden md:grid md:grid-cols-12 bg-muted/60 text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 p-4">
             <div className="md:col-span-3">Civic Area</div>
-            <div className="md:col-span-4 text-red-600 dark:text-red-400 flex items-center gap-1.5">
+            <div className="md:col-span-4 text-red-600 dark:text-red-400 flex items-center gap-1.5 font-bold">
               <XCircle className="h-3.5 w-3.5" />
               Traditional Town Situation
             </div>
-            <div className="md:col-span-5 text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 pl-2">
+            <div className="md:col-span-5 text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 pl-2 font-bold">
               <CheckCircle2 className="h-3.5 w-3.5" />
               With Community Hub Platform
             </div>
@@ -88,13 +88,13 @@ export function CivicComparisonTable() {
               </div>
 
               {/* Legacy / Before */}
-              <div className="md:col-span-4 p-3 rounded-xl bg-red-500/5 border border-red-500/15 text-xs text-muted-foreground leading-relaxed flex items-start gap-2">
+              <div className="md:col-span-4 p-3 rounded-xl bg-red-500/5 border border-red-500/20 text-xs text-slate-800 dark:text-slate-200 font-medium leading-relaxed flex items-start gap-2">
                 <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                 <span>{item.legacy}</span>
               </div>
 
               {/* Community Hub / After */}
-              <div className="md:col-span-5 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-xs text-foreground font-medium leading-relaxed flex items-start gap-2">
+              <div className="md:col-span-5 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/30 text-xs text-slate-900 dark:text-slate-100 font-medium leading-relaxed flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
                 <span>{item.communityHub}</span>
               </div>

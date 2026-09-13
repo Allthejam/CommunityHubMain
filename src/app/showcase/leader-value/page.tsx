@@ -116,8 +116,8 @@ export default function LeaderValueShowcasePage() {
               <span className="text-primary bg-clip-text">Fund Your Community Council.</span>
             </h1>
 
-            <p className="max-w-3xl mx-auto text-base sm:text-xl text-muted-foreground leading-relaxed">
-              A complete, self-funding digital ecosystem engineered specifically for UK Parishes, Town Councils, and Business Chambers — combining <strong className="text-foreground">Virtual High Street commerce</strong>, <strong className="text-foreground">statutory ISO 22301 Civil Emergency readiness</strong>, and <strong className="text-foreground">recurring treasury revenue</strong> at <span className="underline decoration-primary font-bold text-foreground">£0 upfront cost to the public purse</span>.
+            <p className="max-w-3xl mx-auto text-base sm:text-xl text-slate-800 dark:text-slate-100 font-medium leading-relaxed">
+              A complete, self-funding digital ecosystem engineered specifically for UK Parishes, Town Councils, and Business Chambers — combining <strong className="text-foreground font-black">Virtual High Street commerce</strong>, <strong className="text-foreground font-black">statutory ISO 22301 Civil Emergency readiness</strong>, and <strong className="text-foreground font-black">recurring treasury revenue</strong> at <span className="underline decoration-primary font-black text-foreground">£0 upfront cost to the public purse</span>.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -134,18 +134,18 @@ export default function LeaderValueShowcasePage() {
             </div>
 
             {/* Trust Pill Badges */}
-            <div className="pt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs font-semibold text-muted-foreground">
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/60 border">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> Statutory ISO 22301 Aligned
+            <div className="pt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs font-bold text-slate-800 dark:text-slate-200">
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/90 border shadow-2xs">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Statutory ISO 22301 Aligned
               </span>
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/60 border">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> £0 Public Purse Cost
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/90 border shadow-2xs">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> £0 Public Purse Cost
               </span>
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/60 border">
-                <Coins className="h-3.5 w-3.5 text-emerald-500" /> 40% to 75%+ Council Revenue Share
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/90 border shadow-2xs">
+                <Coins className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> 40% to 75%+ Council Revenue Share
               </span>
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/60 border">
-                <Truck className="h-3.5 w-3.5 text-emerald-500" /> Local Courier Job Creation
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/90 border shadow-2xs">
+                <Truck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Local Courier Job Creation
               </span>
             </div>
           </div>
@@ -161,7 +161,7 @@ export default function LeaderValueShowcasePage() {
             <h2 className="text-2xl sm:text-4xl font-extrabold font-headline tracking-tight text-foreground">
               Calculate Your Town&apos;s Recurring Treasury Revenue
             </h2>
-            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+            <p className="text-sm sm:text-base text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
               Slide the counters to forecast monthly and annual funding generated from local high street participation.
             </p>
           </div>
@@ -198,7 +198,7 @@ export default function LeaderValueShowcasePage() {
             <h3 className="text-2xl sm:text-3xl font-extrabold font-headline text-foreground">
               Questions from Community Councils & Clerks
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-slate-800 dark:text-slate-200 font-medium">
               Everything your committee needs to know about governance, funding, and adoption.
             </p>
           </div>
@@ -210,10 +210,10 @@ export default function LeaderValueShowcasePage() {
                 value={`faq-${idx}`}
                 className="border-2 border-border/80 rounded-xl px-4 bg-card shadow-xs"
               >
-                <AccordionTrigger className="text-left font-bold text-sm sm:text-base hover:no-underline py-4">
+                <AccordionTrigger className="text-left font-bold text-sm sm:text-base hover:no-underline py-4 text-foreground">
                   {faq.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4 pt-1 border-t">
+                <AccordionContent className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-medium leading-relaxed pb-4 pt-2 border-t">
                   {faq.a}
                 </AccordionContent>
               </AccordionItem>

@@ -127,7 +127,7 @@ export function LeaderPillarsGrid() {
         <h3 className="text-2xl sm:text-4xl font-extrabold font-headline tracking-tight text-foreground">
           Everything Your Town Receives on Day One
         </h3>
-        <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+        <p className="text-sm sm:text-base text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
           Community Hub is not just a website — it is a fully integrated digital town square, emergency response engine, and self-funding economic platform.
         </p>
       </div>
@@ -153,7 +153,7 @@ export function LeaderPillarsGrid() {
                   <h4 className="text-lg font-extrabold font-headline text-foreground leading-snug">
                     {pillar.title}
                   </h4>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-slate-800 dark:text-slate-200 font-semibold mt-1">
                     {pillar.tagline}
                   </p>
                 </div>
@@ -162,7 +162,7 @@ export function LeaderPillarsGrid() {
               <CardContent className="p-6 flex-1 flex flex-col justify-between space-y-4">
                 <ul className="space-y-2.5">
                   {pillar.features.map((feat, i) => (
-                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-2.5 leading-relaxed">
+                    <li key={i} className="text-xs text-slate-800 dark:text-slate-200 font-medium flex items-start gap-2.5 leading-relaxed">
                       <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
                       <span>{feat}</span>
                     </li>

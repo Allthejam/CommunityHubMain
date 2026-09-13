@@ -43,15 +43,15 @@ export function CouncilProposalDownload({
             <FileText className="h-3.5 w-3.5" />
             1-Click Council Meeting Pack
           </Badge>
-          <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+          <span className="text-xs text-slate-800 dark:text-slate-200 font-bold flex items-center gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             Auditor-Ready 2-Page A4 Brief
           </span>
         </div>
         <CardTitle className="text-2xl sm:text-3xl font-extrabold font-headline text-foreground mt-1">
           Download Your Council Presentation Brief (PDF)
         </CardTitle>
-        <CardDescription className="text-sm">
+        <CardDescription className="text-sm text-slate-800 dark:text-slate-200 font-medium mt-1">
           Presenting to your Community Council, Parish meeting, or Business Chamber? Generate a customized 2-page briefing pack with your town name, financial forecast, and draft adoption motion ready to vote on.
         </CardDescription>
       </CardHeader>
@@ -95,12 +95,12 @@ export function CouncilProposalDownload({
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-background border">
-          <div className="space-y-0.5 text-xs text-muted-foreground">
-            <p className="font-bold text-foreground flex items-center gap-1.5">
+          <div className="space-y-0.5 text-xs text-slate-800 dark:text-slate-200 font-medium">
+            <p className="font-extrabold text-foreground flex items-center gap-1.5">
               <Sparkles className="h-4 w-4 text-emerald-600" />
               What is included in the briefing pack:
             </p>
-            <p>
+            <p className="text-slate-700 dark:text-slate-300">
               • Executive Summary • 4 Civic Pillars • Traditional vs Community Hub Table • 2-Year Financial Forecast • Official Draft Council Resolution Motion
             </p>
           </div>
