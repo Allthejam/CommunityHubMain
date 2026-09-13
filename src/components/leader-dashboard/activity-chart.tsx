@@ -17,26 +17,71 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
+// Realistic diurnal activity distribution for Demo Sandbox
+const DEMO_HOURLY_CURVE = [
+  { hour: 0, online: 6, visitors: 2 },
+  { hour: 1, online: 4, visitors: 1 },
+  { hour: 2, online: 3, visitors: 1 },
+  { hour: 3, online: 2, visitors: 1 },
+  { hour: 4, online: 4, visitors: 2 },
+  { hour: 5, online: 8, visitors: 4 },
+  { hour: 6, online: 16, visitors: 9 },
+  { hour: 7, online: 28, visitors: 18 },
+  { hour: 8, online: 42, visitors: 26 },
+  { hour: 9, online: 51, visitors: 35 },
+  { hour: 10, online: 58, visitors: 44 },
+  { hour: 11, online: 62, visitors: 52 },
+  { hour: 12, online: 68, visitors: 61 },
+  { hour: 13, online: 64, visitors: 56 },
+  { hour: 14, online: 59, visitors: 49 },
+  { hour: 15, online: 63, visitors: 46 },
+  { hour: 16, online: 71, visitors: 48 },
+  { hour: 17, online: 79, visitors: 42 },
+  { hour: 18, online: 84, visitors: 39 },
+  { hour: 19, online: 78, visitors: 34 },
+  { hour: 20, online: 67, visitors: 28 },
+  { hour: 21, online: 52, visitors: 19 },
+  { hour: 22, online: 34, visitors: 12 },
+  { hour: 23, online: 18, visitors: 6 },
+];
+
 export function ActivityChart({ communityId }: { communityId: string | null }) {
     const db = useFirestore();
 
+    const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || 
+        (typeof window !== 'undefined' && (
+            sessionStorage.getItem('isDemoMode') === 'true' || 
+            window.location.pathname.startsWith('/demo')
+        ));
+
     const [onlineUsers, setOnlineUsers] = React.useState<any[]>([]);
-    const [loadingOnline, setLoadingOnline] = React.useState(true);
+    const [loadingOnline, setLoadingOnline] = React.useState(!isDemo);
     
     // Get all online users in real-time
     React.useEffect(() => {
+        if (isDemo) {
+            setLoadingOnline(false);
+        }
         if (!db) return;
         const q = query(collection(db, 'users'), where('isOnline', '==', true));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setOnlineUsers(users);
             setLoadingOnline(false);
+        }, () => {
+            setLoadingOnline(false);
         });
         return () => unsubscribe();
-    }, [db]);
+    }, [db, isDemo]);
 
     const { onlineMembersCount, visitorsCount } = React.useMemo(() => {
+        const currentHour = new Date().getHours();
+        const demoBase = DEMO_HOURLY_CURVE[currentHour] || { online: 48, visitors: 26 };
+
         if (!communityId || onlineUsers.length === 0) {
+            if (isDemo) {
+                return { onlineMembersCount: demoBase.online, visitorsCount: demoBase.visitors };
+            }
             return { onlineMembersCount: 0, visitorsCount: 0 };
         }
 
@@ -52,8 +97,16 @@ export function ActivityChart({ communityId }: { communityId: string | null }) {
                 }
             }
         });
+
+        if (isDemo) {
+            return {
+                onlineMembersCount: members > 0 ? members + demoBase.online : demoBase.online,
+                visitorsCount: visitors > 0 ? visitors + demoBase.visitors : demoBase.visitors,
+            };
+        }
+
         return { onlineMembersCount: members, visitorsCount: visitors };
-    }, [onlineUsers, communityId]);
+    }, [onlineUsers, communityId, isDemo]);
 
     const chartData = React.useMemo(() => {
         const data = [];
@@ -66,14 +119,23 @@ export function ActivityChart({ communityId }: { communityId: string | null }) {
             
             const isCurrentHour = hour === currentHour;
             
-            data.push({
-                time: `${displayHour} ${ampm}`,
-                Online: isCurrentHour ? onlineMembersCount : 0,
-                Visitors: isCurrentHour ? visitorsCount : 0,
-            });
+            if (isDemo) {
+                const base = DEMO_HOURLY_CURVE[hour];
+                data.push({
+                    time: `${displayHour} ${ampm}`,
+                    Online: isCurrentHour ? onlineMembersCount : base.online,
+                    Visitors: isCurrentHour ? visitorsCount : base.visitors,
+                });
+            } else {
+                data.push({
+                    time: `${displayHour} ${ampm}`,
+                    Online: isCurrentHour ? onlineMembersCount : 0,
+                    Visitors: isCurrentHour ? visitorsCount : 0,
+                });
+            }
         }
         return data;
-    }, [onlineMembersCount, visitorsCount]);
+    }, [onlineMembersCount, visitorsCount, isDemo]);
 
     return (
         <Card className="md:col-span-2 lg:col-span-3 border-t-4 border-t-blue-600 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-card via-card to-blue-50/10 dark:to-blue-950/10">
@@ -84,7 +146,14 @@ export function ActivityChart({ communityId }: { communityId: string | null }) {
                             <Activity className="h-5 w-5" />
                         </div>
                         <div>
-                            <CardTitle className="text-base font-bold">Community Activity & Presence</CardTitle>
+                            <div className="flex items-center gap-2">
+                                <CardTitle className="text-base font-bold">Community Activity & Presence</CardTitle>
+                                {isDemo && (
+                                    <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px] font-mono">
+                                        Demo Simulation
+                                    </Badge>
+                                )}
+                            </div>
                             <CardDescription className="text-xs">Live visitor traffic and resident engagement</CardDescription>
                         </div>
                     </div>
