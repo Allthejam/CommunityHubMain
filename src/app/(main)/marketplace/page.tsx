@@ -40,6 +40,8 @@ import {
   Camera,
   X,
   Trash2,
+  Info,
+  Clock,
 } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, query, where, doc, Timestamp } from 'firebase/firestore';
@@ -49,6 +51,7 @@ import { findOrCreateChatForItem } from '@/lib/actions/chatActions';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type MarketplaceItem = {
   id: string;
@@ -247,6 +250,21 @@ const MarketplaceItemCard = ({ item, onDelete }: { item: MarketplaceItem, onDele
       }
       return 'recently';
     }, [item.createdAt]);
+
+    const remainingDays = React.useMemo(() => {
+      try {
+        const rawExpiry = item.expiresAt;
+        if (!rawExpiry) return null;
+        const expiryDate = rawExpiry?.toDate ? rawExpiry.toDate() : new Date(rawExpiry);
+        const diffMs = expiryDate.getTime() - Date.now();
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (diffDays <= 0) return 'Expires today';
+        if (diffDays === 1) return '1 day left';
+        return `${diffDays} days left`;
+      } catch {
+        return null;
+      }
+    }, [item.expiresAt]);
   
     return (
       <Card className="flex flex-col">
@@ -256,9 +274,17 @@ const MarketplaceItemCard = ({ item, onDelete }: { item: MarketplaceItem, onDele
           </div>
         )}
         <CardHeader>
-          <CardTitle>{item.title}</CardTitle>
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle>{item.title}</CardTitle>
+            {remainingDays && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground border font-medium shrink-0 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {remainingDays}
+              </span>
+            )}
+          </div>
           <CardDescription>
-            Posted by {item.ownerName} - {formattedDate}
+            Posted by {item.ownerName} • {formattedDate}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-grow">
@@ -433,6 +459,9 @@ export default function MarketplacePage() {
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>Post a Marketplace Item</DialogTitle>
+                  <DialogDescription>
+                    List an item for sale, swap, free, or wanted. Listings remain active on the community board for 21 days (3 weeks).
+                  </DialogDescription>
                 </DialogHeader>
                 <ItemForm onSave={() => setIsFormOpen(false)} />
               </DialogContent>
@@ -440,6 +469,14 @@ export default function MarketplacePage() {
           </div>
         </div>
       </div>
+
+      <Alert className="bg-purple-50/50 border-purple-200/60 dark:bg-purple-950/20 dark:border-purple-900/50">
+        <Info className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+        <AlertTitle className="text-purple-800 dark:text-purple-300 font-semibold">Listing Auto-Removal Notice</AlertTitle>
+        <AlertDescription className="text-purple-700/90 dark:text-purple-400/90 text-sm">
+          To keep the trading board clean and active, all marketplace listings remain live for 21 days (3 weeks) from the date of posting before being automatically archived.
+        </AlertDescription>
+      </Alert>
 
       <Tabs defaultValue="For Sale" className="w-full">
         <div className="w-full overflow-x-auto pb-2">
