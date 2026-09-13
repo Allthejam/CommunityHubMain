@@ -1,12 +1,19 @@
 'use client';
 
 import * as React from 'react';
-import { Petition, PetitionCategory, PetitionStatus } from '@/lib/types/petitions';
+import { Petition, PetitionCategory } from '@/lib/types/petitions';
 import { PetitionCard } from '@/components/petitions/petition-card';
-import { Sparkles, Users, Layers, Award, Loader2, HelpCircle } from 'lucide-react';
+import { Sparkles, Users, Layers, Loader2, HelpCircle, Search, Filter } from 'lucide-react';
 import { useFirestore, useUser, useMemoFirebase, useCollection, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Helper to display category names nicely
 const getPetitionCategoryLabel = (cat: any) => {
@@ -35,7 +42,8 @@ const getPetitionCategoryLabel = (cat: any) => {
 export default function PublicPetitionsPage() {
   const db = useFirestore();
   const { user } = useUser();
-  const [catFilter, setCatFilter] = React.useState<PetitionCategory | 'all'>('all');
+  const [catFilter, setCatFilter] = React.useState<string>('all');
+  const [statusFilter, setStatusFilter] = React.useState<string>('all');
   const [searchTerm, setSearchTerm] = React.useState('');
 
   const dropdownRef = useMemoFirebase(() => (db ? doc(db, 'platform_settings', 'dropdowns') : null), [db]);
@@ -101,19 +109,38 @@ export default function PublicPetitionsPage() {
   }, [rawPetitions]);
 
   const filtered = React.useMemo(() => {
+    const now = Date.now();
     return petitions.filter((p) => {
       if (p.status === 'draft') return false; // Hide drafts from public
+      
+      const isExpired = p.endDate ? (p.endDate.toDate ? p.endDate.toDate() : new Date(p.endDate)).getTime() < now : false;
+      const effectiveStatus = isExpired ? 'closed' : p.status;
+
       if (catFilter !== 'all' && p.category !== catFilter) return false;
-      if (searchTerm.trim() && !p.title.toLowerCase().includes(searchTerm.toLowerCase()) && !p.description.toLowerCase().includes(searchTerm.toLowerCase())) {
-        return false;
+      
+      if (statusFilter === 'active' && effectiveStatus !== 'active') return false;
+      if (statusFilter === 'closed' && effectiveStatus !== 'closed') return false;
+
+      if (searchTerm.trim()) {
+        const queryLower = searchTerm.toLowerCase();
+        const matchesTitle = p.title.toLowerCase().includes(queryLower);
+        const matchesDesc = p.description.toLowerCase().includes(queryLower);
+        if (!matchesTitle && !matchesDesc) return false;
       }
       return true;
     });
-  }, [petitions, catFilter, searchTerm]);
+  }, [petitions, catFilter, statusFilter, searchTerm]);
 
   // Signature analytics
   const totalSignatures = petitions.reduce((sum, p) => sum + p.signaturesCount, 0);
-  const activeCount = petitions.filter((p) => p.status === 'active').length;
+  const activeCount = petitions.filter((p) => {
+    if (p.status !== 'active') return false;
+    if (p.endDate) {
+      const targetDate = p.endDate.toDate ? p.endDate.toDate() : new Date(p.endDate);
+      if (targetDate.getTime() < Date.now()) return false;
+    }
+    return true;
+  }).length;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -151,35 +178,61 @@ export default function PublicPetitionsPage() {
         </div>
       </div>
 
-      {/* Filters & Search controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-slate-50/50 p-3 rounded-2xl border border-slate-100/50">
-        
-        {/* Search */}
-        <div className="w-full md:w-72">
-          <input
-            type="text"
-            placeholder="Search campaigns..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
-          />
-        </div>
+      {/* Filters & Search controls (Dropdowns replacing horizontal scrolling bar) */}
+      <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/70 mb-8 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.03)]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
+          
+          {/* Search bar */}
+          <div className="relative md:col-span-6">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search petitions and causes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full text-xs pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+            />
+          </div>
 
-        {/* Categories */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-          {filterCategories.map((cat) => (
-            <button
-              key={cat.value}
-              onClick={() => setCatFilter(cat.value)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
-                catFilter === cat.value
-                  ? 'bg-slate-800 text-white border-slate-850 shadow-sm'
-                  : 'bg-white text-slate-600 hover:text-slate-900 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+          {/* Category Dropdown */}
+          <div className="md:col-span-3">
+            <Select value={catFilter} onValueChange={(val) => setCatFilter(val)}>
+              <SelectTrigger className="w-full bg-white text-xs font-semibold rounded-xl border border-slate-200 h-[38px] px-3.5">
+                <div className="flex items-center gap-2 truncate">
+                  <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                  <SelectValue placeholder="Filter by Cause" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {filterCategories.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value} className="text-xs font-medium cursor-pointer">
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Status Dropdown */}
+          <div className="md:col-span-3">
+            <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
+              <SelectTrigger className="w-full bg-white text-xs font-semibold rounded-xl border border-slate-200 h-[38px] px-3.5">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs font-medium cursor-pointer">
+                  🌐 All Statuses
+                </SelectItem>
+                <SelectItem value="active" className="text-xs font-medium cursor-pointer">
+                  🟢 Active Petitions
+                </SelectItem>
+                <SelectItem value="closed" className="text-xs font-medium cursor-pointer">
+                  🔒 Closed / Ended
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
         </div>
       </div>
 
@@ -194,7 +247,9 @@ export default function PublicPetitionsPage() {
           <HelpCircle className="h-10 w-10 text-slate-300 mx-auto mb-3" />
           <h3 className="font-extrabold text-slate-700">No Petitions Found</h3>
           <p className="text-xs text-slate-400 mt-1">
-            {searchTerm ? "Try searching for a different keyword or topic." : "There are currently no active digital petitions in this community."}
+            {searchTerm || catFilter !== 'all' || statusFilter !== 'all'
+              ? "Try adjusting your search keywords or filter dropdowns."
+              : "There are currently no active digital petitions in this community."}
           </p>
         </div>
       ) : (
@@ -208,3 +263,4 @@ export default function PublicPetitionsPage() {
     </div>
   );
 }
+

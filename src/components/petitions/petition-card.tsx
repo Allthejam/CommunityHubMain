@@ -61,15 +61,7 @@ function PetitionCountdown({ endDate }: { endDate: any }) {
     return () => clearInterval(interval);
   }, [endDate]);
 
-  if (!timeLeft) return null;
-
-  if (timeLeft === 'Ended') {
-    return (
-      <span className="text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-        Closed
-      </span>
-    );
-  }
+  if (!timeLeft || timeLeft === 'Ended') return null;
 
   return (
     <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 uppercase tracking-wider">
@@ -94,12 +86,12 @@ function StatusBadge({ status }: { status: Petition['status'] }) {
   if (status === 'draft')
     return (
       <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-        Unpublished Draft
+        Draft
       </span>
     );
   return (
-    <span className="text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-      Closed & Finalised
+    <span className="text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+      Closed
     </span>
   );
 }
@@ -131,9 +123,17 @@ export function PetitionCard({
 
   const meta = CATEGORY_META[petition.category] || CATEGORY_META.other;
   const isSigned = user && petition.signedBy?.includes(user.uid);
-  const isActive = petition.status === 'active';
-  const isPaused = petition.status === 'paused';
-  const isClosed = petition.status === 'closed';
+  
+  const isExpired = React.useMemo(() => {
+    if (!petition.endDate) return false;
+    const targetDate = petition.endDate.toDate ? petition.endDate.toDate() : new Date(petition.endDate);
+    return targetDate.getTime() < Date.now();
+  }, [petition.endDate]);
+
+  const effectiveStatus: Petition['status'] = isExpired ? 'closed' : petition.status;
+  const isActive = effectiveStatus === 'active';
+  const isPaused = effectiveStatus === 'paused';
+  const isClosed = effectiveStatus === 'closed';
 
   const progressPct = Math.min(
     100,
@@ -269,8 +269,8 @@ export function PetitionCard({
             {meta.label}
           </span>
           <div className="flex items-center gap-1.5 shrink-0">
-            <PetitionCountdown endDate={petition.endDate} />
-            <StatusBadge status={petition.status} />
+            {isActive && <PetitionCountdown endDate={petition.endDate} />}
+            <StatusBadge status={effectiveStatus} />
           </div>
         </div>
 
