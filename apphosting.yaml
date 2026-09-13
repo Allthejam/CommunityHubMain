@@ -6,16 +6,6 @@ runConfig:
   # more instances in response to increased traffic.
   maxInstances: 1
 
-env:
-  - variable: GEMINI_API_KEY
-    availability:
-      - RUNTIME
-      - BUILD
-  - variable: GOOGLE_GENAI_API_KEY
-    availability:
-      - RUNTIME
-      - BUILD
-
 
 scheduledTasks:
   - id: check-free-listings
