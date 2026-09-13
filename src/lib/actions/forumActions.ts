@@ -215,19 +215,28 @@ export async function runSanitizeForumTopicsPrivacy(): Promise<ActionResponse> {
 
         for (const topicDoc of topicsSnap.docs) {
             const topicData = topicDoc.data();
+            const postsSnap = await topicDoc.ref.collection('posts').get();
+            const actualReplies = Math.max(0, postsSnap.size - 1);
+            const topicUpdates: Record<string, any> = {};
+
+            if (topicData.replies !== actualReplies) {
+                topicUpdates.replies = actualReplies;
+            }
+
             if (privateUserMap.has(topicData.authorId)) {
                 const realName = privateUserMap.get(topicData.authorId)!;
-                batch.update(topicDoc.ref, {
-                    authorName: 'Anonymous Member',
-                    authorAvatar: '',
-                    authorRealName: topicData.authorRealName || realName || topicData.authorName,
-                    isAnonymous: true,
-                });
+                topicUpdates.authorName = 'Anonymous Member';
+                topicUpdates.authorAvatar = '';
+                topicUpdates.authorRealName = topicData.authorRealName || realName || topicData.authorName;
+                topicUpdates.isAnonymous = true;
+            }
+
+            if (Object.keys(topicUpdates).length > 0) {
+                batch.update(topicDoc.ref, topicUpdates);
                 updateCount++;
             }
 
             // Check posts in this topic
-            const postsSnap = await topicDoc.ref.collection('posts').get();
             for (const postDoc of postsSnap.docs) {
                 const postData = postDoc.data();
                 if (privateUserMap.has(postData.authorId)) {

@@ -163,6 +163,7 @@ export default function ForumCategoryPage() {
                                                topic.authorName?.toLowerCase().includes('anonymous');
                                 const authorDisplayName = isAnon ? 'Anonymous Member' : (userPrivacy?.realName || topic.authorName);
                                 const authorAvatarSrc = isAnon ? '' : topic.authorAvatar;
+                                const replyCount = (topic.replies !== undefined && topic.replies !== null) ? Number(topic.replies) : 0;
                                 
                                 return (
                                     <div
@@ -191,6 +192,13 @@ export default function ForumCategoryPage() {
                                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                                                     <span>by <strong className="text-foreground font-medium">{authorDisplayName}</strong></span>
                                                     <span className="hidden sm:inline opacity-40">•</span>
+                                                    <span className="flex items-center gap-1 font-medium">
+                                                        <MessageCircle className="h-3.5 w-3.5 text-primary" />
+                                                        <span className={replyCount > 0 ? "text-primary font-semibold" : "text-muted-foreground"}>
+                                                            {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+                                                        </span>
+                                                    </span>
+                                                    <span className="hidden sm:inline opacity-40">•</span>
                                                     <span className="flex items-center gap-1">
                                                         <Clock className="h-3.5 w-3.5 text-muted-foreground/70" />
                                                         {formatDate(topic.lastPost)}
@@ -200,14 +208,24 @@ export default function ForumCategoryPage() {
                                         </div>
                                         
                                         <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-                                            <Badge 
-                                                variant="secondary" 
-                                                className="bg-primary/10 text-primary border border-primary/20 group-hover:bg-primary group-hover:text-primary-foreground transition-colors font-semibold px-3 py-1 flex items-center gap-1.5 text-xs rounded-full shadow-xs"
-                                            >
-                                                <MessageCircle className="h-3.5 w-3.5" />
-                                                <span>{topic.replies || 0}</span>
-                                                <span className="hidden sm:inline">{topic.replies === 1 ? 'reply' : 'replies'}</span>
-                                            </Badge>
+                                            {replyCount > 0 ? (
+                                                <Badge 
+                                                    variant="secondary" 
+                                                    className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 group-hover:bg-emerald-600 group-hover:text-white transition-colors font-semibold px-3 py-1 flex items-center gap-1.5 text-xs rounded-full shadow-xs"
+                                                >
+                                                    <MessageCircle className="h-3.5 w-3.5" />
+                                                    <span>{replyCount}</span>
+                                                    <span className="hidden sm:inline">{replyCount === 1 ? 'reply' : 'replies'}</span>
+                                                </Badge>
+                                            ) : (
+                                                <Badge 
+                                                    variant="secondary" 
+                                                    className="bg-muted text-muted-foreground border border-border group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/30 transition-colors font-medium px-2.5 py-1 flex items-center gap-1.5 text-xs rounded-full shadow-xs"
+                                                >
+                                                    <MessageCircle className="h-3.5 w-3.5 opacity-60" />
+                                                    <span>0 replies</span>
+                                                </Badge>
+                                            )}
                                             <ChevronRight className="h-5 w-5 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                                         </div>
                                     </div>

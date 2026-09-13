@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, MessageSquare, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -271,12 +272,19 @@ export default function TopicPage() {
             Back to Topics
           </Link>
         </Button>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline flex items-center gap-3">
-          <span className="p-2 rounded-xl bg-primary/10 text-primary">
-            <MessageSquare className="h-6 w-6 sm:h-7 sm:w-7" />
-          </span>
-          {topic.title}
-        </h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline flex items-center gap-3">
+            <span className="p-2 rounded-xl bg-primary/10 text-primary">
+              <MessageSquare className="h-6 w-6 sm:h-7 sm:w-7" />
+            </span>
+            {topic.title}
+          </h1>
+          <Badge variant="secondary" className="w-fit bg-primary/10 text-primary border border-primary/20 font-semibold px-3 py-1 text-xs sm:text-sm rounded-full flex items-center gap-1.5 shadow-xs">
+            <MessageSquare className="h-4 w-4" />
+            <span>{posts.length > 1 ? posts.length - 1 : 0}</span>
+            <span>{posts.length - 1 === 1 ? 'Reply' : 'Replies'}</span>
+          </Badge>
+        </div>
       </div>
 
       <div className="space-y-6">
