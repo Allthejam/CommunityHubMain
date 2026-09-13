@@ -134,8 +134,15 @@ export async function getLeaderMarketingHubDataAction(isDemo = false): Promise<{
                 const data = doc.data();
                 return {
                     id: doc.id,
-                    ...data,
-                    updatedAt: data.updatedAt ? data.updatedAt.toDate().toISOString() : new Date().toISOString(),
+                    audience: data.audience || '',
+                    feature: data.feature || '',
+                    headline: data.headline || '',
+                    body: data.body || '',
+                    socialMediaPost: data.socialMediaPost || '',
+                    coverImageUrl: data.coverImageUrl || '',
+                    isMainAppVisible: data.isMainAppVisible === true,
+                    createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : (typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString()),
+                    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : (typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString()),
                 };
             })
             .filter((c: any) => c.isMainAppVisible === true);
@@ -150,10 +157,10 @@ export async function getLeaderMarketingHubDataAction(isDemo = false): Promise<{
             const data = doc.data();
             return {
                 id: doc.id,
-                url: data.url,
+                url: data.url || '',
                 description: data.description || 'Community Hub Promotional Artwork',
                 path: data.path || '',
-                createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
+                createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : (typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString()),
             };
         });
 
