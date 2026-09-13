@@ -19,6 +19,7 @@ type CampaignData = {
     body: string;
     socialMediaPost: string;
     coverImageUrl?: string;
+    isMainAppVisible?: boolean;
 }
 
 export async function saveMarketingCampaignAction(data: CampaignData): Promise<ActionResponse> {
