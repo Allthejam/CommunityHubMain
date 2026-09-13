@@ -42,6 +42,7 @@ import {
   LifeBuoy,
   Upload,
   RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -201,6 +202,7 @@ export function ChatPageContent() {
     const isInitialLoadRef = React.useRef(true);
     const [isChatFullScreen, setChatFullScreen] = React.useState(false);
     const [provisionalConversation, setProvisionalConversation] = React.useState<Conversation | null>(null);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
     
     const [isCameraOpen, setIsCameraOpen] = React.useState(false);
     const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
@@ -453,6 +455,7 @@ export function ChatPageContent() {
         const messagesRef = collection(convoRef, 'messages');
     
         try {
+            setIsSubmitting(true);
             const messageData: Partial<Message> = {
                 senderId: user.uid,
                 sender: userProfile.name,
@@ -507,6 +510,8 @@ export function ChatPageContent() {
         } catch (error) {
             console.error("Error sending message:", error);
             toast({ title: "Error", description: "Could not send message.", variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
         }
     };
     
@@ -1255,8 +1260,8 @@ export function ChatPageContent() {
                                         onChange={(e) => setNewMessage(e.target.value)}
                                         className="flex-1 bg-transparent border-none focus:ring-0 py-3 px-3 resize-none h-full text-sm md:text-base custom-scrollbar"
                                     />
-                                    <Button id="sendBtn" type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-md m-1 transition-all active:scale-90">
-                                        <Send className="text-sm md:text-base h-5 w-5"/>
+                                    <Button id="sendBtn" type="submit" disabled={isSubmitting || (!newMessage.trim() && !imageToSend)} className="bg-indigo-600 hover:bg-indigo-700 text-white w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-md m-1 transition-all active:scale-90 disabled:opacity-50">
+                                        {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="text-sm md:text-base h-5 w-5"/>}
                                     </Button>
                                 </form>
                             </footer>
