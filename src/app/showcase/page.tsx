@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Users,
   Store,
@@ -148,8 +149,27 @@ const CIVIC_ECOSYSTEM_MODULES = [
   },
 ];
 
-export default function ShowcaseBrochurePage() {
-  const [activePersona, setActivePersona] = useState<ShowcasePersonaKey>('personal');
+function ShowcaseBrochureContent() {
+  const searchParams = useSearchParams();
+  const requestedPersona = (searchParams.get('persona') || searchParams.get('role')) as ShowcasePersonaKey | null;
+
+  const [activePersona, setActivePersona] = useState<ShowcasePersonaKey>(
+    requestedPersona && ['personal', 'business', 'leader', 'advertiser', 'regional'].includes(requestedPersona)
+      ? requestedPersona
+      : 'personal'
+  );
+
+  useEffect(() => {
+    if (requestedPersona && ['personal', 'business', 'leader', 'advertiser', 'regional'].includes(requestedPersona)) {
+      setActivePersona(requestedPersona);
+      const elem = document.getElementById('roles');
+      if (elem) {
+        setTimeout(() => {
+          elem.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    }
+  }, [requestedPersona]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-sky-500 selection:text-slate-950">
@@ -793,5 +813,13 @@ export default function ShowcaseBrochurePage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function ShowcaseBrochurePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-sky-400">Loading Product Showcase...</div>}>
+      <ShowcaseBrochureContent />
+    </Suspense>
   );
 }

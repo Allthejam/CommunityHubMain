@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import Link from 'next/link';
@@ -17,7 +17,9 @@ import {
   Printer,
   ShieldCheck,
   Building2,
-  HeartHandshake
+  HeartHandshake,
+  Crown,
+  Compass,
 } from 'lucide-react';
 
 export function LeaderActionPlaybook() {
@@ -132,11 +134,17 @@ export function LeaderActionPlaybook() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 shrink-0 w-full sm:w-auto">
             <Button asChild size="default" className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs gap-1.5 shadow-md w-full sm:w-auto h-10 px-5">
-              <Link href="/demo/leader/marketing">
-                <Megaphone className="h-4 w-4" />
-                <span>View Marketing Toolkit</span>
+              <Link href="/demo/login?role=leader&redirect=/demo/leader/marketing">
+                <Crown className="h-4 w-4" />
+                <span>Launch Leader Toolkit (Demo)</span>
+              </Link>
+            </Button>
+            <Button asChild size="default" variant="outline" className="font-bold text-xs gap-1.5 border-2 w-full sm:w-auto h-10 px-4 bg-card hover:bg-muted text-foreground">
+              <Link href="/showcase?persona=leader#roles">
+                <Compass className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Explore Leader Features</span>
               </Link>
             </Button>
           </div>

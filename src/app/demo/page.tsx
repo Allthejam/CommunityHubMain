@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Sparkles,
   Users,
@@ -23,10 +23,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { getSandboxStatusAction, seedShowHomeToComfeedAction, SandboxStatus } from '@/lib/actions/sandboxActions';
+import { cn } from '@/lib/utils';
 
-export default function DemoGatewayPage() {
+function DemoGatewayContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+
+  const roleParam = searchParams.get('role') || searchParams.get('persona') || '';
+  const redirectParam = searchParams.get('redirect') || '';
 
   const [status, setStatus] = useState<SandboxStatus | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -72,8 +77,13 @@ export default function DemoGatewayPage() {
       description: 'Viewing Demo Showcase Community.',
     });
 
+    if (redirectParam && redirectParam.startsWith('/demo/')) {
+      router.push(redirectParam);
+      return;
+    }
+
     if (personaKey === 'leader') {
-      router.push('/demo/home');
+      router.push('/demo/leader/dashboard');
     } else if (personaKey === 'business') {
       router.push('/demo/home');
     } else if (personaKey === 'advertiser') {
@@ -84,6 +94,12 @@ export default function DemoGatewayPage() {
       router.push('/demo/home');
     }
   };
+
+  const isLeaderTarget = roleParam === 'leader';
+  const isBusinessTarget = roleParam === 'business';
+  const isResidentTarget = roleParam === 'resident' || roleParam === 'personal';
+  const isReporterTarget = roleParam === 'reporter';
+  const isRegionalTarget = roleParam === 'regional';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
@@ -129,8 +145,19 @@ export default function DemoGatewayPage() {
         {/* 6 PERSONA SELECTION CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {/* Persona 1: Leader */}
-          <Card className="bg-slate-900/90 border-slate-800 hover:border-emerald-500/50 transition-all shadow-xl flex flex-col justify-between">
+          <Card
+            className={cn(
+              "bg-slate-900/90 border-slate-800 hover:border-emerald-500/50 transition-all shadow-xl flex flex-col justify-between relative",
+              isLeaderTarget && "ring-2 ring-emerald-400 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.35)] scale-[1.02]"
+            )}
+          >
             <CardHeader className="p-5 pb-3">
+              {isLeaderTarget && (
+                <div className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] px-2.5 py-1 rounded-md font-bold mb-2 flex items-center gap-1.5 animate-pulse">
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Target Selected: {redirectParam.includes('marketing') ? 'Marketing Toolkit' : 'Council Leader Portal'}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px]">
                   Leadership Tier (40% Rev Share)
@@ -141,13 +168,18 @@ export default function DemoGatewayPage() {
                 🏛️ Community Council Leader
               </CardTitle>
               <CardDescription className="text-xs text-slate-300">
-                Full leader powers: edit emergency plans, manage civic consultations, review revenue share, and moderate boards.
+                Full leader powers: edit emergency plans, manage civic consultations, review revenue share, access marketing kits, and moderate boards.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-5 pt-0">
               <Button
                 onClick={() => handleSelectPersona('leader')}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold h-9 gap-1.5 shadow"
+                className={cn(
+                  "w-full text-xs font-bold h-9 gap-1.5 shadow transition-all",
+                  isLeaderTarget
+                    ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black animate-pulse ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-950 shadow-lg shadow-emerald-500/50"
+                    : "bg-emerald-600 hover:bg-emerald-500 text-white"
+                )}
               >
                 Enter as Community Leader →
               </Button>
@@ -155,8 +187,19 @@ export default function DemoGatewayPage() {
           </Card>
 
           {/* Persona 2: Business */}
-          <Card className="bg-slate-900/90 border-slate-800 hover:border-amber-500/50 transition-all shadow-xl flex flex-col justify-between">
+          <Card
+            className={cn(
+              "bg-slate-900/90 border-slate-800 hover:border-amber-500/50 transition-all shadow-xl flex flex-col justify-between relative",
+              isBusinessTarget && "ring-2 ring-amber-400 border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.35)] scale-[1.02]"
+            )}
+          >
             <CardHeader className="p-5 pb-3">
+              {isBusinessTarget && (
+                <div className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] px-2.5 py-1 rounded-md font-bold mb-2 flex items-center gap-1.5 animate-pulse">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Target Selected: Merchant Sandbox</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px]">
                   High Street Commerce
@@ -173,7 +216,12 @@ export default function DemoGatewayPage() {
             <CardContent className="p-5 pt-0">
               <Button
                 onClick={() => handleSelectPersona('business')}
-                className="w-full bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold h-9 gap-1.5 shadow"
+                className={cn(
+                  "w-full text-xs font-bold h-9 gap-1.5 shadow transition-all",
+                  isBusinessTarget
+                    ? "bg-amber-500 hover:bg-amber-400 text-slate-950 font-black animate-pulse ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-950 shadow-lg shadow-amber-500/50"
+                    : "bg-amber-600 hover:bg-amber-500 text-white"
+                )}
               >
                 Enter as High Street Merchant →
               </Button>
@@ -181,8 +229,19 @@ export default function DemoGatewayPage() {
           </Card>
 
           {/* Persona 3: Resident */}
-          <Card className="bg-slate-900/90 border-slate-800 hover:border-sky-500/50 transition-all shadow-xl flex flex-col justify-between">
+          <Card
+            className={cn(
+              "bg-slate-900/90 border-slate-800 hover:border-sky-500/50 transition-all shadow-xl flex flex-col justify-between relative",
+              isResidentTarget && "ring-2 ring-sky-400 border-sky-500 shadow-[0_0_30px_rgba(14,165,233,0.35)] scale-[1.02]"
+            )}
+          >
             <CardHeader className="p-5 pb-3">
+              {isResidentTarget && (
+                <div className="bg-sky-500/20 text-sky-300 border border-sky-500/40 text-[11px] px-2.5 py-1 rounded-md font-bold mb-2 flex items-center gap-1.5 animate-pulse">
+                  <Sparkles className="h-3.5 w-3.5 text-sky-400" />
+                  <span>Target Selected: Resident Portal</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <Badge className="bg-sky-500/20 text-sky-300 border-sky-500/40 text-[10px]">
                   Local Citizen
@@ -199,7 +258,12 @@ export default function DemoGatewayPage() {
             <CardContent className="p-5 pt-0">
               <Button
                 onClick={() => handleSelectPersona('resident')}
-                className="w-full bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold h-9 gap-1.5 shadow"
+                className={cn(
+                  "w-full text-xs font-bold h-9 gap-1.5 shadow transition-all",
+                  isResidentTarget
+                    ? "bg-sky-500 hover:bg-sky-400 text-slate-950 font-black animate-pulse ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-950 shadow-lg shadow-sky-500/50"
+                    : "bg-sky-600 hover:bg-sky-500 text-white"
+                )}
               >
                 Enter as Local Resident →
               </Button>
@@ -207,8 +271,19 @@ export default function DemoGatewayPage() {
           </Card>
 
           {/* Persona 4: Reporter */}
-          <Card className="bg-slate-900/90 border-slate-800 hover:border-purple-500/50 transition-all shadow-xl flex flex-col justify-between">
+          <Card
+            className={cn(
+              "bg-slate-900/90 border-slate-800 hover:border-purple-500/50 transition-all shadow-xl flex flex-col justify-between relative",
+              isReporterTarget && "ring-2 ring-purple-400 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.35)] scale-[1.02]"
+            )}
+          >
             <CardHeader className="p-5 pb-3">
+              {isReporterTarget && (
+                <div className="bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[11px] px-2.5 py-1 rounded-md font-bold mb-2 flex items-center gap-1.5 animate-pulse">
+                  <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+                  <span>Target Selected: Civic Journalism</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/40 text-[10px]">
                   Civic Journalism
@@ -225,7 +300,12 @@ export default function DemoGatewayPage() {
             <CardContent className="p-5 pt-0">
               <Button
                 onClick={() => handleSelectPersona('reporter')}
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold h-9 gap-1.5 shadow"
+                className={cn(
+                  "w-full text-xs font-bold h-9 gap-1.5 shadow transition-all",
+                  isReporterTarget
+                    ? "bg-purple-500 hover:bg-purple-400 text-slate-950 font-black animate-pulse ring-2 ring-purple-300 ring-offset-2 ring-offset-slate-950 shadow-lg shadow-purple-500/50"
+                    : "bg-purple-600 hover:bg-purple-500 text-white"
+                )}
               >
                 Enter as Community Reporter →
               </Button>
@@ -233,8 +313,19 @@ export default function DemoGatewayPage() {
           </Card>
 
           {/* Persona 5: Regional Authority */}
-          <Card className="bg-slate-900/90 border-slate-800 hover:border-teal-500/50 transition-all shadow-xl flex flex-col justify-between">
+          <Card
+            className={cn(
+              "bg-slate-900/90 border-slate-800 hover:border-teal-500/50 transition-all shadow-xl flex flex-col justify-between relative",
+              isRegionalTarget && "ring-2 ring-teal-400 border-teal-500 shadow-[0_0_30px_rgba(20,184,166,0.35)] scale-[1.02]"
+            )}
+          >
             <CardHeader className="p-5 pb-3">
+              {isRegionalTarget && (
+                <div className="bg-teal-500/20 text-teal-300 border border-teal-500/40 text-[11px] px-2.5 py-1 rounded-md font-bold mb-2 flex items-center gap-1.5 animate-pulse">
+                  <Sparkles className="h-3.5 w-3.5 text-teal-400" />
+                  <span>Target Selected: Regional Network</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <Badge className="bg-teal-500/20 text-teal-300 border-teal-500/40 text-[10px]">
                   National Parks & Councils
@@ -251,7 +342,12 @@ export default function DemoGatewayPage() {
             <CardContent className="p-5 pt-0">
               <Button
                 onClick={() => handleSelectPersona('regional')}
-                className="w-full bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold h-9 gap-1.5 shadow"
+                className={cn(
+                  "w-full text-xs font-bold h-9 gap-1.5 shadow transition-all",
+                  isRegionalTarget
+                    ? "bg-teal-500 hover:bg-teal-400 text-slate-950 font-black animate-pulse ring-2 ring-teal-300 ring-offset-2 ring-offset-slate-950 shadow-lg shadow-teal-500/50"
+                    : "bg-teal-600 hover:bg-teal-500 text-white"
+                )}
               >
                 Test Drive Regional View →
               </Button>
@@ -322,5 +418,13 @@ export default function DemoGatewayPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DemoGatewayPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-emerald-400">Loading Demo Gateway...</div>}>
+      <DemoGatewayContent />
+    </Suspense>
   );
 }
