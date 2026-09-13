@@ -24,6 +24,7 @@ import {
   Compass,
   Zap,
   ShieldCheck,
+  Radio,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,8 +41,6 @@ import { LeaderPillarsGrid } from '@/components/showcase/LeaderPillarsGrid';
 import { CouncilProposalDownload } from '@/components/showcase/CouncilProposalDownload';
 import { LeaderActionPlaybook } from '@/components/showcase/LeaderActionPlaybook';
 import { ShowcaseSeoSchema } from '@/components/showcase/ShowcaseSeoSchema';
-import Header from '@/components/layout/header';
-import Footer from '@/components/layout/footer';
 import { BackToTopButton } from '@/components/ui/back-to-top-button';
 
 const LEADER_FAQS = [
@@ -79,29 +78,51 @@ export default function LeaderValueShowcasePage() {
         baseUrl="https://my-community-hub.co.uk"
       />
 
-      <Header />
+      {/* Standalone Showcase Top Bar (No Application Menus) */}
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-background/90 border-b border-border/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href="/showcase" className="flex items-center gap-2.5 group">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-400 flex items-center justify-center shadow-md">
+                <Radio className="h-5 w-5 text-slate-950" />
+              </div>
+              <span className="font-black text-xl tracking-tight text-foreground font-headline">
+                Community<span className="text-sky-500">Hub</span>
+              </span>
+            </Link>
+
+            <span className="text-muted-foreground/60 hidden sm:inline">|</span>
+
+            <Link
+              href="/showcase"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Platform Showcase
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/showcase"
+              className="sm:hidden inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Showcase
+            </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="border-primary/40 text-primary hover:bg-primary/10 font-bold text-xs h-9 gap-1.5 shadow-xs"
+            >
+              <Link href="/demo/leader/dashboard">
+                <Crown className="h-4 w-4" /> Test Live Leader Console
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </header>
 
       <main className="flex-1">
-        {/* Navigation Breadcrumb Bar */}
-        <section className="bg-muted/40 border-b py-3 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Link href="/showcase" className="hover:text-foreground flex items-center gap-1">
-                <ArrowLeft className="h-3.5 w-3.5" /> Back to Platform Showcase
-              </Link>
-              <span>/</span>
-              <span className="text-foreground font-bold">Community Leader Value & Revenue</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" asChild className="h-7 text-xs font-semibold">
-                <Link href="/demo/leader/dashboard">
-                  <Crown className="mr-1 h-3.5 w-3.5 text-primary" /> Test Live Leader Console
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </section>
 
         {/* Hero Section */}
         <section className="relative overflow-hidden pt-12 pb-16 md:pt-20 md:pb-24 bg-gradient-to-b from-primary/10 via-background to-background border-b">
@@ -259,7 +280,29 @@ export default function LeaderValueShowcasePage() {
         </section>
       </main>
 
-      <Footer />
+      {/* Clean Showcase Footer */}
+      <footer className="py-8 bg-card border-t text-xs text-muted-foreground">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Radio className="h-4 w-4 text-sky-500" />
+            <span className="font-bold text-foreground">Community Hub Platform</span>
+            <span>— Civic Resilience, Local Governance &amp; High Street Network</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Link href="/showcase" className="hover:text-foreground font-bold">
+              Main Showcase
+            </Link>
+            <Link href="/demo/leader/dashboard" className="hover:text-foreground font-bold">
+              Leader Console Demo
+            </Link>
+            <Link href="/signup/account-type" className="hover:text-foreground">
+              Register Community
+            </Link>
+          </div>
+        </div>
+      </footer>
+
       <BackToTopButton />
     </div>
   );
