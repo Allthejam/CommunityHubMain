@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, PlusCircle, Loader2 } from 'lucide-react';
 import * as React from 'react';
 import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
@@ -38,7 +39,14 @@ export default function NewTopicPage() {
 
   const [title, setTitle] = React.useState('');
   const [message, setMessage] = React.useState('');
+  const [isAnonymous, setIsAnonymous] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (userProfile?.settings?.publicProfile === false) {
+      setIsAnonymous(true);
+    }
+  }, [userProfile]);
 
   const handleCreateTopic = async () => {
     if (!user || !userProfile) {
@@ -65,15 +73,17 @@ export default function NewTopicPage() {
         title,
         message,
         authorId: user.uid,
-        authorName: userProfile.name,
-        authorAvatar:
-          userProfile.avatar || `https://i.pravatar.cc/150?u=${user.uid}`,
+        authorName: isAnonymous ? 'Anonymous Member' : userProfile.name,
+        authorAvatar: isAnonymous
+          ? ''
+          : (userProfile.avatar || `https://i.pravatar.cc/150?u=${user.uid}`),
+        isAnonymous,
       });
 
       if (result.success && result.topicId) {
         toast({
           title: 'Topic Created!',
-          description: 'Your new topic has been posted.',
+          description: isAnonymous ? 'Your new anonymous topic has been posted.' : 'Your new topic has been posted.',
         });
         router.push(`/forum/${categoryId}/${result.topicId}`);
       } else {
@@ -128,6 +138,24 @@ export default function NewTopicPage() {
               onChange={setMessage}
               placeholder="Start your post here..."
             />
+          </div>
+          <div className="flex items-start space-x-3 p-3 bg-muted/40 rounded-lg border">
+            <Checkbox
+              id="anonymous-topic"
+              checked={isAnonymous}
+              onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+              className="mt-0.5"
+            />
+            <div className="grid gap-1.5 leading-none">
+              <Label htmlFor="anonymous-topic" className="text-sm font-medium cursor-pointer">
+                Post anonymously (Hide my name and avatar)
+              </Label>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {userProfile?.settings?.publicProfile === false
+                  ? "Your account privacy setting has public profile hidden, so anonymous posting is pre-selected."
+                  : "Your post will display as 'Anonymous Member' on the forum to protect your identity."}
+              </p>
+            </div>
           </div>
         </CardContent>
         <CardFooter>

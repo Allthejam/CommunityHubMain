@@ -97,24 +97,28 @@ export default function ForumCategoryPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {topics && topics.map((topic) => (
+                            {topics && topics.map((topic) => {
+                                const isAnon = (topic as any).isAnonymous || topic.authorName?.toLowerCase().includes('anonymous');
+                                const authorDisplayName = isAnon ? 'Anonymous Member' : topic.authorName;
+                                const authorAvatarSrc = isAnon ? '' : topic.authorAvatar;
+                                return (
                                 <TableRow key={topic.id}>
                                     <TableCell>
                                         <div className="flex items-center gap-3">
                                             <Avatar>
-                                                <AvatarImage src={topic.authorAvatar} alt={topic.authorName} />
-                                                <AvatarFallback>{topic.authorName?.charAt(0)}</AvatarFallback>
+                                                <AvatarImage src={authorAvatarSrc} alt={authorDisplayName} />
+                                                <AvatarFallback>{isAnon ? '👤' : (authorDisplayName?.charAt(0) || 'U')}</AvatarFallback>
                                             </Avatar>
                                             <div>
                                                  <Link href={`/forum/${categoryId}/${topic.id}`} className="font-medium hover:underline">{topic.title}</Link>
-                                                <p className="text-sm text-muted-foreground">by {topic.authorName}</p>
+                                                <p className="text-sm text-muted-foreground">by {authorDisplayName}</p>
                                             </div>
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center">{topic.replies}</TableCell>
                                     <TableCell className="text-sm text-muted-foreground">{topic.lastPost ? new Date(topic.lastPost).toLocaleString() : 'N/A'}</TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                              {(!topics || topics.length === 0) && (
                                 <TableRow>
                                     <TableCell colSpan={3} className="h-24 text-center">

@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, MessageSquare, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import React, { useEffect, useState } from 'react';
 import {
   doc,
@@ -34,7 +36,9 @@ type Post = {
   authorId: string;
   createdAt: any;
   content: string;
-  authorIsPrivate: boolean;
+  authorIsPrivate?: boolean;
+  isAnonymous?: boolean;
+  authorRealName?: string;
 };
 
 type Topic = {
@@ -44,9 +48,10 @@ type Topic = {
 };
 
 const PostCard = ({ post }: { post: Post }) => {
-  const authorName = post.authorIsPrivate ? 'Anonymous Member' : post.authorName;
-  const authorAvatar = post.authorIsPrivate ? '' : post.authorAvatar;
-  const authorInitial = post.authorIsPrivate
+  const isAnonymous = post.isAnonymous || post.authorIsPrivate || post.authorName?.toLowerCase().includes('anonymous');
+  const authorName = isAnonymous ? 'Anonymous Member' : post.authorName;
+  const authorAvatar = isAnonymous ? '' : post.authorAvatar;
+  const authorInitial = isAnonymous
     ? 'A'
     : (post.authorName || 'A').charAt(0);
 
@@ -54,7 +59,7 @@ const PostCard = ({ post }: { post: Post }) => {
     <div className="flex gap-4">
       <Avatar>
         <AvatarImage src={authorAvatar} alt={authorName} />
-        <AvatarFallback>{authorInitial}</AvatarFallback>
+        <AvatarFallback>{isAnonymous ? '👤' : authorInitial}</AvatarFallback>
       </Avatar>
       <div className="flex-1">
         <div className="flex items-center gap-2 text-sm">
@@ -89,12 +94,19 @@ export default function TopicPage() {
 
   const [replyContent, setReplyContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   const userProfileRef = useMemoFirebase(
     () => (user ? doc(db, 'users', user.uid) : null),
     [user, db]
   );
   const { data: userProfile } = useDoc(userProfileRef);
+
+  useEffect(() => {
+    if (userProfile?.settings?.publicProfile === false) {
+      setIsAnonymous(true);
+    }
+  }, [userProfile?.settings?.publicProfile]);
 
   useEffect(() => {
     if (!topicId || !db) return;
@@ -194,6 +206,7 @@ export default function TopicPage() {
         topicId,
         content: replyContent,
         authorId: user.uid,
+        isAnonymous,
       });
       if (result.success) {
         toast({ title: 'Reply Posted!' });
@@ -283,12 +296,30 @@ export default function TopicPage() {
           <CardHeader>
             <CardTitle>Post a Reply</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <RichTextEditor
               value={replyContent}
               onChange={setReplyContent}
               placeholder="Write your reply here..."
             />
+            <div className="flex items-center space-x-2 pt-2 border-t">
+              <Checkbox
+                id="anonymous-reply"
+                checked={isAnonymous}
+                onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label
+                  htmlFor="anonymous-reply"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  Post reply anonymously (Hide my name and avatar)
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Your reply will display as &quot;Anonymous Member&quot; to other members.
+                </p>
+              </div>
+            </div>
           </CardContent>
           <CardFooter>
             <Button onClick={handleReply} disabled={isSubmitting}>

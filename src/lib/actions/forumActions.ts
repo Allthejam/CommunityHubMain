@@ -19,10 +19,11 @@ type CreateTopicParams = {
     authorId: string;
     authorName: string;
     authorAvatar: string;
+    isAnonymous?: boolean;
 }
 
 export async function runCreateForumTopic(params: CreateTopicParams): Promise<ActionResponse> {
-    const { categoryId, title, message, authorId, authorName, authorAvatar } = params;
+    const { categoryId, title, message, authorId, authorName, authorAvatar, isAnonymous } = params;
 
     if (!categoryId || !title || !message || !authorId || !authorName) {
         return { success: false, error: "Missing required fields." };
@@ -43,13 +44,20 @@ export async function runCreateForumTopic(params: CreateTopicParams): Promise<Ac
                 throw new Error("Author does not exist.");
             }
 
+            const authorData = authorDoc.data();
+            const isPrivate = authorData?.settings?.publicProfile === false || isAnonymous === true;
+            const displayName = isPrivate ? 'Anonymous Member' : (authorName || authorData?.name || 'Community Member');
+            const displayAvatar = isPrivate ? '' : (authorAvatar || authorData?.avatar || '');
+
             // 1. Create the topic document
             transaction.set(topicRef, {
                 title,
                 categoryId,
                 authorId,
-                authorName,
-                authorAvatar,
+                authorName: displayName,
+                authorAvatar: displayAvatar,
+                authorRealName: authorData?.name || authorName,
+                isAnonymous: isPrivate,
                 createdAt: now,
                 lastPost: now,
                 replies: 0,
@@ -59,8 +67,10 @@ export async function runCreateForumTopic(params: CreateTopicParams): Promise<Ac
             transaction.set(postRef, {
                 content: message,
                 authorId,
-                authorName: authorDoc.data()?.name || authorName,
-                authorAvatar: authorDoc.data()?.avatar || authorAvatar,
+                authorName: displayName,
+                authorAvatar: displayAvatar,
+                authorRealName: authorData?.name || authorName,
+                isAnonymous: isPrivate,
                 createdAt: now,
             });
 
@@ -139,8 +149,9 @@ export async function runAddPostToTopic(params: {
     topicId: string,
     content: string,
     authorId: string,
+    isAnonymous?: boolean,
 }): Promise<ActionResponse> {
-    const { topicId, content, authorId } = params;
+    const { topicId, content, authorId, isAnonymous } = params;
     if (!topicId || !content || !authorId) {
         return { success: false, error: "Missing required fields." };
     }
@@ -159,12 +170,17 @@ export async function runAddPostToTopic(params: {
             if (!topicDoc.exists) throw new Error("Topic not found.");
             
             const userData = userDoc.data();
+            const isPrivate = userData?.settings?.publicProfile === false || isAnonymous === true;
+            const displayName = isPrivate ? 'Anonymous Member' : (userData?.name || 'Community Member');
+            const displayAvatar = isPrivate ? '' : (userData?.avatar || '');
 
             transaction.set(postRef, {
                 content,
                 authorId,
-                authorName: userData?.name,
-                authorAvatar: userData?.avatar,
+                authorName: displayName,
+                authorAvatar: displayAvatar,
+                authorRealName: userData?.name,
+                isAnonymous: isPrivate,
                 createdAt: now,
             });
 
