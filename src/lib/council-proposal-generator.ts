@@ -40,19 +40,24 @@ export function generateCouncilProposalHtml(data: CouncilProposalData): string {
       padding: 0;
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      font-size: 8.5pt;
-      line-height: 1.35;
-      color: #0f172a;
-      background: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #000000;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 20px;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
     .page {
-      page-break-after: always;
+      background: #ffffff;
+      width: 210mm;
+      min-height: 297mm;
+      padding: 14mm 16mm;
+      margin: 0 auto 20px auto;
+      box-sizing: border-box;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
       position: relative;
-      min-height: 275mm;
-      padding-bottom: 8mm;
+      page-break-after: always;
     }
     .page:last-child {
       page-break-after: avoid;
@@ -339,10 +344,11 @@ export function generateCouncilProposalHtml(data: CouncilProposalData): string {
         <div class="grid-col">
           <div class="card">
             <div class="card-title">🚚 Appointed Town Courier Network</div>
-            <p>Integrated green delivery pool sustaining local courier jobs and offering same-day doorstep drops from high street merchants.</p>
+            <p>Integrated local delivery network sustaining local courier jobs and offering same-day doorstep drops from high street merchants.</p>
             <ul>
-              <li>40% of storefront revenue dedicated to courier pool.</li>
-              <li>Prescription and essential grocery drops for seniors.</li>
+              <li><strong>Guaranteed Subsidy:</strong> 40% of storefront revenue (£4/mo) allocated to help couriers cover vehicle maintenance & fuel.</li>
+              <li><strong>Primary Courier Earnings:</strong> Couriers earn 100% of delivery fees on every order they fulfill.</li>
+              <li>Prescription and essential grocery doorstep drops for seniors and vulnerable residents.</li>
             </ul>
           </div>
 
@@ -404,7 +410,7 @@ export function generateCouncilProposalHtml(data: CouncilProposalData): string {
       <div class="top-bar"></div>
 
       <div class="section-title">3. Self-Funding Financial Forecast for ${town}</div>
-      <p style="font-size: 7.5pt; color: #475569; margin-bottom: 6px;">
+      <p style="font-size: 7.5pt; color: #000000; font-weight: 600; margin-bottom: 6px;">
         Community Hub operates on two affordable business participation models: <strong>£20/mo</strong> Directory Listings and <strong>£10/mo</strong> Virtual Storefronts. The community council retains the majority share of directory subscriptions and oversight fees.
       </p>
 
@@ -419,15 +425,18 @@ export function generateCouncilProposalHtml(data: CouncilProposalData): string {
         <div class="grid-col" style="width: 32%;">
           <div class="stat-hero" style="background: #eff6ff; border-color: #3b82f6;">
             <div class="num" style="color: #1e40af;">£${annualCourier.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-            <div class="lbl" style="color: #2563eb;">Est. Local Courier Logistics Pool</div>
+            <div class="lbl" style="color: #1e40af;">Courier Fuel & Logistics Subsidy Fund*</div>
           </div>
         </div>
         <div class="grid-col" style="width: 36%;">
           <div class="stat-hero" style="background: #f8fafc; border-color: #64748b;">
-            <div class="num" style="color: #0f172a;">£${(annualTreasury + annualCourier).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-            <div class="lbl" style="color: #475569;">Total Annual Local Economic Value</div>
+            <div class="num" style="color: #000000;">£${(annualTreasury + annualCourier).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+            <div class="lbl" style="color: #000000;">Total Annual Local Economic Value</div>
           </div>
         </div>
+      </div>
+      <div style="font-size: 6.8pt; color: #000000; font-weight: 600; margin-bottom: 6px; font-style: italic;">
+        *Note: The £4/mo courier subsidy covers fuel and running costs. Couriers also receive 100% of customer delivery fees on every order (their main earnings).
       </div>
 
       <table class="data-table">
@@ -478,10 +487,10 @@ export function generateCouncilProposalHtml(data: CouncilProposalData): string {
       </table>
 
       <!-- What This Funds Box -->
-      <div class="card" style="background: #f0fdf4; border-color: #86efac; padding: 6px 10px;">
-        <div class="card-title" style="color: #064e3b;">💡 Real-World Civic Impact for ${town}</div>
-        <p>With an estimated annual treasury yield of <strong>£${annualTreasury.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong>, the Community Council can fully fund:</p>
-        <ul style="margin-top: 2px;">
+      <div class="card" style="background: #f0fdf4; border-color: #059669; border-width: 1.5px; padding: 6px 10px;">
+        <div class="card-title" style="color: #064e3b; font-size: 8.5pt;">💡 Illustrative Discretionary Civic Ideas for ${town}</div>
+        <p style="color: #000000; font-weight: 600;">For inspiration, with an estimated annual treasury yield of <strong>£${annualTreasury.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong>, the Community Council could choose to support:</p>
+        <ul style="margin-top: 2px; color: #000000; font-weight: 600;">
           <li>Annual Christmas lighting displays and village floral hanging baskets without council tax increases.</li>
           <li>Maintenance and supplies for 2x Public Access Defibrillators (PADs) and emergency winter flood stores.</li>
           <li>Grants for local youth clubs, sports teams, senior citizen transport, and village hall improvements.</li>

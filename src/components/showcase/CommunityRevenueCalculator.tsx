@@ -248,15 +248,15 @@ export function CommunityRevenueCalculator({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <span className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                <span className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
                   <Building2 className="h-4 w-4 text-indigo-500" />
                   Business Directory Listings
                 </span>
-                <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Standard Town App & Web profile (£20/mo)</p>
+                <p className="text-xs font-bold text-slate-950 dark:text-white">Standard Town App & Web profile (£20/mo)</p>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-extrabold text-foreground">{directoryCount}</span>
-                <span className="text-xs text-slate-700 dark:text-slate-200 block font-semibold">shops / trades</span>
+                <span className="text-xs text-slate-950 dark:text-white block font-bold">shops / trades</span>
               </div>
             </div>
 
@@ -274,15 +274,15 @@ export function CommunityRevenueCalculator({
               className="py-2"
             />
 
-            <div className="flex items-center justify-between text-[11px] text-slate-700 dark:text-slate-300 font-semibold">
+            <div className="flex items-center justify-between text-[11px] text-slate-950 dark:text-white font-bold">
               <span>1 Business</span>
               <span>50 (Tier 2 Jump)</span>
               <span>150+ Businesses</span>
             </div>
 
-            <div className="bg-background/90 p-2.5 rounded-lg border text-xs flex items-center justify-between">
-              <span className="text-slate-800 dark:text-slate-200 font-medium">Community Split for Listings:</span>
-              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+            <div className="bg-background p-3 rounded-lg border text-xs flex items-center justify-between shadow-2xs">
+              <span className="text-slate-950 dark:text-white font-bold">Community Split for Listings:</span>
+              <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">
                 {directorySplitPercent}% = £{directoryCommunityAmountPerSub.toFixed(2)}/mo per shop
               </span>
             </div>
@@ -292,15 +292,15 @@ export function CommunityRevenueCalculator({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <span className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                <span className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
                   <Store className="h-4 w-4 text-emerald-500" />
                   Virtual High Street Storefronts
                 </span>
-                <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Online ordering, catalogs & courier delivery (£10/mo)</p>
+                <p className="text-xs font-bold text-slate-950 dark:text-white">Online ordering, catalogs & courier delivery (£10/mo)</p>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-extrabold text-foreground">{effectiveStorefrontCount}</span>
-                <span className="text-xs text-slate-700 dark:text-slate-200 block font-semibold">retail stores</span>
+                <span className="text-xs text-slate-950 dark:text-white block font-bold">retail stores</span>
               </div>
             </div>
 
@@ -313,20 +313,23 @@ export function CommunityRevenueCalculator({
               className="py-2"
             />
 
-            <div className="flex items-center justify-between text-[11px] text-slate-700 dark:text-slate-300 font-semibold">
+            <div className="flex items-center justify-between text-[11px] text-slate-950 dark:text-white font-bold">
               <span>0 Storefronts</span>
               <span>25 Retailers</span>
               <span>{Math.min(50, directoryCount)} Max</span>
             </div>
 
-            <div className="bg-background/90 p-2.5 rounded-lg border text-xs space-y-1">
-              <div className="flex items-center justify-between text-slate-800 dark:text-slate-200">
-                <span className="font-medium">Council Oversight (10%):</span>
-                <span className="font-bold text-foreground">£1.00 / mo per store</span>
+            <div className="bg-background p-3 rounded-lg border text-xs space-y-2 shadow-2xs">
+              <div className="flex items-center justify-between text-slate-950 dark:text-white">
+                <span className="font-bold">Council High Street Oversight (10%):</span>
+                <span className="font-black text-foreground">£1.00 / mo per store</span>
               </div>
-              <div className="flex items-center justify-between text-slate-800 dark:text-slate-200">
-                <span className="font-medium">Local Courier Pool (40%):</span>
-                <span className="font-bold text-blue-600 dark:text-blue-400">£4.00 / mo per store</span>
+              <div className="flex items-center justify-between text-slate-950 dark:text-white">
+                <span className="font-bold">Courier Fuel & Logistics Subsidy (40%):</span>
+                <span className="font-black text-blue-600 dark:text-blue-400">£4.00 / mo per store</span>
+              </div>
+              <div className="pt-1.5 border-t text-[11px] text-slate-950 dark:text-white font-semibold">
+                💡 <em>Couriers also receive 100% of delivery fees on every order (their primary income).</em>
               </div>
             </div>
           </div>
@@ -336,11 +339,11 @@ export function CommunityRevenueCalculator({
         <div className="p-4 rounded-xl border bg-amber-500/5 border-amber-500/20 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-0.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                <Award className="h-4 w-4 text-amber-500" />
+              <span className="text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                <Award className="h-4 w-4 text-amber-600" />
                 Community Tier & Discretionary Rural Support Model:
               </span>
-              <p className="text-xs text-slate-700 dark:text-slate-200 font-medium">
+              <p className="text-xs text-slate-950 dark:text-white font-medium">
                 Standard automatic tiers are 40% (1–50) and 60% (51+). The Platform Owner can manually award small rural villages or model towns a 75%–90% grant.
               </p>
             </div>
@@ -359,7 +362,7 @@ export function CommunityRevenueCalculator({
                 type="button"
                 variant={isDiscretionaryMode ? 'default' : 'outline'}
                 size="sm"
-                className="text-xs font-bold h-8 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+                className="text-xs font-bold h-8 border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10"
                 onClick={() => setIsDiscretionaryMode(true)}
               >
                 Simulate Owner Grant (75%–90%)
@@ -369,7 +372,7 @@ export function CommunityRevenueCalculator({
 
           {isDiscretionaryMode && (
             <div className="pt-2 border-t border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <span className="text-slate-800 dark:text-slate-200 font-medium">
+              <span className="text-slate-950 dark:text-white font-bold">
                 Select Discretionary Grant Stake Rate:
               </span>
               <div className="flex items-center gap-1.5">
@@ -397,7 +400,7 @@ export function CommunityRevenueCalculator({
           {/* Output 1: Community Treasury */}
           <div className="rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-card p-5 space-y-2 shadow-sm relative overflow-hidden">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Building2 className="h-4 w-4" />
                 Town Treasury Yield
               </span>
@@ -408,17 +411,17 @@ export function CommunityRevenueCalculator({
             <div className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight">
               £{displayCommunityFund.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
+            <p className="text-xs text-slate-950 dark:text-white font-medium leading-relaxed">
               Direct discretionary civic funds to spend on town projects, lights, defibs, and local grants.
             </p>
           </div>
 
-          {/* Output 2: Local Courier Logistics Pool */}
+          {/* Output 2: Local Courier Logistics & Fuel Pool */}
           <div className="rounded-2xl border border-blue-500/30 bg-gradient-to-b from-blue-500/10 via-blue-500/5 to-card p-5 space-y-2 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-xs font-black text-blue-800 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Truck className="h-4 w-4" />
-                Local Courier Pool
+                Courier Logistics & Fuel Fund
               </span>
               <Badge variant="outline" className="border-blue-500/40 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
                 {isAnnual ? 'Per Year' : 'Per Month'}
@@ -427,15 +430,15 @@ export function CommunityRevenueCalculator({
             <div className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight">
               £{displayCourierFund.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
-              Dedicated delivery pool sustaining local green courier jobs and doorstep town logistics.
+            <p className="text-xs text-slate-950 dark:text-white font-medium leading-relaxed">
+              Guaranteed subsidy from Community Hub to help local couriers cover fuel, vehicle maintenance, and equipment costs. <strong>Couriers earn their primary income directly from delivery fees on every order.</strong>
             </p>
           </div>
 
           {/* Output 3: Total Town Economic Impact */}
           <div className="rounded-2xl border border-primary/20 bg-gradient-to-b from-primary/10 via-primary/5 to-card p-5 space-y-2 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-xs font-black text-primary uppercase tracking-wider flex items-center gap-1.5">
                 <Coins className="h-4 w-4" />
                 Total Retained in Town
               </span>
@@ -446,7 +449,7 @@ export function CommunityRevenueCalculator({
             <div className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight">
               £{displayLocalRetained.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
+            <p className="text-xs text-slate-950 dark:text-white font-medium leading-relaxed">
               Circulating directly within the local economy rather than siphoned away to Silicon Valley tech monopolies.
             </p>
           </div>
@@ -462,21 +465,21 @@ export function CommunityRevenueCalculator({
               <Badge className="bg-background text-foreground border text-[11px] font-bold">
                 {milestone.badge}
               </Badge>
-              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+              <span className="text-xs font-bold text-slate-950 dark:text-white">
                 Illustrative ideas for ~£{(monthlyTotalCommunity * 12).toLocaleString('en-GB', { maximumFractionDigits: 0 })}/year discretionary income:
               </span>
             </div>
             <h4 className="text-base font-bold text-foreground font-headline">
               {milestone.title}
             </h4>
-            <p className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
+            <p className="text-xs text-slate-950 dark:text-white font-medium leading-relaxed">
               {milestone.description}
             </p>
           </div>
         </div>
 
         {/* Platform Transparency Breakdown */}
-        <div className="p-4 rounded-xl bg-muted/50 border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-800 dark:text-slate-200 font-medium">
+        <div className="p-4 rounded-xl bg-muted/60 border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-950 dark:text-white font-medium">
           <div className="flex items-center gap-2">
             <Info className="h-4 w-4 text-primary shrink-0" />
             <span>
