@@ -182,7 +182,16 @@ export default function ShowcaseBrochurePage() {
             </Badge>
           </div>
 
-          <nav className="flex items-center gap-3">
+          <nav className="flex items-center gap-2 sm:gap-3">
+            <Link href="/showcase/leader-value">
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-amber-500/10 border-amber-500/40 text-amber-300 hover:bg-amber-950/60 font-bold text-xs h-9 gap-1.5 shadow-sm"
+              >
+                <Coins className="h-4 w-4 text-amber-400" /> Leader Value & Revenue
+              </Button>
+            </Link>
             <Link href="/demo/login">
               <Button
                 variant="outline"
@@ -283,6 +292,38 @@ export default function ShowcaseBrochurePage() {
             <span className="flex items-center gap-1.5">
               <Store className="h-3.5 w-3.5 text-emerald-400" /> 100% High Street Centric
             </span>
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURED BANNER: WHAT DOES YOUR COMMUNITY GET & REVENUE CALCULATOR */}
+      <section className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-indigo-950/80 border-b border-emerald-500/30 py-8 px-4 sm:px-6">
+        <div className="container max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-2xl bg-slate-900/60 border border-emerald-500/20 shadow-2xl backdrop-blur-xs">
+          <div className="space-y-2 text-center md:text-left max-w-3xl">
+            <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap">
+              <Badge className="bg-emerald-500 text-slate-950 font-bold text-xs gap-1">
+                <Crown className="h-3.5 w-3.5" />
+                Community Council & Leader Value Guide
+              </Badge>
+              <span className="text-xs text-emerald-400 font-semibold">
+                £0 Public Cost • 40% to 75%+ Revenue Share
+              </span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-white font-headline">
+              What Does Your Town Get with Community Hub?
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Explore the full civic breakdown: Virtual High Street, ISO 22301 Civil Emergency Broadcasts, Democratic Resident Polling, and use our <strong className="text-white">Dual-Slider Community Revenue Calculator</strong>.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full md:w-auto">
+            <Link href="/showcase/leader-value" className="w-full sm:w-auto">
+              <Button size="lg" className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm h-11 px-6 gap-2 shadow-lg shadow-emerald-950/50">
+                <Coins className="h-4 w-4" /> Calculate Town Income & View Guide
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

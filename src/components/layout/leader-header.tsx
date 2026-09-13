@@ -41,7 +41,9 @@ import {
   Target,
   Navigation,
   FileDown,
-  Printer
+  Printer,
+  Landmark,
+  Coins
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -105,6 +107,7 @@ const adminSubItems = [
     { href: '/leader/announcements', label: 'Announcements', icon: Megaphone, permission: 'viewAnnouncements' },
     { href: '/leader/marketing', label: 'Marketing', icon: Sparkles, permission: 'viewMarketing' },
     { href: '/leader/financials', label: 'Financials', icon: DollarSign, permission: 'viewFinancials' },
+    { href: '/leader/community-value', label: 'Council Value & Proposal', icon: Landmark, permission: 'viewDashboard' },
     { href: '/leader/polls', label: 'Polls', icon: ListTodo, permission: 'viewPolls' },
     { href: '/leader/campaigns', label: 'Petitions', icon: Target, permission: 'viewPolls' },
     { href: '/leader/settings', label: 'Community Settings', icon: SettingsIcon, permission: 'viewSettings' },
@@ -376,6 +379,18 @@ export default function LeaderHeader() {
                                 <span className="text-xs">1-Click Grab-Bag Dossier</span>
                             </div>
                             <span className="text-[10px] bg-amber-200 dark:bg-amber-900/80 text-amber-950 dark:text-amber-100 font-mono px-1.5 py-0.5 rounded font-black border border-amber-400/40">PDF</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                        <DropdownMenuItem asChild>
+                            <Link href="/leader/community-value" className="cursor-pointer flex items-center justify-between py-1.5 font-medium">
+                                <div className="flex items-center gap-2">
+                                    <Landmark className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                    <span className="text-xs">Council Value & Proposal</span>
+                                </div>
+                                <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-mono px-1.5 py-0.5 rounded font-semibold border border-emerald-300/40">ROI & PDF</span>
+                            </Link>
                         </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
