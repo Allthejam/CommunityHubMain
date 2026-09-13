@@ -10,5 +10,5 @@ export const ai = genkit({
   plugins: [
     googleAI(geminiApiKey ? { apiKey: geminiApiKey } : {}),
   ],
-  model: 'googleai/gemini-2.5-flash',
+  model: 'googleai/gemini-flash-latest',
 });
