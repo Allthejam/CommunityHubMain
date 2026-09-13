@@ -212,12 +212,22 @@ export async function runSanitizeForumTopicsPrivacy(): Promise<ActionResponse> {
         const topicsSnap = await firestore.collection('forum-topics').get();
         const batch = firestore.batch();
         let updateCount = 0;
+        const categoryStats = new Map<string, { topics: number; posts: number }>();
 
         for (const topicDoc of topicsSnap.docs) {
             const topicData = topicDoc.data();
             const postsSnap = await topicDoc.ref.collection('posts').get();
             const actualReplies = Math.max(0, postsSnap.size - 1);
+            const totalTopicPosts = postsSnap.size;
             const topicUpdates: Record<string, any> = {};
+
+            if (topicData.categoryId) {
+                const current = categoryStats.get(topicData.categoryId) || { topics: 0, posts: 0 };
+                categoryStats.set(topicData.categoryId, {
+                    topics: current.topics + 1,
+                    posts: current.posts + totalTopicPosts
+                });
+            }
 
             if (topicData.replies !== actualReplies) {
                 topicUpdates.replies = actualReplies;
@@ -252,13 +262,26 @@ export async function runSanitizeForumTopicsPrivacy(): Promise<ActionResponse> {
             }
         }
 
+        const categoriesSnap = await firestore.collection('forum-categories').get();
+        for (const catDoc of categoriesSnap.docs) {
+            const catData = catDoc.data();
+            const stats = categoryStats.get(catDoc.id) || { topics: 0, posts: 0 };
+            if (catData.topics !== stats.topics || catData.posts !== stats.posts) {
+                batch.update(catDoc.ref, {
+                    topics: stats.topics,
+                    posts: stats.posts
+                });
+                updateCount++;
+            }
+        }
+
         if (updateCount > 0) {
             await batch.commit();
         }
 
         return { success: true };
     } catch (error: any) {
-        console.error("Error sanitizing forum topics privacy:", error);
+        console.error("Error sanitizing forum topics privacy & stats:", error);
         return { success: false, error: error.message };
     }
 }

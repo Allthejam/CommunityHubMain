@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import { runSanitizeForumTopicsPrivacy } from "@/lib/actions/forumActions";
 
 type ForumCategory = {
   id: string;
@@ -33,6 +34,13 @@ type ForumCategory = {
   topics: number;
   posts: number;
   communityId: string;
+};
+
+type Topic = {
+  id: string;
+  title: string;
+  categoryId: string;
+  replies?: number;
 };
 
 const defaultCategories: ForumCategory[] = [
@@ -101,6 +109,10 @@ export default function ForumPage() {
     const db = useFirestore();
     const [searchQuery, setSearchQuery] = React.useState("");
 
+    React.useEffect(() => {
+        runSanitizeForumTopicsPrivacy().catch(console.error);
+    }, []);
+
     const userProfileRef = useMemoFirebase(() => {
         if (!user || !db) return null;
         return doc(db, 'users', user.uid);
@@ -115,12 +127,35 @@ export default function ForumPage() {
         return query(collection(db, "forum-categories"), where("communityId", "==", activeCommunityId));
     }, [db, activeCommunityId]);
 
+    const allTopicsQuery = useMemoFirebase(() => {
+        if (!db) return null;
+        return query(collection(db, "forum-topics"));
+    }, [db]);
+
     const { data: rawCategories, isLoading: dataLoading } = useCollection<ForumCategory>(categoriesQuery);
+    const { data: allTopics } = useCollection<Topic>(allTopicsQuery);
 
     const categories = React.useMemo(() => {
         if (rawCategories && rawCategories.length > 0) return rawCategories;
         return defaultCategories;
     }, [rawCategories]);
+
+    // Live statistics map calculated from actual topics & replies in real time
+    const categoryStatsMap = React.useMemo(() => {
+        const map = new Map<string, { topics: number; posts: number }>();
+        if (!allTopics) return map;
+        for (const t of allTopics) {
+            const catId = (t as any).categoryId;
+            if (!catId) continue;
+            const current = map.get(catId) || { topics: 0, posts: 0 };
+            const replies = Number((t as any).replies || 0);
+            map.set(catId, {
+                topics: current.topics + 1,
+                posts: current.posts + 1 + replies,
+            });
+        }
+        return map;
+    }, [allTopics]);
     
     const filteredCategories = React.useMemo(() => {
       if (!searchQuery.trim()) return categories;
@@ -128,8 +163,25 @@ export default function ForumPage() {
       return categories.filter(c => c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q));
     }, [categories, searchQuery]);
 
-    const totalTopics = React.useMemo(() => categories.reduce((sum, c) => sum + (c.topics || 0), 0), [categories]);
-    const totalPosts = React.useMemo(() => categories.reduce((sum, c) => sum + (c.posts || 0), 0), [categories]);
+    const totalTopics = React.useMemo(() => {
+        if (allTopics && allTopics.length > 0) {
+            const categoryIds = new Set(categories.map(c => c.id));
+            const count = allTopics.filter(t => categoryIds.has((t as any).categoryId)).length;
+            if (count > 0) return count;
+        }
+        return categories.reduce((sum, c) => sum + (c.topics || 0), 0);
+    }, [allTopics, categories]);
+
+    const totalPosts = React.useMemo(() => {
+        if (allTopics && allTopics.length > 0) {
+            const categoryIds = new Set(categories.map(c => c.id));
+            const count = allTopics
+                .filter(t => categoryIds.has((t as any).categoryId))
+                .reduce((sum, t) => sum + 1 + Number((t as any).replies || 0), 0);
+            if (count > 0) return count;
+        }
+        return categories.reduce((sum, c) => sum + (c.posts || 0), 0);
+    }, [allTopics, categories]);
 
     const loading = authLoading || profileLoading || dataLoading;
 
@@ -250,14 +302,23 @@ export default function ForumPage() {
                                         </div>
 
                                         <div className="flex items-center gap-3 pt-3 border-t border-border/50 text-xs font-medium text-muted-foreground">
-                                            <Badge variant="outline" className={cn("gap-1 py-0.5 px-2 font-medium text-xs", theme.badgeClass)}>
-                                                <FileText className="h-3.5 w-3.5" />
-                                                {category.topics || 0} {category.topics === 1 ? 'Topic' : 'Topics'}
-                                            </Badge>
-                                            <Badge variant="outline" className="gap-1 py-0.5 px-2 font-medium text-xs bg-muted/30">
-                                                <Users className="h-3.5 w-3.5" />
-                                                {category.posts || 0} {category.posts === 1 ? 'Post' : 'Posts'}
-                                            </Badge>
+                                            {(() => {
+                                                const liveStats = categoryStatsMap.get(category.id);
+                                                const topicCount = liveStats ? liveStats.topics : (category.topics || 0);
+                                                const postCount = liveStats ? liveStats.posts : (category.posts || 0);
+                                                return (
+                                                    <>
+                                                        <Badge variant="outline" className={cn("gap-1 py-0.5 px-2 font-medium text-xs", theme.badgeClass)}>
+                                                            <FileText className="h-3.5 w-3.5" />
+                                                            {topicCount} {topicCount === 1 ? 'Topic' : 'Topics'}
+                                                        </Badge>
+                                                        <Badge variant="outline" className="gap-1 py-0.5 px-2 font-medium text-xs bg-muted/30">
+                                                            <Users className="h-3.5 w-3.5" />
+                                                            {postCount} {postCount === 1 ? 'Post' : 'Posts'}
+                                                        </Badge>
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     </CardContent>
                                 </Card>
