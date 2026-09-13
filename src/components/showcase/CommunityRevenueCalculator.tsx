@@ -85,48 +85,48 @@ export function CommunityRevenueCalculator({
   const displayLocalRetained = monthlyTotalLocalEconomyRetained * multiplier;
   const displayPlatformShare = monthlyTotalPlatform * multiplier;
 
-  // Milestone achievements based on annual yield
+  // Illustrative Council spending ideas based on projected annual yield
   const annualTotal = monthlyTotalCommunity * 12;
   const milestone = useMemo(() => {
     if (annualTotal < 2000) {
       return {
-        badge: 'Foundation Civic Fund',
-        title: 'Floral Displays & Town Noticeboards',
-        description: 'Funds seasonal village planters, hanging baskets, and maintenance for public civic noticeboards.',
+        badge: 'Discretionary Civic Ideas',
+        title: 'Floral Displays, Noticeboards & Club Grants',
+        description: 'Examples of what your Council could fund: Seasonal village hanging baskets & planters, community noticeboard maintenance, or micro-grants for local youth and sports groups.',
         icon: Sparkles,
-        color: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+        color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
       };
     } else if (annualTotal < 5000) {
       return {
-        badge: 'Civic Resilience & Festivities',
-        title: 'Christmas Lights & Public Defibrillator',
-        description: 'Covers the annual town Christmas lighting switch-on plus installation of a 24/7 Public Access Defibrillator (PAD).',
+        badge: 'Discretionary Civic Ideas',
+        title: 'Festive Events, Defibrillators & Senior Outings',
+        description: 'Examples of what your Council could fund: Supporting the annual Christmas light switch-on, maintaining a 24/7 Public Access Defibrillator (PAD), or subsidising senior citizen social trips.',
         icon: Zap,
-        color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
+        color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
       };
     } else if (annualTotal < 12000) {
       return {
-        badge: 'Emergency & Community Action',
-        title: 'ISO Emergency Store & Senior Day Trips',
-        description: 'Fully equips local sandbag & winter flood stores, subsidises senior citizen bus outings, and supports local youth clubs.',
+        badge: 'Discretionary Civic Ideas',
+        title: 'Emergency Supplies, Youth Programs & Town Cleanups',
+        description: 'Examples of what your Council could fund: Equipping local flood & sandbag resilience stores, sponsoring youth centre equipment, or running community environmental clean-up initiatives.',
         icon: ShieldCheck,
-        color: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
+        color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
       };
     } else if (annualTotal < 22000) {
       return {
-        badge: 'Town Infrastructure Grant',
-        title: 'Community Minibus & Village Hall Grants',
-        description: 'Maintains a dedicated community transport vehicle, sponsors local sports clubs, and repairs community hall facilities.',
+        badge: 'Discretionary Civic Ideas',
+        title: 'Community Transport, Hall Grants & Play Park Upkeep',
+        description: 'Examples of what your Council could fund: Contributing to a local community transport minibus, grants for village hall roof/kitchen repairs, or upgrading public play area equipment.',
         icon: Building2,
-        color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20',
+        color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
       };
     } else {
       return {
-        badge: 'Premier Civic Endowment',
-        title: 'Major Civic Projects & Town Warden',
-        description: 'Provides capital reserves for major parish improvements, flagship heritage festivals, and dedicated local civic staff.',
+        badge: 'Discretionary Civic Ideas',
+        title: 'Major Parish Improvements, Warden Support & Festivals',
+        description: 'Examples of what your Council could fund: Capital reserves for town centre enhancements, contributing to a part-time community warden or youth worker, and flagship heritage festivals.',
         icon: Award,
-        color: 'text-purple-500 bg-purple-500/10 border-purple-500/20',
+        color: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
       };
     }
   }, [annualTotal]);
@@ -452,7 +452,7 @@ export function CommunityRevenueCalculator({
           </div>
         </div>
 
-        {/* Milestone Indicator ("What This Funds") */}
+        {/* Discretionary Civic Reinvestment Examples */}
         <div className={`p-5 rounded-2xl border ${milestone.color} flex flex-col sm:flex-row items-start sm:items-center gap-4 transition-all duration-300`}>
           <div className="p-3 rounded-xl bg-background shadow-xs shrink-0">
             <milestone.icon className="h-7 w-7 text-foreground" />
@@ -462,8 +462,8 @@ export function CommunityRevenueCalculator({
               <Badge className="bg-background text-foreground border text-[11px] font-bold">
                 {milestone.badge}
               </Badge>
-              <span className="text-xs font-extrabold text-foreground">
-                Unlocked with £{(monthlyTotalCommunity * 12).toLocaleString('en-GB', { maximumFractionDigits: 0 })}/year Treasury Yield
+              <span className="text-xs font-semibold text-muted-foreground">
+                Illustrative ideas for ~£{(monthlyTotalCommunity * 12).toLocaleString('en-GB', { maximumFractionDigits: 0 })}/year discretionary income:
               </span>
             </div>
             <h4 className="text-base font-bold text-foreground font-headline">
