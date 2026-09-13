@@ -121,10 +121,12 @@ export default function LeaderReviewsPage() {
     );
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-    const communityId =
-        (userProfile as any)?.impersonating?.communityId || communityId;
+    const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+    const communityId = isDemo
+        ? '9ayHMyZf4SRw2gof1AM9'
+        : ((userProfile as any)?.impersonating?.communityId || userProfile?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || null);
     const communityName =
-        (userProfile as any)?.impersonating?.communityName || userProfile?.communityName;
+        (userProfile as any)?.impersonating?.communityName || userProfile?.communityName || (isDemo ? 'Oakridge Demo Community' : '');
 
     const fetchEntries = useCallback(async () => {
         if (!communityId || !db) return;

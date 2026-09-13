@@ -346,7 +346,10 @@ export default function LeaderPollsPage() {
   // Read user's communityId
   const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userDocRef);
-  const communityId: string | null = communityId ?? null;
+  const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+  const communityId: string | null = isDemo
+    ? '9ayHMyZf4SRw2gof1AM9'
+    : (userProfile?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || null);
 
   // Subscribe to polls
   const pollsQuery = useMemoFirebase(

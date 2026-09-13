@@ -20,9 +20,14 @@ function createAdminApp(): App {
   try {
     let credential;
     try {
-      // Explicitly load the service account key for local development.
-      const serviceAccount = require('../../service-account.json');
-      credential = cert(serviceAccount);
+      // Explicitly load the service account key for local development if present.
+      const fs = require('fs');
+      const path = require('path');
+      const serviceAccountPath = path.resolve(process.cwd(), 'service-account.json');
+      if (fs.existsSync(serviceAccountPath)) {
+        const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+        credential = cert(serviceAccount);
+      }
     } catch (err) {
       // In production (Firebase App Hosting), the file won't exist.
       // Firebase will automatically use Application Default Credentials.
