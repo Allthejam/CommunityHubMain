@@ -85,6 +85,10 @@ function AnalyticsWidget({ polls }: { polls: Poll[] }) {
   );
 }
 
+import { useToast } from '@/hooks/use-toast';
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+import { voteOnPollAction, commentOnPollAction } from '@/lib/actions/pollActions';
+
 // ─── Filter bar ───────────────────────────────────────────────────────────────
 const CATEGORIES: { value: PollCategory | 'all'; label: string }[] = [
   { value: 'all',         label: '✨ All Topics' },
@@ -98,21 +102,20 @@ const CATEGORIES: { value: PollCategory | 'all'; label: string }[] = [
 export default function PollsPage() {
   const db = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
   const [catFilter, setCatFilter]       = React.useState<PollCategory | 'all'>('all');
   const [statusFilter, setStatusFilter] = React.useState<PollStatus | 'all'>('active');
 
-  // Read the user's communityId from their Firestore profile
-  const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
-  const { data: userProfile } = useDoc(userDocRef);
-  const communityId: string | null = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || null;
+  const { communityId, userProfile, isLoading: profileLoading } = useActiveCommunityId();
 
   // Subscribe to the community's polls collection
   const pollsQuery = useMemoFirebase(
     () => (db && communityId) ? query(collection(db, 'communities', communityId, 'polls'), orderBy('createdAt', 'desc')) : null,
     [db, communityId]
   );
-  const { data: rawPolls, isLoading } = useCollection<Poll>(pollsQuery);
+  const { data: rawPolls, isLoading: pollsLoading } = useCollection<Poll>(pollsQuery);
 
+  const isLoading = profileLoading || pollsLoading;
   const itemsToProcess = rawPolls ?? [];
 
   const polls: Poll[] = itemsToProcess.map((p: any) => {
@@ -158,9 +161,21 @@ export default function PollsPage() {
 
   // ── Voting ──────────────────────────────────────────────────────────────────
   async function handleVote(pollId: string, optId: string) {
-    if (!communityId || !user) return;
+    if (!user) {
+      toast({ title: "Sign In Required", description: "Please sign in to vote in community consultations.", variant: "destructive" });
+      return;
+    }
+    if (!communityId) {
+      toast({ title: "No Community Selected", description: "Could not find your active community.", variant: "destructive" });
+      return;
+    }
+
     const poll = polls.find((p) => p.id === pollId);
-    if (!poll || poll.votedBy?.includes(user.uid)) return;
+    if (!poll) return;
+    if (poll.votedBy?.includes(user.uid)) {
+      toast({ title: "Already Voted", description: "You have already cast your vote on this consultation." });
+      return;
+    }
 
     const optionIndex = poll.options.findIndex((o) => o.id === optId);
     if (optionIndex === -1) return;
@@ -174,14 +189,26 @@ export default function PollsPage() {
         votedBy: arrayUnion(user.uid),
         updatedAt: serverTimestamp()
       });
-    } catch (err) {
-      console.error("Error voting:", err);
+      toast({ title: "Vote Recorded! 🗳️", description: "Your vote has been counted." });
+    } catch (err: any) {
+      console.warn("Client vote write failed, falling back to Server Action:", err);
+      const res = await voteOnPollAction({ communityId, pollId, userId: user.uid, optionIndex });
+      if (res.success) {
+        toast({ title: "Vote Recorded! 🗳️", description: "Your vote has been counted." });
+      } else {
+        toast({ title: "Vote Failed", description: res.error || "Could not record vote.", variant: "destructive" });
+      }
     }
   }
 
   // ── Commenting ──────────────────────────────────────────────────────────────
   async function handleComment(pollId: string, text: string) {
-    if (!communityId || !user) return;
+    if (!user) {
+      toast({ title: "Sign In Required", description: "Please sign in to post comments.", variant: "destructive" });
+      return;
+    }
+    if (!communityId) return;
+
     const poll = polls.find((p) => p.id === pollId);
     if (!poll) return;
 
@@ -193,10 +220,29 @@ export default function PollsPage() {
       time: 'Just now',
     };
 
-    const pollRef = doc(db, 'communities', communityId, 'polls', pollId);
-    await updateDoc(pollRef, {
-      comments: arrayUnion(newComment),
-    });
+    try {
+      const pollRef = doc(db, 'communities', communityId, 'polls', pollId);
+      await updateDoc(pollRef, {
+        comments: arrayUnion(newComment),
+      });
+      toast({ title: "Comment Posted! 💬" });
+    } catch (err: any) {
+      console.warn("Client comment write failed, falling back to Server Action:", err);
+      const res = await commentOnPollAction({
+        communityId,
+        pollId,
+        comment: {
+          author: newComment.author,
+          role: newComment.role,
+          text
+        }
+      });
+      if (res.success) {
+        toast({ title: "Comment Posted! 💬" });
+      } else {
+        toast({ title: "Comment Failed", description: res.error || "Could not post comment.", variant: "destructive" });
+      }
+    }
   }
 
   // ── Filter ──────────────────────────────────────────────────────────────────

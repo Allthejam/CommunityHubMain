@@ -99,7 +99,7 @@ export async function voteOnPollAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
+    const { firestore } = initializeAdminApp();
     const pollRef = firestore.collection(`communities/${communityId}/polls`).doc(pollId);
 
     await firestore.runTransaction(async (transaction) => {
@@ -113,24 +113,64 @@ export async function voteOnPollAction(params: {
         throw new Error("You have already voted on this poll.");
       }
 
-      if (optionIndex < 0 || optionIndex >= pollData.options.length) {
-          throw new Error("Invalid option selected.");
+      if (optionIndex < 0 || optionIndex >= (pollData.options?.length || 0)) {
+        throw new Error("Invalid option selected.");
       }
 
       // Prepare the update for the specific option
-      const newOptions = [...pollData.options];
+      const newOptions = [...(pollData.options || [])];
       newOptions[optionIndex].votes = (newOptions[optionIndex].votes || 0) + 1;
 
       transaction.update(pollRef, {
         totalVotes: FieldValue.increment(1),
         votedBy: FieldValue.arrayUnion(userId),
-        options: newOptions
+        options: newOptions,
+        updatedAt: Timestamp.now()
       });
     });
 
     return { success: true };
   } catch (error: any) {
     console.error("Error voting on poll:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message || "Failed to submit vote." };
+  }
+}
+
+export async function commentOnPollAction(params: {
+  communityId: string;
+  pollId: string;
+  comment: {
+    author: string;
+    role: string;
+    text: string;
+  };
+}): Promise<ActionResponse> {
+  const { communityId, pollId, comment } = params;
+  if (!communityId || !pollId || !comment?.text?.trim()) {
+    return { success: false, error: "Missing required comment information." };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const pollRef = firestore.collection(`communities/${communityId}/polls`).doc(pollId);
+    
+    const newComment = {
+      id: `com-${Date.now()}`,
+      author: comment.author || 'Resident',
+      role: comment.role || 'Resident',
+      text: comment.text.trim(),
+      time: 'Just now',
+      createdAt: Timestamp.now()
+    };
+
+    await pollRef.update({
+      comments: FieldValue.arrayUnion(newComment),
+      updatedAt: Timestamp.now()
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error posting comment on poll:", error);
+    return { success: false, error: error.message || "Failed to post comment." };
   }
 }
