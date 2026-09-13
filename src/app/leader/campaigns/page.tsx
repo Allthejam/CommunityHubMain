@@ -23,7 +23,6 @@ import {
 } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -31,6 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Filter } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -437,30 +438,49 @@ export default function LeaderCampaignsPage() {
 
         {/* Main List Section */}
         <section className="lg:col-span-8 flex flex-col gap-6">
-          {/* Filter Bar (Matching Back Office Polls filter bar) */}
-          <div className="bg-white p-3 rounded-2xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-            <div className="flex gap-1 overflow-x-auto whitespace-nowrap pb-1 sm:pb-0">
-              {CATEGORIES.map(({ value, label }) => (
-                <button key={value} onClick={() => setCatFilter(value)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all border ${
-                    catFilter === value
-                      ? 'bg-amber-100 text-amber-800 border-amber-200'
-                      : 'text-slate-500 border-transparent hover:bg-slate-100'
-                  }`}>
-                  {label}
-                </button>
-              ))}
+          {/* Filter Bar with Dropdowns */}
+          <div className="bg-white p-3.5 rounded-2xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+            <div className="flex-1 sm:max-w-xs">
+              <Select value={catFilter} onValueChange={(val) => setCatFilter(val as CampaignCategory | 'all')}>
+                <SelectTrigger className="w-full bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl h-[38px] px-3.5">
+                  <div className="flex items-center gap-2 truncate">
+                    <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <SelectValue placeholder="Select Category / Topic" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map(({ value, label }) => (
+                    <SelectItem key={value} value={value} className="text-xs font-medium cursor-pointer">
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Status:</span>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as CampaignStatus | 'all')}
-                className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <option value="all">Show All</option>
-                <option value="active">Active Campaigns</option>
-                <option value="victory">Victories Won 🏆</option>
-                <option value="closed">Closed Campaigns</option>
-                <option value="draft">My Drafts</option>
-              </select>
+
+            <div className="w-full sm:w-56">
+              <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as CampaignStatus | 'all')}>
+                <SelectTrigger className="w-full bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl h-[38px] px-3.5">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs font-medium cursor-pointer">
+                    🌐 Show All Statuses
+                  </SelectItem>
+                  <SelectItem value="active" className="text-xs font-medium cursor-pointer">
+                    🔥 Active Campaigns
+                  </SelectItem>
+                  <SelectItem value="victory" className="text-xs font-medium cursor-pointer">
+                    🏆 Victories Won
+                  </SelectItem>
+                  <SelectItem value="closed" className="text-xs font-medium cursor-pointer">
+                    🔒 Closed Campaigns
+                  </SelectItem>
+                  <SelectItem value="draft" className="text-xs font-medium cursor-pointer">
+                    📝 My Drafts
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
