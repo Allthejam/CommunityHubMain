@@ -21,9 +21,9 @@ export function NewsCard() {
 
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-    const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
+    const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
     const demoPrefix = isDemo ? '/demo' : '';
-    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (userProfile?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || 'N3SarfGXPLxBI7XcsinX');
 
     const newsQuery = useMemoFirebase(() => {
         if (!communityId || !db) return null;

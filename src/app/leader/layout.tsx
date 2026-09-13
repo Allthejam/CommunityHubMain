@@ -34,6 +34,10 @@ export default function LeaderLayout({
   };
 
   React.useEffect(() => {
+    if (typeof window !== 'undefined' && !pathname?.startsWith('/demo')) {
+      sessionStorage.removeItem('isDemoMode');
+    }
+
     if (isUserLoading || profileLoading) {
       return;
     }

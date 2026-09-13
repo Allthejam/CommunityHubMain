@@ -48,14 +48,17 @@ const DEMO_HOURLY_CURVE = [
 export function ActivityChart({ communityId }: { communityId: string | null }) {
     const db = useFirestore();
 
-    const isDemo = communityId === '9ayHMyZf4SRw2gof1AM9' || 
-        (typeof window !== 'undefined' && (
-            sessionStorage.getItem('isDemoMode') === 'true' || 
-            window.location.pathname.startsWith('/demo')
-        ));
+    const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
 
     const [onlineUsers, setOnlineUsers] = React.useState<any[]>([]);
     const [loadingOnline, setLoadingOnline] = React.useState(!isDemo);
+    
+    // Purge leftover demo flags on live routes
+    React.useEffect(() => {
+        if (!isDemo && typeof window !== 'undefined') {
+            sessionStorage.removeItem('isDemoMode');
+        }
+    }, [isDemo]);
     
     // Get all online users in real-time
     React.useEffect(() => {
