@@ -497,12 +497,17 @@ export function generateCouncilProposalHtml(data: CouncilProposalData): string {
         </ul>
       </div>
 
+      <!-- Partnership & Business Onboarding Note -->
+      <div style="background: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 4px; padding: 5px 8px; margin-bottom: 6px; font-size: 7pt; color: #000000; font-weight: 600;">
+        <strong style="color: #92400e;">🤝 The Civic Partnership:</strong> Community Hub delivers all cloud infrastructure, apps, sirens, and printable merchant flyers at <strong>£0 cost</strong>. The Council actively invites local high street businesses to join. Every participating shop directly generates <strong>£8 to £15/month</strong> for the Council Treasury.
+      </div>
+
       <!-- Formal Council Motion -->
       <div class="section-title">4. Recommended Formal Council Resolution (Draft Motion)</div>
       <div class="motion-box">
         <div class="motion-title">Motion for Adoption (To be entered into the official meeting minutes)</div>
         <p class="motion-text">
-          "That <strong>${town} Community Council</strong> hereby approves the adoption and launch of the <strong>Community Hub</strong> digital platform as the official community communication, resilience, and local commerce system for the parish at <strong>£0 upfront capital cost</strong>; that the leadership team is authorized to configure the local emergency dashboard and appoint committee delegates; and that all accrued community subscription revenues be deposited directly into the Council Treasury fund for local civic projects."
+          "That <strong>${town} Community Council</strong> hereby approves the adoption and launch of the <strong>Community Hub</strong> digital platform as the official community communication, resilience, and local commerce system for the parish at <strong>£0 upfront capital cost</strong>; that the leadership team is authorized to configure the local emergency dashboard, mobilize local businesses using provided marketing packs, and appoint committee delegates; and that all accrued community subscription revenues be deposited directly into the Council Treasury fund for local civic projects."
         </p>
       </div>
 

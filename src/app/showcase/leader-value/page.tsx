@@ -38,6 +38,7 @@ import { CommunityRevenueCalculator } from '@/components/showcase/CommunityReven
 import { CivicComparisonTable } from '@/components/showcase/CivicComparisonTable';
 import { LeaderPillarsGrid } from '@/components/showcase/LeaderPillarsGrid';
 import { CouncilProposalDownload } from '@/components/showcase/CouncilProposalDownload';
+import { LeaderActionPlaybook } from '@/components/showcase/LeaderActionPlaybook';
 import { ShowcaseSeoSchema } from '@/components/showcase/ShowcaseSeoSchema';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
@@ -169,7 +170,12 @@ export default function LeaderValueShowcasePage() {
           <CommunityRevenueCalculator />
         </section>
 
-        {/* Section 2: The 6 Core Pillars Grid */}
+        {/* Section 2: The Civic Partnership & Action Playbook */}
+        <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-6">
+          <LeaderActionPlaybook />
+        </section>
+
+        {/* Section 3: The 6 Core Pillars Grid */}
         <section className="py-16 bg-muted/30 border-y px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <LeaderPillarsGrid />

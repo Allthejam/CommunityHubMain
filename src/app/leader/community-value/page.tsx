@@ -21,11 +21,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CommunityRevenueCalculator } from '@/components/showcase/CommunityRevenueCalculator';
 import { CivicComparisonTable } from '@/components/showcase/CivicComparisonTable';
 import { LeaderPillarsGrid } from '@/components/showcase/LeaderPillarsGrid';
 import { CouncilProposalDownload } from '@/components/showcase/CouncilProposalDownload';
+import { LeaderActionPlaybook } from '@/components/showcase/LeaderActionPlaybook';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
 import { triggerCouncilProposalPdf } from '@/lib/council-proposal-generator';
@@ -88,11 +88,11 @@ export default function LeaderCommunityValuePage() {
               </span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight font-headline text-foreground">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight font-headline text-foreground">
               Council Revenue Share & Community Value Overview
             </h1>
-            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-              Understand the full civic breakdown, local courier logistics fund, and forecast your Council Treasury income as local businesses join <strong className="text-foreground">{communityName}</strong>.
+            <p className="text-sm sm:text-base text-slate-950 dark:text-white font-medium leading-relaxed">
+              Understand the full civic breakdown, local courier logistics fund, and forecast your Council Treasury income as local businesses join <strong className="text-foreground font-black">{communityName}</strong>.
             </p>
           </div>
 
@@ -101,7 +101,7 @@ export default function LeaderCommunityValuePage() {
               type="button"
               size="lg"
               onClick={handle1ClickCouncilPack}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-md gap-2 h-11 px-5"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-md gap-2 h-11 px-5"
             >
               <FileDown className="h-4 w-4" />
               <span>1-Click Council Brief (PDF)</span>
@@ -117,6 +117,11 @@ export default function LeaderCommunityValuePage() {
           initialDirectoryCount={Math.max(activeBusinessCount, 15)}
           initialStorefrontCount={Math.round(Math.max(activeBusinessCount, 15) * 0.35)}
         />
+      </section>
+
+      {/* The Partnership Playbook: Mobilizing Local Businesses */}
+      <section className="space-y-4">
+        <LeaderActionPlaybook />
       </section>
 
       {/* Download Custom Council Meeting Pack */}
