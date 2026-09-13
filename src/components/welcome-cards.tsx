@@ -179,7 +179,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                     <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                       {activePolls && activePolls.length > 0 && (
                         <Button variant="default" size="sm" asChild className="h-7 text-xs gap-1.5 flex-1 sm:flex-initial">
-                          <Link href={`${demoPrefix}/community/${effectiveCommunityId}/polls`}>
+                          <Link href={`${demoPrefix}/polls`}>
                             <Vote className="h-4 w-4" />
                             <span>Vote in Active Poll</span>
                           </Link>
@@ -187,7 +187,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                       )}
                       {activePetitions && activePetitions.length > 0 && (
                         <Button variant="outline" size="sm" asChild className="h-7 text-xs gap-1.5 flex-1 sm:flex-initial">
-                          <Link href={`${demoPrefix}/community/${effectiveCommunityId}/petitions`}>
+                          <Link href={`${demoPrefix}/petitions`}>
                             <Target className="h-4 w-4" />
                             <span>View & Sign Petitions</span>
                           </Link>
