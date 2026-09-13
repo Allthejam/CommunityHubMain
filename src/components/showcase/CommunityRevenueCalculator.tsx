@@ -161,7 +161,7 @@ export function CommunityRevenueCalculator({
             <CardTitle className="text-2xl sm:text-3xl font-extrabold font-headline">
               {communityName ? `${communityName} Income Calculator` : 'Community Treasury & Revenue Calculator'}
             </CardTitle>
-            <CardDescription className="text-sm mt-1">
+            <CardDescription className="text-sm mt-1 text-slate-700 dark:text-slate-200 font-medium">
               Estimate the exact recurring funding your Community Council generates from local business participation.
             </CardDescription>
           </div>
@@ -173,7 +173,7 @@ export function CommunityRevenueCalculator({
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 !isAnnual
                   ? 'bg-background text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-foreground'
               }`}
             >
               Monthly View
@@ -183,7 +183,7 @@ export function CommunityRevenueCalculator({
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 isAnnual
                   ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-foreground'
               }`}
             >
               <span>Annual View</span>
@@ -198,7 +198,7 @@ export function CommunityRevenueCalculator({
       <CardContent className="p-6 space-y-8">
         {/* Quick Town Presets */}
         <div className="space-y-2">
-          <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <div className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5 text-primary" />
             Quick Town Size Presets:
           </div>
@@ -252,11 +252,11 @@ export function CommunityRevenueCalculator({
                   <Building2 className="h-4 w-4 text-indigo-500" />
                   Business Directory Listings
                 </span>
-                <p className="text-xs text-muted-foreground">Standard Town App & Web profile (£20/mo)</p>
+                <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Standard Town App & Web profile (£20/mo)</p>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-extrabold text-foreground">{directoryCount}</span>
-                <span className="text-xs text-muted-foreground block font-medium">shops / trades</span>
+                <span className="text-xs text-slate-700 dark:text-slate-200 block font-semibold">shops / trades</span>
               </div>
             </div>
 
@@ -274,14 +274,14 @@ export function CommunityRevenueCalculator({
               className="py-2"
             />
 
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium">
+            <div className="flex items-center justify-between text-[11px] text-slate-700 dark:text-slate-300 font-semibold">
               <span>1 Business</span>
               <span>50 (Tier 2 Jump)</span>
               <span>150+ Businesses</span>
             </div>
 
-            <div className="bg-background/80 p-2.5 rounded-lg border text-xs flex items-center justify-between">
-              <span className="text-muted-foreground font-medium">Community Split for Listings:</span>
+            <div className="bg-background/90 p-2.5 rounded-lg border text-xs flex items-center justify-between">
+              <span className="text-slate-800 dark:text-slate-200 font-medium">Community Split for Listings:</span>
               <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
                 {directorySplitPercent}% = £{directoryCommunityAmountPerSub.toFixed(2)}/mo per shop
               </span>
@@ -296,11 +296,11 @@ export function CommunityRevenueCalculator({
                   <Store className="h-4 w-4 text-emerald-500" />
                   Virtual High Street Storefronts
                 </span>
-                <p className="text-xs text-muted-foreground">Online ordering, catalogs & courier delivery (£10/mo)</p>
+                <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Online ordering, catalogs & courier delivery (£10/mo)</p>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-extrabold text-foreground">{effectiveStorefrontCount}</span>
-                <span className="text-xs text-muted-foreground block font-medium">retail stores</span>
+                <span className="text-xs text-slate-700 dark:text-slate-200 block font-semibold">retail stores</span>
               </div>
             </div>
 
@@ -313,19 +313,19 @@ export function CommunityRevenueCalculator({
               className="py-2"
             />
 
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium">
+            <div className="flex items-center justify-between text-[11px] text-slate-700 dark:text-slate-300 font-semibold">
               <span>0 Storefronts</span>
               <span>25 Retailers</span>
               <span>{Math.min(50, directoryCount)} Max</span>
             </div>
 
-            <div className="bg-background/80 p-2.5 rounded-lg border text-xs space-y-1">
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span>Council Oversight (10%):</span>
+            <div className="bg-background/90 p-2.5 rounded-lg border text-xs space-y-1">
+              <div className="flex items-center justify-between text-slate-800 dark:text-slate-200">
+                <span className="font-medium">Council Oversight (10%):</span>
                 <span className="font-bold text-foreground">£1.00 / mo per store</span>
               </div>
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span>Local Courier Pool (40%):</span>
+              <div className="flex items-center justify-between text-slate-800 dark:text-slate-200">
+                <span className="font-medium">Local Courier Pool (40%):</span>
                 <span className="font-bold text-blue-600 dark:text-blue-400">£4.00 / mo per store</span>
               </div>
             </div>
@@ -340,7 +340,7 @@ export function CommunityRevenueCalculator({
                 <Award className="h-4 w-4 text-amber-500" />
                 Community Tier & Discretionary Rural Support Model:
               </span>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-slate-700 dark:text-slate-200 font-medium">
                 Standard automatic tiers are 40% (1–50) and 60% (51+). The Platform Owner can manually award small rural villages or model towns a 75%–90% grant.
               </p>
             </div>
@@ -369,7 +369,7 @@ export function CommunityRevenueCalculator({
 
           {isDiscretionaryMode && (
             <div className="pt-2 border-t border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <span className="text-muted-foreground font-medium">
+              <span className="text-slate-800 dark:text-slate-200 font-medium">
                 Select Discretionary Grant Stake Rate:
               </span>
               <div className="flex items-center gap-1.5">
@@ -408,7 +408,7 @@ export function CommunityRevenueCalculator({
             <div className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight">
               £{displayCommunityFund.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
               Direct discretionary civic funds to spend on town projects, lights, defibs, and local grants.
             </p>
           </div>
@@ -427,7 +427,7 @@ export function CommunityRevenueCalculator({
             <div className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight">
               £{displayCourierFund.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
               Dedicated delivery pool sustaining local green courier jobs and doorstep town logistics.
             </p>
           </div>
@@ -446,7 +446,7 @@ export function CommunityRevenueCalculator({
             <div className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight">
               £{displayLocalRetained.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
               Circulating directly within the local economy rather than siphoned away to Silicon Valley tech monopolies.
             </p>
           </div>
@@ -462,21 +462,21 @@ export function CommunityRevenueCalculator({
               <Badge className="bg-background text-foreground border text-[11px] font-bold">
                 {milestone.badge}
               </Badge>
-              <span className="text-xs font-semibold text-muted-foreground">
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                 Illustrative ideas for ~£{(monthlyTotalCommunity * 12).toLocaleString('en-GB', { maximumFractionDigits: 0 })}/year discretionary income:
               </span>
             </div>
             <h4 className="text-base font-bold text-foreground font-headline">
               {milestone.title}
             </h4>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
               {milestone.description}
             </p>
           </div>
         </div>
 
         {/* Platform Transparency Breakdown */}
-        <div className="p-4 rounded-xl bg-muted/30 border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-muted-foreground">
+        <div className="p-4 rounded-xl bg-muted/50 border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-800 dark:text-slate-200 font-medium">
           <div className="flex items-center gap-2">
             <Info className="h-4 w-4 text-primary shrink-0" />
             <span>
