@@ -463,577 +463,515 @@ export default function CreateEnterpriseGroupPage() {
         </AlertDescription>
       </Alert>
       <Card>
-        <CardHeader>
-            <CardTitle>Group Details</CardTitle>
-            <CardDescription>
-                Fields marked with an asterisk (*) are required.
-            </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-            <div className="space-y-4 pt-4">
-                <h3 className="font-medium text-lg">Page Visibility</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex items-center space-x-2 rounded-lg border p-4">
-                        <Switch id="showPageTwo" checked={showPageTwo} onCheckedChange={setShowPageTwo} />
-                        <div>
-                            <Label htmlFor="showPageTwo">Show Page Two</Label>
-                            <p className="text-xs text-muted-foreground">Display the custom content blocks on your profile.</p>
+        <Tabs defaultValue="page1">
+            <CardHeader>
+                <CardTitle>Group Content</CardTitle>
+                <CardDescription>
+                    Fill in the details below to submit your new enterprise group for approval.
+                </CardDescription>
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="page1">Page 1 (Main Profile)</TabsTrigger>
+                    <TabsTrigger value="page2">Page 2 (Custom Content)</TabsTrigger>
+                    <TabsTrigger value="page3">Page 3 (Contact)</TabsTrigger>
+                </TabsList>
+            </CardHeader>
+
+            {/* TAB 1: Main Profile */}
+            <TabsContent value="page1">
+                <CardContent className="space-y-6">
+                    <div className="space-y-4 pt-4">
+                        <h3 className="font-medium text-lg">Page Visibility</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="flex items-center space-x-2 rounded-lg border p-4">
+                                <Switch id="showPageTwo" checked={showPageTwo} onCheckedChange={setShowPageTwo} />
+                                <div>
+                                    <Label htmlFor="showPageTwo">Show Page Two</Label>
+                                    <p className="text-xs text-muted-foreground">Display the custom content blocks on your profile.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-2 rounded-lg border p-4">
+                                <Switch id="showPageThree" checked={showPageThree} onCheckedChange={setShowPageThree} />
+                                <div>
+                                    <Label htmlFor="showPageThree">Show Page Three (Contact Page)</Label>
+                                    <p className="text-xs text-muted-foreground">Display your custom contact/info page.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div className="flex items-center space-x-2 rounded-lg border p-4">
-                        <Switch id="showPageThree" checked={showPageThree} onCheckedChange={setShowPageThree} />
-                        <div>
-                            <Label htmlFor="showPageThree">Show Page Three (Contact Page)</Label>
-                            <p className="text-xs text-muted-foreground">Display your custom contact/info page.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <Separator />
-            <div className="grid md:grid-cols-2 gap-6">
-                <div className="grid gap-2">
-                    <Label htmlFor="name">
-                        Group Name *
-                    </Label>
-                    <Input id="name" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g., Acme Corporation" />
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="category">
-                        Category (Optional)
-                    </Label>
-                    <Input id="category" value={businessCategory} onChange={(e) => setBusinessCategory(e.target.value)} placeholder="e.g., Housing Association" />
-                </div>
-            </div>
-
-             <div className="grid md:grid-cols-2 gap-6">
-                <div className="grid gap-2">
-                    <Label htmlFor="website">
-                        Website
-                    </Label>
-                    <Input id="website" type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://example.com" />
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="social-media">
-                        Social Media URL
-                    </Label>
-                    <Input id="social-media" type="url" value={socialMedia} onChange={(e) => setSocialMedia(e.target.value)} placeholder="https://social.com/mybusiness" />
-                </div>
-            </div>
-
-             <div className="grid md:grid-cols-2 gap-6">
-                <div className="grid gap-2">
-                    <Label htmlFor="contact-email">
-                        Contact Email *
-                    </Label>
-                    <Input id="contact-email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact@example.com" />
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="contact-number">
-                        Contact Number
-                    </Label>
-                    <Input id="contact-number" type="tel" value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} placeholder="e.g., +44 1234 567890" />
-                </div>
-            </div>
-
-            <Separator />
-            
-             <div className="space-y-4">
-                <h3 className="text-lg font-medium">Group Address(es)</h3>
-                {addresses.map((address, index) => (
-                    <div key={index} className="grid gap-4 p-4 border rounded-md relative">
-                        {addresses.length > 1 && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="absolute top-2 right-2 h-7 w-7"
-                                onClick={() => removeAddress(index)}
-                            >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                                <span className="sr-only">Remove address</span>
-                            </Button>
-                        )}
+                    <Separator />
+                    <div className="grid md:grid-cols-2 gap-6">
                         <div className="grid gap-2">
-                            <Label htmlFor={`address-1-${index}`}>Address Line 1</Label>
-                            <Input id={`address-1-${index}`} value={address.addressLine1} onChange={(e) => handleAddressChange(index, 'addressLine1', e.target.value)} placeholder="e.g., 123 Main Street" />
+                            <Label htmlFor="name">Group Name *</Label>
+                            <Input id="name" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g., Acme Corporation" />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor={`address-2-${index}`}>Address Line 2 (Optional)</Label>
-                            <Input id={`address-2-${index}`} value={address.addressLine2} onChange={(e) => handleAddressChange(index, 'addressLine2', e.target.value)} placeholder="e.g., Suite 100" />
-                        </div>
-                        <div className="grid md:grid-cols-3 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor={`city-${index}`}>City</Label>
-                                <Input id={`city-${index}`} value={address.city} onChange={(e) => handleAddressChange(index, 'city', e.target.value)} placeholder="e.g., Sunnyvale" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor={`state-${index}`}>State / County</Label>
-                                <Input id={`state-${index}`} value={address.stateCounty} onChange={(e) => handleAddressChange(index, 'stateCounty', e.target.value)} placeholder="e.g., California" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor={`postcode-${index}`}>Postcode / ZIP</Label>
-                                <Input id={`postcode-${index}`} value={address.postcode} onChange={(e) => handleAddressChange(index, 'postcode', e.target.value)} placeholder="e.g., 90210" />
-                            </div>
+                            <Label htmlFor="category">Category (Optional)</Label>
+                            <Input id="category" value={businessCategory} onChange={(e) => setBusinessCategory(e.target.value)} placeholder="e.g., Housing Association" />
                         </div>
                     </div>
-                ))}
-                 <Button type="button" variant="outline" onClick={addAddress}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Another Address
-                </Button>
-            </div>
-            
-            <Separator />
-            
-            <div className="grid gap-2">
-                <Label htmlFor="short-description">
-                    Short Description (for listings) *
-                </Label>
-                <Textarea id="short-description" value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} placeholder="A brief summary for business listings..." maxLength={150} />
-                <p className="text-sm text-muted-foreground text-right">{shortDescription.length} / 150</p>
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="long-description">Long Description (for profile page) *</Label>
-              <RichTextEditor
-                value={longDescription}
-                onChange={setLongDescription}
-                placeholder="A full description of your business for your dedicated profile page..."
-              />
-            </div>
-            
-            <Separator />
-            
-            <div className="grid md:grid-cols-2 gap-6">
-                <div className="grid gap-2">
-                    <Label htmlFor="banner-image">
-                       Banner Image (for profile page)
-                    </Label>
-                     {uploadingStates['bannerImage'] ? <Loader2 className="animate-spin h-6 w-6"/> : bannerImage ? <Image src={bannerImage} alt="Banner Preview" width={200} height={100} className="rounded-md border object-cover" /> : null}
-                    <Input 
-                        id="banner-image" 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if(file) handleImageUpload(file, 'bannerImage', setBannerImage);
-                        }}
-                        className="h-auto p-0 border-0 file:h-10 file:px-4 file:py-2 file:border-0 file:rounded-md file:bg-primary file:text-primary-foreground file:cursor-pointer hover:file:bg-primary/90"
-                    />
-                     <p className="text-sm text-muted-foreground">Recommended size: 1200px by 400px.</p>
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="logo-image">
-                        Logo Image (Square)
-                    </Label>
-                    {uploadingStates['logoImage'] ? <Loader2 className="animate-spin h-6 w-6"/> : logoImage ? <Image src={logoImage} alt="Logo Preview" width={100} height={100} className="rounded-md border object-cover" /> : null}
-                    <Input 
-                        id="logo-image" 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={(e) => {
-                             const file = e.target.files?.[0];
-                            if(file) handleImageUpload(file, 'logoImage', setLogoImage);
-                        }}
-                         className="h-auto p-0 border-0 file:h-10 file:px-4 file:py-2 file:border-0 file:rounded-md file:bg-primary file:text-primary-foreground file:cursor-pointer hover:file:bg-primary/90"
-                    />
-                    <p className="text-sm text-muted-foreground">Recommended size: 400px by 400px.</p>
-                </div>
-            </div>
-
-            <Separator />
-
-             <div className="space-y-4">
-                <h3 className="text-lg font-medium">Registered Community *</h3>
-                <p className="text-sm text-muted-foreground">Your group will be primarily listed in your registered community. Revenue share is attributed here.</p>
-                <Input value={userProfile?.communityName || "Loading..."} readOnly disabled />
-            </div>
-            
-             <Separator />
-
-             <div className="space-y-4">
-                 <div className="flex justify-between items-start">
-                    <div>
-                        <h3 className="text-lg font-medium">Additional Advertising Communities</h3>
-                        <p className="text-sm text-muted-foreground">Advertise in up to 4 additional communities to broaden your reach.</p>
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="website">Website</Label>
+                            <Input id="website" type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://example.com" />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="social-media">Social Media URL</Label>
+                            <Input id="social-media" type="url" value={socialMedia} onChange={(e) => setSocialMedia(e.target.value)} placeholder="https://social.com/mybusiness" />
+                        </div>
                     </div>
-                    <Button type="button" variant="outline" onClick={addAdditionalCommunity} disabled={additionalCommunities.length >= 4}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add Community
-                    </Button>
-                 </div>
 
-                <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertTitle>Boost Your Visibility!</AlertTitle>
-                    <AlertDescription>
-                    Listings in additional communities appear on their home page, business directory, and are included in their search results. A small fee applies per additional community.
-                    </AlertDescription>
-                </Alert>
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="contact-email">Contact Email *</Label>
+                            <Input id="contact-email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact@example.com" />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="contact-number">Contact Number</Label>
+                            <Input id="contact-number" type="tel" value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} placeholder="e.g., +44 1234 567890" />
+                        </div>
+                    </div>
 
-                <div className="space-y-4">
-                    {additionalCommunities.map((community, index) => (
-                        <div key={community.id} className="p-4 border rounded-md relative">
-                             <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="absolute top-2 right-2 h-7 w-7"
-                                onClick={() => removeAdditionalCommunity(community.id!)}
-                            >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                                <span className="sr-only">Remove community</span>
+                    <Separator />
+                    
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium">Group Address(es)</h3>
+                        {addresses.map((address, index) => (
+                            <div key={index} className="grid gap-4 p-4 border rounded-md relative">
+                                {addresses.length > 1 && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute top-2 right-2 h-7 w-7"
+                                        onClick={() => removeAddress(index)}
+                                    >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                        <span className="sr-only">Remove address</span>
+                                    </Button>
+                                )}
+                                <div className="grid gap-2">
+                                    <Label htmlFor={`address-1-${index}`}>Address Line 1</Label>
+                                    <Input id={`address-1-${index}`} value={address.addressLine1} onChange={(e) => handleAddressChange(index, 'addressLine1', e.target.value)} placeholder="e.g., 123 Main Street" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor={`address-2-${index}`}>Address Line 2 (Optional)</Label>
+                                    <Input id={`address-2-${index}`} value={address.addressLine2} onChange={(e) => handleAddressChange(index, 'addressLine2', e.target.value)} placeholder="e.g., Suite 100" />
+                                </div>
+                                <div className="grid md:grid-cols-3 gap-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor={`city-${index}`}>City</Label>
+                                        <Input id={`city-${index}`} value={address.city} onChange={(e) => handleAddressChange(index, 'city', e.target.value)} placeholder="e.g., Sunnyvale" />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor={`state-${index}`}>State / County</Label>
+                                        <Input id={`state-${index}`} value={address.stateCounty} onChange={(e) => handleAddressChange(index, 'stateCounty', e.target.value)} placeholder="e.g., California" />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor={`postcode-${index}`}>Postcode / ZIP</Label>
+                                        <Input id={`postcode-${index}`} value={address.postcode} onChange={(e) => handleAddressChange(index, 'postcode', e.target.value)} placeholder="e.g., 90210" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        <Button type="button" variant="outline" onClick={addAddress}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Add Another Address
+                        </Button>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div className="grid gap-2">
+                        <Label htmlFor="short-description">Short Description (for listings) *</Label>
+                        <Textarea id="short-description" value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} placeholder="A brief summary for business listings..." maxLength={150} />
+                        <p className="text-sm text-muted-foreground text-right">{shortDescription.length} / 150</p>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="long-description">Long Description (for profile page) *</Label>
+                        <RichTextEditor
+                            value={longDescription}
+                            onChange={setLongDescription}
+                            placeholder="A full description of your business for your dedicated profile page..."
+                        />
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="banner-image">Banner Image (for profile page)</Label>
+                            {uploadingStates['bannerImage'] ? <Loader2 className="animate-spin h-6 w-6"/> : bannerImage ? <Image src={bannerImage} alt="Banner Preview" width={200} height={100} className="rounded-md border object-cover" /> : null}
+                            <Input 
+                                id="banner-image" 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if(file) handleImageUpload(file, 'bannerImage', setBannerImage);
+                                }}
+                                className="h-auto p-0 border-0 file:h-10 file:px-4 file:py-2 file:border-0 file:rounded-md file:bg-primary file:text-primary-foreground file:cursor-pointer hover:file:bg-primary/90"
+                            />
+                            <p className="text-sm text-muted-foreground">Recommended size: 1200px by 400px.</p>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="logo-image">Logo Image (Square)</Label>
+                            {uploadingStates['logoImage'] ? <Loader2 className="animate-spin h-6 w-6"/> : logoImage ? <Image src={logoImage} alt="Logo Preview" width={100} height={100} className="rounded-md border object-cover" /> : null}
+                            <Input 
+                                id="logo-image" 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if(file) handleImageUpload(file, 'logoImage', setLogoImage);
+                                }}
+                                className="h-auto p-0 border-0 file:h-10 file:px-4 file:py-2 file:border-0 file:rounded-md file:bg-primary file:text-primary-foreground file:cursor-pointer hover:file:bg-primary/90"
+                            />
+                            <p className="text-sm text-muted-foreground">Recommended size: 400px by 400px.</p>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium">Registered Community *</h3>
+                        <p className="text-sm text-muted-foreground">Your group will be primarily listed in your registered community. Revenue share is attributed here.</p>
+                        <Input value={userProfile?.communityName || "Loading..."} readOnly disabled />
+                    </div>
+                    
+                    <Separator />
+
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h3 className="text-lg font-medium">Additional Advertising Communities</h3>
+                                <p className="text-sm text-muted-foreground">Advertise in up to 4 additional communities to broaden your reach.</p>
+                            </div>
+                            <Button type="button" variant="outline" onClick={addAdditionalCommunity} disabled={additionalCommunities.length >= 4}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Add Community
                             </Button>
-                            <h4 className="text-md font-medium mb-4">Additional Community #{index + 1}</h4>
-                            <CommunitySelector
-                                selection={community}
-                                onSelectionChange={(newSelection) => handleAdditionalCommunityChange(community.id!, newSelection)}
-                             />
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <Separator />
-            
-            <Accordion type="multiple" className="w-full">
-                <AccordionItem value="page-two">
-                    <AccordionTrigger>Page Two Content Blocks</AccordionTrigger>
-                    <AccordionContent className="pt-4">
-                         <div className="space-y-4">
-                            {pageTwoContent.map((block, index) => (
-                                <BlockEditor 
-                                    key={block.id}
-                                    block={block} 
-                                    index={index}
-                                    onUpdate={(updatedBlock) => {
-                                        const newBlocks = [...pageTwoContent];
-                                        newBlocks[index] = updatedBlock;
-                                        setPageTwoContent(newBlocks);
-                                    }}
-                                    onDelete={() => {
-                                        setPageTwoContent(prev => prev.filter(b => b.id !== block.id));
-                                    }}
-                                    isUploading={uploadingStates[block.id]}
-                                    onImageUpload={(file) => {
-                                        handleImageUpload(file, block.id, (url) => {
-                                            const newBlocks = [...pageTwoContent];
-                                            newBlocks[index].image = url;
-                                            setPageTwoContent(newBlocks);
-                                        });
-                                    }}
-                                />
-                            ))}
-                            <Button onClick={() => setPageTwoContent(prev => [...prev, { id: `new-${Date.now()}`, text: '', image: null }])} variant="outline">
-                                <PlusCircle className="mr-2 h-4 w-4" /> Add Section
-                            </Button>
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="page-three">
-                    <AccordionTrigger>Page Three Content (Contact & Information Page)</AccordionTrigger>
-                    <AccordionContent className="pt-4 space-y-6">
-                        {/* Page 3 Type Selection */}
-                        <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
-                            <Label className="text-sm font-semibold">Page 3 Format & Purpose</Label>
-                            <RadioGroup
-                                value={pageThreeType}
-                                onValueChange={(val: any) => setPageThreeType(val)}
-                                className="grid grid-cols-1 sm:grid-cols-3 gap-3"
-                            >
-                                <div className={cn("flex items-start space-x-2 border p-3 rounded-md cursor-pointer transition-colors", pageThreeType === 'contact' ? 'bg-primary/5 border-primary' : 'bg-card')}>
-                                    <RadioGroupItem value="contact" id="create-p3-type-contact" className="mt-1" />
-                                    <div className="space-y-1">
-                                        <Label htmlFor="create-p3-type-contact" className="font-semibold cursor-pointer text-sm">Contact Directory</Label>
-                                        <p className="text-xs text-muted-foreground">Department contacts, enquiry form & venue map.</p>
-                                    </div>
-                                </div>
-                                <div className={cn("flex items-start space-x-2 border p-3 rounded-md cursor-pointer transition-colors", pageThreeType === 'minutes' ? 'bg-primary/5 border-primary' : 'bg-card')}>
-                                    <RadioGroupItem value="minutes" id="create-p3-type-minutes" className="mt-1" />
-                                    <div className="space-y-1">
-                                        <Label htmlFor="create-p3-type-minutes" className="font-semibold cursor-pointer text-sm">Meeting Minutes</Label>
-                                        <p className="text-xs text-muted-foreground">Downloadable PDF archive of meeting records.</p>
-                                    </div>
-                                </div>
-                                <div className={cn("flex items-start space-x-2 border p-3 rounded-md cursor-pointer transition-colors", pageThreeType === 'custom' ? 'bg-primary/5 border-primary' : 'bg-card')}>
-                                    <RadioGroupItem value="custom" id="create-p3-type-custom" className="mt-1" />
-                                    <div className="space-y-1">
-                                        <Label htmlFor="create-p3-type-custom" className="font-semibold cursor-pointer text-sm">Custom Document</Label>
-                                        <p className="text-xs text-muted-foreground">Free-form rich text and legal agreements.</p>
-                                    </div>
-                                </div>
-                            </RadioGroup>
                         </div>
 
-                        {/* Mode A: Contact Directory */}
-                        {pageThreeType === 'contact' && (
-                            <div className="space-y-6">
-                                {/* Intro Text */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="contact-intro-text">Contact Page Introduction (Optional)</Label>
-                                    <Input
-                                        id="contact-intro-text"
-                                        placeholder="e.g., Get in touch with our team or find us at our weekly meetings."
-                                        value={contactIntroText}
-                                        onChange={(e) => setContactIntroText(e.target.value)}
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>Boost Your Visibility!</AlertTitle>
+                            <AlertDescription>
+                            Listings in additional communities appear on their home page, business directory, and are included in their search results. A small fee applies per additional community.
+                            </AlertDescription>
+                        </Alert>
+
+                        <div className="space-y-4">
+                            {additionalCommunities.map((community, index) => (
+                                <div key={community.id} className="p-4 border rounded-md relative">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute top-2 right-2 h-7 w-7"
+                                        onClick={() => removeAdditionalCommunity(community.id!)}
+                                    >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                        <span className="sr-only">Remove community</span>
+                                    </Button>
+                                    <h4 className="text-md font-medium mb-4">Additional Community #{index + 1}</h4>
+                                    <CommunitySelector
+                                        selection={community}
+                                        onSelectionChange={(newSelection) => handleAdditionalCommunityChange(community.id!, newSelection)}
                                     />
                                 </div>
+                            ))}
+                        </div>
+                    </div>
+                </CardContent>
+            </TabsContent>
 
-                                <Separator />
+            {/* TAB 2: Custom Content Blocks */}
+            <TabsContent value="page2">
+                <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                        {pageTwoContent.map((block, index) => (
+                            <BlockEditor 
+                                key={block.id}
+                                block={block} 
+                                index={index}
+                                onUpdate={(updatedBlock) => {
+                                    const newBlocks = [...pageTwoContent];
+                                    newBlocks[index] = updatedBlock;
+                                    setPageTwoContent(newBlocks);
+                                }}
+                                onDelete={() => {
+                                    setPageTwoContent(prev => prev.filter(b => b.id !== block.id));
+                                }}
+                                isUploading={uploadingStates[block.id]}
+                                onImageUpload={(file) => {
+                                    handleImageUpload(file, block.id, (url) => {
+                                        const newBlocks = [...pageTwoContent];
+                                        newBlocks[index].image = url;
+                                        setPageTwoContent(newBlocks);
+                                    });
+                                }}
+                            />
+                        ))}
+                        <Button onClick={() => setPageTwoContent(prev => [...prev, { id: `new-${Date.now()}`, text: '', image: null }])} variant="outline">
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Section
+                        </Button>
+                    </div>
+                </CardContent>
+            </TabsContent>
 
-                                {/* Key Contacts Directory */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <h3 className="font-semibold text-base flex items-center gap-2">
-                                                <UserCheck className="h-5 w-5 text-primary" />
-                                                Key Contacts & Department Personnel
-                                            </h3>
-                                            <p className="text-xs text-muted-foreground mt-0.5">
-                                                Add committee members, department leads, or specific contact officers.
-                                            </p>
-                                        </div>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setKeyContacts(prev => [...prev, { id: `contact-${Date.now()}`, name: '', role: '', email: '', phone: '', bio: '' }])}
-                                        >
-                                            <PlusCircle className="mr-2 h-4 w-4" /> Add Contact
-                                        </Button>
-                                    </div>
-
-                                    {keyContacts.length > 0 ? (
-                                        <div className="space-y-4">
-                                            {keyContacts.map((contact, index) => (
-                                                <Card key={contact.id || index} className="p-4 relative border bg-card/60">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="absolute top-2 right-2 text-destructive hover:bg-destructive/10 h-8 w-8"
-                                                        onClick={() => setKeyContacts(prev => prev.filter((_, i) => i !== index))}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
-                                                        <div className="space-y-1">
-                                                            <Label className="text-xs font-semibold">Contact Name *</Label>
-                                                            <Input
-                                                                placeholder="e.g., Jane Doe"
-                                                                value={contact.name}
-                                                                onChange={(e) => {
-                                                                    const updated = [...keyContacts];
-                                                                    updated[index].name = e.target.value;
-                                                                    setKeyContacts(updated);
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <Label className="text-xs font-semibold">Role / Title *</Label>
-                                                            <Input
-                                                                placeholder="e.g., Chairperson, Treasurer, Volunteer Coordinator"
-                                                                value={contact.role}
-                                                                onChange={(e) => {
-                                                                    const updated = [...keyContacts];
-                                                                    updated[index].role = e.target.value;
-                                                                    setKeyContacts(updated);
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <Label className="text-xs font-semibold">Direct Email</Label>
-                                                            <Input
-                                                                type="email"
-                                                                placeholder="e.g., chair@example.org"
-                                                                value={contact.email || ''}
-                                                                onChange={(e) => {
-                                                                    const updated = [...keyContacts];
-                                                                    updated[index].email = e.target.value;
-                                                                    setKeyContacts(updated);
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <Label className="text-xs font-semibold">Direct Phone</Label>
-                                                            <Input
-                                                                type="tel"
-                                                                placeholder="e.g., 01479 872000"
-                                                                value={contact.phone || ''}
-                                                                onChange={(e) => {
-                                                                    const updated = [...keyContacts];
-                                                                    updated[index].phone = e.target.value;
-                                                                    setKeyContacts(updated);
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </Card>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-6 border border-dashed rounded-lg text-muted-foreground text-xs">
-                                            No individual contacts added yet. Click &quot;Add Contact&quot; to add committee or department representatives.
-                                        </div>
-                                    )}
+            {/* TAB 3: Contact & Info */}
+            <TabsContent value="page3">
+                <CardContent className="space-y-6">
+                    {/* Page 3 Type Selection */}
+                    <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+                        <Label className="text-sm font-semibold">Page 3 Format & Purpose</Label>
+                        <RadioGroup
+                            value={pageThreeType}
+                            onValueChange={(val: any) => setPageThreeType(val)}
+                            className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+                        >
+                            <div className={cn("flex items-start space-x-2 border p-3 rounded-md cursor-pointer transition-colors", pageThreeType === 'contact' ? 'bg-primary/5 border-primary' : 'bg-card')}>
+                                <RadioGroupItem value="contact" id="create-p3-type-contact" className="mt-1" />
+                                <div className="space-y-1">
+                                    <Label htmlFor="create-p3-type-contact" className="font-semibold cursor-pointer text-sm">Contact Directory</Label>
+                                    <p className="text-xs text-muted-foreground">Department contacts, enquiry form & venue map.</p>
                                 </div>
+                            </div>
+                            <div className={cn("flex items-start space-x-2 border p-3 rounded-md cursor-pointer transition-colors", pageThreeType === 'minutes' ? 'bg-primary/5 border-primary' : 'bg-card')}>
+                                <RadioGroupItem value="minutes" id="create-p3-type-minutes" className="mt-1" />
+                                <div className="space-y-1">
+                                    <Label htmlFor="create-p3-type-minutes" className="font-semibold cursor-pointer text-sm">Meeting Minutes</Label>
+                                    <p className="text-xs text-muted-foreground">Downloadable PDF archive of meeting records.</p>
+                                </div>
+                            </div>
+                            <div className={cn("flex items-start space-x-2 border p-3 rounded-md cursor-pointer transition-colors", pageThreeType === 'custom' ? 'bg-primary/5 border-primary' : 'bg-card')}>
+                                <RadioGroupItem value="custom" id="create-p3-type-custom" className="mt-1" />
+                                <div className="space-y-1">
+                                    <Label htmlFor="create-p3-type-custom" className="font-semibold cursor-pointer text-sm">Custom Document</Label>
+                                    <p className="text-xs text-muted-foreground">Free-form rich text and legal agreements.</p>
+                                </div>
+                            </div>
+                        </RadioGroup>
+                    </div>
 
-                                <Separator />
+                    {/* Mode A: Contact Directory */}
+                    {pageThreeType === 'contact' && (
+                        <div className="space-y-6">
+                            {/* Intro Text */}
+                            <div className="space-y-2">
+                                <Label htmlFor="contact-intro-text">Contact Page Introduction (Optional)</Label>
+                                <Input
+                                    id="contact-intro-text"
+                                    placeholder="e.g., Get in touch with our team or find us at our weekly meetings."
+                                    value={contactIntroText}
+                                    onChange={(e) => setContactIntroText(e.target.value)}
+                                />
+                            </div>
 
-                                {/* Meeting / Office Venue Location */}
-                                <div className="space-y-4">
+                            <Separator />
+
+                            {/* Key Contacts Directory */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
                                     <div>
                                         <h3 className="font-semibold text-base flex items-center gap-2">
-                                            <Building2 className="h-5 w-5 text-primary" />
-                                            Meeting Venue & Physical Location (Optional)
+                                            <UserCheck className="h-5 w-5 text-primary" />
+                                            Key Contacts & Department Personnel
                                         </h3>
                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                            Where does your group meet or operate?
+                                            Add committee members, department leads, or specific contact officers.
                                         </p>
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div className="space-y-1">
-                                            <Label className="text-xs font-semibold">Venue / Building Name</Label>
-                                            <Input
-                                                placeholder="e.g., The Courthouse Community Hall"
-                                                value={meetingLocation.venueName || ''}
-                                                onChange={(e) => setMeetingLocation(prev => ({ ...prev, venueName: e.target.value }))}
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs font-semibold">Address Line 1</Label>
-                                            <Input
-                                                placeholder="e.g., The Square"
-                                                value={meetingLocation.addressLine1 || ''}
-                                                onChange={(e) => setMeetingLocation(prev => ({ ...prev, addressLine1: e.target.value }))}
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs font-semibold">City / Town</Label>
-                                            <Input
-                                                placeholder="e.g., Grantown-on-Spey"
-                                                value={meetingLocation.city || ''}
-                                                onChange={(e) => setMeetingLocation(prev => ({ ...prev, city: e.target.value }))}
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs font-semibold">Postcode</Label>
-                                            <Input
-                                                placeholder="e.g., PH26 3HF"
-                                                value={meetingLocation.postcode || ''}
-                                                onChange={(e) => setMeetingLocation(prev => ({ ...prev, postcode: e.target.value }))}
-                                            />
-                                        </div>
-                                        <div className="space-y-1 sm:col-span-2">
-                                            <Label className="text-xs font-semibold">Meeting Schedule / Times</Label>
-                                            <Input
-                                                placeholder="e.g., Every 3rd Tuesday of the month at 7:00 PM"
-                                                value={meetingLocation.meetingSchedule || ''}
-                                                onChange={(e) => setMeetingLocation(prev => ({ ...prev, meetingSchedule: e.target.value }))}
-                                            />
-                                        </div>
-                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setKeyContacts(prev => [...prev, { id: `contact-${Date.now()}`, name: '', role: '', email: '', phone: '', bio: '' }])}
+                                    >
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Add Contact
+                                    </Button>
                                 </div>
 
-                                <Separator />
-
-                                {/* Public Message Form Toggle */}
-                                <div className="flex items-center justify-between p-4 bg-muted/20 border rounded-lg">
-                                    <div className="space-y-0.5">
-                                        <Label className="text-sm font-semibold">Enable Public Enquiry Message Form</Label>
-                                        <p className="text-xs text-muted-foreground">
-                                            Allows members and visitors to send messages directly into your group&apos;s Message Centre.
-                                        </p>
+                                {keyContacts.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {keyContacts.map((contact, index) => (
+                                            <Card key={contact.id || index} className="p-4 relative border bg-card/60">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute top-2 right-2 text-destructive hover:bg-destructive/10 h-8 w-8"
+                                                    onClick={() => setKeyContacts(prev => prev.filter((_, i) => i !== index))}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs font-semibold">Contact Name *</Label>
+                                                        <Input
+                                                            placeholder="e.g., Jane Doe"
+                                                            value={contact.name}
+                                                            onChange={(e) => {
+                                                                const updated = [...keyContacts];
+                                                                updated[index].name = e.target.value;
+                                                                setKeyContacts(updated);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs font-semibold">Role / Title *</Label>
+                                                        <Input
+                                                            placeholder="e.g., Chairperson, Treasurer, Volunteer Coordinator"
+                                                            value={contact.role}
+                                                            onChange={(e) => {
+                                                                const updated = [...keyContacts];
+                                                                updated[index].role = e.target.value;
+                                                                setKeyContacts(updated);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs font-semibold">Direct Email</Label>
+                                                        <Input
+                                                            type="email"
+                                                            placeholder="e.g., chair@example.org"
+                                                            value={contact.email || ''}
+                                                            onChange={(e) => {
+                                                                const updated = [...keyContacts];
+                                                                updated[index].email = e.target.value;
+                                                                setKeyContacts(updated);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs font-semibold">Direct Phone</Label>
+                                                        <Input
+                                                            type="tel"
+                                                            placeholder="e.g., 01479 872000"
+                                                            value={contact.phone || ''}
+                                                            onChange={(e) => {
+                                                                const updated = [...keyContacts];
+                                                                updated[index].phone = e.target.value;
+                                                                setKeyContacts(updated);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        ))}
                                     </div>
-                                    <Switch
-                                        checked={enableContactForm}
-                                        onCheckedChange={setEnableContactForm}
-                                    />
-                                </div>
+                                ) : (
+                                    <div className="text-center py-6 border border-dashed rounded-lg text-muted-foreground text-xs">
+                                        No individual contacts added yet. Click &quot;Add Contact&quot; to add committee or department representatives.
+                                    </div>
+                                )}
                             </div>
-                        )}
 
-                        {/* Mode B: Meeting Minutes */}
-                        {pageThreeType === 'minutes' && (
+                            <Separator />
+
+                            {/* Meeting / Office Venue Location */}
                             <div className="space-y-4">
-                                <Alert>
-                                    <Info className="h-4 w-4" />
-                                    <AlertTitle>Meeting Minutes Archive</AlertTitle>
-                                    <AlertDescription>
-                                        Your group&apos;s meeting minutes and PDF records will be manageable once your group is created.
-                                    </AlertDescription>
-                                </Alert>
+                                <div>
+                                    <h3 className="font-semibold text-base flex items-center gap-2">
+                                        <Building2 className="h-5 w-5 text-primary" />
+                                        Meeting Venue & Physical Location (Optional)
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        Where does your group meet or operate?
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs font-semibold">Venue / Building Name</Label>
+                                        <Input
+                                            placeholder="e.g., The Courthouse Community Hall"
+                                            value={meetingLocation.venueName || ''}
+                                            onChange={(e) => setMeetingLocation(prev => ({ ...prev, venueName: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs font-semibold">Address Line 1</Label>
+                                        <Input
+                                            placeholder="e.g., The Square"
+                                            value={meetingLocation.addressLine1 || ''}
+                                            onChange={(e) => setMeetingLocation(prev => ({ ...prev, addressLine1: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs font-semibold">City / Town</Label>
+                                        <Input
+                                            placeholder="e.g., Grantown-on-Spey"
+                                            value={meetingLocation.city || ''}
+                                            onChange={(e) => setMeetingLocation(prev => ({ ...prev, city: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs font-semibold">Postcode</Label>
+                                        <Input
+                                            placeholder="e.g., PH26 3HF"
+                                            value={meetingLocation.postcode || ''}
+                                            onChange={(e) => setMeetingLocation(prev => ({ ...prev, postcode: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className="space-y-1 sm:col-span-2">
+                                        <Label className="text-xs font-semibold">Meeting Schedule / Times</Label>
+                                        <Input
+                                            placeholder="e.g., Every 3rd Tuesday of the month at 7:00 PM"
+                                            value={meetingLocation.meetingSchedule || ''}
+                                            onChange={(e) => setMeetingLocation(prev => ({ ...prev, meetingSchedule: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                        )}
 
-                        {/* Mode C: Custom Free-form */}
-                        {pageThreeType === 'custom' && (
-                            <div className="space-y-2">
-                                <Label htmlFor="page-three-content">Content</Label>
-                                <RichTextEditor
-                                    value={pageThreeContent}
-                                    onChange={setPageThreeContent}
-                                    placeholder="Enter content for your contact page. You can include email addresses, phone numbers, contact forms (using HTML), etc."
+                            <Separator />
+
+                            {/* Public Message Form Toggle */}
+                            <div className="flex items-center justify-between p-4 bg-muted/20 border rounded-lg">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-semibold">Enable Public Enquiry Message Form</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Allows members and visitors to send messages directly into your group&apos;s Message Centre.
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={enableContactForm}
+                                    onCheckedChange={setEnableContactForm}
                                 />
                             </div>
-                        )}
-                    </AccordionContent>
-                </AccordionItem>
-                 <AccordionItem value="opening-hours">
-                    <AccordionTrigger>Opening Hours</AccordionTrigger>
-                    <AccordionContent className="pt-4">
+                        </div>
+                    )}
+
+                    {/* Mode B: Meeting Minutes */}
+                    {pageThreeType === 'minutes' && (
                         <div className="space-y-4">
-                            <div className="hidden md:grid grid-cols-[100px_1fr_1fr_1fr_1fr_auto] items-center gap-x-4 gap-y-2 text-sm font-medium text-muted-foreground px-2">
-                                <span></span>
-                                <span>Morning Open</span>
-                                <span>Morning Close</span>
-                                <span>Afternoon Open</span>
-                                <span>Afternoon Close</span>
-                                <span>Closed</span>
-                            </div>
-                            {Object.keys(openingHours).map((day) => (
-                                <div key={day} className="grid grid-cols-1 md:grid-cols-[100px_1fr_1fr_1fr_1fr_auto] items-center gap-x-4 gap-y-2 p-2 rounded-md hover:bg-muted/50">
-                                    <Label className="capitalize font-semibold">{day}</Label>
-                                    <Input type="time" aria-label={`${day} morning open time`} value={openingHours[day as keyof typeof openingHours].morningOpen} onChange={(e) => handleHourChange(day as keyof typeof openingHours, 'morningOpen', e.target.value)} disabled={openingHours[day as keyof typeof openingHours].closed} />
-                                    <Input type="time" aria-label={`${day} morning close time`} value={openingHours[day as keyof typeof openingHours].morningClose} onChange={(e) => handleHourChange(day as keyof typeof openingHours, 'morningClose', e.target.value)} disabled={openingHours[day as keyof typeof openingHours].closed} />
-                                    <Input type="time" aria-label={`${day} afternoon open time`} value={openingHours[day as keyof typeof openingHours].afternoonOpen} onChange={(e) => handleHourChange(day as keyof typeof openingHours, 'afternoonOpen', e.target.value)} disabled={openingHours[day as keyof typeof openingHours].closed} />
-                                    <Input type="time" aria-label={`${day} afternoon close time`} value={openingHours[day as keyof typeof openingHours].afternoonClose} onChange={(e) => handleHourChange(day as keyof typeof openingHours, 'afternoonClose', e.target.value)} disabled={openingHours[day as keyof typeof openingHours].closed} />
-                                    <div className="flex items-center gap-2 justify-self-start md:justify-self-center pt-2 md:pt-0">
-                                        <Checkbox id={`closed-${day}`} checked={openingHours[day as keyof typeof openingHours].closed} onCheckedChange={(checked) => handleClosedToggle(day as keyof typeof openingHours, !!checked)} />
-                                        <Label htmlFor={`closed-${day}`}>Closed</Label>
-                                    </div>
-                                </div>
-                            ))}
+                            <Alert>
+                                <Info className="h-4 w-4" />
+                                <AlertTitle>Meeting Minutes Archive</AlertTitle>
+                                <AlertDescription>
+                                    Your group&apos;s meeting minutes and PDF records will be manageable once your group is created.
+                                </AlertDescription>
+                            </Alert>
                         </div>
-                    </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="seo">
-                    <AccordionTrigger>Search Engine Optimization</AccordionTrigger>
-                    <AccordionContent className="pt-4 space-y-6">
-                        <div className="p-4 border rounded-lg bg-muted/50">
-                            <p className="text-blue-800 dark:text-blue-400 text-lg font-medium group-hover:underline truncate">{metaTitle || businessName || 'Business Profile'}</p>
-                            <p className="text-green-700 dark:text-green-400 text-sm">https://my-community-hub.co.uk/businesses/[ID will appear here]</p>
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{metaDescription || 'Your compelling meta description will appear here, helping you attract more visitors from search results.'}</p>
-                        </div>
+                    )}
+
+                    {/* Mode C: Custom Free-form */}
+                    {pageThreeType === 'custom' && (
                         <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                                <Label htmlFor="metaTitle">Meta Title</Label>
-                                <span className="text-xs text-muted-foreground">{metaTitle.length} / 70</span>
-                            </div>
-                            <Input id="metaTitle" placeholder="Public title for the business page..." value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={70}/>
+                            <Label htmlFor="page-three-content">Content</Label>
+                            <RichTextEditor
+                                value={pageThreeContent}
+                                onChange={setPageThreeContent}
+                                placeholder="Enter content for your contact page. You can include email addresses, phone numbers, contact forms (using HTML), etc."
+                            />
                         </div>
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                                <Label htmlFor="metaDescription">Meta Description</Label>
-                                <span className="text-xs text-muted-foreground">{metaDescription.length} / 160</span>
-                            </div>
-                            <Textarea id="metaDescription" placeholder="This description will appear in search engines..." value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} maxLength={160} />
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
-        </CardContent>
+                    )}
+                </CardContent>
+            </TabsContent>
+        </Tabs>
         <CardFooter className="flex-wrap items-center gap-2">
             <Button onClick={() => handleSave('Pending Approval')} disabled={isSubmitting || !!Object.values(uploadingStates).some(s => s)}>
                 {isSubmitting || Object.values(uploadingStates).some(s => s) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
