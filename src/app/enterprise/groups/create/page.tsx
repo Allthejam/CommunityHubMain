@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, ArrowLeft, Info, RefreshCcw, PlusCircle, Trash2, Loader2, Save, Eye, ShieldAlert, Search, ImagePlus, X, Upload } from "lucide-react";
+import { Building2, ArrowLeft, Info, RefreshCcw, PlusCircle, Trash2, Loader2, Save, Eye, ShieldAlert, Search, ImagePlus, X, Upload, UserCheck, Mail, Phone, MapPin, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -27,6 +27,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+export type KeyContactItem = {
+    id: string;
+    name: string;
+    role: string;
+    email?: string;
+    phone?: string;
+    bio?: string;
+};
+
+export type MeetingLocationItem = {
+    venueName?: string;
+    addressLine1?: string;
+    city?: string;
+    postcode?: string;
+    meetingSchedule?: string;
+    googleMapsUrl?: string;
+};
 
 type Block = {
     id: string;
@@ -175,8 +193,19 @@ export default function CreateEnterpriseGroupPage() {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [uploadingStates, setUploadingStates] = React.useState<Record<string, boolean>>({});
     
-    const [pageThreeType, setPageThreeType] = React.useState<'custom' | 'minutes'>('custom');
+    const [pageThreeType, setPageThreeType] = React.useState<'contact' | 'custom' | 'minutes'>('contact');
     const [meetingMinutes, setMeetingMinutes] = React.useState<any[]>([]);
+    const [keyContacts, setKeyContacts] = React.useState<KeyContactItem[]>([]);
+    const [meetingLocation, setMeetingLocation] = React.useState<MeetingLocationItem>({
+        venueName: '',
+        addressLine1: '',
+        city: '',
+        postcode: '',
+        meetingSchedule: '',
+        googleMapsUrl: '',
+    });
+    const [enableContactForm, setEnableContactForm] = React.useState(true);
+    const [contactIntroText, setContactIntroText] = React.useState('');
 
     const { toast } = useToast();
     const router = useRouter();
@@ -277,6 +306,10 @@ export default function CreateEnterpriseGroupPage() {
         pageThreeType,
         pageThreeContent: pageThreeType === 'custom' ? pageThreeContent : "",
         meetingMinutes: pageThreeType === 'minutes' ? meetingMinutes : [],
+        keyContacts: pageThreeType === 'contact' ? keyContacts : [],
+        meetingLocation: pageThreeType === 'contact' ? meetingLocation : null,
+        enableContactForm: pageThreeType === 'contact' ? enableContactForm : false,
+        contactIntroText: pageThreeType === 'contact' ? contactIntroText : '',
         pageThreeTypeLocked: false,
         storeSettings: {
             deliveryType: 'click_and_collect',
@@ -372,8 +405,19 @@ export default function CreateEnterpriseGroupPage() {
         setMetaDescription(initialFormState.metaDescription);
         setPageTwoContent(initialFormState.pageTwoContent);
         setPageThreeContent(initialFormState.pageThreeContent);
-        setPageThreeType('custom');
+        setPageThreeType('contact');
         setMeetingMinutes([]);
+        setKeyContacts([]);
+        setMeetingLocation({
+            venueName: '',
+            addressLine1: '',
+            city: '',
+            postcode: '',
+            meetingSchedule: '',
+            googleMapsUrl: '',
+        });
+        setEnableContactForm(true);
+        setContactIntroText('');
         setShowPageTwo(initialFormState.showPageTwo);
         setShowPageThree(initialFormState.showPageThree);
 
@@ -688,16 +732,252 @@ export default function CreateEnterpriseGroupPage() {
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="page-three">
-                    <AccordionTrigger>Page Three Content (Contact Page)</AccordionTrigger>
-                     <AccordionContent className="pt-4">
-                         <div className="space-y-2">
-                            <Label htmlFor="page-three-content">Content</Label>
-                            <RichTextEditor
-                                value={pageThreeContent}
-                                onChange={setPageThreeContent}
-                                placeholder="Enter content for your contact page. You can include email addresses, phone numbers, contact forms (using HTML), etc."
-                            />
+                    <AccordionTrigger>Page Three Content (Contact & Information Page)</AccordionTrigger>
+                    <AccordionContent className="pt-4 space-y-6">
+                        {/* Page 3 Type Selection */}
+                        <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+                            <Label className="text-sm font-semibold">Page 3 Format & Purpose</Label>
+                            <RadioGroup
+                                value={pageThreeType}
+                                onValueChange={(val: any) => setPageThreeType(val)}
+                                className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+                            >
+                                <div className={cn("flex items-start space-x-2 border p-3 rounded-md cursor-pointer transition-colors", pageThreeType === 'contact' ? 'bg-primary/5 border-primary' : 'bg-card')}>
+                                    <RadioGroupItem value="contact" id="create-p3-type-contact" className="mt-1" />
+                                    <div className="space-y-1">
+                                        <Label htmlFor="create-p3-type-contact" className="font-semibold cursor-pointer text-sm">Contact Directory</Label>
+                                        <p className="text-xs text-muted-foreground">Department contacts, enquiry form & venue map.</p>
+                                    </div>
+                                </div>
+                                <div className={cn("flex items-start space-x-2 border p-3 rounded-md cursor-pointer transition-colors", pageThreeType === 'minutes' ? 'bg-primary/5 border-primary' : 'bg-card')}>
+                                    <RadioGroupItem value="minutes" id="create-p3-type-minutes" className="mt-1" />
+                                    <div className="space-y-1">
+                                        <Label htmlFor="create-p3-type-minutes" className="font-semibold cursor-pointer text-sm">Meeting Minutes</Label>
+                                        <p className="text-xs text-muted-foreground">Downloadable PDF archive of meeting records.</p>
+                                    </div>
+                                </div>
+                                <div className={cn("flex items-start space-x-2 border p-3 rounded-md cursor-pointer transition-colors", pageThreeType === 'custom' ? 'bg-primary/5 border-primary' : 'bg-card')}>
+                                    <RadioGroupItem value="custom" id="create-p3-type-custom" className="mt-1" />
+                                    <div className="space-y-1">
+                                        <Label htmlFor="create-p3-type-custom" className="font-semibold cursor-pointer text-sm">Custom Document</Label>
+                                        <p className="text-xs text-muted-foreground">Free-form rich text and legal agreements.</p>
+                                    </div>
+                                </div>
+                            </RadioGroup>
                         </div>
+
+                        {/* Mode A: Contact Directory */}
+                        {pageThreeType === 'contact' && (
+                            <div className="space-y-6">
+                                {/* Intro Text */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="contact-intro-text">Contact Page Introduction (Optional)</Label>
+                                    <Input
+                                        id="contact-intro-text"
+                                        placeholder="e.g., Get in touch with our team or find us at our weekly meetings."
+                                        value={contactIntroText}
+                                        onChange={(e) => setContactIntroText(e.target.value)}
+                                    />
+                                </div>
+
+                                <Separator />
+
+                                {/* Key Contacts Directory */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h3 className="font-semibold text-base flex items-center gap-2">
+                                                <UserCheck className="h-5 w-5 text-primary" />
+                                                Key Contacts & Department Personnel
+                                            </h3>
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                Add committee members, department leads, or specific contact officers.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setKeyContacts(prev => [...prev, { id: `contact-${Date.now()}`, name: '', role: '', email: '', phone: '', bio: '' }])}
+                                        >
+                                            <PlusCircle className="mr-2 h-4 w-4" /> Add Contact
+                                        </Button>
+                                    </div>
+
+                                    {keyContacts.length > 0 ? (
+                                        <div className="space-y-4">
+                                            {keyContacts.map((contact, index) => (
+                                                <Card key={contact.id || index} className="p-4 relative border bg-card/60">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="absolute top-2 right-2 text-destructive hover:bg-destructive/10 h-8 w-8"
+                                                        onClick={() => setKeyContacts(prev => prev.filter((_, i) => i !== index))}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs font-semibold">Contact Name *</Label>
+                                                            <Input
+                                                                placeholder="e.g., Jane Doe"
+                                                                value={contact.name}
+                                                                onChange={(e) => {
+                                                                    const updated = [...keyContacts];
+                                                                    updated[index].name = e.target.value;
+                                                                    setKeyContacts(updated);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs font-semibold">Role / Title *</Label>
+                                                            <Input
+                                                                placeholder="e.g., Chairperson, Treasurer, Volunteer Coordinator"
+                                                                value={contact.role}
+                                                                onChange={(e) => {
+                                                                    const updated = [...keyContacts];
+                                                                    updated[index].role = e.target.value;
+                                                                    setKeyContacts(updated);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs font-semibold">Direct Email</Label>
+                                                            <Input
+                                                                type="email"
+                                                                placeholder="e.g., chair@example.org"
+                                                                value={contact.email || ''}
+                                                                onChange={(e) => {
+                                                                    const updated = [...keyContacts];
+                                                                    updated[index].email = e.target.value;
+                                                                    setKeyContacts(updated);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs font-semibold">Direct Phone</Label>
+                                                            <Input
+                                                                type="tel"
+                                                                placeholder="e.g., 01479 872000"
+                                                                value={contact.phone || ''}
+                                                                onChange={(e) => {
+                                                                    const updated = [...keyContacts];
+                                                                    updated[index].phone = e.target.value;
+                                                                    setKeyContacts(updated);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-6 border border-dashed rounded-lg text-muted-foreground text-xs">
+                                            No individual contacts added yet. Click &quot;Add Contact&quot; to add committee or department representatives.
+                                        </div>
+                                    )}
+                                </div>
+
+                                <Separator />
+
+                                {/* Meeting / Office Venue Location */}
+                                <div className="space-y-4">
+                                    <div>
+                                        <h3 className="font-semibold text-base flex items-center gap-2">
+                                            <Building2 className="h-5 w-5 text-primary" />
+                                            Meeting Venue & Physical Location (Optional)
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            Where does your group meet or operate?
+                                        </p>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs font-semibold">Venue / Building Name</Label>
+                                            <Input
+                                                placeholder="e.g., The Courthouse Community Hall"
+                                                value={meetingLocation.venueName || ''}
+                                                onChange={(e) => setMeetingLocation(prev => ({ ...prev, venueName: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs font-semibold">Address Line 1</Label>
+                                            <Input
+                                                placeholder="e.g., The Square"
+                                                value={meetingLocation.addressLine1 || ''}
+                                                onChange={(e) => setMeetingLocation(prev => ({ ...prev, addressLine1: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs font-semibold">City / Town</Label>
+                                            <Input
+                                                placeholder="e.g., Grantown-on-Spey"
+                                                value={meetingLocation.city || ''}
+                                                onChange={(e) => setMeetingLocation(prev => ({ ...prev, city: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs font-semibold">Postcode</Label>
+                                            <Input
+                                                placeholder="e.g., PH26 3HF"
+                                                value={meetingLocation.postcode || ''}
+                                                onChange={(e) => setMeetingLocation(prev => ({ ...prev, postcode: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="space-y-1 sm:col-span-2">
+                                            <Label className="text-xs font-semibold">Meeting Schedule / Times</Label>
+                                            <Input
+                                                placeholder="e.g., Every 3rd Tuesday of the month at 7:00 PM"
+                                                value={meetingLocation.meetingSchedule || ''}
+                                                onChange={(e) => setMeetingLocation(prev => ({ ...prev, meetingSchedule: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <Separator />
+
+                                {/* Public Message Form Toggle */}
+                                <div className="flex items-center justify-between p-4 bg-muted/20 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-sm font-semibold">Enable Public Enquiry Message Form</Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Allows members and visitors to send messages directly into your group&apos;s Message Centre.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={enableContactForm}
+                                        onCheckedChange={setEnableContactForm}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Mode B: Meeting Minutes */}
+                        {pageThreeType === 'minutes' && (
+                            <div className="space-y-4">
+                                <Alert>
+                                    <Info className="h-4 w-4" />
+                                    <AlertTitle>Meeting Minutes Archive</AlertTitle>
+                                    <AlertDescription>
+                                        Your group&apos;s meeting minutes and PDF records will be manageable once your group is created.
+                                    </AlertDescription>
+                                </Alert>
+                            </div>
+                        )}
+
+                        {/* Mode C: Custom Free-form */}
+                        {pageThreeType === 'custom' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="page-three-content">Content</Label>
+                                <RichTextEditor
+                                    value={pageThreeContent}
+                                    onChange={setPageThreeContent}
+                                    placeholder="Enter content for your contact page. You can include email addresses, phone numbers, contact forms (using HTML), etc."
+                                />
+                            </div>
+                        )}
                     </AccordionContent>
                 </AccordionItem>
                  <AccordionItem value="opening-hours">

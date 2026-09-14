@@ -24,6 +24,10 @@ import {
     ExternalLink,
     ChevronLeft,
     ChevronRight,
+    Send,
+    UserCheck,
+    Building2,
+    Navigation,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -54,8 +58,11 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { sendGroupEnquiryAction } from "@/lib/actions/groupEnquiryActions";
 
 
 type GalleryImage = {
@@ -93,8 +100,14 @@ type BusinessProfile = {
     pageThreeContent?: string;
     showPageTwo?: boolean;
     showPageThree?: boolean;
-    pageThreeType?: 'custom' | 'minutes';
+    pageThreeType?: 'contact' | 'custom' | 'minutes';
     meetingMinutes?: { id: string; title: string; date: any; content: string; pdfUrl?: string }[];
+    keyContacts?: { id: string; name: string; role: string; email?: string; phone?: string; bio?: string }[];
+    meetingLocation?: { venueName?: string; addressLine1?: string; city?: string; postcode?: string; meetingSchedule?: string; googleMapsUrl?: string };
+    enableContactForm?: boolean;
+    contactIntroText?: string;
+    pageTwoTitle?: string;
+    accountType?: string;
     status?: 'Approved' | 'Subscribed' | string; // Add other statuses if needed
 };
 
@@ -315,6 +328,123 @@ const BusinessEvents = ({ businessId }: { businessId: string }) => {
     );
 };
 
+function GroupEnquiryForm({ groupId, groupName }: { groupId: string; groupName: string }) {
+  const [senderName, setSenderName] = React.useState('');
+  const [senderEmail, setSenderEmail] = React.useState('');
+  const [senderPhone, setSenderPhone] = React.useState('');
+  const [subject, setSubject] = React.useState('');
+  const [message, setMessage] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!senderName.trim() || !senderEmail.trim() || !subject.trim() || !message.trim()) {
+      toast({ title: 'Missing Information', description: 'Please fill in your name, email, subject, and message.', variant: 'destructive' });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await sendGroupEnquiryAction({
+        groupId,
+        groupName,
+        senderName,
+        senderEmail,
+        senderPhone,
+        subject,
+        message,
+      });
+      if (res.success) {
+        toast({ title: 'Message Sent!', description: `Thank you, your enquiry has been sent to ${groupName}.` });
+        setSenderName('');
+        setSenderEmail('');
+        setSenderPhone('');
+        setSubject('');
+        setMessage('');
+      } else {
+        toast({ title: 'Submission Failed', description: res.error || 'Could not send message.', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'An error occurred.', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Card className="border shadow-xs bg-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Mail className="h-5 w-5 text-primary" />
+          Send a Message to {groupName}
+        </CardTitle>
+        <CardDescription>
+          Have a question, request, or want to get in touch? Send an enquiry directly to our team.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Your Name <span className="text-destructive">*</span></label>
+              <Input
+                placeholder="e.g., John Smith"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Email Address <span className="text-destructive">*</span></label>
+              <Input
+                type="email"
+                placeholder="e.g., john@example.com"
+                value={senderEmail}
+                onChange={(e) => setSenderEmail(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Phone Number (Optional)</label>
+              <Input
+                type="tel"
+                placeholder="e.g., 07123 456789"
+                value={senderPhone}
+                onChange={(e) => setSenderPhone(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Subject / Topic <span className="text-destructive">*</span></label>
+              <Input
+                placeholder="e.g., General Enquiry / Community Question"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">Your Message <span className="text-destructive">*</span></label>
+            <Textarea
+              placeholder="Write your enquiry or message here..."
+              rows={4}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              required
+            />
+          </div>
+          <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+            Send Enquiry
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export default function BusinessProfilePage() {
     const params = useParams();
@@ -450,10 +580,16 @@ export default function BusinessProfilePage() {
     const page2Available = profile?.showPageTwo !== false && ((profile?.pageTwoContent && profile.pageTwoContent.length > 0) || !!profile?.pageTwoIntro);
     
     const page2TabTitle = isCourier ? 'Meet Our Team' : (profile?.pageTwoTitle || 'Our Team');
-    const page3Type = profile?.pageThreeType || 'custom';
+    const page3Type = profile?.pageThreeType || (profile?.keyContacts?.length || profile?.meetingLocation ? 'contact' : 'custom');
     const page3MinutesAvailable = page3Type === 'minutes' && profile?.showPageThree !== false && profile?.meetingMinutes && profile.meetingMinutes.length > 0;
     const page3CustomAvailable = page3Type === 'custom' && profile?.showPageThree !== false && !!profile?.pageThreeContent;
-    const page3Available = page3MinutesAvailable || page3CustomAvailable;
+    const page3ContactAvailable = (page3Type === 'contact' || page3Type === 'custom') && profile?.showPageThree !== false && (
+        (profile?.keyContacts && profile.keyContacts.length > 0) ||
+        !!profile?.meetingLocation?.venueName ||
+        profile?.enableContactForm !== false ||
+        !!profile?.pageThreeContent
+    );
+    const page3Available = page3MinutesAvailable || page3ContactAvailable || page3CustomAvailable;
     const page3TabTitle = page3Type === 'minutes' ? 'Meeting Minutes' : (isCourier ? 'Contact & Depot' : 'Contact Us');
 
     return (
@@ -578,9 +714,7 @@ export default function BusinessProfilePage() {
                                 </div>
                             )}
                             {activeTab === 'page3' && page3Available && (
-                                page3Type === 'custom' ? (
-                                    <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: profile.pageThreeContent || ""}}/>
-                                ) : (
+                                page3Type === 'minutes' ? (
                                     <div className="space-y-4">
                                         <div className="flex flex-col sm:flex-row gap-4">
                                             <div className="relative flex-1">
@@ -633,6 +767,106 @@ export default function BusinessProfilePage() {
                                                 </div>
                                             )}
                                         </Accordion>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-8">
+                                        <div>
+                                            <h2 className="text-2xl font-semibold font-headline mb-2">{page3TabTitle}</h2>
+                                            <p className="text-muted-foreground text-sm">
+                                                {profile.contactIntroText || `Get in touch with the team at ${name}, view key department contacts, or send us a direct message.`}
+                                            </p>
+                                            {profile.pageThreeContent && (
+                                                <div className="prose dark:prose-invert max-w-none mt-4 text-sm" dangerouslySetInnerHTML={{ __html: profile.pageThreeContent }} />
+                                            )}
+                                        </div>
+
+                                        {/* Section 1: Key Contacts Directory */}
+                                        {profile.keyContacts && profile.keyContacts.length > 0 && (
+                                            <div className="space-y-4">
+                                                <h3 className="text-lg font-semibold font-headline flex items-center gap-2">
+                                                    <UserCheck className="h-5 w-5 text-primary" />
+                                                    Key Contacts & Department Personnel
+                                                </h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {profile.keyContacts.map((contact, idx) => (
+                                                        <Card key={contact.id || idx} className="border shadow-xs hover:border-primary/40 transition-colors">
+                                                            <CardContent className="p-4 space-y-2.5">
+                                                                <div>
+                                                                    <p className="font-bold text-base text-foreground leading-snug">{contact.name}</p>
+                                                                    <Badge variant="secondary" className="mt-1 font-medium text-xs">
+                                                                        {contact.role}
+                                                                    </Badge>
+                                                                </div>
+                                                                {contact.bio && (
+                                                                    <p className="text-xs text-muted-foreground line-clamp-2">{contact.bio}</p>
+                                                                )}
+                                                                <div className="pt-2 flex flex-wrap gap-2 text-xs">
+                                                                    {contact.email && (
+                                                                        <Button asChild variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+                                                                            <a href={`mailto:${contact.email}`}>
+                                                                                <Mail className="h-3.5 w-3.5 text-primary" />
+                                                                                {contact.email}
+                                                                            </a>
+                                                                        </Button>
+                                                                    )}
+                                                                    {contact.phone && (
+                                                                        <Button asChild variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+                                                                            <a href={`tel:${contact.phone}`}>
+                                                                                <Phone className="h-3.5 w-3.5 text-primary" />
+                                                                                {contact.phone}
+                                                                            </a>
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            </CardContent>
+                                                        </Card>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Section 2: Meeting / Office Venue Location */}
+                                        {profile.meetingLocation?.venueName && (
+                                            <Card className="border shadow-xs bg-slate-50/50 dark:bg-slate-900/40">
+                                                <CardHeader className="pb-3">
+                                                    <CardTitle className="text-lg flex items-center gap-2">
+                                                        <Building2 className="h-5 w-5 text-primary" />
+                                                        Meeting Location & Venue
+                                                    </CardTitle>
+                                                </CardHeader>
+                                                <CardContent className="space-y-3 text-sm">
+                                                    <div>
+                                                        <p className="font-semibold text-foreground text-base">{profile.meetingLocation.venueName}</p>
+                                                        <p className="text-muted-foreground mt-0.5">
+                                                            {[profile.meetingLocation.addressLine1, profile.meetingLocation.city, profile.meetingLocation.postcode].filter(Boolean).join(', ')}
+                                                        </p>
+                                                    </div>
+                                                    {profile.meetingLocation.meetingSchedule && (
+                                                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-background p-2.5 rounded-md border">
+                                                            <Clock className="h-4 w-4 text-primary shrink-0" />
+                                                            <span>Schedule: {profile.meetingLocation.meetingSchedule}</span>
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <Button asChild variant="outline" size="sm" className="gap-2">
+                                                            <a
+                                                                href={profile.meetingLocation.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([profile.meetingLocation.venueName, profile.meetingLocation.addressLine1, profile.meetingLocation.city, profile.meetingLocation.postcode].filter(Boolean).join(', '))}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                            >
+                                                                <Navigation className="h-4 w-4 text-primary" />
+                                                                Get Directions on Google Maps
+                                                            </a>
+                                                        </Button>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        )}
+
+                                        {/* Section 3: Interactive Message Enquiry Form */}
+                                        {profile.enableContactForm !== false && (
+                                            <GroupEnquiryForm groupId={businessId as string} groupName={name} />
+                                        )}
                                     </div>
                                 )
                             )}

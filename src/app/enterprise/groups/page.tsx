@@ -25,6 +25,7 @@ import {
   Store,
   ArrowUpDown,
   ShieldAlert,
+  Inbox,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -381,8 +382,15 @@ function EnterpriseGroupsContent() {
                                                     <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => router.push(`/businesses/${group.id}`)}><Eye className="mr-2 h-4 w-4" /> View Profile</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => router.push(`/enterprise/groups/edit/${group.id}`)}><Pencil className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => router.push(`/enterprise/groups/${group.id}/enquiries`)}>
+                                                            <Inbox className="mr-2 h-4 w-4 text-primary" /> Message Inbox
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => router.push(`/businesses/${group.id}`)}>
+                                                            <Eye className="mr-2 h-4 w-4" /> View Profile
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => router.push(`/enterprise/groups/edit/${group.id}`)}>
+                                                            <Pencil className="mr-2 h-4 w-4" /> Edit
+                                                        </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem className="text-destructive" onClick={() => { setGroupToDelete(group); setIsDeleteDialogOpen(true); }}>
                                                             <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -394,6 +402,7 @@ function EnterpriseGroupsContent() {
                                     </TableRow>
                                   </ContextMenuTrigger>
                                   <ContextMenuContent>
+                                    <ContextMenuItem onClick={() => router.push(`/enterprise/groups/${group.id}/enquiries`)}>Message Inbox</ContextMenuItem>
                                     <ContextMenuItem onClick={() => router.push(`/businesses/${group.id}`)}>View Profile</ContextMenuItem>
                                     <ContextMenuItem onClick={() => router.push(`/enterprise/groups/edit/${group.id}`)}>Edit</ContextMenuItem>
                                     <ContextMenuSeparator />
