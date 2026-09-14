@@ -199,7 +199,15 @@ export default function EditEnterpriseGroupPage() {
             setShortDescription(groupData.shortDescription || '');
             setLongDescription(groupData.longDescription || '');
             setPageTwoContent(groupData.pageTwoContent || []);
-            setPageThreeContent(groupData.pageThreeContent || '');
+            const rawP3 = groupData.pageThreeContent;
+            const parsedPageThree = typeof rawP3 === 'string'
+                ? rawP3
+                : (rawP3
+                    ? (Array.isArray(rawP3)
+                        ? rawP3.map((b: any) => b?.text || b?.content || JSON.stringify(b)).join('\n')
+                        : (rawP3.text || rawP3.content || rawP3.html || JSON.stringify(rawP3)))
+                    : '');
+            setPageThreeContent(parsedPageThree);
             setShowPageTwo(groupData.showPageTwo !== false);
             setShowPageThree(groupData.showPageThree !== false);
             setPageThreeType(groupData.pageThreeType || 'custom');

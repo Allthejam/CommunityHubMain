@@ -181,29 +181,41 @@ export function RichTextEditor({
     hideColor = false,
     minHeight = "480px"
 }: RichTextEditorProps) {
+  const safeStringValue = React.useMemo(() => {
+    if (typeof value === 'string') return value;
+    if (!value) return '';
+    if (Array.isArray(value)) {
+      return value.map(v => (typeof v === 'string' ? v : v?.text || v?.content || JSON.stringify(v))).join('\n');
+    }
+    if (typeof value === 'object') {
+      return (value as any).text || (value as any).content || (value as any).html || JSON.stringify(value);
+    }
+    return String(value);
+  }, [value]);
+
   const editorRef = React.useRef<HTMLDivElement>(null);
   const [color, setColor] = React.useState("#0f172a");
   const [activeTab, setActiveTab] = React.useState<"visual" | "code" | "preview">("visual");
-  const [rawHtmlText, setRawHtmlText] = React.useState(value || "");
+  const [rawHtmlText, setRawHtmlText] = React.useState(safeStringValue);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [isPasteModalOpen, setIsPasteModalOpen] = React.useState(false);
   const [pasteModalText, setPasteModalText] = React.useState("");
 
   // Sync internal raw HTML when external value changes
   React.useEffect(() => {
-    if (value !== rawHtmlText) {
-      setRawHtmlText(value || "");
+    if (safeStringValue !== rawHtmlText) {
+      setRawHtmlText(safeStringValue);
     }
-  }, [value]);
+  }, [safeStringValue]);
 
   // Sync contentEditable innerHTML when external value changes
   React.useEffect(() => {
     if (editorRef.current && activeTab === "visual") {
-      if (editorRef.current.innerHTML !== value) {
-        editorRef.current.innerHTML = value || "";
+      if (editorRef.current.innerHTML !== safeStringValue) {
+        editorRef.current.innerHTML = safeStringValue;
       }
     }
-  }, [value, activeTab]);
+  }, [safeStringValue, activeTab]);
 
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     const html = e.currentTarget.innerHTML;
@@ -336,13 +348,13 @@ export function RichTextEditor({
 
   // Stats calculation
   const stats = React.useMemo(() => {
-    const textOnly = (value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    const textOnly = (safeStringValue || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
     const words = textOnly ? textOnly.split(" ").length : 0;
     const chars = textOnly.length;
-    const paragraphs = (value || "").match(/<p|<h[1-6]|<li/gi)?.length || (textOnly ? 1 : 0);
+    const paragraphs = (safeStringValue || "").match(/<p|<h[1-6]|<li/gi)?.length || (textOnly ? 1 : 0);
     const readingTime = Math.ceil(words / 200);
     return { words, chars, paragraphs, readingTime };
-  }, [value]);
+  }, [safeStringValue]);
 
   return (
     <div className={cn(
@@ -610,7 +622,7 @@ export function RichTextEditor({
               </div>
               <div 
                 className="prose dark:prose-invert max-w-none text-foreground font-sans leading-relaxed text-sm sm:text-base"
-                dangerouslySetInnerHTML={{ __html: value || "<p class='text-muted-foreground italic'>No content written yet.</p>" }}
+                dangerouslySetInnerHTML={{ __html: safeStringValue || "<p class='text-muted-foreground italic'>No content written yet.</p>" }}
               />
             </div>
           </div>
