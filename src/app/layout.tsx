@@ -7,6 +7,7 @@ import { CartProvider } from '@/contexts/cart-context'
 import { GoogleAnalytics } from '@/components/google-analytics'
 import { CookieConsentDialog } from '@/components/cookie-consent-dialog'
 import { ServiceWorkerRegistrar } from '@/components/service-worker-registrar'
+import { OfflineIndicatorBanner } from '@/components/offline-indicator-banner'
 import Script from 'next/script'
 
 export const metadata: Metadata = {
@@ -81,6 +82,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <ServiceWorkerRegistrar />
+          <OfflineIndicatorBanner />
           <GoogleAnalytics />
           <CartProvider>
             {children}
