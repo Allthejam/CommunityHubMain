@@ -145,7 +145,7 @@ export default function HomePage() {
           <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
           {userProfile?.accountType !== 'national' && <NoLeaderAlert communityId={activeCommunityId} userProfile={userProfile} />}
       </div>
-      <WelcomeCards />
+      <WelcomeCards activeCommunityId={activeCommunityId} activeCommunity={activeCommunity} />
       
       <div className='px-4 md:px-0 space-y-6 md:space-y-8'>
           <AnnouncementBanners allAnnouncements={standardAnnouncements} />

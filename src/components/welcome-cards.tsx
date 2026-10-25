@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserFavouriteCommunitiesAction, returnToHomeCommunityAction } from '@/lib/actions/userActions';
 import { Badge } from './ui/badge';
+import { CommunityWeatherAlertStrip } from './community-weather-alert';
 
 interface WelcomeCardsProps {
   activeCommunityId?: string | null;
@@ -235,6 +236,14 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                 Browse local events, shops, marketplace items, and attractions for <strong className="text-emerald-700 dark:text-emerald-400 font-bold">{effectiveCommunityName}</strong>, or return to your locked Home Community (<strong className="text-foreground font-bold">{homeCommunityName}</strong>).
               </p>
 
+              {/* Live Weather & Storm Warning Strip for Visited Community */}
+              <CommunityWeatherAlertStrip
+                communityId={effectiveCommunityId}
+                communityName={effectiveCommunityName}
+                boundary={activeCommunity?.boundary}
+                demoPrefix={demoPrefix}
+              />
+
               {/* Quick Visitor Shortcuts */}
               <div className="space-y-2 pt-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
@@ -352,6 +361,14 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                 <p className="text-muted-foreground text-sm">
                   You are currently in your locked Home Community: <span className="font-bold text-foreground">{homeCommunityName}</span>.
                 </p>
+
+                {/* Live Weather & Storm Warning Strip on Your Home Community Card */}
+                <CommunityWeatherAlertStrip
+                  communityId={effectiveCommunityId || userProfile?.communityId}
+                  communityName={homeCommunityName}
+                  boundary={activeCommunity?.boundary}
+                  demoPrefix={demoPrefix}
+                />
 
                 {/* Visible Alert Strip on Your Home Community Card if Red or Amber Alert with Message is Active */}
                 {(isRedAlert || isAmberAlert) && (

@@ -734,26 +734,35 @@ export async function publishEmergencyMessageAction(params: {
     });
 
     // Update main emergency plan document with active official notice
-    const planRef = firestore.collection('communities').doc(communityId).collection('emergency_plan').doc('main');
-    await planRef.set(
-      {
-        officialNotice: {
-          isActive: true,
-          headline: title,
-          message: body,
-          level: level || 'advisory',
-          hazardCategory: hazardCategory || 'general',
-          authorName: authorName || 'Incident Commander',
-          authorRole: authorRole || 'Community Resilience Leader',
-          publishedAt: now,
-          messageId: messageDoc.id,
-        },
-        currentThreatStatus: level === 'critical' ? 'incident' : level === 'warning' ? 'advisory' : 'normal',
-        updatedAt: now,
-        updatedBy: authorId,
+    const validScenarios = ['wildfire', 'urbanfire', 'flood', 'power', 'drought', 'evacuation', 'unrest', 'defence'];
+    const planUpdateData: Record<string, any> = {
+      officialNotice: {
+        isActive: true,
+        headline: title,
+        message: body,
+        level: level || 'advisory',
+        hazardCategory: hazardCategory || 'general',
+        authorName: authorName || 'Incident Commander',
+        authorRole: authorRole || 'Community Resilience Leader',
+        publishedAt: now,
+        messageId: messageDoc.id,
       },
-      { merge: true }
-    );
+      currentThreatStatus:
+        level === 'critical'
+          ? 'incident'
+          : level === 'warning' || level === 'advisory'
+          ? 'advisory'
+          : 'normal',
+      updatedAt: now,
+      updatedBy: authorId,
+    };
+
+    if (hazardCategory && validScenarios.includes(hazardCategory)) {
+      planUpdateData.activeHazardScenario = hazardCategory;
+    }
+
+    const planRef = firestore.collection('communities').doc(communityId).collection('emergency_plan').doc('main');
+    await planRef.set(planUpdateData, { merge: true });
 
     // Record in Audit Log
     await logEmergencyAuditAction({

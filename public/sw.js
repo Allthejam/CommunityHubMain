@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'community-hub-v2';
+const CACHE_NAME = 'community-hub-v3';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ASSETS = [
