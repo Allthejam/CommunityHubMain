@@ -400,17 +400,14 @@ export function CommunityWeatherAlertStrip({
               </a>
             </Button>
 
-            {communityId && (
-              <Button asChild size="sm" className="text-xs font-bold gap-1.5">
-                <Link
-                  href={`${demoPrefix}/community/${communityId}/emergency`}
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  <ShieldAlert className="h-3.5 w-3.5" />
-                  Community Emergency Portal
-                </Link>
-              </Button>
-            )}
+            <Button
+              type="button"
+              size="sm"
+              className="text-xs font-bold"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
