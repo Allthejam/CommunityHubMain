@@ -58,24 +58,48 @@ export async function createAccessRequestAction(params: AccessRequestParams): Pr
             createdAt: Timestamp.now() 
         });
 
-        const adminUsersQuery = firestore.collection('users').where('role', 'in', ['admin', 'owner']);
-        const adminSnapshot = await adminUsersQuery.get();
+        // 1. Broadcast notification for all platform administrators
+        const platformNotifRef = firestore.collection('notifications').doc();
+        batch.set(platformNotifRef, {
+            recipientId: 'platform_admin',
+            type: 'Special Access Request',
+            subject: `New Special Access Request (${newApplicationId}) from ${params.applicantName}`,
+            from: params.applicantName || "Platform System",
+            date: Timestamp.now(),
+            status: 'new',
+            relatedId: requestRef.id,
+            actionUrl: `/admin/special-access`,
+            targetApp: 'admin'
+        });
 
-        if (!adminSnapshot.empty) {
-            adminSnapshot.forEach(adminDoc => {
+        // 2. Discover all platform administrators
+        try {
+            const adminRoles = ['administrator', 'admin', 'owner', 'Administrator', 'Admin', 'Owner', 'superadmin'];
+            const [roleSnap, permSnap, ownerSnap] = await Promise.all([
+                firestore.collection('users').where('role', 'in', adminRoles).get(),
+                firestore.collection('users').where('permissions.isAdmin', '==', true).get(),
+                firestore.collection('users').where('accountType', '==', 'owner').get(),
+            ]);
+            const adminMap = new Map();
+            [...roleSnap.docs, ...permSnap.docs, ...ownerSnap.docs].forEach(doc => {
+                adminMap.set(doc.id, doc.id);
+            });
+            adminMap.forEach((adminId) => {
                 const notificationRef = firestore.collection('notifications').doc();
                 batch.set(notificationRef, {
-                    recipientId: adminDoc.id,
+                    recipientId: adminId,
                     type: 'Special Access Request',
-                    subject: `New Request (${newApplicationId}) from ${params.applicantName}`,
-                    from: "Platform System",
+                    subject: `New Special Access Request (${newApplicationId}) from ${params.applicantName}`,
+                    from: params.applicantName || "Platform System",
                     date: Timestamp.now(),
                     status: 'new',
                     relatedId: requestRef.id,
-                    actionUrl: `/admin/access-requests`,
+                    actionUrl: `/admin/special-access`,
                     targetApp: 'admin'
                 });
             });
+        } catch (err) {
+            console.error('Error fetching admin users for access request:', err);
         }
 
         await batch.commit();
