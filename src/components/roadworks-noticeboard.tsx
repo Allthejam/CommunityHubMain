@@ -110,6 +110,8 @@ export function RoadworksNoticeboard({
   const [alertType, setAlertType] = React.useState<'closure' | 'active_works' | 'event'>('closure');
   const [description, setDescription] = React.useState('');
   const [durationText, setDurationText] = React.useState('');
+  const [removalPreset, setRemovalPreset] = React.useState<'24h' | '3d' | '7d' | '14d' | '28d' | 'custom'>('28d');
+  const [customRemovalDate, setCustomRemovalDate] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const effectiveCommId = communityId || '9ayHMyZf4SRw2gof1AM9';
@@ -148,6 +150,44 @@ export function RoadworksNoticeboard({
 
   const { data: localRoadAlerts } = useCollection<any>(localAlertsQuery);
 
+  const getAlertExpiryMs = React.useCallback((a: any): number => {
+    if (typeof a.expiresAtMs === 'number' && a.expiresAtMs > 0) {
+      return a.expiresAtMs;
+    }
+    if (a.expiresAt) {
+      const parsed = new Date(a.expiresAt).getTime();
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+    // Fallback: 28 days (4 weeks) from createdAt
+    let createdMs = Date.now();
+    if (typeof a.createdAt?.toMillis === 'function') {
+      createdMs = a.createdAt.toMillis();
+    } else if (typeof a.createdAt?._seconds === 'number') {
+      createdMs = a.createdAt._seconds * 1000;
+    } else if (a.createdAt) {
+      const parsed = new Date(a.createdAt).getTime();
+      if (!Number.isNaN(parsed)) createdMs = parsed;
+    }
+    return createdMs + 28 * 24 * 60 * 60 * 1000;
+  }, []);
+
+  // Automatically purge any expired user-reported notices from Firestore
+  React.useEffect(() => {
+    if (!db || !user || !localRoadAlerts || localRoadAlerts.length === 0) return;
+    const now = Date.now();
+    localRoadAlerts.forEach((a: any) => {
+      const expMs = getAlertExpiryMs(a);
+      if (expMs <= now && (a.authorId === user.uid || isLeaderOrAdmin)) {
+        deleteDoc(doc(db, `communities/${effectiveCommId}/road_alerts`, a.id)).catch(() => {});
+      }
+    });
+  }, [db, user, localRoadAlerts, effectiveCommId, isLeaderOrAdmin, getAlertExpiryMs]);
+
+  const activeLocalRoadAlerts = React.useMemo(() => {
+    const now = Date.now();
+    return (localRoadAlerts || []).filter((a: any) => getAlertExpiryMs(a) > now);
+  }, [localRoadAlerts, getAlertExpiryMs]);
+
   React.useEffect(() => {
     let cancelled = false;
     const loadRoadworks = async () => {
@@ -183,8 +223,19 @@ export function RoadworksNoticeboard({
   }, [communityName, boundary]);
 
   const combinedItems = React.useMemo(() => {
-    const localMapped: (RoadworkItem & { isLocalPopup?: boolean; authorId?: string; authorName?: string })[] =
-      (localRoadAlerts || []).map((a: any) => ({
+    const localMapped: (RoadworkItem & {
+      isLocalPopup?: boolean;
+      authorId?: string;
+      authorName?: string;
+      autoRemoveLabel?: string;
+    })[] = activeLocalRoadAlerts.map((a: any) => {
+      const expMs = getAlertExpiryMs(a);
+      const expDateStr = new Date(expMs).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+      return {
         id: a.id,
         title: `${a.roadName || 'Local Road'} — ${
           a.alertType === 'closure'
@@ -198,6 +249,7 @@ export function RoadworksNoticeboard({
         severity: a.alertType === 'closure' ? 'closure' : 'active_works',
         summary: a.description || '',
         startDate: a.durationText || 'Live Local Report',
+        endDate: `Auto-removes ${expDateStr}`,
         link: 'https://www.one.network/',
         lat: null,
         lng: null,
@@ -206,10 +258,12 @@ export function RoadworksNoticeboard({
         isLocalPopup: true,
         authorId: a.authorId,
         authorName: a.authorName,
-      }));
+        autoRemoveLabel: expDateStr,
+      };
+    });
 
     return [...localMapped, ...officialItems];
-  }, [localRoadAlerts, officialItems]);
+  }, [activeLocalRoadAlerts, officialItems, getAlertExpiryMs]);
 
   const filteredItems = React.useMemo(() => {
     if (activeTab === 'live') {
@@ -244,24 +298,52 @@ export function RoadworksNoticeboard({
       return;
     }
 
+    const now = Date.now();
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    let expiresAtMs = now + 28 * DAY_MS; // Default 28-day (4-week) rule
+
+    if (removalPreset === '24h') {
+      expiresAtMs = now + 1 * DAY_MS;
+    } else if (removalPreset === '3d') {
+      expiresAtMs = now + 3 * DAY_MS;
+    } else if (removalPreset === '7d') {
+      expiresAtMs = now + 7 * DAY_MS;
+    } else if (removalPreset === '14d') {
+      expiresAtMs = now + 14 * DAY_MS;
+    } else if (removalPreset === 'custom' && customRemovalDate.trim()) {
+      const parsedCustom = new Date(`${customRemovalDate.trim()}T23:59:59`).getTime();
+      if (!Number.isNaN(parsedCustom) && parsedCustom > now) {
+        expiresAtMs = parsedCustom;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       await addDoc(collection(db, `communities/${effectiveCommId}/road_alerts`), {
         roadName: roadName.trim(),
         alertType,
         description: description.trim(),
-        durationText: durationText.trim() || 'Until further notice',
+        durationText: durationText.trim() || 'Live Local Notice',
         authorId: user.uid,
         authorName: userProfile?.name || user.displayName || 'Community Member',
+        expiresAtMs,
+        expiresAt: new Date(expiresAtMs).toISOString(),
         createdAt: serverTimestamp(),
+      });
+      const formattedRemovalDate = new Date(expiresAtMs).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
       });
       toast({
         title: 'Road Alert Posted to Noticeboard',
-        description: `Your update for ${roadName.trim()} is now live for ${communityName}.`,
+        description: `Live for ${communityName}. Automatically removes on ${formattedRemovalDate}.`,
       });
       setRoadName('');
       setDescription('');
       setDurationText('');
+      setRemovalPreset('28d');
+      setCustomRemovalDate('');
       setIsReportModalOpen(false);
     } catch (e: any) {
       toast({
@@ -404,6 +486,128 @@ export function RoadworksNoticeboard({
     );
   };
 
+  const renderReportDialog = () => (
+    <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
+      <DialogContent className="sm:max-w-md bg-card border text-card-foreground max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-base font-black flex items-center gap-2">
+            <Construction className="h-5 w-5 text-amber-500" />
+            Report Local Road Closure or Popup Works
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Spot a fallen tree, temporary traffic lights, utility trench, or event road closure in {communityName}? Post it to the community noticeboard.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* 28-Day Auto-Removal Rule Notice */}
+        <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-[11px] space-y-1 text-foreground">
+          <p className="font-black text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+            4-Week (28-Day) Auto-Removal Rule
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            To keep our community noticeboard clean and accurate, all user-reported posts are <strong>automatically removed after 28 days</strong> from the date created unless you choose a shorter duration (such as 24 hours for a fallen tree) or set a specific removal date below.
+          </p>
+        </div>
+
+        <div className="space-y-3 py-1 text-xs">
+          <div className="space-y-1">
+            <Label className="text-xs font-bold">Road / Street Name *</Label>
+            <Input
+              value={roadName}
+              onChange={(e) => setRoadName(e.target.value)}
+              placeholder="e.g. High Street, B9102 Dava Road, A95 Spey Bridge"
+              className="h-9 text-xs"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs font-bold">Disruption Type *</Label>
+            <Select value={alertType} onValueChange={(v: any) => setAlertType(v)}>
+              <SelectTrigger className="h-9 text-xs font-semibold">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="closure">🔴 Road Closed / Blocked / Diversion</SelectItem>
+                <SelectItem value="active_works">🟠 Popup Roadworks / Temporary Traffic Lights</SelectItem>
+                <SelectItem value="event">🎪 Local Event Road Closure / Parade</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs font-bold">What&apos;s Happening & Diversion Info *</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Temporary 2-way lights outside the Co-op for Scottish Water pipe repair, or fallen tree blocking northbound lane."
+              rows={3}
+              className="text-xs"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs font-bold">Auto-Remove Notice After *</Label>
+            <Select value={removalPreset} onValueChange={(v: any) => setRemovalPreset(v)}>
+              <SelectTrigger className="h-9 text-xs font-semibold">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="24h">⏱️ 24 Hours (Fallen Tree / Burst Pipe / 1-Day Incident)</SelectItem>
+                <SelectItem value="3d">📅 3 Days (Short Utility Works / Weekend Event)</SelectItem>
+                <SelectItem value="7d">📅 7 Days (1 Week Roadworks)</SelectItem>
+                <SelectItem value="14d">📅 14 Days (2 Weeks Roadworks)</SelectItem>
+                <SelectItem value="28d">🛡️ 28 Days (4 Weeks — Standard Default Rule)</SelectItem>
+                <SelectItem value="custom">🗓️ Set Specific Removal Date (Short or Long Term)...</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {removalPreset === 'custom' && (
+            <div className="space-y-1 p-2.5 rounded-lg border bg-muted/30">
+              <Label className="text-xs font-bold">Select Date to Automatically Remove Post *</Label>
+              <Input
+                type="date"
+                min={new Date().toISOString().split('T')[0]}
+                value={customRemovalDate}
+                onChange={(e) => setCustomRemovalDate(e.target.value)}
+                className="h-9 text-xs"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                If left blank, the post will automatically be removed after 28 days (4 weeks).
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label className="text-xs font-bold">Display Hours / Notes (Optional)</Label>
+            <Input
+              value={durationText}
+              onChange={(e) => setDurationText(e.target.value)}
+              placeholder="e.g. Daily 8am–5pm, or Overnight closure"
+              className="h-9 text-xs"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => setIsReportModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSubmitLocalAlert}
+            disabled={isSubmitting}
+            className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+          >
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            Agree & Post to Noticeboard
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (compact) {
     const topPreview = combinedItems.slice(0, 2);
 
@@ -525,7 +729,7 @@ export function RoadworksNoticeboard({
                   Planned ({plannedCount})
                 </TabsTrigger>
                 <TabsTrigger value="local" className="text-xs font-bold">
-                  Popup Local ({(localRoadAlerts || []).length})
+                  Popup Local ({activeLocalRoadAlerts.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -560,82 +764,7 @@ export function RoadworksNoticeboard({
           </DialogContent>
         </Dialog>
 
-        {/* Report Popup Works / Closure Dialog */}
-        <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
-          <DialogContent className="sm:max-w-md bg-card border text-card-foreground">
-            <DialogHeader>
-              <DialogTitle className="text-base font-black flex items-center gap-2">
-                <Construction className="h-5 w-5 text-amber-500" />
-                Report Local Road Closure or Popup Works
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                Spot a fallen tree, temporary traffic lights, utility trench, or event road closure in {communityName}? Post it to the community noticeboard.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 py-2 text-xs">
-              <div className="space-y-1">
-                <Label className="text-xs font-bold">Road / Street Name *</Label>
-                <Input
-                  value={roadName}
-                  onChange={(e) => setRoadName(e.target.value)}
-                  placeholder="e.g. High Street, B9102 Dava Road, A95 Spey Bridge"
-                  className="h-9 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-bold">Disruption Type *</Label>
-                <Select value={alertType} onValueChange={(v: any) => setAlertType(v)}>
-                  <SelectTrigger className="h-9 text-xs font-semibold">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="closure">🔴 Road Closed / Blocked / Diversion</SelectItem>
-                    <SelectItem value="active_works">🟠 Popup Roadworks / Temporary Traffic Lights</SelectItem>
-                    <SelectItem value="event">🎪 Local Event Road Closure / Parade</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-bold">What&apos;s Happening & Diversion Info *</Label>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="e.g. Temporary 2-way lights outside the Co-op for Scottish Water pipe repair, or fallen tree blocking northbound lane."
-                  rows={3}
-                  className="text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-bold">Expected Duration / Dates</Label>
-                <Input
-                  value={durationText}
-                  onChange={(e) => setDurationText(e.target.value)}
-                  placeholder="e.g. Today until 5pm, or 25–28 Oct"
-                  className="h-9 text-xs"
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" size="sm" onClick={() => setIsReportModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSubmitLocalAlert}
-                disabled={isSubmitting}
-                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
-              >
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                Post to Noticeboard
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {renderReportDialog()}
       </>
     );
   }
@@ -693,7 +822,7 @@ export function RoadworksNoticeboard({
               Planned ({plannedCount})
             </TabsTrigger>
             <TabsTrigger value="local" className="text-xs font-bold">
-              Popup Local ({(localRoadAlerts || []).length})
+              Popup Local ({activeLocalRoadAlerts.length})
             </TabsTrigger>
           </TabsList>
 
@@ -729,82 +858,7 @@ export function RoadworksNoticeboard({
         </div>
       </CardFooter>
 
-      {/* Report Popup Works / Closure Dialog */}
-      <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
-        <DialogContent className="sm:max-w-md bg-card border text-card-foreground">
-          <DialogHeader>
-            <DialogTitle className="text-base font-black flex items-center gap-2">
-              <Construction className="h-5 w-5 text-amber-500" />
-              Report Local Road Closure or Popup Works
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Spot a fallen tree, temporary traffic lights, utility trench, or event road closure in {communityName}? Post it to the community noticeboard.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 py-2 text-xs">
-            <div className="space-y-1">
-              <Label className="text-xs font-bold">Road / Street Name *</Label>
-              <Input
-                value={roadName}
-                onChange={(e) => setRoadName(e.target.value)}
-                placeholder="e.g. High Street, B9102 Dava Road, A95 Spey Bridge"
-                className="h-9 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-bold">Disruption Type *</Label>
-              <Select value={alertType} onValueChange={(v: any) => setAlertType(v)}>
-                <SelectTrigger className="h-9 text-xs font-semibold">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="closure">🔴 Road Closed / Blocked / Diversion</SelectItem>
-                  <SelectItem value="active_works">🟠 Popup Roadworks / Temporary Traffic Lights</SelectItem>
-                  <SelectItem value="event">🎪 Local Event Road Closure / Parade</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-bold">What&apos;s Happening & Diversion Info *</Label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g. Temporary 2-way lights outside the Co-op for Scottish Water pipe repair, or fallen tree blocking northbound lane."
-                rows={3}
-                className="text-xs"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-bold">Expected Duration / Dates</Label>
-              <Input
-                value={durationText}
-                onChange={(e) => setDurationText(e.target.value)}
-                placeholder="e.g. Today until 5pm, or 25–28 Oct"
-                className="h-9 text-xs"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setIsReportModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSubmitLocalAlert}
-              disabled={isSubmitting}
-              className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
-            >
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              Post to Noticeboard
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {renderReportDialog()}
     </Card>
   );
 }
