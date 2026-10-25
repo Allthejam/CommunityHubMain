@@ -864,3 +864,113 @@ export async function syncOfficialRoadClosureNotificationsAction(params: {
     return { success: false, error: error.message };
   }
 }
+
+export async function flagRoadAlertToLeadersAction(params: {
+  communityId: string;
+  communityName: string;
+  alertId: string;
+  roadName: string;
+  reason: string;
+  reporterUid?: string;
+}): Promise<ActionResponse> {
+  const { communityId, communityName, alertId, roadName, reason } = params;
+  if (!communityId || !alertId || !reason.trim()) {
+    return { success: false, error: 'Missing required report details' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+
+    // Mark the road alert document with a leader-only moderation flag
+    const alertRef = firestore
+      .collection(`communities/${communityId}/road_alerts`)
+      .doc(alertId);
+
+    const alertSnap = await alertRef.get();
+    if (alertSnap.exists) {
+      await alertRef.update({
+        flaggedForLeader: true,
+        flagReason: reason.trim(),
+        flaggedAt: Timestamp.now(),
+      });
+    }
+
+    // Find Leaders, Coordinators, and Platform Admins for this community
+    const usersSnapshot = await firestore.collection('users').get();
+    const leaderIds: string[] = [];
+
+    usersSnapshot.forEach((uDoc) => {
+      const u = uDoc.data();
+      const uid = uDoc.id;
+      const role = String(u.role || '').toLowerCase();
+      const commRoleObj = u.communityRoles?.[communityId];
+      const commRole =
+        typeof commRoleObj === 'string'
+          ? commRoleObj.toLowerCase()
+          : String(commRoleObj?.role || '').toLowerCase();
+
+      const isPlatformStaff =
+        u.isAdmin === true ||
+        u.isStaff === true ||
+        role.includes('admin') ||
+        role.includes('owner') ||
+        role.includes('president');
+
+      const isCommLeader =
+        (u.communityId === communityId &&
+          (role.includes('leader') ||
+            role.includes('coordinator') ||
+            role.includes('moderator') ||
+            role.includes('president'))) ||
+        commRole.includes('leader') ||
+        commRole.includes('admin') ||
+        commRole.includes('coordinator') ||
+        commRole.includes('moderator');
+
+      if (isPlatformStaff || isCommLeader) {
+        leaderIds.push(uid);
+      }
+    });
+
+    if (leaderIds.length > 0) {
+      const subject = `🚩 Road Notice Reported (${communityName}): ${roadName}`;
+      const bodyText = `Member report on "${roadName}": ${reason.trim()}`;
+
+      await sendPushNotificationAction({
+        audience: { type: 'users', value: leaderIds },
+        notification: {
+          title: subject,
+          body: bodyText,
+          tag: `road-flag-${alertId}`,
+          url: '/travel',
+        },
+      });
+
+      const batch = firestore.batch();
+      const ts = Timestamp.now();
+      leaderIds.forEach((leaderUid) => {
+        const notifRef = firestore.collection('notifications').doc();
+        batch.set(notifRef, {
+          type: 'Leader Moderation Report',
+          subject,
+          from: `${communityName} Noticeboard Moderation`,
+          date: ts,
+          status: 'new',
+          recipientId: leaderUid,
+          relatedId: alertId,
+          actionUrl: '/travel',
+          details: {
+            communityId,
+            message: bodyText,
+          },
+        });
+      });
+      await batch.commit();
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error in flagRoadAlertToLeadersAction:', error);
+    return { success: false, error: error.message };
+  }
+}
