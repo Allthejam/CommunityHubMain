@@ -344,6 +344,24 @@ export async function createPlatformAnnouncementAction(
     
     const newDocRef = await firestore.collection('announcements').add(announcementData);
 
+    try {
+      await firestore.collection('audit_log').add({
+        adminId: userId,
+        adminName: params.sentBy || 'Platform Admin',
+        action: params.type === 'Emergency' ? 'emergency_broadcast_dispatched' : 'platform_announcement_created',
+        category: 'Broadcasts & Dispatches',
+        details: `Dispatched ${params.type} platform broadcast: "${params.subject}" (Status: ${params.status})`,
+        timestamp: Timestamp.now(),
+        targetObject: {
+          id: newDocRef.id,
+          name: params.subject,
+          type: 'Platform Announcement'
+        }
+      });
+    } catch (auditErr) {
+      console.warn("Could not log audit trail:", auditErr);
+    }
+
     if (params.status === 'Live') {
       await dispatchAnnouncementNotifications(
         firestore,
@@ -419,6 +437,24 @@ export async function createCommunityAnnouncementAction(
     }
 
     const newDocRef = await firestore.collection('announcements').add(announcementData);
+
+    try {
+      await firestore.collection('audit_log').add({
+        adminId: userId,
+        adminName: params.sentBy || 'Platform Admin',
+        action: params.type === 'Emergency' ? 'emergency_broadcast_dispatched' : 'platform_announcement_created',
+        category: 'Broadcasts & Dispatches',
+        details: `Dispatched ${params.type} platform broadcast: "${params.subject}" (Status: ${params.status})`,
+        timestamp: Timestamp.now(),
+        targetObject: {
+          id: newDocRef.id,
+          name: params.subject,
+          type: 'Platform Announcement'
+        }
+      });
+    } catch (auditErr) {
+      console.warn("Could not log audit trail:", auditErr);
+    }
     
     if (params.status === 'Live') {
       await dispatchAnnouncementNotifications(
