@@ -6,6 +6,12 @@ runConfig:
   # more instances in response to increased traffic.
   maxInstances: 1
 
+env:
+  - variable: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    value: BGl1ZM5bQwHkzV_0gXhyTCSjJDn-Hz_0PqQAeP1EQk2_A1kjc7yWCZOgjKZScUTUcUB2G1BaNW3bmaV6SZqEFA4
+  - variable: VAPID_PRIVATE_KEY
+    value: gV1aWrjq-VqS_OshEZcPBehWYxbf-LDVpKbCLtk1XRs
+
 
 scheduledTasks:
   - id: check-free-listings

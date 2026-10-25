@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { saveAllUserSettingsAction } from "@/lib/actions/userSettingsActions";
-import { saveSubscriptionAction, deleteSubscriptionAction } from "@/lib/actions/pushActions";
+import { saveSubscriptionAction, deleteSubscriptionAction, sendPushNotificationAction } from "@/lib/actions/pushActions";
 import { Input } from "@/components/ui/input";
 import { doc } from 'firebase/firestore';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -138,24 +138,36 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
+    if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator) {
       if (Notification.permission === 'denied') {
         setPushBlocked(true);
         setPushEnabled(false);
       } else if (Notification.permission === 'granted') {
-          // Check if there's an active service worker subscription
-          navigator.serviceWorker.ready.then(reg => {
-              reg.pushManager.getSubscription().then(sub => {
-                  if (sub) {
-                      setPushEnabled(true);
-                  } else {
-                      setPushEnabled(false);
+          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BGl1ZM5bQwHkzV_0gXhyTCSjJDn-Hz_0PqQAeP1EQk2_A1kjc7yWCZOgjKZScUTUcUB2G1BaNW3bmaV6SZqEFA4';
+          navigator.serviceWorker.register('/sw.js').then(() => navigator.serviceWorker.ready).then(async (reg) => {
+              let sub = await reg.pushManager.getSubscription();
+              if (!sub) {
+                  try {
+                      sub = await reg.pushManager.subscribe({
+                          userVisibleOnly: true,
+                          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+                      });
+                  } catch (e) {
+                      console.warn('Auto-subscribe on settings load failed:', e);
                   }
-              })
+              }
+              if (sub) {
+                  setPushEnabled(true);
+                  if (user?.uid) {
+                      saveSubscriptionAction({ userId: user.uid, subscription: sub.toJSON() }).catch(console.error);
+                  }
+              } else {
+                  setPushEnabled(false);
+              }
           });
       }
     }
-  }, []);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (authLoading || profileLoading) return;
@@ -227,6 +239,7 @@ export default function SettingsPage() {
           return;
         }
   
+        await navigator.serviceWorker.register('/sw.js');
         const registration = await navigator.serviceWorker.ready;
         let subscription = await registration.pushManager.getSubscription();
   
@@ -239,9 +252,10 @@ export default function SettingsPage() {
             }
           }
   
+          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BGl1ZM5bQwHkzV_0gXhyTCSjJDn-Hz_0PqQAeP1EQk2_A1kjc7yWCZOgjKZScUTUcUB2G1BaNW3bmaV6SZqEFA4';
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+            applicationServerKey: urlBase64ToUint8Array(vapidKey),
           });
         }
   
@@ -478,12 +492,49 @@ export default function SettingsPage() {
                         <Label htmlFor="push-notifications" className="font-medium">Push Notifications</Label>
                         <p className="text-sm text-muted-foreground">Get alerts directly on your device, even when the app is closed.</p>
                     </div>
-                    <Switch
-                        id="push-notifications"
-                        checked={pushEnabled}
-                        onCheckedChange={handlePushSubscriptionChange}
-                        disabled={pushBlocked || isPushSubscribing}
-                    />
+                    <div className="flex items-center gap-3">
+                      {pushEnabled && user && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await navigator.serviceWorker.register('/sw.js');
+                              const reg = await navigator.serviceWorker.ready;
+                              const sub = await reg.pushManager.getSubscription();
+                              if (sub) {
+                                await saveSubscriptionAction({ userId: user.uid, subscription: sub.toJSON() });
+                              }
+                              const res = await sendPushNotificationAction({
+                                audience: { type: 'users', value: [user.uid] },
+                                notification: {
+                                  title: '🔔 Community Hub Test Alert',
+                                  body: 'Push notifications are active and connected on your devices!',
+                                  tag: 'test-push-' + Date.now(),
+                                  url: '/home',
+                                },
+                              });
+                              if (res.success) {
+                                toast({ title: 'Test Notification Sent!', description: 'Check your device notification banner.' });
+                              } else {
+                                toast({ title: 'Test Failed', description: res.error || 'Could not send test push.', variant: 'destructive' });
+                              }
+                            } catch (e: any) {
+                              toast({ title: 'Error', description: e.message || 'Failed to send test push.', variant: 'destructive' });
+                            }
+                          }}
+                        >
+                          Send Test Alert
+                        </Button>
+                      )}
+                      <Switch
+                          id="push-notifications"
+                          checked={pushEnabled}
+                          onCheckedChange={handlePushSubscriptionChange}
+                          disabled={pushBlocked || isPushSubscribing}
+                      />
+                    </div>
                   </div>
                   {isPushSubscribing && <div className="flex justify-end pt-2"><Loader2 className="h-4 w-4 animate-spin" /></div>}
                   {pushBlocked && (

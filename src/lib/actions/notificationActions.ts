@@ -11,11 +11,14 @@ type ActionResponse = {
   error?: string;
 };
 
-if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BGl1ZM5bQwHkzV_0gXhyTCSjJDn-Hz_0PqQAeP1EQk2_A1kjc7yWCZOgjKZScUTUcUB2G1BaNW3bmaV6SZqEFA4';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'gV1aWrjq-VqS_OshEZcPBehWYxbf-LDVpKbCLtk1XRs';
+
+if (VAPID_PRIVATE_KEY && VAPID_PUBLIC_KEY) {
   webpush.setVapidDetails(
     'mailto:tech@my-community-hub.co.uk',
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
   );
 } else {
     console.warn("VAPID keys not configured. Push notifications will not work.");
@@ -39,7 +42,7 @@ export async function sendPushNotificationAction(params: PushNotificationPayload
     const { firestore } = initializeAdminApp();
     const { audience, notification } = params;
 
-    if (!process.env.VAPID_PRIVATE_KEY || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+    if (!VAPID_PRIVATE_KEY || !VAPID_PUBLIC_KEY) {
         return { success: false, error: "VAPID keys are not configured on the server." };
     }
   

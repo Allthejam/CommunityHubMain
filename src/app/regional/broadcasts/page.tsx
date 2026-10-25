@@ -285,7 +285,7 @@ export default function RegionalBroadcastsPage() {
         });
 
         // Dual-write to main announcements collection for live rendering across the platform
-        await addDoc(collection(db, 'announcements'), {
+        const annDocRef = await addDoc(collection(db, 'announcements'), {
           subject: title,
           message: message,
           type: broadcastType === 'emergency' ? 'Emergency' : 'Standard',
@@ -299,6 +299,21 @@ export default function RegionalBroadcastsPage() {
           isRegionalNetwork: true,
           createdAt: serverTimestamp(),
         });
+
+        if (activateImmediately) {
+          import('@/lib/actions/announcementActions').then(({ dispatchRegionalBroadcastNotificationsAction }) => {
+            dispatchRegionalBroadcastNotificationsAction({
+              announcementId: annDocRef.id,
+              subject: title,
+              message: message,
+              type: broadcastType === 'emergency' ? 'Emergency' : 'Standard',
+              severity: broadcastType === 'urgent' ? 'urgent' : 'normal',
+              targetCommunityIds: selectedCommunityIds,
+              sentBy: organizationName,
+              creatorId: user.uid,
+            }).catch(console.error);
+          });
+        }
 
         // Trigger Brevo Email Dispatch if Emergency Red Alert
         if (broadcastType === 'emergency') {

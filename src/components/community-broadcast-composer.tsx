@@ -70,7 +70,7 @@ export function CommunityBroadcastComposer() {
     
     const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
     const isOwner = userProfile?.accountType === 'owner' || user?.email === 'allan_jamieson@outlook.com';
-    const effectiveCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
+    const effectiveCommunityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : ((typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || (userProfile as any)?.impersonating?.communityId || (userProfile as any)?.primaryHomeCommunityId || (userProfile as any)?.homeCommunityId || (userProfile as any)?.communityId || 'N3SarfGXPLxBI7XcsinX');
     
     const communityRoleData = effectiveCommunityId && userProfile?.communityRoles ? userProfile.communityRoles[effectiveCommunityId] : null;
     const activeRole = communityRoleData?.role || userProfile?.role;

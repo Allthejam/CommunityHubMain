@@ -153,13 +153,16 @@ export function BroadcastComposer() {
         if (!userProfile) return { canSendStandard: false, canSendEmergency: false, approvedScopes: [] };
         
         const permissions = userProfile.permissions || {};
-        const isAdmin = userProfile.role === 'admin' || userProfile.role === 'owner';
+        const isAdmin = userProfile.role === 'admin' || userProfile.role === 'owner' || userProfile.accountType === 'owner';
         const hasLegacyAccess = userProfile.settings?.hasBroadcastAccess === true;
         
         const standard = isAdmin || permissions.canSendStandardBroadcast || hasLegacyAccess;
         const emergency = isAdmin || permissions.canSendEmergencyBroadcast || hasLegacyAccess;
         
-        const scopes = userProfile.broadcastScopes || userProfile.permissions?.broadcastScopes || [];
+        let scopes = userProfile.broadcastScopes || userProfile.permissions?.broadcastScopes || [];
+        if (isAdmin && (!Array.isArray(scopes) || scopes.length === 0)) {
+            scopes = [{ id: 'full-platform', targetLevel: 'full', path: 'Full Platform' }];
+        }
         
         return {
             canSendStandard: standard,
@@ -283,10 +286,10 @@ export function BroadcastComposer() {
         if (!selectedAudience.some(s => s.id === scope.id)) {
             setSelectedAudience(prev => [...prev, {
                 id: scope.id,
-                country: scope.country,
-                states: [],
-                regions: [],
-                communities: []
+                country: scope.country || '',
+                states: scope.state ? [scope.state] : (Array.isArray(scope.states) ? scope.states : []),
+                regions: scope.region ? [scope.region] : (Array.isArray(scope.regions) ? scope.regions : []),
+                communities: scope.community ? [scope.community] : (Array.isArray(scope.communities) ? scope.communities : [])
             }]);
         }
         setIsAudienceDialogOpen(true);
@@ -310,10 +313,10 @@ export function BroadcastComposer() {
             } else {
                 return [...prev, {
                     id: scope.id,
-                    country: scope.country,
-                    states: [],
-                    regions: [],
-                    communities: []
+                    country: scope.country || '',
+                    states: scope.state ? [scope.state] : (Array.isArray(scope.states) ? scope.states : []),
+                    regions: scope.region ? [scope.region] : (Array.isArray(scope.regions) ? scope.regions : []),
+                    communities: scope.community ? [scope.community] : (Array.isArray(scope.communities) ? scope.communities : [])
                 }];
             }
         });

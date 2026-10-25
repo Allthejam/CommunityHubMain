@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'community-hub-v1';
+const CACHE_NAME = 'community-hub-v2';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ASSETS = [
@@ -133,30 +133,35 @@ self.addEventListener('fetch', (event) => {
 
 // Push notifications
 self.addEventListener('push', (event) => {
-  if (!event.data) {
-    console.error('Push event but no data');
-    return;
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = {
+        title: 'Community Hub Announcement',
+        body: event.data.text(),
+      };
+    }
   }
 
-  try {
-    const data = event.data.json();
-    const title = data.title || 'New Notification';
-    const options = {
-      body: data.body,
-      icon: data.icon || 'https://i.postimg.cc/HnhWpVyt/HubLogo192x192.png',
-      badge: data.badge || 'https://i.postimg.cc/HnhWpVyt/HubLogo192x192.png',
-      data: {
-        url: data.url || '/',
-      },
-      tag: data.tag || 'default-tag'
-    };
+  const title = data.title || 'Community Hub Notification';
+  const options = {
+    body: data.body || 'You have a new community announcement.',
+    icon: data.icon || 'https://i.postimg.cc/HnhWpVyt/HubLogo192x192.png',
+    badge: data.badge || 'https://i.postimg.cc/HnhWpVyt/HubLogo192x192.png',
+    data: {
+      url: data.url || '/home',
+    },
+    tag: data.tag || 'announcement-' + Date.now(),
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [200, 100, 200],
+  };
 
-    event.waitUntil(
-      self.registration.showNotification(title, options)
-    );
-  } catch (e) {
-    console.error('Error parsing push data:', e);
-  }
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {
