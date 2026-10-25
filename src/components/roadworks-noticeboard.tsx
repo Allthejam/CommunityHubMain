@@ -42,6 +42,10 @@ import { collection, addDoc, deleteDoc, doc, query, orderBy, limit, serverTimest
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { RoadworkItem } from '@/app/api/roadworks/route';
+import {
+  dispatchRoadAlertNotificationAction,
+  syncOfficialRoadClosureNotificationsAction,
+} from '@/lib/actions/announcementActions';
 
 function getCenterFromBoundary(boundary?: any): { lat: number; lng: number } | null {
   if (!boundary) return null;
@@ -205,6 +209,20 @@ export function RoadworksNoticeboard({
           const data = await res.json();
           if (!cancelled && data.success && Array.isArray(data.items)) {
             setOfficialItems(data.items);
+            const activeClosures = data.items.filter((i: RoadworkItem) => i.severity === 'closure');
+            if (activeClosures.length > 0 && effectiveCommId) {
+              syncOfficialRoadClosureNotificationsAction({
+                communityId: effectiveCommId,
+                communityName: communityName || 'Local Community',
+                closures: activeClosures.map((c: RoadworkItem) => ({
+                  id: c.id,
+                  road: c.road,
+                  title: c.title,
+                  summary: c.summary,
+                  milesAway: c.milesAway,
+                })),
+              }).catch(() => {});
+            }
           }
         }
       } catch (err) {
@@ -319,7 +337,12 @@ export function RoadworksNoticeboard({
 
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, `communities/${effectiveCommId}/road_alerts`), {
+      const formattedRemovalDate = new Date(expiresAtMs).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+      const createdRef = await addDoc(collection(db, `communities/${effectiveCommId}/road_alerts`), {
         roadName: roadName.trim(),
         alertType,
         description: description.trim(),
@@ -330,14 +353,22 @@ export function RoadworksNoticeboard({
         expiresAt: new Date(expiresAtMs).toISOString(),
         createdAt: serverTimestamp(),
       });
-      const formattedRemovalDate = new Date(expiresAtMs).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      });
+
+      // Dispatch Notifications Bell + Web Push to community members' devices
+      dispatchRoadAlertNotificationAction({
+        communityId: effectiveCommId,
+        communityName: communityName || 'Local Community',
+        alertId: createdRef.id,
+        roadName: roadName.trim(),
+        alertType,
+        description: description.trim(),
+        autoRemoveDateLabel: formattedRemovalDate,
+        creatorUid: user.uid,
+      }).catch((err) => console.warn('Could not dispatch road alert notifications:', err));
+
       toast({
-        title: 'Road Alert Posted to Noticeboard',
-        description: `Live for ${communityName}. Automatically removes on ${formattedRemovalDate}.`,
+        title: 'Road Alert Posted & Broadcasted',
+        description: `Live for ${communityName} & sent to member notifications. Auto-removes ${formattedRemovalDate}.`,
       });
       setRoadName('');
       setDescription('');

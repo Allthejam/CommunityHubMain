@@ -588,3 +588,279 @@ export async function ensureAnnouncementNotificationsDispatchedAction(
     return { success: false, error: error.message };
   }
 }
+
+export async function dispatchRoadAlertNotificationAction(params: {
+  communityId: string;
+  communityName: string;
+  alertId: string;
+  roadName: string;
+  alertType: 'closure' | 'active_works' | 'event';
+  description: string;
+  autoRemoveDateLabel?: string;
+  creatorUid?: string;
+}): Promise<ActionResponse> {
+  const {
+    communityId,
+    communityName,
+    alertId,
+    roadName,
+    alertType,
+    description,
+    autoRemoveDateLabel,
+    creatorUid,
+  } = params;
+  if (!communityId || !roadName) {
+    return { success: false, error: 'Missing required road alert fields' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+
+    // Prevent duplicate notification dispatch for the same road alert
+    const alertRef = firestore
+      .collection(`communities/${communityId}/road_alerts`)
+      .doc(alertId);
+
+    const shouldProceed = await firestore.runTransaction(async (tx) => {
+      const snap = await tx.get(alertRef);
+      if (snap.exists && snap.data()?.notificationsDispatched === true) {
+        return false;
+      }
+      if (snap.exists) {
+        tx.update(alertRef, {
+          notificationsDispatched: true,
+          notificationsDispatchedAt: Timestamp.now(),
+        });
+      }
+      return true;
+    });
+
+    if (!shouldProceed) {
+      return { success: true };
+    }
+
+    const usersSnapshot = await firestore.collection('users').get();
+    if (usersSnapshot.empty) return { success: true };
+
+    const targetIds: string[] = [];
+    usersSnapshot.forEach((uDoc) => {
+      const u = uDoc.data();
+      const uid = uDoc.id;
+
+      const userCommunities = new Set<string>();
+      if (u.communityId) userCommunities.add(u.communityId);
+      if (u.homeCommunityId) userCommunities.add(u.homeCommunityId);
+      if (u.primaryHomeCommunityId) userCommunities.add(u.primaryHomeCommunityId);
+      if (Array.isArray(u.memberOf)) {
+        u.memberOf.forEach((cid: string) => {
+          if (cid) userCommunities.add(cid);
+        });
+      }
+      if (u.communityRoles && typeof u.communityRoles === 'object') {
+        Object.keys(u.communityRoles).forEach((cid) => {
+          if (cid) userCommunities.add(cid);
+        });
+      }
+
+      const isMatched = userCommunities.has(communityId) || uid === creatorUid;
+      if (!isMatched) return;
+
+      const standardEnabled = u.mailingLists?.standard !== false;
+      if (standardEnabled || uid === creatorUid) {
+        targetIds.push(uid);
+      }
+    });
+
+    if (targetIds.length === 0) {
+      return { success: true };
+    }
+
+    const typePrefix =
+      alertType === 'closure'
+        ? '🔴 Road Closure / Diversion'
+        : alertType === 'event'
+        ? '🎪 Event Road Notice'
+        : '🚧 Popup Roadworks';
+
+    const title = `${typePrefix}: ${roadName} (${communityName})`;
+    const cleanDesc = description.replace(/\s+/g, ' ').trim();
+    const shortBody =
+      cleanDesc.length > 140 ? cleanDesc.substring(0, 140) + '...' : cleanDesc;
+
+    // 1. Dispatch Web Push to phones & PCs
+    await sendPushNotificationAction({
+      audience: { type: 'users', value: targetIds },
+      notification: {
+        title,
+        body: shortBody,
+        tag: `road-alert-${alertId}`,
+        url: '/travel',
+      },
+    });
+
+    // 2. Write in-app notification documents for the Notifications Bell
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < targetIds.length; i += CHUNK_SIZE) {
+      const chunk = targetIds.slice(i, i + CHUNK_SIZE);
+      const batch = firestore.batch();
+      const ts = Timestamp.now();
+
+      chunk.forEach((uid) => {
+        const notifRef = firestore.collection('notifications').doc();
+        batch.set(notifRef, {
+          type: 'Road Closure & Travel Alert',
+          subject: title,
+          from: `${communityName} Travel Noticeboard`,
+          date: ts,
+          status: 'new',
+          recipientId: uid,
+          relatedId: alertId,
+          actionUrl: '/travel',
+          details: {
+            communityId,
+            message: autoRemoveDateLabel
+              ? `${shortBody} (Auto-removes ${autoRemoveDateLabel})`
+              : shortBody,
+          },
+        });
+      });
+
+      await batch.commit();
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error in dispatchRoadAlertNotificationAction:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function syncOfficialRoadClosureNotificationsAction(params: {
+  communityId: string;
+  communityName: string;
+  closures: {
+    id: string;
+    road: string;
+    title: string;
+    summary: string;
+    milesAway: number | null;
+  }[];
+}): Promise<ActionResponse> {
+  const { communityId, communityName, closures } = params;
+  if (!communityId || !Array.isArray(closures) || closures.length === 0) {
+    return { success: true };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+
+    // Only notify for official closures within 20 miles of the community
+    const nearbyClosures = closures
+      .filter((c) => c.milesAway === null || c.milesAway <= 20)
+      .slice(0, 2);
+
+    if (nearbyClosures.length === 0) return { success: true };
+
+    for (const closure of nearbyClosures) {
+      const safeKey = Buffer.from(closure.id || closure.title)
+        .toString('base64')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .slice(0, 48);
+      if (!safeKey) continue;
+
+      const trackerRef = firestore
+        .collection(`communities/${communityId}/notified_road_closures`)
+        .doc(safeKey);
+
+      const isNew = await firestore.runTransaction(async (tx) => {
+        const snap = await tx.get(trackerRef);
+        if (snap.exists) return false;
+        tx.set(trackerRef, {
+          road: closure.road,
+          title: closure.title,
+          notifiedAt: Timestamp.now(),
+        });
+        return true;
+      });
+
+      if (!isNew) continue;
+
+      const usersSnapshot = await firestore.collection('users').get();
+      if (usersSnapshot.empty) continue;
+
+      const targetIds: string[] = [];
+      usersSnapshot.forEach((uDoc) => {
+        const u = uDoc.data();
+        const uid = uDoc.id;
+
+        const userCommunities = new Set<string>();
+        if (u.communityId) userCommunities.add(u.communityId);
+        if (u.homeCommunityId) userCommunities.add(u.homeCommunityId);
+        if (u.primaryHomeCommunityId) userCommunities.add(u.primaryHomeCommunityId);
+        if (Array.isArray(u.memberOf)) {
+          u.memberOf.forEach((cid: string) => {
+            if (cid) userCommunities.add(cid);
+          });
+        }
+        if (u.communityRoles && typeof u.communityRoles === 'object') {
+          Object.keys(u.communityRoles).forEach((cid) => {
+            if (cid) userCommunities.add(cid);
+          });
+        }
+
+        if (userCommunities.has(communityId) && u.mailingLists?.standard !== false) {
+          targetIds.push(uid);
+        }
+      });
+
+      if (targetIds.length === 0) continue;
+
+      const pushTitle = `🔴 Official Road Alert (${closure.road}): ${closure.title}`;
+      const cleanSummary = (closure.summary || '').replace(/\s+/g, ' ').trim();
+      const shortBody =
+        cleanSummary.length > 140 ? cleanSummary.substring(0, 140) + '...' : cleanSummary;
+
+      await sendPushNotificationAction({
+        audience: { type: 'users', value: targetIds },
+        notification: {
+          title: pushTitle,
+          body: shortBody || `Traffic Scotland road notice near ${communityName}.`,
+          tag: `official-road-${safeKey}`,
+          url: '/travel',
+        },
+      });
+
+      const CHUNK_SIZE = 400;
+      for (let i = 0; i < targetIds.length; i += CHUNK_SIZE) {
+        const chunk = targetIds.slice(i, i + CHUNK_SIZE);
+        const batch = firestore.batch();
+        const ts = Timestamp.now();
+
+        chunk.forEach((uid) => {
+          const notifRef = firestore.collection('notifications').doc();
+          batch.set(notifRef, {
+            type: 'Traffic Scotland Road Alert',
+            subject: pushTitle,
+            from: 'Traffic Scotland Live Feed',
+            date: ts,
+            status: 'new',
+            recipientId: uid,
+            relatedId: safeKey,
+            actionUrl: '/travel',
+            details: {
+              communityId,
+              message: shortBody,
+            },
+          });
+        });
+
+        await batch.commit();
+      }
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error in syncOfficialRoadClosureNotificationsAction:', error);
+    return { success: false, error: error.message };
+  }
+}
