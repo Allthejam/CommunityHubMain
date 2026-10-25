@@ -22,34 +22,75 @@ export async function recalculateCommunityCounts(): Promise<ActionResponse> {
       return { success: true, message: "No communities found to process." };
     }
 
+    const memberCounts: Record<string, number> = {};
+    const leaderCounts: Record<string, number> = {};
+
+    // 1. Single-pass User Scan
+    // Accurate calculation based on resident home community and explicit appointed community roles.
+    // Visitors who merely browse or visit another community are NEVER counted as members or leaders.
+    const usersSnapshot = await usersRef.get();
+    usersSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const role = (data.role || '').toLowerCase();
+      const isGlobalLeader = ['president', 'leader'].includes(role);
+
+      const homeId = data.homeCommunityId || data.primaryHomeCommunityId;
+      if (homeId) {
+        memberCounts[homeId] = (memberCounts[homeId] || 0) + 1;
+        if (isGlobalLeader) {
+          leaderCounts[homeId] = (leaderCounts[homeId] || 0) + 1;
+        }
+      }
+
+      if (data.communityRoles && typeof data.communityRoles === 'object') {
+        Object.entries(data.communityRoles).forEach(([cid, roleData]: [string, any]) => {
+          if (!cid || cid === homeId) return;
+          const cRole = (roleData?.role || '').toLowerCase();
+          memberCounts[cid] = (memberCounts[cid] || 0) + 1;
+          if (['president', 'leader'].includes(cRole)) {
+            leaderCounts[cid] = (leaderCounts[cid] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    // 2. Bulk Update Communities
+    const batchSize = 450;
+    let batch = firestore.batch();
+    let currentBatchCount = 0;
     let communitiesUpdated = 0;
-    const batch = firestore.batch();
 
     for (const communityDoc of communitiesSnapshot.docs) {
       const communityId = communityDoc.id;
+      const commData = communityDoc.data();
+      const newMemberCount = memberCounts[communityId] || 0;
+      const newLeaderCount = leaderCounts[communityId] || 0;
 
-      // Count members for this community
-      const membersQuery = usersRef.where('memberOf', 'array-contains', communityId);
-      const membersSnapshot = await membersQuery.get();
-      const memberCount = membersSnapshot.size;
+      const updatePayload: any = {
+        memberCount: newMemberCount,
+        leaderCount: newLeaderCount,
+        lastStatsSync: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      };
 
-      // Count leaders for this community
-      const leadersQuery = usersRef
-        .where('memberOf', 'array-contains', communityId)
-        .where('role', 'in', ['president', 'leader']);
-      const leadersSnapshot = await leadersQuery.get();
-      const leaderCount = leadersSnapshot.size;
+      if (newLeaderCount === 0 && commData.status === 'active') {
+        updatePayload.status = 'inactive';
+      }
 
-      // Update the community document
-      const communityRef = communitiesRef.doc(communityId);
-      batch.update(communityRef, {
-        memberCount: memberCount,
-        leaderCount: leaderCount
-      });
+      batch.update(communityDoc.ref, updatePayload);
       communitiesUpdated++;
+      currentBatchCount++;
+
+      if (currentBatchCount === batchSize) {
+        await batch.commit();
+        batch = firestore.batch();
+        currentBatchCount = 0;
+      }
     }
 
-    await batch.commit();
+    if (currentBatchCount > 0) {
+      await batch.commit();
+    }
 
     return { success: true, message: `${communitiesUpdated} communities have been successfully re-synced.` };
 
