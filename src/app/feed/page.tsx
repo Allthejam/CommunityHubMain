@@ -14,6 +14,7 @@ import NationalAdvertisers from '@/components/national-advertisers';
 import { ValuedPartners } from '@/components/valued-partners';
 import { UpcomingEventsFeed } from '@/components/upcoming-events-feed';
 import { CommunityNoticeboardCarousel } from '@/components/community-noticeboard-carousel';
+import { RoadworksNoticeboard } from '@/components/roadworks-noticeboard';
 
 export default function FeedPage() {
   const { user, isUserLoading } = useUser();
@@ -28,6 +29,8 @@ export default function FeedPage() {
   const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
   const visitedId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
   const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (visitedId || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
+  const communityDocRef = useMemoFirebase(() => (communityId && db ? doc(db, 'communities', communityId) : null), [communityId, db]);
+  const { data: communityData } = useDoc(communityDocRef);
 
   // Listen to local browser posts in demo mode
   React.useEffect(() => {
@@ -222,8 +225,14 @@ export default function FeedPage() {
 
         {/* Main Feed */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="lg:hidden">
+          <div className="lg:hidden space-y-4 px-4 md:px-0">
             <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
+            <RoadworksNoticeboard
+              communityId={communityId}
+              communityName={communityData?.name || userProfile?.communityName || 'Local Community'}
+              boundary={communityData?.boundary}
+              compact={true}
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl px-4 md:px-0">
             Community Feed
@@ -252,6 +261,12 @@ export default function FeedPage() {
         {/* Right Sidebar - Independent Scroll */}
         <aside className="hidden lg:block lg:col-span-1 lg:sticky lg:top-24 space-y-6 max-height-[calc(100vh-7rem)] overflow-y-auto pl-2 custom-scrollbar">
            <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
+           <RoadworksNoticeboard
+             communityId={communityId}
+             communityName={communityData?.name || userProfile?.communityName || 'Local Community'}
+             boundary={communityData?.boundary}
+             compact={true}
+           />
            <UpcomingEventsFeed />
            <CommunityNoticeboardCarousel />
         </aside>

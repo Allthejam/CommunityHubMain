@@ -26,6 +26,7 @@ import {
   type TravelServiceItem, 
   DEFAULT_TRAVEL_SERVICES 
 } from "@/lib/types/travel";
+import { RoadworksNoticeboard } from "@/components/roadworks-noticeboard";
 
 export function TravelCard({ communityId }: { communityId?: string | null }) {
   const db = useFirestore();
@@ -62,10 +63,6 @@ export function TravelCard({ communityId }: { communityId?: string | null }) {
     return travelServices.find(s => s.category === 'ev_parking');
   }, [travelServices]);
 
-  if (travelServices.length === 0) {
-    return null;
-  }
-
   return (
     <Card className="border-t-4 border-t-sky-500 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-card via-card to-sky-50/15 dark:to-sky-950/10">
       <CardHeader className="pb-3">
@@ -75,8 +72,8 @@ export function TravelCard({ communityId }: { communityId?: string | null }) {
               <Navigation className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-base font-bold">Local Travel & Getting Around</CardTitle>
-              <CardDescription className="text-xs">Live buses, trains, and taxi links</CardDescription>
+              <CardTitle className="text-base font-bold">Local Travel & Roadworks</CardTitle>
+              <CardDescription className="text-xs">Live road closures, buses, trains & taxi links</CardDescription>
             </div>
           </div>
           <Badge variant="outline" className="bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800 text-[10px] font-semibold gap-1">
@@ -87,6 +84,13 @@ export function TravelCard({ communityId }: { communityId?: string | null }) {
       </CardHeader>
 
       <CardContent className="space-y-3 pb-3 text-xs">
+        {/* Live Roadworks, Closures & Diversions Noticeboard */}
+        <RoadworksNoticeboard
+          communityId={effectiveId}
+          communityName={communityName}
+          boundary={communityData?.boundary}
+          compact={true}
+        />
         
         {/* Top Bus Routes */}
         {topBuses.length > 0 && (

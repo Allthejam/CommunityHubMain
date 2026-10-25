@@ -37,6 +37,7 @@ import {
   DEFAULT_TRAVEL_SERVICES 
 } from "@/lib/types/travel";
 import Link from 'next/link';
+import { RoadworksNoticeboard } from '@/components/roadworks-noticeboard';
 
 function getCategoryMeta(category: TravelCategory) {
   switch (category) {
@@ -208,6 +209,14 @@ export default function TravelPage() {
         {/* Decorative Background Icon */}
         <Compass className="absolute right-6 -bottom-8 h-64 w-64 text-white/10 pointer-events-none transform rotate-12" />
       </div>
+
+      {/* Live Roadworks, Closures & Diversions Noticeboard */}
+      <RoadworksNoticeboard
+        communityId={effectiveCommunityId}
+        communityName={communityName}
+        boundary={communityData?.boundary}
+        compact={false}
+      />
 
       {/* Category Navigation Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
