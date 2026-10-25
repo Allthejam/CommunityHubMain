@@ -19,6 +19,26 @@ async function dispatchAnnouncementNotifications(
   shouldSendEmail = false
 ) {
   try {
+    // Atomically mark notificationsDispatched = true so Admin App and Main App never double-send
+    const annRef = firestore.collection('announcements').doc(announcementId);
+    const shouldProceed = await firestore.runTransaction(async (tx) => {
+      const snap = await tx.get(annRef);
+      if (snap.exists && snap.data()?.notificationsDispatched === true) {
+        return false;
+      }
+      if (snap.exists) {
+        tx.update(annRef, {
+          notificationsDispatched: true,
+          notificationsDispatchedAt: Timestamp.now(),
+        });
+      }
+      return true;
+    });
+
+    if (!shouldProceed) {
+      return;
+    }
+
     const isEmergency =
       announcementData.type === 'Emergency' ||
       announcementData.severity === 'emergency' ||
@@ -503,5 +523,32 @@ export async function updateAnnouncementStatusAction(params: {
   } catch (error: any) {
     console.error(`Error updating announcement ${announcementId}:`, error);
     return { success: false, error: error.message || 'Failed to update announcement status.' };
+  }
+}
+
+export async function ensureAnnouncementNotificationsDispatchedAction(
+  announcementId: string
+): Promise<ActionResponse> {
+  if (!announcementId) return { success: false, error: 'Missing announcementId' };
+  try {
+    const { firestore } = initializeAdminApp();
+    const docSnap = await firestore.collection('announcements').doc(announcementId).get();
+    if (!docSnap.exists) {
+      return { success: false, error: 'Announcement not found' };
+    }
+    const data = docSnap.data()!;
+    if (data.status !== 'Live' || data.notificationsDispatched === true) {
+      return { success: true };
+    }
+    await dispatchAnnouncementNotifications(
+      firestore,
+      announcementId,
+      data,
+      data.type === 'Emergency' || Boolean(data.sendEmail)
+    );
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error in ensureAnnouncementNotificationsDispatchedAction:', error);
+    return { success: false, error: error.message };
   }
 }

@@ -2,8 +2,10 @@
 
 import { useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { saveSubscriptionAction } from '@/lib/actions/pushActions';
+import { ensureAnnouncementNotificationsDispatchedAction } from '@/lib/actions/announcementActions';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const DEFAULT_VAPID_PUBLIC_KEY =
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
@@ -23,7 +25,9 @@ function urlBase64ToUint8Array(base64String: string) {
 export function ServiceWorkerRegistrar() {
   const { toast } = useToast();
   const { user } = useUser();
+  const firestore = useFirestore();
   const syncedUserRef = useRef<string | null>(null);
+  const dispatchedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
@@ -100,6 +104,50 @@ export function ServiceWorkerRegistrar() {
       cancelled = true;
     };
   }, [user?.uid]);
+
+  // Watch live announcements (including those created from the external Admin App)
+  // to ensure server-side Web Push + In-App Notifications are always dispatched
+  useEffect(() => {
+    if (typeof window === 'undefined' || !firestore || !user?.uid) return;
+
+    const q = query(
+      collection(firestore, 'announcements'),
+      where('status', '==', 'Live')
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const nowMs = Date.now();
+        const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+
+        snapshot.docs.forEach((docSnap) => {
+          const data = docSnap.data();
+          const annId = docSnap.id;
+
+          const createdMs = data.createdAt?.toDate
+            ? data.createdAt.toDate().getTime()
+            : data.createdAt?.seconds
+            ? data.createdAt.seconds * 1000
+            : 0;
+
+          const isRecent = createdMs > 0 && nowMs - createdMs <= FORTY_EIGHT_HOURS_MS;
+
+          if (isRecent && data.notificationsDispatched !== true && !dispatchedIdsRef.current.has(annId)) {
+            dispatchedIdsRef.current.add(annId);
+            ensureAnnouncementNotificationsDispatchedAction(annId).catch((err) => {
+              console.warn('[SW] Auto-dispatch announcement check failed:', err);
+            });
+          }
+        });
+      },
+      (err) => {
+        console.warn('[SW] Announcement listener error:', err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [firestore, user?.uid]);
 
   return null;
 }
