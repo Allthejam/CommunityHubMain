@@ -37,7 +37,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, addDoc, deleteDoc, doc, query, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -113,6 +113,28 @@ export function RoadworksNoticeboard({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const effectiveCommId = communityId || '9ayHMyZf4SRw2gof1AM9';
+
+  const userProfileRef = useMemoFirebase(
+    () => (user && db ? doc(db, 'users', user.uid) : null),
+    [user, db]
+  );
+  const { data: userProfile } = useDoc<any>(userProfileRef);
+
+  const isLeaderOrAdmin = React.useMemo(() => {
+    if (!user) return false;
+    const role = (userProfile?.role || '').toLowerCase();
+    const commRole = (userProfile?.communityRoles?.[effectiveCommId] || '').toLowerCase();
+    return (
+      role.includes('admin') ||
+      role.includes('leader') ||
+      role.includes('coordinator') ||
+      commRole.includes('leader') ||
+      commRole.includes('admin') ||
+      commRole.includes('coordinator') ||
+      userProfile?.isLeader === true ||
+      userProfile?.isAdmin === true
+    );
+  }, [user, userProfile, effectiveCommId]);
 
   // Real-time listener on local community popup road alerts
   const localAlertsQuery = useMemoFirebase(() => {
@@ -230,7 +252,7 @@ export function RoadworksNoticeboard({
         description: description.trim(),
         durationText: durationText.trim() || 'Until further notice',
         authorId: user.uid,
-        authorName: user.displayName || user.email || 'Community Member',
+        authorName: userProfile?.name || user.displayName || 'Community Member',
         createdAt: serverTimestamp(),
       });
       toast({
@@ -316,13 +338,14 @@ export function RoadworksNoticeboard({
                 ~{item.milesAway} mi away
               </span>
             )}
-            {item.isLocalPopup && user && item.authorId === user.uid && (
+            {item.isLocalPopup && user && (item.authorId === user.uid || isLeaderOrAdmin) && (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 text-destructive"
                 onClick={() => handleDeleteLocalAlert(item.id)}
+                title="Remove Road Alert"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -357,9 +380,15 @@ export function RoadworksNoticeboard({
 
         <div className="pt-1 flex items-center justify-between">
           {item.isLocalPopup ? (
-            <span className="text-[10px] text-muted-foreground">
-              Reported by {item.authorName || 'Community Member'}
-            </span>
+            isLeaderOrAdmin ? (
+              <span className="text-[10px] text-muted-foreground font-medium">
+                🔒 Leader View — Reported by: {item.authorName || 'Community Member'}
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">
+                Community Noticeboard Report
+              </span>
+            )
           ) : (
             <a
               href={item.link}
