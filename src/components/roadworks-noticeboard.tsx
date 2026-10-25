@@ -137,17 +137,29 @@ export function RoadworksNoticeboard({
 
   const isLeaderOrAdmin = React.useMemo(() => {
     if (!user) return false;
-    const role = (userProfile?.role || '').toLowerCase();
-    const commRole = (userProfile?.communityRoles?.[effectiveCommId] || '').toLowerCase();
+    const rawRole = userProfile?.role;
+    const role =
+      typeof rawRole === 'string'
+        ? rawRole.toLowerCase()
+        : String(rawRole?.role || '').toLowerCase();
+    const rawCommRole = userProfile?.communityRoles?.[effectiveCommId];
+    const commRole =
+      typeof rawCommRole === 'string'
+        ? rawCommRole.toLowerCase()
+        : String(rawCommRole?.role || '').toLowerCase();
     return (
       role.includes('admin') ||
       role.includes('leader') ||
       role.includes('coordinator') ||
+      role.includes('owner') ||
+      role.includes('president') ||
       commRole.includes('leader') ||
       commRole.includes('admin') ||
       commRole.includes('coordinator') ||
+      commRole.includes('president') ||
       userProfile?.isLeader === true ||
-      userProfile?.isAdmin === true
+      userProfile?.isAdmin === true ||
+      userProfile?.isStaff === true
     );
   }, [user, userProfile, effectiveCommId]);
 
