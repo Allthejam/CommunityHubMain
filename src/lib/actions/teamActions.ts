@@ -508,6 +508,15 @@ export async function removeMemberFromCommunityAction(params: { memberId: string
             };
             if(wasLeader) {
                 communityUpdates.leaderCount = FieldValue.increment(-1);
+                const userAppRef = firestore.collection('leadership_applications').doc(memberId);
+                const userAppDoc = await transaction.get(userAppRef);
+                if (userAppDoc.exists && userAppDoc.data()?.status === 'Approved') {
+                    transaction.update(userAppRef, {
+                        status: 'Archived',
+                        archivedAt: Timestamp.now(),
+                        archivedReason: 'Leader removed from community'
+                    });
+                }
             }
             transaction.update(communityRef, communityUpdates);
         });

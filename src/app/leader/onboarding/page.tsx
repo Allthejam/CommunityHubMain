@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ChevronRight, Loader2, Save, Send, MapPin, Landmark, User as UserIcon } from "lucide-react";
+import { CheckCircle2, ChevronRight, Loader2, Save, Send, MapPin, Landmark, AlertTriangle, User as UserIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,9 +45,19 @@ export default function LeaderOnboardingPage() {
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-    const communityId = userProfile?.communityId;
+        const communityId = userProfile?.communityId;
     const leaderProfileRef = useMemoFirebase(() => (user && communityId ? doc(db, `communities/${communityId}/leader_profiles`, user.uid) : null), [user, communityId, db]);
     const { data: leaderProfile, isLoading: leaderProfileLoading } = useDoc(leaderProfileRef);
+
+    const communityRef = useMemoFirebase(() => (communityId && db ? doc(db, 'communities', communityId) : null), [communityId, db]);
+    const { data: communityData, isLoading: communityLoading } = useDoc(communityRef);
+
+    const isCommunityOccupied = React.useMemo(() => {
+        if (!communityData) return false;
+        const isApprovedActive = communityData.status === 'active' && (communityData.leaderCount || 0) > 0;
+        const isCurrentUserTheLeader = userProfile?.role === 'president' || userProfile?.communityRoles?.[communityId]?.role === 'president';
+        return isApprovedActive && !isCurrentUserTheLeader;
+    }, [communityData, userProfile, communityId]);
 
     // Profile form state
     const [contactPhone, setContactPhone] = React.useState('');
@@ -109,6 +120,14 @@ export default function LeaderOnboardingPage() {
             return;
         }
 
+                if (isCommunityOccupied) {
+            toast({ 
+                title: 'Applications Closed', 
+                description: `"${communityData?.name || 'This community'}" already has an approved and active President. Applications cannot be submitted.`, 
+                variant: 'destructive'
+            });
+            return;
+        }
         setIsSaving(true);
         
         try {
@@ -165,6 +184,15 @@ export default function LeaderOnboardingPage() {
     return (
         <div className="min-h-[80vh] py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto space-y-8">
+                                {isCommunityOccupied && (
+                    <Alert variant="destructive" className="border-2 shadow-sm">
+                        <AlertTriangle className="h-5 w-5" />
+                        <AlertTitle className="font-bold">Community Leadership Applications Closed</AlertTitle>
+                        <AlertDescription className="text-xs mt-1">
+                            <strong>{communityData?.name || "This community"}</strong> already has an active, approved President. The application process is only available for vacant or leaderless communities.
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <div className="text-center space-y-2">
                     <h1 className="text-3xl font-bold tracking-tight">Leader Onboarding</h1>
                     <p className="text-muted-foreground">Complete these steps to access your back office.</p>

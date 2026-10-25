@@ -501,6 +501,17 @@ export async function resignAsPresidentAction(params: {
       }
 
       transaction.update(communityRef, communityUpdateData);
+
+      // Archive user's leadership application so it does not linger as "Approved"
+      const userAppRef = firestore.collection('leadership_applications').doc(userId);
+      const userAppDoc = await transaction.get(userAppRef);
+      if (userAppDoc.exists && userAppDoc.data()?.status === 'Approved') {
+        transaction.update(userAppRef, {
+          status: 'Archived',
+          archivedAt: Timestamp.now(),
+          archivedReason: 'Leader stepped down or role transitioned'
+        });
+      }
     });
 
     if (shouldNotifyAdmins) {
