@@ -107,10 +107,16 @@ export function RoadworksNoticeboard({
   const { toast } = useToast();
 
   const [officialItems, setOfficialItems] = React.useState<RoadworkItem[]>([]);
+  const [noBoundary, setNoBoundary] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [isBoardModalOpen, setIsBoardModalOpen] = React.useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('all');
+
+  const boundaryCenter = React.useMemo(() => getCenterFromBoundary(boundary), [boundary]);
+  const oneNetworkUrl = boundaryCenter
+    ? `https://www.one.network/?tm=GB#13/${boundaryCenter.lat}/${boundaryCenter.lng}`
+    : 'https://www.one.network/';
 
   // Form state for local popup roadwork / closure report (and Creator/Leader editing)
   const [editingAlertId, setEditingAlertId] = React.useState<string | null>(null);
@@ -216,15 +222,23 @@ export function RoadworksNoticeboard({
   React.useEffect(() => {
     let cancelled = false;
     const loadRoadworks = async () => {
+      const center = getCenterFromBoundary(boundary);
+      if (!center) {
+        if (!cancelled) {
+          setOfficialItems([]);
+          setNoBoundary(true);
+          setLoading(false);
+        }
+        return;
+      }
+
+      setNoBoundary(false);
       setLoading(true);
       try {
-        const center = getCenterFromBoundary(boundary);
         const params = new URLSearchParams();
-        params.set('name', communityName || 'Grantown-on-Spey');
-        if (center) {
-          params.set('lat', String(center.lat));
-          params.set('lng', String(center.lng));
-        }
+        params.set('name', communityName || 'Local Community');
+        params.set('lat', String(center.lat));
+        params.set('lng', String(center.lng));
         const res = await fetch(`/api/roadworks?${params.toString()}`);
         if (res.ok) {
           const data = await res.json();
@@ -259,7 +273,7 @@ export function RoadworksNoticeboard({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [communityName, boundary]);
+  }, [effectiveCommId, communityName, boundary]);
 
   const combinedItems = React.useMemo(() => {
     const localMapped: (RoadworkItem & {
@@ -872,7 +886,7 @@ export function RoadworksNoticeboard({
           {loading ? (
             <div className="flex items-center gap-2 text-muted-foreground py-1">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span>Checking Traffic Scotland & local road alerts...</span>
+              <span>Checking local roadworks & alerts...</span>
             </div>
           ) : topPreview.length > 0 ? (
             <div className="space-y-1.5">
@@ -895,9 +909,13 @@ export function RoadworksNoticeboard({
                 </div>
               ))}
             </div>
+          ) : noBoundary ? (
+            <p className="text-[11px] text-muted-foreground">
+              Automated roadworks & closure feeds will be available when this community has active leadership and a mapped boundary. Residents can still post local popup road closures below.
+            </p>
           ) : (
             <p className="text-[11px] text-muted-foreground">
-              No active trunk road closures reported nearby. Have popup works or a blocked road in {communityName}? Post a notice below.
+              No active road closures reported nearby. Have popup works or a blocked road in {communityName}? Post a notice below.
             </p>
           )}
 
@@ -969,6 +987,11 @@ export function RoadworksNoticeboard({
               <div className="overflow-y-auto space-y-2.5 pr-1 mt-3 max-h-[50vh]">
                 {filteredItems.length > 0 ? (
                   filteredItems.map(renderItemCard)
+                ) : noBoundary ? (
+                  <div className="p-8 text-center text-xs text-muted-foreground border border-dashed rounded-xl space-y-1">
+                    <p className="font-bold text-foreground">Awaiting Community Leadership Boundary</p>
+                    <p>Automated regional roadworks & closure feeds will activate once a Community Leader has mapped the boundary polygon for {communityName}. Local popup reports can still be posted above.</p>
+                  </div>
                 ) : (
                   <div className="p-8 text-center text-xs text-muted-foreground border rounded-xl">
                     No roadworks or closures in this category right now.
@@ -985,7 +1008,7 @@ export function RoadworksNoticeboard({
                   </a>
                 </Button>
                 <Button asChild variant="outline" size="sm" className="text-xs font-bold gap-1">
-                  <a href="https://www.one.network/" target="_blank" rel="noopener noreferrer">
+                  <a href={oneNetworkUrl} target="_blank" rel="noopener noreferrer">
                     One.Network Street Works <ExternalLink className="h-3 w-3" />
                   </a>
                 </Button>
@@ -1063,10 +1086,15 @@ export function RoadworksNoticeboard({
             {loading ? (
               <div className="flex items-center justify-center py-8 gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Loading live Traffic Scotland & community road alerts...</span>
+                <span>Loading live local roadworks & community road alerts...</span>
               </div>
             ) : filteredItems.length > 0 ? (
               filteredItems.map(renderItemCard)
+            ) : noBoundary ? (
+              <div className="p-6 text-center text-xs text-muted-foreground border border-dashed rounded-xl space-y-1">
+                <p className="font-bold text-foreground">Awaiting Community Leadership Boundary</p>
+                <p>Automated regional roadworks & closure feeds will activate once a Community Leader has mapped the boundary polygon for {communityName}. Local popup reports can still be posted above.</p>
+              </div>
             ) : (
               <div className="p-6 text-center text-xs text-muted-foreground border rounded-xl">
                 No roadworks or closures in this category right now.
@@ -1084,7 +1112,7 @@ export function RoadworksNoticeboard({
             </a>
           </Button>
           <Button asChild variant="outline" size="sm" className="h-8 text-xs font-bold gap-1">
-            <a href="https://www.one.network/" target="_blank" rel="noopener noreferrer">
+            <a href={oneNetworkUrl} target="_blank" rel="noopener noreferrer">
               One.Network Council Street Works <ExternalLink className="h-3 w-3" />
             </a>
           </Button>

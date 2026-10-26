@@ -365,7 +365,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                 {/* Live Weather & Storm Warning Strip on Your Home Community Card */}
                 <CommunityWeatherAlertStrip
                   communityId={effectiveCommunityId || userProfile?.communityId}
-                  communityName={homeCommunityName}
+                  communityName={effectiveCommunityName}
                   boundary={activeCommunity?.boundary}
                   demoPrefix={demoPrefix}
                 />

@@ -167,63 +167,114 @@ async function fetchTrafficScotlandFeed(
   }
 }
 
+async function fetchLocalOverpassRoadworks(centerLat: number, centerLng: number): Promise<RoadworkItem[]> {
+  try {
+    // Query active road construction & tagged road closures within 18km (~11 miles) of the community polygon center
+    const query = `[out:json][timeout:8];(way["highway"="construction"](around:18000,${centerLat},${centerLng});way["highway"~"^(trunk|primary|secondary|tertiary|residential)$"]["access"="no"](around:12000,${centerLat},${centerLng}););out center tags 20;`;
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `data=${encodeURIComponent(query)}`,
+      next: { revalidate: 900 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data.elements)) return [];
+
+    const items: RoadworkItem[] = [];
+    for (const el of data.elements) {
+      const tags = el.tags || {};
+      const lat = el.center?.lat ?? el.lat;
+      const lng = el.center?.lon ?? el.lon;
+      if (typeof lat !== 'number' || typeof lng !== 'number') continue;
+
+      const roadRef = tags.ref || tags.construction || '';
+      const roadName = tags.name || tags['addr:street'] || roadRef || 'Local Road';
+      const isClosure = tags.access === 'no' && tags.highway !== 'construction';
+      const note = tags.note || tags.description || tags['construction:note'] || tags.fixme || '';
+      const openingDate = tags.opening_date || tags.check_date || '';
+
+      // Skip private driveways or unnamed footpaths with access=no
+      if (isClosure && !tags.name && !tags.ref) continue;
+
+      const milesAway = haversineMiles(centerLat, centerLng, lat, lng);
+      const roadBadge = roadRef ? String(roadRef).split(';')[0].trim() : extractRoadCode(roadName);
+
+      items.push({
+        id: `osm-${el.id}`,
+        title: isClosure
+          ? `${roadName} — Road Closed / Restricted Access`
+          : `${roadName} — Active Roadworks / Construction`,
+        road: roadBadge !== 'Local Route' ? roadBadge : roadName.slice(0, 18),
+        category: isClosure ? 'incident' : 'current_works',
+        severity: isClosure ? 'closure' : 'active_works',
+        summary:
+          note ||
+          (isClosure
+            ? `Road access restriction or closure recorded on ${roadName}. Check One.Network for local diversion details.`
+            : `Active highway construction or street works recorded on ${roadName}${tags.operator ? ` (${tags.operator})` : ''}.`),
+        startDate: 'Active Local Works',
+        endDate: openingDate ? `Est. completion: ${openingDate}` : undefined,
+        link: `https://www.one.network/?tm=GB#14/${lat}/${lng}`,
+        lat,
+        lng,
+        milesAway,
+        pubDate: '',
+      });
+    }
+    return items;
+  } catch {
+    return [];
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    let lat = parseFloat(searchParams.get('lat') || '');
-    let lng = parseFloat(searchParams.get('lng') || '');
-    const radiusMiles = parseFloat(searchParams.get('radiusMiles') || '35');
-    const communityName = (searchParams.get('name') || 'Grantown-on-Spey').trim();
+    const lat = parseFloat(searchParams.get('lat') || '');
+    const lng = parseFloat(searchParams.get('lng') || '');
+    const radiusMiles = parseFloat(searchParams.get('radiusMiles') || '15');
+    const communityName = (searchParams.get('name') || 'Local Community').trim();
 
     if (isNaN(lat) || isNaN(lng)) {
-      const cleanName = communityName
-        .replace(/show home community.*/i, '')
-        .replace(/oakridge.*/i, 'Grantown-on-Spey')
-        .trim();
-
-      if (cleanName) {
-        try {
-          const geoRes = await fetch(
-            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanName)}&count=3&language=en&format=json`,
-            { next: { revalidate: 86400 } }
-          );
-          if (geoRes.ok) {
-            const geoData = await geoRes.json();
-            const ukMatch = geoData?.results?.find((r: any) => r.country_code === 'GB') || geoData?.results?.[0];
-            if (ukMatch && typeof ukMatch.latitude === 'number') {
-              lat = ukMatch.latitude;
-              lng = ukMatch.longitude;
-            }
-          }
-        } catch {
-          // Fallback below
-        }
-      }
-
-      if (isNaN(lat) || isNaN(lng)) {
-        lat = 57.3298;
-        lng = -3.6097;
-      }
+      return NextResponse.json({
+        success: false,
+        noBoundary: true,
+        communityName,
+        totalFound: 0,
+        items: [],
+      });
     }
 
-    const [incidents, currentWorks, plannedWorks] = await Promise.all([
-      fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/currentincidents.aspx', 'incident', lat, lng),
-      fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/roadworks.aspx', 'current_works', lat, lng),
-      fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/plannedroadworks.aspx', 'planned_works', lat, lng),
+    const isScotland = lat >= 54.6;
+
+    const [incidents, currentWorks, plannedWorks, localOverpass] = await Promise.all([
+      isScotland
+        ? fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/currentincidents.aspx', 'incident', lat, lng)
+        : Promise.resolve([]),
+      isScotland
+        ? fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/roadworks.aspx', 'current_works', lat, lng)
+        : Promise.resolve([]),
+      isScotland
+        ? fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/plannedroadworks.aspx', 'planned_works', lat, lng)
+        : Promise.resolve([]),
+      fetchLocalOverpassRoadworks(lat, lng),
     ]);
 
-    const allItems = [...incidents, ...currentWorks, ...plannedWorks];
+    const allTrunkItems = [...incidents, ...currentWorks, ...plannedWorks];
 
-    // Filter to items within radiusMiles (or fallback to 50 miles if rural area has few items)
-    let nearby = allItems.filter((item) => item.milesAway !== null && item.milesAway <= radiusMiles);
-    if (nearby.length < 3) {
-      nearby = allItems.filter((item) => item.milesAway !== null && item.milesAway <= 50);
+    // Filter trunk road items strictly to within radiusMiles (15 miles default, expanding to 22 miles if < 2 found)
+    let nearbyTrunk = allTrunkItems.filter((item) => item.milesAway !== null && item.milesAway <= radiusMiles);
+    if (nearbyTrunk.length < 2) {
+      nearbyTrunk = allTrunkItems.filter((item) => item.milesAway !== null && item.milesAway <= 22);
     }
+
+    const allItems = [...nearbyTrunk, ...localOverpass];
 
     // Deduplicate by title + category
     const seen = new Set<string>();
-    const deduped = nearby.filter((item) => {
-      const key = `${item.category}:${item.title}`;
+    const deduped = allItems.filter((item) => {
+      const key = `${item.category}:${item.title.toLowerCase()}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;

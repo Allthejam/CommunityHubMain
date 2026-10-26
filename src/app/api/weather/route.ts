@@ -38,12 +38,43 @@ interface MetOfficeWarning {
   level: 'yellow' | 'amber' | 'red';
 }
 
-async function fetchMetOfficeWarnings(): Promise<MetOfficeWarning[]> {
-  // Check Highlands & Eilean Siar (he) and Grampian (gr) Met Office RSS feeds
-  const feeds = [
-    'https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/he',
-    'https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/gr',
-  ];
+function getMetOfficeRegionsForCoords(lat: number, lng: number): string[] {
+  // Northern Ireland
+  if (lng < -5.3 && lat >= 54.0 && lat <= 55.4) return ['ni'];
+  // Scotland: Highlands & Eilean Siar vs Grampian
+  if (lat >= 56.85) {
+    return lng < -3.2 ? ['he', 'gr'] : ['gr', 'he'];
+  }
+  // Scotland: Central, Tayside & Fife vs Strathclyde (Glasgow) vs Lothian/Borders (Edinburgh)
+  if (lat >= 54.8) {
+    if (lat >= 56.1) return ['ta', 'st'];
+    if (lng < -3.6) return ['st', 'dg']; // Glasgow / Strathclyde / Ayrshire / Lanarkshire
+    return ['dg', 'st']; // Edinburgh / Lothians / Borders / Dumfries & Galloway
+  }
+  // Wales
+  if (lat >= 51.3 && lat <= 53.4 && lng < -2.8) return ['wl'];
+  // North England (North West vs North East vs Yorkshire)
+  if (lat >= 53.3) {
+    if (lng < -2.0) return ['nw']; // Manchester, Liverpool, Cumbria, Lancashire
+    if (lat >= 54.4) return ['ne', 'yh']; // Newcastle, Durham, Northumberland
+    return ['yh']; // Yorkshire & Humber
+  }
+  // Midlands & East of England
+  if (lat >= 52.0) {
+    if (lng >= 0.0) return ['ee']; // East of England (Norfolk, Suffolk, Cambridgeshire)
+    if (lng < -1.6) return ['wm']; // Birmingham & West Midlands
+    return ['em']; // East Midlands
+  }
+  // Southern England (South West vs London & South East)
+  if (lng < -1.8) return ['sw']; // Bristol, Devon, Cornwall, Dorset, Somerset
+  return ['se']; // London & South East England
+}
+
+async function fetchMetOfficeWarnings(lat: number, lng: number): Promise<MetOfficeWarning[]> {
+  const regionCodes = getMetOfficeRegionsForCoords(lat, lng);
+  const feeds = regionCodes.map(
+    (code) => `https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/${code}`
+  );
 
   const warnings: MetOfficeWarning[] = [];
   const seenTitles = new Set<string>();
@@ -91,47 +122,26 @@ async function fetchMetOfficeWarnings(): Promise<MetOfficeWarning[]> {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    let lat = parseFloat(searchParams.get('lat') || '');
-    let lng = parseFloat(searchParams.get('lng') || '');
-    const communityName = (searchParams.get('name') || 'Grantown-on-Spey').trim();
+    const lat = parseFloat(searchParams.get('lat') || '');
+    const lng = parseFloat(searchParams.get('lng') || '');
+    const communityName = (searchParams.get('name') || 'Local Community').trim();
 
-    // If no coordinates provided, geocode the community name or default to Grantown-on-Spey (57.329, -3.609)
     if (isNaN(lat) || isNaN(lng)) {
-      const cleanName = communityName
-        .replace(/show home community.*/i, '')
-        .replace(/oakridge.*/i, 'Grantown-on-Spey')
-        .trim();
-
-      if (cleanName) {
-        try {
-          const geoRes = await fetch(
-            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanName)}&count=3&language=en&format=json`,
-            { next: { revalidate: 86400 } }
-          );
-          if (geoRes.ok) {
-            const geoData = await geoRes.json();
-            const ukMatch = geoData?.results?.find((r: any) => r.country_code === 'GB') || geoData?.results?.[0];
-            if (ukMatch && typeof ukMatch.latitude === 'number') {
-              lat = ukMatch.latitude;
-              lng = ukMatch.longitude;
-            }
-          }
-        } catch {
-          // Fallback below
-        }
-      }
-
-      if (isNaN(lat) || isNaN(lng)) {
-        lat = 57.329;
-        lng = -3.609;
-      }
+      return NextResponse.json(
+        {
+          success: false,
+          noBoundary: true,
+          error: 'Weather information will be available once this community has active leadership and a mapped boundary.',
+        },
+        { status: 200 }
+      );
     }
 
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max&wind_speed_unit=mph&timezone=Europe%2FLondon&forecast_days=2`;
 
     const [weatherRes, metWarnings] = await Promise.all([
       fetch(weatherUrl, { next: { revalidate: 300 } }),
-      fetchMetOfficeWarnings(),
+      fetchMetOfficeWarnings(lat, lng),
     ]);
 
     if (!weatherRes.ok) {

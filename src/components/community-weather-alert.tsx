@@ -110,6 +110,7 @@ export function CommunityWeatherAlertStrip({
   demoPrefix?: string;
 }) {
   const [weather, setWeather] = React.useState<WeatherAlertData | null>(null);
+  const [noBoundary, setNoBoundary] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
@@ -117,15 +118,25 @@ export function CommunityWeatherAlertStrip({
     let cancelled = false;
 
     const loadWeather = async () => {
+      const center = getCenterFromBoundary(boundary);
+
+      // If no leader polygon boundary exists for this community, show the leadership standby notice
+      if (!center) {
+        if (!cancelled) {
+          setWeather(null);
+          setNoBoundary(true);
+          setLoading(false);
+        }
+        return;
+      }
+
+      setNoBoundary(false);
       setLoading(true);
       try {
-        const center = getCenterFromBoundary(boundary);
         const params = new URLSearchParams();
-        params.set('name', communityName || 'Grantown-on-Spey');
-        if (center) {
-          params.set('lat', String(center.lat));
-          params.set('lng', String(center.lng));
-        }
+        params.set('name', communityName || 'Local Community');
+        params.set('lat', String(center.lat));
+        params.set('lng', String(center.lng));
 
         const res = await fetch(`/api/weather?${params.toString()}`);
         if (res.ok) {
@@ -140,9 +151,8 @@ export function CommunityWeatherAlertStrip({
         console.warn('Weather API fetch fallback:', err);
       }
 
-      // Direct client-side fallback for mobile PWA / offline-cached routes
+      // Direct client-side fallback for mobile PWA / offline-cached routes (strictly using leader polygon center)
       try {
-        const center = getCenterFromBoundary(boundary) || { lat: 57.329, lng: -3.609 };
         const directUrl = `https://api.open-meteo.com/v1/forecast?latitude=${center.lat}&longitude=${center.lng}&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m&daily=weather_code,precipitation_sum,wind_gusts_10m_max&wind_speed_unit=mph&timezone=Europe%2FLondon&forecast_days=1`;
         const directRes = await fetch(directUrl);
         if (directRes.ok && !cancelled) {
@@ -171,7 +181,7 @@ export function CommunityWeatherAlertStrip({
 
           setWeather({
             success: true,
-            communityName: communityName || 'Home Community',
+            communityName: communityName || 'Local Community',
             coordinates: center,
             alertLevel,
             alertHeadline,
@@ -207,13 +217,24 @@ export function CommunityWeatherAlertStrip({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [communityName, boundary]);
+  }, [communityId, communityName, boundary]);
 
   if (loading) {
     return (
       <div className="w-full p-2.5 rounded-xl border bg-muted/30 flex items-center gap-2 text-xs text-muted-foreground">
         <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
         <span>Checking live local weather & storm warnings...</span>
+      </div>
+    );
+  }
+
+  if (noBoundary) {
+    return (
+      <div className="w-full p-3 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 flex items-center gap-2.5 text-xs text-muted-foreground">
+        <Info className="h-4 w-4 text-sky-500 shrink-0" />
+        <span>
+          <strong className="text-foreground">Local Weather & Warnings:</strong> Weather information will be available when this community has active leadership and a mapped boundary.
+        </span>
       </div>
     );
   }

@@ -107,12 +107,13 @@ export default function TravelPage() {
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc(userProfileRef);
 
-  const effectiveCommunityId = userProfile?.communityId || '9ayHMyZf4SRw2gof1AM9';
+  const visitedId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
+  const effectiveCommunityId = visitedId || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || '9ayHMyZf4SRw2gof1AM9';
 
   const communityDocRef = useMemoFirebase(() => (effectiveCommunityId && db ? doc(db, 'communities', effectiveCommunityId) : null), [effectiveCommunityId, db]);
   const { data: communityData } = useDoc(communityDocRef);
 
-  const communityName = communityData?.name || userProfile?.communityName || 'Show Home Community, "Display Only"';
+  const communityName = communityData?.name || (visitedId ? 'Community' : userProfile?.communityName) || 'Show Home Community, "Display Only"';
 
   // Read custom travel services from community if saved, or fallback to default for sample community
   const travelServices: TravelServiceItem[] = React.useMemo(() => {
