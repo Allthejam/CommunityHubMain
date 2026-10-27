@@ -141,7 +141,14 @@ export function NotificationBell() {
                   key={n.id}
                   className="p-3 border-b border-slate-50 last:border-0 cursor-pointer hover:bg-slate-50 flex items-start gap-3 focus:bg-slate-50"
                   onClick={async () => {
-                    updateNotificationStatusAction({ notificationId: n.id, status: 'read' }).catch(console.error);
+                    setNotifications(prev => prev.filter(item => item.id !== n.id));
+                    if (firestore) {
+                      await updateDoc(doc(firestore, 'notifications', n.id), { status: 'read' }).catch(() => {
+                        updateNotificationStatusAction({ notificationId: n.id, status: 'read' }).catch(console.error);
+                      });
+                    } else {
+                      updateNotificationStatusAction({ notificationId: n.id, status: 'read' }).catch(console.error);
+                    }
                     router.push(path);
                   }}
                 >

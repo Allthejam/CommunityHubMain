@@ -36,7 +36,7 @@ import {
     Filter,
     Sparkles
 } from "lucide-react";
-import { collection, query, where, onSnapshot, doc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -488,6 +488,14 @@ export default function NotificationsPage() {
     }, [user, isUserLoading, db, toast]);
 
     const handleUpdateStatus = async (id: string, status: 'read' | 'archived') => {
+        if (db) {
+            try {
+                await updateDoc(doc(db, 'notifications', id), { status });
+                return;
+            } catch (clientErr) {
+                console.warn('Client notification status update failed, falling back to Server Action:', clientErr);
+            }
+        }
         const result = await updateNotificationStatusAction({ 
             notificationId: id, 
             status,
@@ -499,7 +507,12 @@ export default function NotificationsPage() {
     };
     
     const handleViewDetails = React.useCallback(async (notification: Notification) => {
-        setViewingNotification(notification);
+        const isUnread = !notification.status || notification.status.toLowerCase() === 'new' || notification.status.toLowerCase() === 'unread';
+        setViewingNotification(isUnread ? { ...notification, status: 'read' as any } : notification);
+        if (isUnread && db) {
+            await updateDoc(doc(db, 'notifications', notification.id), { status: 'read' }).catch(console.error);
+            return;
+        }
         if (notification.status === 'new' || notification.status === 'New') {
             updateNotificationStatusAction({ 
                 notificationId: notification.id, 
@@ -511,6 +524,15 @@ export default function NotificationsPage() {
     
     const handleDelete = async (id: string) => {
         if (!window.confirm("Are you sure you want to delete this notification?")) return;
+        if (db) {
+            try {
+                await deleteDoc(doc(db, 'notifications', id));
+                toast({ title: "Success", description: "Notification deleted." });
+                return;
+            } catch (clientErr) {
+                console.warn('Client notification delete failed, falling back to Server Action:', clientErr);
+            }
+        }
         const result = await deleteNotificationAction({ notificationId: id });
         if (!result.success) {
             toast({ title: "Error", description: "Failed to delete notification.", variant: "destructive" });
@@ -628,6 +650,21 @@ export default function NotificationsPage() {
     const pageCount = Math.ceil(filteredNotifications.length / pagination.pageSize);
 
     const handleBulkUpdateStatus = async (status: 'read' | 'archived') => {
+        if (db && selectedIds.length > 0) {
+            try {
+                const batch = writeBatch(db);
+                selectedIds.forEach(id => batch.update(doc(db, 'notifications', id), { status }));
+                await batch.commit();
+                toast({
+                    title: 'Notifications Updated',
+                    description: `${selectedIds.length} notifications marked as ${status}.`,
+                });
+                setSelectedIds([]);
+                return;
+            } catch (clientErr) {
+                console.warn('Client bulk notification update failed, falling back to Server Action:', clientErr);
+            }
+        }
         const promises = selectedIds.map(id => updateNotificationStatusAction({ 
             notificationId: id, 
             status,

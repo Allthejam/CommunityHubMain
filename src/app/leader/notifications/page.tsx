@@ -90,7 +90,7 @@ const NotificationRow = React.memo(({ notification, onUpdateStatus }: { notifica
     const router = useRouter();
 
     const handleView = async () => {
-        if (status === 'new') {
+        if (!status || status.toLowerCase() === 'new' || status.toLowerCase() === 'unread') {
             onUpdateStatus(notification.id, 'read');
         }
 
@@ -148,7 +148,7 @@ const NotificationRow = React.memo(({ notification, onUpdateStatus }: { notifica
     };
     
     const isArchived = status === 'archived';
-    const isNew = status === 'new';
+    const isNew = !status || status.toLowerCase() === 'new' || status.toLowerCase() === 'unread';
 
     const formattedDate = React.useMemo(() => {
         if (!date) return 'a while ago';
@@ -255,6 +255,14 @@ export default function NotificationsPage() {
     }, [user, isUserLoading, db, toast]);
 
     const handleUpdateStatus = async (id: string, status: 'read' | 'archived') => {
+        if (db) {
+            try {
+                await updateDoc(doc(db, 'notifications', id), { status });
+                return;
+            } catch (clientErr) {
+                console.warn('Client notification status update failed, falling back to Server Action:', clientErr);
+            }
+        }
         const result = await updateNotificationStatusAction({ notificationId: id, status });
         if (!result.success) {
             toast({ title: "Error", description: "Failed to update notification status.", variant: "destructive" });
