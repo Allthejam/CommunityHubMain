@@ -3,6 +3,7 @@
 
 import * as React from 'react';
 import { useFirestore } from '@/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 import type { Announcement } from '@/lib/announcement-data';
 import 'leaflet/dist/leaflet.css';
 import { Loader2, Maximize, Minimize } from 'lucide-react';
@@ -16,6 +17,7 @@ interface TargetAudienceMapProps {
 }
 
 export const TargetAudienceMap: React.FC<TargetAudienceMapProps> = ({ announcement }) => {
+  const db = useFirestore();
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
   const mapInstanceRef = React.useRef<Map | null>(null);
   const featureGroupRef = React.useRef<FeatureGroup | null>(null);
@@ -66,7 +68,31 @@ export const TargetAudienceMap: React.FC<TargetAudienceMapProps> = ({ announceme
 
     const loadBoundaries = async () => {
         try {
-            const { boundaries } = await runGetAllBoundaries();
+            let boundaries: { id: string; name: string; boundary: string }[] = [];
+            if (db) {
+                try {
+                    const [commSnap, locSnap] = await Promise.all([
+                        getDocs(collection(db, 'communities')),
+                        getDocs(collection(db, 'locations')).catch(() => null),
+                    ]);
+                    commSnap.docs.forEach(d => {
+                        const data = d.data();
+                        if (data.boundary) boundaries.push({ id: d.id, name: data.name || 'Community', boundary: typeof data.boundary === 'string' ? data.boundary : JSON.stringify(data.boundary) });
+                    });
+                    if (locSnap) {
+                        locSnap.docs.forEach(d => {
+                            const data = d.data();
+                            if (data.boundary) boundaries.push({ id: d.id, name: data.name || 'Location', boundary: typeof data.boundary === 'string' ? data.boundary : JSON.stringify(data.boundary) });
+                        });
+                    }
+                } catch {
+                    const res = await runGetAllBoundaries();
+                    boundaries = res.boundaries || [];
+                }
+            } else {
+                const res = await runGetAllBoundaries();
+                boundaries = res.boundaries || [];
+            }
             if (!boundaries) return;
             const L = await import('leaflet');
 

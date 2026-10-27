@@ -13,7 +13,7 @@ import {
 import { calculateDistanceMiles, getCentroidFromGeoJson } from '@/components/communities-map-view';
 import { updateUserCommunityAction } from '@/lib/actions/userActions';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDocs, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -135,6 +135,55 @@ export default function CommunitiesDiscoveryPage() {
     // Fetch Communities and Regional Networks
     useEffect(() => {
         const fetchCommunitiesAndNetworks = async () => {
+            setLoading(true);
+            try {
+                if (db) {
+                    const [commSnap, regSnap] = await Promise.all([
+                        getDocs(query(collection(db, 'communities'), where('visibility', '==', 'public'))),
+                        getDocs(query(collection(db, 'users'), where('accountType', '==', 'regional'))).catch(() => null),
+                    ]);
+
+                    const clientCommunities: PublicCommunityData[] = commSnap.docs.map(docSnap => {
+                        const data = docSnap.data();
+                        return {
+                            id: docSnap.id,
+                            name: data.name || '',
+                            country: data.country || '',
+                            state: data.state || '',
+                            region: data.region || '',
+                            status: data.status || 'inactive',
+                            leaderCount: data.leaderCount || 0,
+                            memberCount: data.memberCount || 0,
+                            boundary: data.boundary || undefined,
+                            centroid: data.centroid || undefined,
+                        };
+                    });
+
+                    setCommunities(clientCommunities);
+                    geocodeUnmappedCommunities(clientCommunities);
+
+                    if (regSnap) {
+                        const clientNetworks: PublicRegionalNetworkData[] = regSnap.docs
+                            .map(docSnap => {
+                                const data = docSnap.data();
+                                return {
+                                    id: docSnap.id,
+                                    name: data.organizationName || data.businessName || data.displayName || 'Regional Authority Network',
+                                    region: data.region || data.state || '',
+                                    state: data.state || '',
+                                    country: data.country || '',
+                                    regionalBoundary: data.regionalBoundary || data.boundary || undefined,
+                                };
+                            })
+                            .filter(n => !!n.regionalBoundary);
+                        setRegionalNetworks(clientNetworks);
+                    }
+                    setLoading(false);
+                    return;
+                }
+            } catch (clientErr) {
+                console.warn("Client Firestore communities fetch failed, falling back to Server Actions:", clientErr);
+            }
             setLoading(true);
             const [commRes, regRes] = await Promise.all([
                 runGetAllPublicCommunities(),

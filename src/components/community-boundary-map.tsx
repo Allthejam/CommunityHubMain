@@ -4,7 +4,7 @@
 
 import * as React from 'react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { runSaveCommunityBoundary, runCheckBoundaryOverlap, runGetAllBoundaries, runCreateDisputeFromOverlap } from '@/lib/actions/communityActions';
 import { cn } from "@/lib/utils";
@@ -502,7 +502,31 @@ const CommunityBoundaryMap: React.FC<CommunityBoundaryMapProps> = ({
         setIsFetchingAll(true);
         allBoundariesLayerRef.current.clearLayers();
         try {
-            const { boundaries } = await runGetAllBoundaries();
+            let boundaries: { id: string; name: string; boundary: string }[] = [];
+            if (db) {
+                try {
+                    const [commSnap, locSnap] = await Promise.all([
+                        getDocs(collection(db, 'communities')),
+                        getDocs(collection(db, 'locations')).catch(() => null),
+                    ]);
+                    commSnap.docs.forEach(d => {
+                        const data = d.data();
+                        if (data.boundary) boundaries.push({ id: d.id, name: data.name || 'Community', boundary: typeof data.boundary === 'string' ? data.boundary : JSON.stringify(data.boundary) });
+                    });
+                    if (locSnap) {
+                        locSnap.docs.forEach(d => {
+                            const data = d.data();
+                            if (data.boundary) boundaries.push({ id: d.id, name: data.name || 'Location', boundary: typeof data.boundary === 'string' ? data.boundary : JSON.stringify(data.boundary) });
+                        });
+                    }
+                } catch {
+                    const res = await runGetAllBoundaries();
+                    boundaries = res.boundaries || [];
+                }
+            } else {
+                const res = await runGetAllBoundaries();
+                boundaries = res.boundaries || [];
+            }
             const L = (window as any).L;
             if (boundaries && boundaries.length > 0) {
                 boundaries.forEach(item => {
