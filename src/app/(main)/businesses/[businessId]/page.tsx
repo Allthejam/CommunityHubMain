@@ -121,6 +121,11 @@ type Advert = {
     fullDescription?: string;
     description?: string;
     link?: string;
+    websiteLink?: string;
+    websiteUrl?: string;
+    url?: string;
+    primaryLinkType?: 'website' | 'email' | 'profile';
+    emailAddress?: string;
     status: 'Active' | 'Scheduled' | 'Approved';
     businessId?: string;
 };
@@ -246,14 +251,35 @@ const AdvertCard = ({ advert }: { advert: Advert }) => (
                             Visit Business
                         </Link>
                     </Button>
-                ) : (
-                    <Button asChild variant="outline">
-                        <a href={advert.link || '#'} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Visit Site
-                        </a>
-                    </Button>
-                )}
+                ) : (() => {
+                    const raw = advert.websiteLink || advert.link || advert.websiteUrl || advert.url || '';
+                    const isEmail = advert.primaryLinkType === 'email';
+                    let targetUrl: string | null = null;
+                    if (isEmail && advert.emailAddress) {
+                        targetUrl = `mailto:${advert.emailAddress}`;
+                    } else if (raw && raw.trim() && raw.trim() !== '#') {
+                        const trimmed = raw.trim();
+                        targetUrl = /^(https?:\/\/|mailto:|tel:)/i.test(trimmed) ? trimmed : `https://${trimmed}`;
+                    }
+
+                    if (!targetUrl) {
+                        return (
+                            <Button variant="outline" disabled className="opacity-50">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Visit Site
+                            </Button>
+                        );
+                    }
+
+                    return (
+                        <Button asChild variant="outline">
+                            <a href={targetUrl} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                {isEmail ? 'Contact Us' : 'Visit Site'}
+                            </a>
+                        </Button>
+                    );
+                })()}
             </DialogFooter>
         </DialogContent>
     </Dialog>

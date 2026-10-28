@@ -43,7 +43,12 @@ type Advert = {
   image?: any;
   shortDescription: string;
   fullDescription: string;
-  link: string;
+  link?: string;
+  websiteLink?: string;
+  websiteUrl?: string;
+  url?: string;
+  primaryLinkType?: 'website' | 'email' | 'profile';
+  emailAddress?: string;
   type: 'featured' | 'partner';
   targetCategories?: string[];
   targetCountries?: string[];
@@ -52,7 +57,24 @@ type Advert = {
   endDate?: { toDate: () => Date };
 };
 
+export function getAdvertUrl(advert: Advert | any): string | null {
+  if (advert.primaryLinkType === 'email' && advert.emailAddress) {
+    return `mailto:${advert.emailAddress}`;
+  }
+  const raw = advert.websiteLink || advert.link || advert.websiteUrl || advert.url || '';
+  if (!raw || typeof raw !== 'string' || raw.trim() === '' || raw.trim() === '#') return null;
+  const trimmed = raw.trim();
+  if (/^(https?:\/\/|mailto:|tel:)/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
 const AdvertCard = ({ advert, layout = 'full' }: { advert: Advert; layout?: 'full' | 'compact' | 'feed' }) => {
+    const targetUrl = getAdvertUrl(advert);
+    const isEmail = advert.primaryLinkType === 'email';
+    const buttonLabel = isEmail ? 'Contact Us' : 'Visit Official Site';
+
     if (layout === 'compact') {
         return (
             <Dialog>
@@ -94,12 +116,19 @@ const AdvertCard = ({ advert, layout = 'full' }: { advert: Advert; layout?: 'ful
                         </div>
                     </ScrollArea>
                     <DialogFooter className="border-t pt-4">
-                        <Button asChild variant="outline">
-                            <a href={advert.link || '#'} target="_blank" rel="noopener noreferrer">
+                        {targetUrl ? (
+                            <Button asChild variant="outline">
+                                <a href={targetUrl} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    {buttonLabel}
+                                </a>
+                            </Button>
+                        ) : (
+                            <Button variant="outline" disabled className="opacity-50">
                                 <ExternalLink className="mr-2 h-4 w-4" />
                                 Visit Official Site
-                            </a>
-                        </Button>
+                            </Button>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -145,12 +174,19 @@ const AdvertCard = ({ advert, layout = 'full' }: { advert: Advert; layout?: 'ful
                         </div>
                     </ScrollArea>
                     <DialogFooter className="border-t pt-4">
-                        <Button asChild variant="outline">
-                            <a href={advert.link || '#'} target="_blank" rel="noopener noreferrer">
+                        {targetUrl ? (
+                            <Button asChild variant="outline">
+                                <a href={targetUrl} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    {buttonLabel}
+                                </a>
+                            </Button>
+                        ) : (
+                            <Button variant="outline" disabled className="opacity-50">
                                 <ExternalLink className="mr-2 h-4 w-4" />
                                 Visit Official Site
-                            </a>
-                        </Button>
+                            </Button>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -198,19 +234,31 @@ const AdvertCard = ({ advert, layout = 'full' }: { advert: Advert; layout?: 'ful
                     </div>
                 </ScrollArea>
                 <DialogFooter className="border-t pt-4">
-                    <Button asChild variant="outline">
-                        <a href={advert.link || '#'} target="_blank" rel="noopener noreferrer">
+                    {targetUrl ? (
+                        <Button asChild variant="outline">
+                            <a href={targetUrl} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                {buttonLabel}
+                            </a>
+                        </Button>
+                    ) : (
+                        <Button variant="outline" disabled className="opacity-50">
                             <ExternalLink className="mr-2 h-4 w-4" />
                             Visit Site
-                        </a>
-                    </Button>
+                        </Button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
 };
 
-const PartnerAdvertCard = ({ advert }: { advert: Advert }) => (
+const PartnerAdvertCard = ({ advert }: { advert: Advert }) => {
+    const targetUrl = getAdvertUrl(advert);
+    const isEmail = advert.primaryLinkType === 'email';
+    const buttonLabel = isEmail ? 'Contact Us' : 'Visit Official Site';
+
+    return (
     <Dialog>
         <DialogTrigger asChild>
             <Card className="overflow-hidden group cursor-pointer flex flex-col h-full hover:shadow-md transition-shadow">
@@ -242,16 +290,24 @@ const PartnerAdvertCard = ({ advert }: { advert: Advert }) => (
                 </div>
             </ScrollArea>
             <DialogFooter className="border-t pt-4">
-                <Button asChild variant="outline">
-                    <a href={advert.link || '#'} target="_blank" rel="noopener noreferrer">
+                {targetUrl ? (
+                    <Button asChild variant="outline">
+                        <a href={targetUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            {buttonLabel}
+                        </a>
+                    </Button>
+                ) : (
+                    <Button variant="outline" disabled className="opacity-50">
                         <ExternalLink className="mr-2 h-4 w-4" />
                         Visit Official Site
-                    </a>
-                </Button>
+                    </Button>
+                )}
             </DialogFooter>
         </DialogContent>
     </Dialog>
-);
+    );
+};
 
 function NationalAdvertisers({ layout = 'full' }: { layout?: 'full' | 'compact' | 'feed' }) {
     const { user, isUserLoading } = useUser();

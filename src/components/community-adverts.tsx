@@ -28,17 +28,35 @@ type Advert = {
   id: string | number;
   title: string;
   image?: string;
-  business: string;
+  business?: string;
   businessName?: string;
   shortDescription?: string;
   fullDescription?: string;
   description?: string;
   link?: string;
+  websiteLink?: string;
+  websiteUrl?: string;
+  url?: string;
+  primaryLinkType?: 'website' | 'email' | 'profile';
+  emailAddress?: string;
   status: 'Active' | 'Scheduled' | 'Approved';
   startDate?: { toDate: () => Date };
   endDate?: { toDate: () => Date };
   businessId?: string;
 };
+
+function getCommunityAdvertUrl(advert: Advert | any): string | null {
+  if (advert.primaryLinkType === 'email' && advert.emailAddress) {
+    return `mailto:${advert.emailAddress}`;
+  }
+  const raw = advert.websiteLink || advert.link || advert.websiteUrl || advert.url || '';
+  if (!raw || typeof raw !== 'string' || raw.trim() === '' || raw.trim() === '#') return null;
+  const trimmed = raw.trim();
+  if (/^(https?:\/\/|mailto:|tel:)/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
 
 const AdvertCard = ({ advert }: { advert: Advert }) => (
     <Dialog>
@@ -88,14 +106,26 @@ const AdvertCard = ({ advert }: { advert: Advert }) => (
                             Visit Business
                         </Link>
                     </Button>
-                ) : (
-                    <Button asChild variant="outline">
-                        <a href={advert.link || '#'} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Visit Site
-                        </a>
-                    </Button>
-                )}
+                ) : (() => {
+                    const targetUrl = getCommunityAdvertUrl(advert);
+                    const isEmail = advert.primaryLinkType === 'email';
+                    if (!targetUrl) {
+                        return (
+                            <Button variant="outline" disabled className="opacity-50">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Visit Site
+                            </Button>
+                        );
+                    }
+                    return (
+                        <Button asChild variant="outline">
+                            <a href={targetUrl} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                {isEmail ? 'Contact Us' : 'Visit Site'}
+                            </a>
+                        </Button>
+                    );
+                })()}
             </DialogFooter>
         </DialogContent>
     </Dialog>
