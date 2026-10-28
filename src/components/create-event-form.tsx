@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { createEventAction, updateEventAction } from "@/lib/actions/eventActions";
+import { uploadImageAction } from "@/lib/actions/storageActions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Separator } from "./ui/separator";
@@ -72,6 +73,7 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
   const { toast } = useToast();
   
   const [image, setImage] = React.useState<string | null>(event?.image || null);
+  const [isUploadingImage, setIsUploadingImage] = React.useState(false);
   const [showOtherCategory, setShowOtherCategory] = React.useState(false);
   const [customCategory, setCustomCategory] = React.useState('');
   const [isCameraOpen, setIsCameraOpen] = React.useState(false);
@@ -194,28 +196,64 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
     }
   }, [isCameraOpen, toast]);
 
-  const handleCapture = () => {
+  const handleCapture = async () => {
       if (videoRef.current && canvasRef.current) {
           const video = videoRef.current;
           const canvas = canvasRef.current;
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
           canvas.getContext('2d')?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-          setImage(dataUrl);
-          form.setValue('image', dataUrl);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
           setIsCameraOpen(false);
+
+          // Upload directly to Cloud Storage bucket
+          setIsUploadingImage(true);
+          try {
+              const storagePath = `events/${effectiveCommunityId || 'general'}/event_${Date.now()}_cam.jpg`;
+              const res = await uploadImageAction({ base64Data: dataUrl, path: storagePath });
+              if (res.success && res.url) {
+                  setImage(res.url);
+                  form.setValue('image', res.url);
+                  toast({ title: "Image Uploaded", description: "Event picture stored in cloud bucket." });
+              } else {
+                  setImage(dataUrl);
+                  form.setValue('image', dataUrl);
+              }
+          } catch {
+              setImage(dataUrl);
+              form.setValue('image', dataUrl);
+          } finally {
+              setIsUploadingImage(false);
+          }
       }
   };
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (file) {
           const reader = new FileReader();
-          reader.onloadend = () => {
+          reader.onloadend = async () => {
               const result = reader.result as string;
-              setImage(result);
-              form.setValue('image', result);
+              // Immediately upload to Cloud Storage bucket to keep Firestore document tiny
+              setIsUploadingImage(true);
+              try {
+                  const storagePath = `events/${effectiveCommunityId || 'general'}/event_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '')}`;
+                  const res = await uploadImageAction({ base64Data: result, path: storagePath });
+                  if (res.success && res.url) {
+                      setImage(res.url);
+                      form.setValue('image', res.url);
+                      toast({ title: "Image Uploaded", description: "Event photo saved to cloud storage." });
+                  } else {
+                      // Fallback to base64 if storage is unavailable (server action will also attempt upload)
+                      setImage(result);
+                      form.setValue('image', result);
+                  }
+              } catch (err: any) {
+                  setImage(result);
+                  form.setValue('image', result);
+              } finally {
+                  setIsUploadingImage(false);
+              }
           };
           reader.readAsDataURL(file);
       }
@@ -571,15 +609,18 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
                 {image ? (
                     <div className="relative w-48 h-32">
                         <Image src={image} alt="Event image preview" fill style={{ objectFit: "cover" }} className="rounded-md border" />
-                        <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full" onClick={() => setImage(null)}><X className="h-4 w-4" /></Button>
+                        <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full" onClick={() => { setImage(null); form.setValue('image', null); }}><X className="h-4 w-4" /></Button>
                     </div>
                 ) : (
-                    <div className="flex gap-2">
-                      <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                          <Upload className="mr-2 h-4 w-4" /> Upload Image
+                    <div className="flex gap-2 items-center">
+                      <Button type="button" variant="outline" disabled={isUploadingImage} onClick={() => fileInputRef.current?.click()}>
+                          {isUploadingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                          {isUploadingImage ? 'Uploading...' : 'Upload Image'}
                       </Button>
                       <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
-                      <Button type="button" variant="outline" onClick={() => setIsCameraOpen(true)}><Camera className="mr-2 h-4 w-4" /> Take Picture</Button>
+                      <Button type="button" variant="outline" disabled={isUploadingImage} onClick={() => setIsCameraOpen(true)}>
+                        <Camera className="mr-2 h-4 w-4" /> Take Picture
+                      </Button>
                     </div>
                 )}
                 <canvas ref={canvasRef} className="hidden" />

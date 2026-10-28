@@ -4,6 +4,7 @@
 
 import { initializeAdminApp } from "@/firebase/admin-app";
 import { Timestamp } from "firebase-admin/firestore";
+import { uploadImageAction } from "@/lib/actions/storageActions";
 
 type ActionResponse = {
   success: boolean;
@@ -74,8 +75,26 @@ export async function createEventAction(data: EventData): Promise<ActionResponse
             initialStatus = startDate <= new Date() ? 'Live' : 'Upcoming';
         }
 
+        // Upload image to Cloud Storage bucket if provided as base64 data URI
+        let finalImageUrl: string | null = data.image || null;
+        if (finalImageUrl && finalImageUrl.startsWith('data:image/')) {
+            try {
+                const storagePath = `events/${communityId}/event_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`;
+                const uploadRes = await uploadImageAction({
+                    base64Data: finalImageUrl,
+                    path: storagePath,
+                });
+                if (uploadRes.success && uploadRes.url) {
+                    finalImageUrl = uploadRes.url;
+                }
+            } catch (imgErr) {
+                console.error("Failed to upload event image to Cloud Storage:", imgErr);
+            }
+        }
+
         const eventToCreate = {
             ...data,
+            image: finalImageUrl,
             businessName: businessName,
             communityId: communityId,
             status: initialStatus,
@@ -140,8 +159,26 @@ export async function updateEventAction(eventId: string, data: Partial<EventData
     const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
     const eventRef = firestore.collection('events').doc(eventId);
     
+    // Upload image to Cloud Storage bucket if updated with base64 data URI
+    let finalImageUrl = data.image;
+    if (finalImageUrl && finalImageUrl.startsWith('data:image/')) {
+        try {
+            const storagePath = `events/${targetCommunityId || 'general'}/event_${eventId}_${Date.now()}.jpg`;
+            const uploadRes = await uploadImageAction({
+                base64Data: finalImageUrl,
+                path: storagePath,
+            });
+            if (uploadRes.success && uploadRes.url) {
+                finalImageUrl = uploadRes.url;
+            }
+        } catch (imgErr) {
+            console.error("Failed to upload updated event image to Cloud Storage:", imgErr);
+        }
+    }
+
     const updateData: any = { 
         ...data,
+        ...(finalImageUrl !== undefined ? { image: finalImageUrl } : {}),
         updatedAt: Timestamp.now(),
     };
 
