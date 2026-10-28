@@ -11,19 +11,58 @@ type ActionResponse = {
   error?: string;
 };
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BGl1ZM5bQwHkzV_0gXhyTCSjJDn-Hz_0PqQAeP1EQk2_A1kjc7yWCZOgjKZScUTUcUB2G1BaNW3bmaV6SZqEFA4';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'gV1aWrjq-VqS_OshEZcPBehWYxbf-LDVpKbCLtk1XRs';
+const DEFAULT_VAPID_PUBLIC_KEY =
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+  'BGl1ZM5bQwHkzV_0gXhyTCSjJDn-Hz_0PqQAeP1EQk2_A1kjc7yWCZOgjKZScUTUcUB2G1BaNW3bmaV6SZqEFA4';
 
-if (VAPID_PRIVATE_KEY && VAPID_PUBLIC_KEY) {
-  webpush.setVapidDetails(
-    'mailto:tech@my-community-hub.co.uk',
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY
-  );
-} else {
-    console.warn("VAPID keys not configured. Push notifications will not work.");
+let cachedVapidReady = false;
+
+async function ensureVapidConfigured(firestore: FirebaseFirestore.Firestore): Promise<boolean> {
+  if (cachedVapidReady) return true;
+
+  const envPrivateKey = process.env.VAPID_PRIVATE_KEY;
+  if (envPrivateKey && DEFAULT_VAPID_PUBLIC_KEY) {
+    webpush.setVapidDetails(
+      'mailto:tech@my-community-hub.co.uk',
+      DEFAULT_VAPID_PUBLIC_KEY,
+      envPrivateKey
+    );
+    cachedVapidReady = true;
+    // Automatically sync to Firestore platform_settings/web_push so cloud deployments have it without storing secrets in git
+    firestore
+      .collection('platform_settings')
+      .doc('web_push')
+      .set(
+        {
+          publicKey: DEFAULT_VAPID_PUBLIC_KEY,
+          privateKey: envPrivateKey,
+          updatedAt: Timestamp.now(),
+        },
+        { merge: true }
+      )
+      .catch(() => {});
+    return true;
+  }
+
+  try {
+    const snap = await firestore.collection('platform_settings').doc('web_push').get();
+    if (snap.exists) {
+      const data = snap.data();
+      const pubKey = data?.publicKey || DEFAULT_VAPID_PUBLIC_KEY;
+      const privKey = data?.privateKey;
+      if (pubKey && privKey) {
+        webpush.setVapidDetails('mailto:tech@my-community-hub.co.uk', pubKey, privKey);
+        cachedVapidReady = true;
+        return true;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not load VAPID keys from platform_settings/web_push:', err);
+  }
+
+  console.warn('VAPID keys not configured. Push notifications will not work.');
+  return false;
 }
-
 
 type PushNotificationPayload = {
     audience: {
@@ -42,7 +81,8 @@ export async function sendPushNotificationAction(params: PushNotificationPayload
     const { firestore } = initializeAdminApp();
     const { audience, notification } = params;
 
-    if (!VAPID_PRIVATE_KEY || !VAPID_PUBLIC_KEY) {
+    const isReady = await ensureVapidConfigured(firestore);
+    if (!isReady) {
         return { success: false, error: "VAPID keys are not configured on the server." };
     }
   
