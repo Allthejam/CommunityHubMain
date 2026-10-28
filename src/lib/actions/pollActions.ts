@@ -22,7 +22,7 @@ export async function createPollAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
+    const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
     const pollRef = firestore.collection(`communities/${communityId}/polls`).doc();
     
     const pollOptions = options.map(optionText => ({
@@ -60,7 +60,7 @@ export async function updatePollStatusAction(params: {
     }
 
     try {
-        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
+        const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
         const pollRef = firestore.doc(`communities/${communityId}/polls/${pollId}`);
         await pollRef.update({ status });
         return { success: true };
@@ -78,12 +78,51 @@ export async function deletePollAction(params: {
         return { success: false, error: "Missing required fields." };
     }
     try {
-        const { firestore } = initializeAdminApp((typeof communityId !== 'undefined' && communityId === '9ayHMyZf4SRw2gof1AM9') || (typeof primaryCommunityId !== 'undefined' && primaryCommunityId === '9ayHMyZf4SRw2gof1AM9') ? 'comfeed' : undefined);
+        const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
         await firestore.doc(`communities/${communityId}/polls/${pollId}`).delete();
         return { success: true };
     } catch (error: any) {
         return { success: false, error: error.message };
     }
+}
+
+export async function getCommunityPollsAction(communityId: string): Promise<{
+  success: boolean;
+  polls?: any[];
+  error?: string;
+}> {
+  if (!communityId) {
+    return { success: false, polls: [], error: "Missing communityId." };
+  }
+  try {
+    const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
+    const snap = await firestore.collection(`communities/${communityId}/polls`).get();
+    const serializeVal = (val: any): any => {
+      if (!val) return val;
+      if (typeof val.toDate === 'function') return val.toDate().toISOString();
+      if (typeof val === 'object' && ('_seconds' in val || 'seconds' in val)) {
+        const secs = val._seconds ?? val.seconds;
+        return new Date(secs * 1000).toISOString();
+      }
+      if (Array.isArray(val)) return val.map(serializeVal);
+      if (typeof val === 'object') {
+        const out: Record<string, any> = {};
+        for (const [k, v] of Object.entries(val)) {
+          out[k] = serializeVal(v);
+        }
+        return out;
+      }
+      return val;
+    };
+    const polls = snap.docs.map((d) => ({
+      ...serializeVal(d.data()),
+      id: d.id,
+    }));
+    return { success: true, polls };
+  } catch (error: any) {
+    console.error("Error fetching community polls via Server Action:", error);
+    return { success: false, polls: [], error: error.message || "Failed to load polls." };
+  }
 }
 
 export async function voteOnPollAction(params: {
@@ -99,7 +138,7 @@ export async function voteOnPollAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
     const pollRef = firestore.collection(`communities/${communityId}/polls`).doc(pollId);
 
     await firestore.runTransaction(async (transaction) => {
@@ -109,17 +148,24 @@ export async function voteOnPollAction(params: {
       }
 
       const pollData = pollDoc.data()!;
-      if (pollData.votedBy?.includes(userId)) {
+      const votedByList = Array.isArray(pollData.votedBy) ? pollData.votedBy : [];
+      if (votedByList.includes(userId)) {
         throw new Error("You have already voted on this poll.");
       }
 
-      if (optionIndex < 0 || optionIndex >= (pollData.options?.length || 0)) {
+      const rawOpts = Array.isArray(pollData.options) ? pollData.options : [];
+      if (optionIndex < 0 || optionIndex >= rawOpts.length) {
         throw new Error("Invalid option selected.");
       }
 
       // Prepare the update for the specific option
-      const newOptions = [...(pollData.options || [])];
-      newOptions[optionIndex].votes = (newOptions[optionIndex].votes || 0) + 1;
+      const newOptions = rawOpts.map((opt: any, idx: number) => {
+        const normalized = typeof opt === 'string' ? { id: `opt-${idx}`, text: opt, votes: 0 } : { ...opt };
+        if (idx === optionIndex) {
+          normalized.votes = (typeof normalized.votes === 'number' ? normalized.votes : 0) + 1;
+        }
+        return normalized;
+      });
 
       transaction.update(pollRef, {
         totalVotes: FieldValue.increment(1),
@@ -151,7 +197,7 @@ export async function commentOnPollAction(params: {
   }
 
   try {
-    const { firestore } = initializeAdminApp();
+    const { firestore } = initializeAdminApp(communityId === '9ayHMyZf4SRw2gof1AM9' ? 'comfeed' : undefined);
     const pollRef = firestore.collection(`communities/${communityId}/polls`).doc(pollId);
     
     const newComment = {
@@ -160,7 +206,7 @@ export async function commentOnPollAction(params: {
       role: comment.role || 'Resident',
       text: comment.text.trim(),
       time: 'Just now',
-      createdAt: Timestamp.now()
+      createdAt: new Date().toISOString()
     };
 
     await pollRef.update({

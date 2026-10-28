@@ -23,12 +23,31 @@ function PulseDot() {
   );
 }
 
+function parsePollDate(val: any): Date | null {
+  if (!val) return null;
+  try {
+    if (typeof val.toDate === 'function') {
+      const d = val.toDate();
+      return isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof val === 'object' && ('seconds' in val || '_seconds' in val)) {
+      const secs = val.seconds ?? val._seconds;
+      const d = new Date(Number(secs) * 1000);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
 function PollCountdown({ endDate }: { endDate: any }) {
   const [timeLeft, setTimeLeft] = React.useState<string>('');
 
   React.useEffect(() => {
-    if (!endDate) return;
-    const targetDate = endDate.toDate ? endDate.toDate() : new Date(endDate);
+    const targetDate = parsePollDate(endDate);
+    if (!targetDate) return;
 
     const updateTimer = () => {
       const now = new Date();
@@ -138,27 +157,38 @@ function VoteButton({ opt, pollId, onVote }: { opt: PollOption; pollId: string; 
 }
 
 function CommentThread({ comments }: { comments: PollComment[] }) {
+  const safeComments = Array.isArray(comments) ? comments : [];
   return (
     <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-      {comments.length === 0 ? (
+      {safeComments.length === 0 ? (
         <p className="text-xs text-slate-400 italic text-center py-4">
           No comments yet. Start the neighbourhood discussion below!
         </p>
       ) : (
-        comments.map((com) => {
-          const isAdmin = com.role === 'Admin';
+        safeComments.map((com: any, idx: number) => {
+          const roleStr = typeof com?.role === 'string' ? com.role : 'Resident';
+          const isAdmin = roleStr === 'Admin';
+          const authorStr = typeof com?.author === 'string' ? com.author : 'Resident';
+          const textStr = typeof com?.text === 'string' ? com.text : '';
+          let timeStr = 'Recently';
+          if (typeof com?.time === 'string') {
+            timeStr = com.time;
+          } else if (com?.time || com?.createdAt) {
+            const d = parsePollDate(com.time || com.createdAt);
+            if (d) timeStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          }
           return (
-            <div key={com.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs flex flex-col gap-1">
+            <div key={com?.id || `com-${idx}`} className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs flex flex-col gap-1">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-1.5">
-                  <strong className="text-slate-800 font-bold">{com.author}</strong>
+                  <strong className="text-slate-800 font-bold">{authorStr}</strong>
                   <span className={`text-[9px] px-1.5 py-0.5 border rounded-md font-semibold ${isAdmin ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                    {com.role}
+                    {roleStr}
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-400 font-medium">{com.time}</span>
+                <span className="text-[10px] text-slate-400 font-medium">{timeStr}</span>
               </div>
-              <p className="text-slate-600 leading-relaxed">{com.text}</p>
+              <p className="text-slate-600 leading-relaxed">{textStr}</p>
             </div>
           );
         })
@@ -288,11 +318,13 @@ export function PollCard({
   onEditCategory,
 }: PollCardProps) {
   const [commentText, setCommentText] = React.useState('');
-  const totalVotes = poll.options.reduce((s, o) => s + o.votes, 0);
+  const safeOptions = Array.isArray(poll.options) ? poll.options : [];
+  const safeComments = Array.isArray(poll.comments) ? poll.comments : [];
+  const totalVotes = safeOptions.reduce((s, o) => s + (typeof o?.votes === 'number' ? o.votes : 0), 0);
 
   const isExpired = React.useMemo(() => {
-    if (!poll.endDate) return false;
-    const targetDate = poll.endDate.toDate ? poll.endDate.toDate() : new Date(poll.endDate);
+    const targetDate = parsePollDate(poll.endDate);
+    if (!targetDate) return false;
     return new Date() > targetDate;
   }, [poll.endDate]);
 
@@ -301,8 +333,8 @@ export function PollCard({
   const showResults = hasVoted || isClosed || isDraft || isAdmin;
 
   const winnerOptId =
-    totalVotes > 0
-      ? [...poll.options].sort((a, b) => b.votes - a.votes)[0].id
+    totalVotes > 0 && safeOptions.length > 0
+      ? [...safeOptions].sort((a, b) => (b?.votes || 0) - (a?.votes || 0))[0]?.id ?? null
       : null;
 
   const catMeta = CATEGORY_META[poll.category] ?? { label: '📝 General', color: 'bg-slate-100 text-slate-700 border-slate-200' };
@@ -340,7 +372,7 @@ export function PollCard({
 
       {/* Voting options / results */}
       <div className="space-y-3 mt-2">
-        {poll.options.map((opt) =>
+        {safeOptions.map((opt) =>
           showResults ? (
             <OptionBar
               key={opt.id}
@@ -358,7 +390,7 @@ export function PollCard({
       {/* Footer: organiser + total */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-t border-slate-100 mt-5 pt-4 gap-2 text-xs">
         <span className="text-slate-400">
-          Organiser: <strong className="text-slate-500">{poll.creator}</strong>
+          Organiser: <strong className="text-slate-500">{typeof poll.creator === 'string' ? poll.creator : 'Community Leader'}</strong>
         </span>
         <span className="text-slate-500 font-semibold">
           ✉️ {totalVotes} Total community participants
@@ -370,9 +402,9 @@ export function PollCard({
         <div className="mt-6 border-t border-slate-100 pt-4">
           <h4 className="text-xs uppercase font-extrabold tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
             <MessageSquare className="h-3.5 w-3.5 text-indigo-500" />
-            Local Comments ({poll.comments.length})
+            Local Comments ({safeComments.length})
           </h4>
-          <CommentThread comments={poll.comments} />
+          <CommentThread comments={safeComments} />
           <form onSubmit={handleCommentSubmit} className="flex gap-2 mt-4">
             <input
               type="text"

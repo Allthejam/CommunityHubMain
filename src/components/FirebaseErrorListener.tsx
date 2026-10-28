@@ -29,10 +29,12 @@ export function FirebaseErrorListener() {
     };
   }, []);
 
-  // On re-render, if an error exists in state, throw it.
-  if (error) {
-    throw error;
-  }
+  // Log permission notices without throwing a fatal client-side exception in production.
+  useEffect(() => {
+    if (error) {
+      console.warn('[Firestore Permission Notice]:', error.message);
+    }
+  }, [error]);
 
   // This component renders nothing.
   return null;

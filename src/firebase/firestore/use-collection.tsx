@@ -97,7 +97,7 @@ export function useCollection<T = any>(
           const path: string =
             memoizedTargetRefOrQuery.type === 'collection'
               ? (memoizedTargetRefOrQuery as CollectionReference).path
-              : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
+              : (memoizedTargetRefOrQuery as unknown as InternalQuery)?._query?.path?.canonicalString?.() || 'unknown';
 
           const contextualError = new FirestorePermissionError({
             operation: 'list',
@@ -105,7 +105,7 @@ export function useCollection<T = any>(
           })
 
           setError(contextualError)
-          setData(null)
+          setData([])
           setIsLoading(false)
 
           // trigger global error propagation only on true permission-denied

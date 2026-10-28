@@ -16,10 +16,30 @@ import {
   useUser,
   useMemoFirebase,
   useCollection,
-  useDoc,
 } from '@/firebase';
-import { collection, doc, updateDoc, arrayUnion, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, updateDoc, arrayUnion, query, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
+import { voteOnPollAction, commentOnPollAction, getCommunityPollsAction } from '@/lib/actions/pollActions';
 
+function parsePollDate(val: any): Date | null {
+  if (!val) return null;
+  try {
+    if (typeof val.toDate === 'function') {
+      const d = val.toDate();
+      return isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof val === 'object' && ('seconds' in val || '_seconds' in val)) {
+      const secs = val.seconds ?? val._seconds;
+      const d = new Date(Number(secs) * 1000);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
 
 // Helper to determine effective poll status including expiration
 const getEffectivePollStatus = (p: Poll): Poll['status'] => {
@@ -27,8 +47,8 @@ const getEffectivePollStatus = (p: Poll): Poll['status'] => {
   if (p.status === 'paused') return 'paused';
   if (p.status === 'closed') return 'closed';
   if (p.endDate) {
-    const targetDate = p.endDate.toDate ? p.endDate.toDate() : new Date(p.endDate);
-    if (Date.now() > targetDate.getTime()) {
+    const targetDate = parsePollDate(p.endDate);
+    if (targetDate && Date.now() > targetDate.getTime()) {
       return 'closed';
     }
   }
@@ -37,7 +57,7 @@ const getEffectivePollStatus = (p: Poll): Poll['status'] => {
 
 // ─── Analytics sidebar ────────────────────────────────────────────────────────
 function AnalyticsWidget({ polls }: { polls: Poll[] }) {
-  const totalVotes = polls.reduce((t, p) => t + p.options.reduce((s, o) => s + o.votes, 0), 0);
+  const totalVotes = polls.reduce((t, p) => t + (Array.isArray(p.options) ? p.options : []).reduce((s, o) => s + (typeof o?.votes === 'number' ? o.votes : 0), 0), 0);
   const activeCount = polls.filter((p) => getEffectivePollStatus(p) === 'active').length;
   const closedCount = polls.filter((p) => getEffectivePollStatus(p) === 'closed').length;
 
@@ -106,10 +126,6 @@ function AnalyticsWidget({ polls }: { polls: Poll[] }) {
   );
 }
 
-import { useToast } from '@/hooks/use-toast';
-import { useActiveCommunityId } from '@/hooks/use-active-community-id';
-import { voteOnPollAction, commentOnPollAction } from '@/lib/actions/pollActions';
-
 // ─── Filter bar ───────────────────────────────────────────────────────────────
 const CATEGORIES: { value: PollCategory | 'all'; label: string }[] = [
   { value: 'all',         label: '✨ All Topics' },
@@ -126,59 +142,95 @@ export default function PollsPage() {
   const { toast } = useToast();
   const [catFilter, setCatFilter]       = React.useState<PollCategory | 'all'>('all');
   const [statusFilter, setStatusFilter] = React.useState<PollStatus | 'all'>('active');
+  const [fallbackPolls, setFallbackPolls] = React.useState<any[] | null>(null);
 
   const { communityId, userProfile, isLoading: profileLoading } = useActiveCommunityId();
 
-  // Subscribe to the community's polls collection
+  // Subscribe to the community's polls collection without composite index constraints
   const pollsQuery = useMemoFirebase(
-    () => (db && communityId) ? query(collection(db, 'communities', communityId, 'polls'), orderBy('createdAt', 'desc')) : null,
+    () => (db && communityId) ? query(collection(db, 'communities', communityId, 'polls')) : null,
     [db, communityId]
   );
   const { data: rawPolls, isLoading: pollsLoading } = useCollection<Poll>(pollsQuery);
 
-  const isLoading = profileLoading || pollsLoading;
-  const itemsToProcess = rawPolls ?? [];
-
-  const polls: Poll[] = itemsToProcess.map((p: any) => {
-    const title = p.title || p.question || 'Untitled Consultation';
-    const description = p.description || p.question || 'No description provided.';
-    const category = p.category || 'feedback';
-    let status = p.status || 'closed';
-    if (status === 'archived') {
-      status = 'closed';
+  // If client useCollection yields empty or fails, load via Server Action fallback
+  React.useEffect(() => {
+    let isMounted = true;
+    if (communityId && (!rawPolls || rawPolls.length === 0)) {
+      getCommunityPollsAction(communityId).then((res) => {
+        if (isMounted && res.success && res.polls && res.polls.length > 0) {
+          setFallbackPolls(res.polls);
+        }
+      });
     }
-    const creator = p.creator || 'Community Leader';
-    let createdOn = p.createdOn;
-    if (!createdOn && p.createdAt) {
-      try {
-        const date = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
-        createdOn = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-      } catch (e) {
-        createdOn = 'Unknown Date';
-      }
-    }
-    createdOn = createdOn || 'Unknown Date';
-
-    const options = (p.options || []).map((opt: any, index: number) => ({
-      id: opt.id || `opt-${index}`,
-      text: opt.text || 'Option',
-      votes: typeof opt.votes === 'number' ? opt.votes : 0
-    }));
-
-    const comments = p.comments || [];
-
-    return {
-      ...p,
-      title,
-      description,
-      category,
-      status,
-      creator,
-      createdOn,
-      options,
-      comments
+    return () => {
+      isMounted = false;
     };
-  }) as Poll[];
+  }, [communityId, rawPolls]);
+
+  const isLoading = profileLoading || (pollsLoading && !fallbackPolls);
+  const itemsToProcess = (rawPolls && rawPolls.length > 0) ? rawPolls : (fallbackPolls ?? []);
+
+  const polls: Poll[] = itemsToProcess
+    .map((p: any) => {
+      const title = typeof p.title === 'string' ? p.title : (typeof p.question === 'string' ? p.question : 'Untitled Consultation');
+      const description = typeof p.description === 'string' ? p.description : (typeof p.question === 'string' ? p.question : 'No description provided.');
+      const category = (p.category && ['budget', 'events', 'feedback', 'regulations'].includes(p.category)) ? p.category : 'feedback';
+      let status = p.status || 'closed';
+      if (status === 'archived') {
+        status = 'closed';
+      }
+      const creator = typeof p.creator === 'string' ? p.creator : 'Community Leader';
+      let createdOn = typeof p.createdOn === 'string' ? p.createdOn : '';
+      if (!createdOn && (p.createdAt || p.createdOn)) {
+        const d = parsePollDate(p.createdAt || p.createdOn);
+        if (d) {
+          createdOn = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+      }
+      createdOn = createdOn || 'Community Poll';
+
+      const rawOpts = Array.isArray(p.options) ? p.options : [];
+      const options = rawOpts.map((opt: any, index: number) => {
+        if (typeof opt === 'string') {
+          return { id: `opt-${index}`, text: opt, votes: 0 };
+        }
+        return {
+          id: opt?.id || `opt-${index}`,
+          text: opt?.text || 'Option',
+          votes: typeof opt?.votes === 'number' ? opt.votes : 0,
+        };
+      });
+
+      const rawComments = Array.isArray(p.comments) ? p.comments : [];
+      const comments = rawComments.map((com: any, cIdx: number) => ({
+        id: com?.id || `com-${cIdx}`,
+        author: typeof com?.author === 'string' ? com.author : 'Resident',
+        role: typeof com?.role === 'string' ? com.role : 'Resident',
+        text: typeof com?.text === 'string' ? com.text : '',
+        time: typeof com?.time === 'string' ? com.time : 'Recently',
+      }));
+
+      const votedBy = Array.isArray(p.votedBy) ? p.votedBy : [];
+
+      return {
+        ...p,
+        title,
+        description,
+        category,
+        status,
+        creator,
+        createdOn,
+        options,
+        comments,
+        votedBy,
+      };
+    })
+    .sort((a, b) => {
+      const dateA = parsePollDate(a.createdAt || a.createdOn)?.getTime() || 0;
+      const dateB = parsePollDate(b.createdAt || b.createdOn)?.getTime() || 0;
+      return dateB - dateA;
+    }) as Poll[];
 
   // ── Voting ──────────────────────────────────────────────────────────────────
   async function handleVote(pollId: string, optId: string) {
@@ -193,7 +245,7 @@ export default function PollsPage() {
 
     const poll = polls.find((p) => p.id === pollId);
     if (!poll) return;
-    if (poll.votedBy?.includes(user.uid)) {
+    if (Array.isArray(poll.votedBy) && poll.votedBy.includes(user.uid)) {
       toast({ title: "Already Voted", description: "You have already cast your vote on this consultation." });
       return;
     }
@@ -398,7 +450,7 @@ export default function PollsPage() {
                   <PollCard
                     key={poll.id}
                     poll={poll}
-                    hasVoted={!!(user && poll.votedBy?.includes(user.uid))}
+                    hasVoted={!!(user && Array.isArray(poll.votedBy) && poll.votedBy.includes(user.uid))}
                     isAdmin={false}
                     onVote={handleVote}
                     onComment={handleComment}
