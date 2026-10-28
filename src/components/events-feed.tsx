@@ -289,10 +289,16 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
       }));
     }
 
-    return rawList.map((event) => {
-      const { updatedEvent } = getAdvancedRepeatingEvent(event, now);
-      return updatedEvent;
-    });
+    return rawList
+      .map((event) => {
+        const { updatedEvent } = getAdvancedRepeatingEvent(event, now);
+        return updatedEvent;
+      })
+      .sort((a, b) => {
+        const dateA = parseEventDate(a.startDate)?.getTime() || 0;
+        const dateB = parseEventDate(b.startDate)?.getTime() || 0;
+        return dateA - dateB;
+      });
   }, [liveEventsData, demoEvents, isDemo, now]);
 
   // Auto-advance repeating events in Firestore (side-effect only)
@@ -310,8 +316,22 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
     });
   }, [liveEventsData, now]);
 
-  const liveEvents = eventsToDisplay.filter((event) => isEventLiveNow(event, now));
-  const upcomingEvents = eventsToDisplay.filter((event) => isEventUpcoming(event, now));
+  // Both live and upcoming event lists sorted chronologically by startDate
+  const liveEvents = eventsToDisplay
+    .filter((event) => isEventLiveNow(event, now))
+    .sort((a, b) => {
+      const dateA = parseEventDate(a.startDate)?.getTime() || 0;
+      const dateB = parseEventDate(b.startDate)?.getTime() || 0;
+      return dateA - dateB;
+    });
+
+  const upcomingEvents = eventsToDisplay
+    .filter((event) => isEventUpcoming(event, now))
+    .sort((a, b) => {
+      const dateA = parseEventDate(a.startDate)?.getTime() || 0;
+      const dateB = parseEventDate(b.startDate)?.getTime() || 0;
+      return dateA - dateB;
+    });
 
   // Only show spinner when we have a communityId and are genuinely waiting for data
   if (communityId && eventsLoading) {
