@@ -513,7 +513,8 @@ export default function LeaderTravelManagementPage() {
           isActive: true,
           lastVerified: 'October 2026'
         }
-      } else {
+      ];
+    } else {
         fallbackList = DEFAULT_TRAVEL_SERVICES.map((s, i) => ({
           ...s,
           id: `ai-gen-${Date.now()}-${i}`,
