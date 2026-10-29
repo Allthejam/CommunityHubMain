@@ -50,12 +50,17 @@ const initialReportState: ReportData = {
 const severityLevels: Array<NonNullable<ReportData['severity']>> = ["Low", "Moderate", "Severe"];
 
 function ReportIssueContent() {
+    const [mounted, setMounted] = useState(false);
     const { user } = useUser();
     const db = useFirestore();
     const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
     const { data: userProfile } = useDoc(userProfileRef);
     const { toast } = useToast();
     const searchParams = useSearchParams();
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const [communityReport, setCommunityReport] = useState<ReportData>(initialReportState);
     const [platformReport, setPlatformReport] = useState<ReportData>(initialReportState);
@@ -333,6 +338,14 @@ function ReportIssueContent() {
         });
     };
     
+    if (!mounted) {
+        return (
+            <div className="flex min-h-[50vh] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
     return (
         <>
         <div className="space-y-8">
