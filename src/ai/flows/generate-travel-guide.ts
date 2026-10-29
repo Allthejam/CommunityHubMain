@@ -103,6 +103,3 @@ CRITICAL GEOGRAPHICAL & ACCURACY RULES:
 
   return { services };
 }
-
-  return { services };
-}
