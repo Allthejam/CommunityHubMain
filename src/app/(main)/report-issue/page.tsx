@@ -277,9 +277,21 @@ function ReportIssueContent() {
         }
     };
 
+    const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB friendly limit
+
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, reportType: 'community' | 'platform') => {
         const file = event.target.files?.[0];
         if (file) {
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                toast({
+                    title: 'Image Too Large',
+                    description: `The selected photo (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the maximum allowed size of 10MB. Please choose a smaller photo.`,
+                    variant: 'destructive',
+                });
+                event.target.value = '';
+                return;
+            }
+
             const currentCount = reportType === 'community' 
                 ? (communityReport.images?.length || (communityReport.image ? 1 : 0))
                 : (platformReport.images?.length || (platformReport.image ? 1 : 0));

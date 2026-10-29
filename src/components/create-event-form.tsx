@@ -228,9 +228,21 @@ export function CreateEventForm({ event, onSaveSuccess }: { event?: any, onSaveS
       }
   };
 
+  const MAX_EVENT_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB limit
+
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (file) {
+          if (file.size > MAX_EVENT_IMAGE_SIZE_BYTES) {
+              toast({
+                  title: "Image Exceeds Max Size",
+                  description: `The chosen image (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the maximum allowed size of 10MB. Please select a smaller image.`,
+                  variant: "destructive"
+              });
+              event.target.value = '';
+              return;
+          }
+
           const reader = new FileReader();
           reader.onloadend = async () => {
               const result = reader.result as string;
