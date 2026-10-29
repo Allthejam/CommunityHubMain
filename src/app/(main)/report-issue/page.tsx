@@ -11,7 +11,8 @@ import { useUser, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { createReportAction } from '@/lib/actions/reportActions';
-import { Loader2, ShieldQuestion, Users, Upload, Camera, X, RefreshCw } from 'lucide-react';
+import { uploadImageAction } from '@/lib/actions/storageActions';
+import { Loader2, ShieldQuestion, Users, Upload, Camera, X, RefreshCw, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -27,6 +28,7 @@ type ReportData = {
     category: string;
     description: string;
     image: string | null;
+    images: string[];
     anonymous: boolean;
     contactPreference: string;
     contactDetail: string;
@@ -38,6 +40,7 @@ const initialReportState: ReportData = {
     category: '',
     description: '',
     image: null,
+    images: [],
     anonymous: false,
     contactPreference: 'chat',
     contactDetail: '',
@@ -59,6 +62,7 @@ function ReportIssueContent() {
     const [isCommunitySubmitting, startCommunityTransition] = useTransition();
     const [isPlatformSubmitting, startPlatformTransition] = useTransition();
 
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [activeCameraFor, setActiveCameraFor] = useState<'community' | 'platform' | null>(null);
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -205,32 +209,86 @@ function ReportIssueContent() {
         setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
     };
 
-    const handleCapture = () => {
-        if (videoRef.current && canvasRef.current) {
+    const addImageToReport = async (dataUrl: string, reportType: 'community' | 'platform', fileName?: string) => {
+        setIsUploadingImage(true);
+        let finalUrl = dataUrl;
+        try {
+            const commId = reportType === 'community' ? (userProfile?.communityId || 'general') : 'platform';
+            const cleanName = fileName ? fileName.replace(/[^a-zA-Z0-9._-]/g, '') : `photo_${Date.now()}.jpg`;
+            const storagePath = `reports/${commId}/temp_${Date.now()}_${cleanName}`;
+            const res = await uploadImageAction({ base64Data: dataUrl, path: storagePath });
+            if (res.success && res.url) {
+                finalUrl = res.url;
+            }
+        } catch (err) {
+            console.error("Storage upload error:", err);
+        } finally {
+            setIsUploadingImage(false);
+        }
+
+        const updater = reportType === 'community' ? setCommunityReport : setPlatformReport;
+        updater(prev => {
+            const currentList = Array.isArray(prev.images) ? [...prev.images] : (prev.image ? [prev.image] : []);
+            if (currentList.length >= 2) {
+                toast({ title: 'Image Limit Reached', description: 'Maximum of 2 images allowed per report.', variant: 'destructive' });
+                return prev;
+            }
+            const updated = [...currentList, finalUrl].slice(0, 2);
+            return {
+                ...prev,
+                images: updated,
+                image: updated[0] || null,
+            };
+        });
+    };
+
+    const removeImageFromReport = (index: number, reportType: 'community' | 'platform') => {
+        const updater = reportType === 'community' ? setCommunityReport : setPlatformReport;
+        updater(prev => {
+            const currentList = Array.isArray(prev.images) ? [...prev.images] : (prev.image ? [prev.image] : []);
+            const updated = currentList.filter((_, i) => i !== index);
+            return {
+                ...prev,
+                images: updated,
+                image: updated[0] || null,
+            };
+        });
+    };
+
+    const handleCapture = async () => {
+        if (videoRef.current && canvasRef.current && activeCameraFor) {
             const video = videoRef.current;
             const canvas = canvasRef.current;
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d')?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
             
-            if (activeCameraFor === 'community') handleCommunityChange('image', dataUrl);
-            else if (activeCameraFor === 'platform') handlePlatformChange('image', dataUrl);
-
+            const target = activeCameraFor;
             setIsCameraOpen(false);
             setActiveCameraFor(null);
+
+            await addImageToReport(dataUrl, target, `cam_${Date.now()}.jpg`);
         }
     };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, reportType: 'community' | 'platform') => {
         const file = event.target.files?.[0];
         if (file) {
+            const currentCount = reportType === 'community' 
+                ? (communityReport.images?.length || (communityReport.image ? 1 : 0))
+                : (platformReport.images?.length || (platformReport.image ? 1 : 0));
+            if (currentCount >= 2) {
+                toast({ title: 'Limit Reached', description: 'You can upload a maximum of 2 images.', variant: 'destructive' });
+                event.target.value = '';
+                return;
+            }
             const reader = new FileReader();
             reader.onloadend = () => {
-                if (reportType === 'community') handleCommunityChange('image', reader.result as string);
-                else handlePlatformChange('image', reader.result as string);
+                addImageToReport(reader.result as string, reportType, file.name);
             };
             reader.readAsDataURL(file);
+            event.target.value = '';
         }
     };
 
@@ -254,7 +312,8 @@ function ReportIssueContent() {
                 category: reportData.category,
                 reportType,
                 userName: reportData.anonymous ? 'Anonymous' : userProfile.name,
-                image: reportData.image,
+                image: reportData.images?.[0] || reportData.image || null,
+                images: reportData.images?.length > 0 ? reportData.images : (reportData.image ? [reportData.image] : []),
                 contactPreference: reportData.contactPreference,
                 contactDetail: reportData.contactDetail,
                 severity: reportData.severity,
@@ -348,18 +407,63 @@ function ReportIssueContent() {
                                 <Textarea id="community-description" value={communityReport.description} onChange={e => handleCommunityChange('description', e.target.value)} placeholder="Please provide as much detail as possible..." className="min-h-16"/>
                             </div>
                              <div className="space-y-2">
-                                <Label>Attach Image (Optional)</Label>
-                                {communityReport.image ? (
-                                    <div className="relative w-32 h-32">
-                                        <Image src={communityReport.image} alt="Preview" fill style={{objectFit:"cover"}} className="rounded-md border" />
-                                        <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={() => handleCommunityChange('image', null)}><X className="h-4 w-4" /></Button>
-                                    </div>
-                                ) : (
-                                    <div className="flex gap-2">
-                                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2 h-4 w-4" />Upload</Button>
-                                        <Button type="button" variant="outline" onClick={() => { setActiveCameraFor('community'); setIsCameraOpen(true); }}><Camera className="mr-2 h-4 w-4" />Take Picture</Button>
-                                    </div>
-                                )}
+                                <div className="flex items-center justify-between">
+                                    <Label>Attach Images (Optional - Max 2)</Label>
+                                    <span className="text-xs text-muted-foreground">
+                                        {(communityReport.images?.length || (communityReport.image ? 1 : 0))} / 2 images
+                                    </span>
+                                </div>
+
+                                <div className="flex flex-wrap gap-3 items-center">
+                                    {(communityReport.images && communityReport.images.length > 0 
+                                        ? communityReport.images 
+                                        : (communityReport.image ? [communityReport.image] : [])
+                                    ).map((imgUrl, idx) => (
+                                        <div key={idx} className="relative w-28 h-28 rounded-md overflow-hidden border bg-muted shadow-sm group">
+                                            <Image src={imgUrl} alt={`Attached issue photo ${idx + 1}`} fill style={{objectFit:"cover"}} />
+                                            <Button 
+                                                type="button" 
+                                                variant="destructive" 
+                                                size="icon" 
+                                                className="absolute top-1 right-1 h-6 w-6 rounded-full shadow-md opacity-90 hover:opacity-100" 
+                                                onClick={() => removeImageFromReport(idx, 'community')}
+                                            >
+                                                <X className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                                #{idx + 1}
+                                            </span>
+                                        </div>
+                                    ))}
+
+                                    {(communityReport.images?.length || (communityReport.image ? 1 : 0)) < 2 && (
+                                        <div className="flex gap-2">
+                                            <Button 
+                                                type="button" 
+                                                variant="outline" 
+                                                disabled={isUploadingImage}
+                                                onClick={() => {
+                                                    setActiveCameraFor('community');
+                                                    fileInputRef.current?.click();
+                                                }}
+                                            >
+                                                {isUploadingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                                Upload Photo
+                                            </Button>
+                                            <Button 
+                                                type="button" 
+                                                variant="outline" 
+                                                disabled={isUploadingImage}
+                                                onClick={() => { 
+                                                    setActiveCameraFor('community'); 
+                                                    setIsCameraOpen(true); 
+                                                }}
+                                            >
+                                                <Camera className="mr-2 h-4 w-4" />Take Picture
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="space-y-3">
                                 <Label>Identity & Contact Preference</Label>
@@ -432,18 +536,63 @@ function ReportIssueContent() {
                                 <Textarea id="platform-description" value={platformReport.description} onChange={e => handlePlatformChange('description', e.target.value)} placeholder="Please describe the issue in detail..." className="min-h-16"/>
                             </div>
                              <div className="space-y-2">
-                                <Label>Attach Image (Optional)</Label>
-                                {platformReport.image ? (
-                                    <div className="relative w-32 h-32">
-                                        <Image src={platformReport.image} alt="Preview" fill style={{objectFit:"cover"}} className="rounded-md border" />
-                                        <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={() => handlePlatformChange('image', null)}><X className="h-4 w-4" /></Button>
-                                    </div>
-                                ) : (
-                                    <div className="flex gap-2">
-                                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2" />Upload</Button>
-                                        <Button type="button" variant="outline" onClick={() => { setActiveCameraFor('platform'); setIsCameraOpen(true); }}><Camera className="mr-2" />Take Picture</Button>
-                                    </div>
-                                )}
+                                <div className="flex items-center justify-between">
+                                    <Label>Attach Images (Optional - Max 2)</Label>
+                                    <span className="text-xs text-muted-foreground">
+                                        {(platformReport.images?.length || (platformReport.image ? 1 : 0))} / 2 images
+                                    </span>
+                                </div>
+
+                                <div className="flex flex-wrap gap-3 items-center">
+                                    {(platformReport.images && platformReport.images.length > 0 
+                                        ? platformReport.images 
+                                        : (platformReport.image ? [platformReport.image] : [])
+                                    ).map((imgUrl, idx) => (
+                                        <div key={idx} className="relative w-28 h-28 rounded-md overflow-hidden border bg-muted shadow-sm group">
+                                            <Image src={imgUrl} alt={`Attached issue photo ${idx + 1}`} fill style={{objectFit:"cover"}} />
+                                            <Button 
+                                                type="button" 
+                                                variant="destructive" 
+                                                size="icon" 
+                                                className="absolute top-1 right-1 h-6 w-6 rounded-full shadow-md opacity-90 hover:opacity-100" 
+                                                onClick={() => removeImageFromReport(idx, 'platform')}
+                                            >
+                                                <X className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                                #{idx + 1}
+                                            </span>
+                                        </div>
+                                    ))}
+
+                                    {(platformReport.images?.length || (platformReport.image ? 1 : 0)) < 2 && (
+                                        <div className="flex gap-2">
+                                            <Button 
+                                                type="button" 
+                                                variant="outline" 
+                                                disabled={isUploadingImage}
+                                                onClick={() => {
+                                                    setActiveCameraFor('platform');
+                                                    fileInputRef.current?.click();
+                                                }}
+                                            >
+                                                {isUploadingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                                Upload Photo
+                                            </Button>
+                                            <Button 
+                                                type="button" 
+                                                variant="outline" 
+                                                disabled={isUploadingImage}
+                                                onClick={() => { 
+                                                    setActiveCameraFor('platform'); 
+                                                    setIsCameraOpen(true); 
+                                                }}
+                                            >
+                                                <Camera className="mr-2 h-4 w-4" />Take Picture
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="space-y-3">
                                 <Label>Identity & Contact Preference</Label>

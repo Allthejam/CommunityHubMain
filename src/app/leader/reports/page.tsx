@@ -78,6 +78,7 @@ type Report = {
   description: string;
   severity: "Low" | "Moderate" | "Severe";
   image?: string;
+  images?: string[];
   reporterId: string;
   resolutionNotes?: string;
   resolvedAt?: { toDate: () => Date } | any;
@@ -406,9 +407,34 @@ export default function LeaderReportsPage() {
                 <ScrollArea className="h-full">
                     <div className="px-6">
                         <div className="space-y-4 py-4">
-                            {viewingReport?.image && (
-                                 <div className="relative w-full aspect-video rounded-md overflow-hidden">
-                                     <Image src={viewingReport.image} alt="Report image" fill className="object-contain" />
+                            {/* Display attached images (supports single image or array of up to 2 images) */}
+                            {((viewingReport?.images && viewingReport.images.length > 0) || viewingReport?.image) && (
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-semibold">Attached Evidence / Photos</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {(viewingReport?.images && viewingReport.images.length > 0
+                                            ? viewingReport.images
+                                            : [viewingReport?.image!]
+                                        ).map((imgSrc, i) => (
+                                            <a 
+                                                key={i} 
+                                                href={imgSrc} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted block group hover:ring-2 hover:ring-primary transition-all"
+                                            >
+                                                <Image 
+                                                    src={imgSrc} 
+                                                    alt={`Report image ${i + 1}`} 
+                                                    fill 
+                                                    className="object-cover group-hover:scale-105 transition-transform duration-300" 
+                                                />
+                                                <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded">
+                                                    Photo #{i + 1} (Click to expand)
+                                                </span>
+                                            </a>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                              <div className="space-y-1">

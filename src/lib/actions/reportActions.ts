@@ -3,6 +3,7 @@
 
 import { initializeAdminApp } from "@/firebase/admin-app";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { uploadImageAction } from "@/lib/actions/storageActions";
 
 type ActionResponse = {
   success: boolean;
@@ -66,10 +67,11 @@ export async function createReportAction(params: {
     reportType: 'community' | 'platform';
     userName: string;
     image?: string | null;
+    images?: string[] | null;
     contactPreference?: string;
     contactDetail?: string;
 }): Promise<ActionResponse> {
-    const { userId, communityId, subject, description, category, severity, reportType, userName, image, contactPreference, contactDetail } = params;
+    const { userId, communityId, subject, description, category, severity, reportType, userName, image, images, contactPreference, contactDetail } = params;
 
     if (!userId || !subject || !description || !category) {
         return { success: false, error: 'Missing required fields.' };
@@ -83,6 +85,40 @@ export async function createReportAction(params: {
         const collectionName = reportType === 'community' ? 'community_reports' : 'platform_reports';
         const newReportRef = firestore.collection(collectionName).doc();
         
+        // Consolidate images (up to 2 maximum)
+        let incomingImages: string[] = [];
+        if (Array.isArray(images) && images.length > 0) {
+            incomingImages = images.filter(Boolean);
+        } else if (image) {
+            incomingImages = [image];
+        }
+        incomingImages = incomingImages.slice(0, 2);
+
+        // Upload any base64 images to Cloud Storage bucket
+        const uploadedImageUrls: string[] = [];
+        for (let idx = 0; idx < incomingImages.length; idx++) {
+            const img = incomingImages[idx];
+            if (img.startsWith('data:image/')) {
+                try {
+                    const storagePath = `reports/${communityId || 'platform'}/${newReportRef.id}/img_${idx}_${Date.now()}.jpg`;
+                    const uploadRes = await uploadImageAction({
+                        base64Data: img,
+                        path: storagePath,
+                    });
+                    if (uploadRes.success && uploadRes.url) {
+                        uploadedImageUrls.push(uploadRes.url);
+                    } else {
+                        uploadedImageUrls.push(img);
+                    }
+                } catch (imgErr) {
+                    console.error("Failed to upload report image to Cloud Storage:", imgErr);
+                    uploadedImageUrls.push(img);
+                }
+            } else {
+                uploadedImageUrls.push(img);
+            }
+        }
+        
         batch.set(newReportRef, {
             communityId: communityId || null,
             subject,
@@ -94,7 +130,8 @@ export async function createReportAction(params: {
             category: category.toLowerCase(), // Standardize to lowercase
             severity: severity || 'Moderate',
             reporterId: userId,
-            image: image || null,
+            image: uploadedImageUrls[0] || null,
+            images: uploadedImageUrls,
             contactPreference,
             contactDetail,
         });
