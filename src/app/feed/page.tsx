@@ -217,8 +217,8 @@ export default function FeedPage() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
-        {/* Left Sidebar - Independent Scroll */}
-        <aside className="hidden lg:block lg:col-span-1 lg:sticky lg:top-24 space-y-6 max-height-[calc(100vh-7rem)] overflow-y-auto pr-2 custom-scrollbar">
+        {/* Left Sidebar - Independent Scroll with Clean Scrollbar */}
+        <aside className="hidden lg:block lg:col-span-1 lg:sticky lg:top-20 space-y-6 max-h-[calc(100vh-5.5rem)] overflow-y-auto pr-2 custom-scrollbar overscroll-contain">
           <NationalAdvertisers layout="feed" />
           <ValuedPartners />
         </aside>
@@ -258,8 +258,8 @@ export default function FeedPage() {
           </div>
         </div>
 
-        {/* Right Sidebar - Independent Scroll */}
-        <aside className="hidden lg:block lg:col-span-1 lg:sticky lg:top-24 space-y-6 max-height-[calc(100vh-7rem)] overflow-y-auto pl-2 custom-scrollbar">
+        {/* Right Sidebar - Independent Scroll with Clean Scrollbar */}
+        <aside className="hidden lg:block lg:col-span-1 lg:sticky lg:top-20 space-y-6 max-h-[calc(100vh-5.5rem)] overflow-y-auto pl-2 custom-scrollbar overscroll-contain">
            <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
            <RoadworksNoticeboard
              communityId={communityId}
