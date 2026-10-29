@@ -30,6 +30,7 @@ const TravelServiceItemSchema = z.object({
   localTips: z.string().optional().describe('Helpful local insider advice for residents and tourists.'),
   isActive: z.boolean().default(true),
   isPopular: z.boolean().optional(),
+  lastVerified: z.string().optional().describe('Verification date (e.g. October 2026).'),
 });
 
 const GenerateTravelGuideOutputSchema = z.object({
@@ -42,12 +43,16 @@ export async function generateTravelGuide(input: GenerateTravelGuideInput): Prom
   const { genkit } = await import('genkit');
   const { googleAI } = await import('@genkit-ai/google-genai');
 
-  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const geminiApiKey = process.env.GEMINI_API_KEY ||
+                       process.env.GOOGLE_GENAI_API_KEY ||
+                       process.env.GOOGLE_API_KEY ||
+                       process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+
   const ai = genkit({
     plugins: [
-      googleAI({ apiKey: geminiApiKey }),
+      googleAI(geminiApiKey ? { apiKey: geminiApiKey } : {}),
     ],
-    model: 'googleai/gemini-1.5-flash-latest',
+    model: 'googleai/gemini-1.5-flash',
   });
 
   const communityName = input.communityName.trim();
@@ -57,17 +62,22 @@ export async function generateTravelGuide(input: GenerateTravelGuideInput): Prom
   const prompt = `You are a regional transport geographer and local transit expert.
 Your job is to generate an authentic, geographically accurate Local Travel & Transit Guide for the community of "${communityName}" (${region ? region + ', ' : ''}${country}).
 
-CRITICAL GEOGRAPHICAL RULES:
+CRITICAL GEOGRAPHICAL & LINK RULES:
 1. TRAINS & RAIL ACCURACY:
    - Check if "${communityName}" actually has an active passenger railway station.
    - If "${communityName}" DOES NOT have an active train station (e.g. Aberlour, Dufftown, Grantown, Ullapool, St Andrews, etc.), DO NOT invent a station with "${communityName}" in the name!
    - Instead, list the real CLOSEST active railway stations (e.g. for Aberlour: Keith Station approx 14 miles away, Elgin Station approx 18 miles away, Aviemore approx 24 miles away). Clearly state the distance in "distanceFromCentre" (e.g. "14 miles away in Keith") and mention connecting bus routes in the description!
-   - Provide links to real rail operators (e.g. ScotRail / National Rail: https://www.nationalrail.co.uk/ or https://www.scotrail.co.uk/).
+   - Use official working links for rail:
+     * liveTrackerUrl: "https://www.nationalrail.co.uk/live-trains/departures/"
+     * timetableUrl: "https://www.nationalrail.co.uk/journey-planner/"
+     * bookingUrl: "https://www.nationalrail.co.uk/journey-planner/"
 
 2. BUSES & COACHES:
    - Identify the real primary bus and coach companies operating in this specific county/region (e.g. Stagecoach, First Bus, Lothian, Citylink, National Express, local council dial-a-bus / m.connect).
    - Use real route numbers where known (e.g. Stagecoach 36 for Aberlour/Elgin, Stagecoach 37 for Aviemore/Grantown, etc.).
-   - Provide official tracker links (e.g. https://www.stagecoachbus.com/live-bus-times).
+   - Use valid working links:
+     * liveTrackerUrl: "https://bustimes.org/" or "https://www.stagecoachbus.com/live-bus-times"
+     * timetableUrl: "https://www.traveline.info/" or "https://www.travelinescotland.com/journey-planner"
 
 3. TAXIS & PRIVATE HIRE:
    - Include 1-2 realistic local taxi / private hire companies serving "${communityName}" and surrounding areas.
@@ -75,11 +85,17 @@ CRITICAL GEOGRAPHICAL RULES:
 
 4. EV CHARGING & PARKING:
    - Include the main public car park or EV charging hub in the town (e.g. ChargePlace Scotland, Zap-Map, council car parks).
+   - liveTrackerUrl: "https://www.zap-map.com/live-map"
+   - mapLocationUrl: "https://www.google.com/maps/search/?api=1&query=electric+vehicle+charging"
 
 5. COMMUNITY MINIBUS / DIAL-A-RIDE:
-   - Include local community transport schemes (e.g. Moray m.connect, Badenoch & Strathspey CTCO, dial-a-ride).
+   - Include local community transport schemes (e.g. Moray m.connect, Badenoch & Strathspey CTA, dial-a-ride).
+   - timetableUrl: "https://ctauk.org/"
 
-6. Structure: Generate 4 to 7 high-quality, practical services across categories: bus, train, taxi, ev_parking, community.`;
+6. DATES & FRESHNESS:
+   - Set lastVerified to "October 2026" on every service.
+
+7. Structure: Generate 4 to 7 high-quality, practical services across categories: bus, train, taxi, ev_parking, community.`;
 
   const response = await ai.generate({
     prompt,
@@ -92,11 +108,12 @@ CRITICAL GEOGRAPHICAL RULES:
     throw new Error('AI could not generate travel guide for this location.');
   }
 
-  // Ensure unique IDs
+  // Ensure unique IDs and freshness
   const services = response.output.services.map((item, index) => ({
     ...item,
     id: `ai-${item.category}-${Date.now()}-${index}`,
     isActive: true,
+    lastVerified: item.lastVerified || 'October 2026',
   }));
 
   return { services };

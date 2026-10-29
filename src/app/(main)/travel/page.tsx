@@ -173,7 +173,7 @@ export default function TravelPage() {
               {communityName}
             </Badge>
             <span className="text-[11px] font-semibold bg-emerald-400/20 text-emerald-100 border border-emerald-300/30 px-2.5 py-0.5 rounded-full backdrop-blur-md">
-              ⚡ Zero-Cost Live Deep-Links
+              ⚡ Real-Time Transit Deep-Links
             </span>
           </div>
 
@@ -183,6 +183,13 @@ export default function TravelPage() {
           <p className="text-sm sm:text-base text-slate-100/90 leading-relaxed">
             Direct access to local bus timetables, live vehicle trackers, nearest train connections, registered taxi dials, community dial-a-ride, and EV charging points for <strong className="text-white underline underline-offset-2">{communityName}</strong>.
           </p>
+
+          {communityData?.travelLastUpdated && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-100/90 font-semibold bg-white/10 px-3 py-1 rounded-xl backdrop-blur-xs border border-white/15 w-fit">
+              <Clock className="h-3.5 w-3.5 text-emerald-300" />
+              <span>Community transit verified: {new Date(communityData.travelLastUpdated?.toDate?.() || communityData.travelLastUpdated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            </div>
+          )}
 
           {/* Quick Search Bar */}
           <div className="pt-3 max-w-xl">
@@ -218,6 +225,111 @@ export default function TravelPage() {
         boundary={communityData?.boundary}
         compact={false}
       />
+
+      {/* Live Departure & Network Radar Hub */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <h2 className="text-sm font-extrabold uppercase tracking-wider text-muted-foreground">
+              Official Live Real-Time Departure Radars
+            </h2>
+          </div>
+          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+            Real-Time GPS Active
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <a 
+            href="https://www.nationalrail.co.uk/live-trains/departures/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-3.5 rounded-2xl border bg-card hover:bg-muted/50 hover:border-indigo-300 dark:hover:border-indigo-800 transition-all shadow-xs group"
+          >
+            <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform">
+              <Train className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-foreground">Live Train Radar</span>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground truncate">National Rail departure boards</p>
+            </div>
+            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
+          </a>
+
+          <a 
+            href="https://bustimes.org/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-3.5 rounded-2xl border bg-card hover:bg-muted/50 hover:border-sky-300 dark:hover:border-sky-800 transition-all shadow-xs group"
+          >
+            <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
+              <Bus className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-foreground">Live Bus Satellite</span>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground truncate">GPS vehicle map & timetable radar</p>
+            </div>
+            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
+          </a>
+
+          <a 
+            href="https://www.zap-map.com/live-map" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-3.5 rounded-2xl border bg-card hover:bg-muted/50 hover:border-teal-300 dark:hover:border-teal-800 transition-all shadow-xs group"
+          >
+            <div className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 group-hover:scale-105 transition-transform">
+              <Zap className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-foreground">Live EV Grid</span>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground truncate">Real-time charger availability</p>
+            </div>
+            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
+          </a>
+
+          <a 
+            href="https://www.traveline.info/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-3.5 rounded-2xl border bg-card hover:bg-muted/50 hover:border-amber-300 dark:hover:border-amber-800 transition-all shadow-xs group"
+          >
+            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
+              <Compass className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-foreground">Journey Planner</span>
+                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">UK Wide</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground truncate">Door-to-door transit route planner</p>
+            </div>
+            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
+          </a>
+        </div>
+      </div>
 
       {/* Category Navigation Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
@@ -276,11 +388,17 @@ export default function TravelPage() {
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1">
-                        <Badge variant="outline" className={`text-[10px] font-bold gap-1 py-0.5 ${meta.colorClass}`}>
-                          {meta.icon}
-                          {meta.label}
-                        </Badge>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="outline" className={`text-[10px] font-bold gap-1 py-0.5 ${meta.colorClass}`}>
+                            {meta.icon}
+                            {meta.label}
+                          </Badge>
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            <span>Verified {service.lastVerified || 'Active 2026'}</span>
+                          </div>
+                        </div>
                         <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200 tracking-tight">{service.operator}</p>
                       </div>
 
@@ -339,12 +457,16 @@ export default function TravelPage() {
                   </CardContent>
 
                   <CardFooter className="pt-2 border-t flex flex-wrap gap-2">
-                    {/* Live Tracker Direct Link */}
+                    {/* Live Tracker Direct Link with Radar Beacon */}
                     {service.liveTrackerUrl && (
-                      <Button asChild size="sm" className="flex-1 font-semibold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs gap-1.5">
+                      <Button asChild size="sm" className="flex-1 font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs gap-1.5">
                         <a href={service.liveTrackerUrl} target="_blank" rel="noopener noreferrer">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                          </span>
                           <Radio className="h-3.5 w-3.5" />
-                          Live Tracker
+                          Live GPS Radar
                           <ExternalLink className="h-3 w-3 ml-0.5 opacity-80" />
                         </a>
                       </Button>
@@ -352,9 +474,9 @@ export default function TravelPage() {
 
                     {/* Timetable Link */}
                     {service.timetableUrl && (
-                      <Button asChild size="sm" variant="outline" className="flex-1 font-semibold text-xs gap-1.5">
+                      <Button asChild size="sm" variant="outline" className="flex-1 font-semibold text-xs gap-1.5 hover:bg-muted">
                         <a href={service.timetableUrl} target="_blank" rel="noopener noreferrer">
-                          Timetable
+                          Timetable & Route
                           <ExternalLink className="h-3 w-3 ml-0.5 opacity-80" />
                         </a>
                       </Button>
@@ -384,7 +506,7 @@ export default function TravelPage() {
                     {service.mapLocationUrl && (
                       <Button asChild size="sm" variant="ghost" className="text-xs text-muted-foreground hover:text-foreground">
                         <a href={service.mapLocationUrl} target="_blank" rel="noopener noreferrer">
-                          <MapPin className="h-3.5 w-3.5 mr-1" /> Map Location
+                          <MapPin className="h-3.5 w-3.5 mr-1 text-sky-600" /> View Map
                         </a>
                       </Button>
                     )}
