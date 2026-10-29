@@ -1,12 +1,13 @@
 'use server';
 
-import { z } from 'zod';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
 import { type TravelServiceItem } from '@/lib/types/travel';
 
 const GenerateTravelGuideInputSchema = z.object({
   communityName: z.string().describe('The name of the town, village, or community.'),
-  region: z.string().optional().describe('The county, region, state, or area (e.g. Moray, Highlands, Aberdeenshire, Colorado, etc.).'),
-  country: z.string().optional().describe('The country (e.g. Scotland, UK, USA, etc.).'),
+  region: z.string().optional().describe('The county, region, state, or area (e.g. Highlands, Moray, Cornwall, Yorkshire, etc.).'),
+  country: z.string().optional().describe('The country (e.g. Scotland, England, UK, etc.).'),
 });
 
 export type GenerateTravelGuideInput = z.infer<typeof GenerateTravelGuideInputSchema>;
@@ -14,14 +15,14 @@ export type GenerateTravelGuideInput = z.infer<typeof GenerateTravelGuideInputSc
 const TravelServiceItemSchema = z.object({
   id: z.string(),
   category: z.enum(['bus', 'train', 'taxi', 'community', 'ev_parking', 'cycling', 'ferry']),
-  operator: z.string().describe('The name of the transport operator or local authority (e.g. Stagecoach North Scotland, ScotRail, ChargePlace Scotland).'),
-  title: z.string().describe('A descriptive title (e.g. Service 36: Elgin & Speyside Link, Keith Railway Station).'),
-  routeNumber: z.string().optional().describe('The specific bus/coach route number if applicable (e.g. 36, 37, 365).'),
+  operator: z.string().describe('The name of the transport operator or local authority (e.g. Stagecoach, ScotRail, National Rail, First Bus, ChargePlace Scotland).'),
+  title: z.string().describe('A descriptive title (e.g. Service 37: Aviemore & Grantown Link, Carrbridge Railway Station).'),
+  routeNumber: z.string().optional().describe('The specific bus/coach route number if applicable (e.g. 37, 36, 15).'),
   destinations: z.string().optional().describe('Key stops, towns, or directions connected by this route.'),
   frequency: z.string().optional().describe('Operating frequency or timetable schedule (e.g. Hourly Mon–Sat, Regular Daily).'),
   stationName: z.string().optional().describe('Name of the station if category is train or EV hub.'),
-  distanceFromCentre: z.string().optional().describe('Distance from the town centre if the station is in a nearby town (e.g. 14 miles away in Keith).'),
-  telephone: z.string().optional().describe('Local phone number for taxi or dial-a-bus services with real area code.'),
+  distanceFromCentre: z.string().optional().describe('Distance from the town centre if the station is in a nearby town (e.g. 10 miles away in Carrbridge).'),
+  telephone: z.string().optional().describe('Local phone number for taxi or dial-a-bus services with authentic area dialling code.'),
   liveTrackerUrl: z.string().optional().describe('Direct link to official live departure board or vehicle GPS tracker.'),
   timetableUrl: z.string().optional().describe('Direct link to official timetable or schedule page.'),
   bookingUrl: z.string().optional().describe('Direct link to ticket booking or reservation portal if applicable.'),
@@ -40,62 +41,46 @@ const GenerateTravelGuideOutputSchema = z.object({
 export type GenerateTravelGuideOutput = z.infer<typeof GenerateTravelGuideOutputSchema>;
 
 export async function generateTravelGuide(input: GenerateTravelGuideInput): Promise<GenerateTravelGuideOutput> {
-  const { genkit } = await import('genkit');
-  const { googleAI } = await import('@genkit-ai/google-genai');
-
-  const geminiApiKey = process.env.GEMINI_API_KEY ||
-                       process.env.GOOGLE_GENAI_API_KEY ||
-                       process.env.GOOGLE_API_KEY ||
-                       process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-  const ai = genkit({
-    plugins: [
-      googleAI(geminiApiKey ? { apiKey: geminiApiKey } : {}),
-    ],
-    model: 'googleai/gemini-1.5-flash',
-  });
-
   const communityName = input.communityName.trim();
   const region = input.region || '';
   const country = input.country || 'United Kingdom';
 
-  const prompt = `You are a regional transport geographer and local transit expert.
-Your job is to generate an authentic, geographically accurate Local Travel & Transit Guide for the community of "${communityName}" (${region ? region + ', ' : ''}${country}).
+  const prompt = `You are a regional transport geographer and UK public transit expert.
+Generate an authentic, geographically accurate Local Travel & Transit Guide for the community of "${communityName}" (${region ? region + ', ' : ''}${country}).
 
-CRITICAL GEOGRAPHICAL & LINK RULES:
+CRITICAL GEOGRAPHICAL & ACCURACY RULES:
 1. TRAINS & RAIL ACCURACY:
    - Check if "${communityName}" actually has an active passenger railway station.
-   - If "${communityName}" DOES NOT have an active train station (e.g. Aberlour, Dufftown, Grantown, Ullapool, St Andrews, etc.), DO NOT invent a station with "${communityName}" in the name!
-   - Instead, list the real CLOSEST active railway stations (e.g. for Aberlour: Keith Station approx 14 miles away, Elgin Station approx 18 miles away, Aviemore approx 24 miles away). Clearly state the distance in "distanceFromCentre" (e.g. "14 miles away in Keith") and mention connecting bus routes in the description!
+   - If "${communityName}" DOES NOT have an active train station, DO NOT invent one! Instead, list the real closest active passenger railway stations in the surrounding region. State the approximate distance in "distanceFromCentre" (e.g. "Approx 10 miles away in Carrbridge") and mention connecting bus routes in the description!
    - Use official working links for rail:
      * liveTrackerUrl: "https://www.nationalrail.co.uk/live-trains/departures/"
      * timetableUrl: "https://www.nationalrail.co.uk/journey-planner/"
      * bookingUrl: "https://www.nationalrail.co.uk/journey-planner/"
 
 2. BUSES & COACHES:
-   - Identify the real primary bus and coach companies operating in this specific county/region (e.g. Stagecoach, First Bus, Lothian, Citylink, National Express, local council dial-a-bus / m.connect).
-   - Use real route numbers where known (e.g. Stagecoach 36 for Aberlour/Elgin, Stagecoach 37 for Aviemore/Grantown, etc.).
+   - Identify the real primary bus and coach companies operating in this specific county/region (e.g. Stagecoach, First Bus, Lothian, Go-Ahead, Arriva, National Express, local council dial-a-bus).
+   - Use real route numbers where known.
    - Use valid working links:
-     * liveTrackerUrl: "https://bustimes.org/" or "https://www.stagecoachbus.com/live-bus-times"
-     * timetableUrl: "https://www.traveline.info/" or "https://www.travelinescotland.com/journey-planner"
+     * liveTrackerUrl: "https://bustimes.org/" or official operator live times
+     * timetableUrl: "https://www.traveline.info/" or official operator timetable
 
 3. TAXIS & PRIVATE HIRE:
    - Include 1-2 realistic local taxi / private hire companies serving "${communityName}" and surrounding areas.
-   - Use the authentic regional telephone dialling code (e.g. 01340 for Speyside/Aberlour, 01343 for Elgin/Moray, 01479 for Strathspey, etc.).
+   - Use the authentic regional telephone dialling code for that county/area.
 
 4. EV CHARGING & PARKING:
-   - Include the main public car park or EV charging hub in the town (e.g. ChargePlace Scotland, Zap-Map, council car parks).
+   - Include the main public car park or EV charging hub in "${communityName}".
    - liveTrackerUrl: "https://www.zap-map.com/live-map"
    - mapLocationUrl: "https://www.google.com/maps/search/?api=1&query=electric+vehicle+charging"
 
 5. COMMUNITY MINIBUS / DIAL-A-RIDE:
-   - Include local community transport schemes (e.g. Moray m.connect, Badenoch & Strathspey CTA, dial-a-ride).
+   - Include local community transport schemes or dial-a-ride for rural areas.
    - timetableUrl: "https://ctauk.org/"
 
-6. DATES & FRESHNESS:
+6. VERIFICATION:
    - Set lastVerified to "October 2026" on every service.
 
-7. Structure: Generate 4 to 7 high-quality, practical services across categories: bus, train, taxi, ev_parking, community.`;
+7. Structure: Generate 5 to 7 high-quality, practical services across categories: bus, train, taxi, ev_parking, community.`;
 
   const response = await ai.generate({
     prompt,
@@ -104,7 +89,7 @@ CRITICAL GEOGRAPHICAL & LINK RULES:
     },
   });
 
-  if (!response.output || !response.output.services) {
+  if (!response.output || !response.output.services || response.output.services.length === 0) {
     throw new Error('AI could not generate travel guide for this location.');
   }
 
@@ -115,6 +100,9 @@ CRITICAL GEOGRAPHICAL & LINK RULES:
     isActive: true,
     lastVerified: item.lastVerified || 'October 2026',
   }));
+
+  return { services };
+}
 
   return { services };
 }
