@@ -17,11 +17,15 @@ import {
   Save,
   Archive,
   AlertTriangle,
+  Printer,
+  Download,
+  Info,
 } from "lucide-react";
 import { collection, query, where, doc, onSnapshot, orderBy } from "firebase/firestore";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { format, isValid } from "date-fns";
+import { printReportAsPdf } from "@/lib/utils/report-pdf";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -280,6 +284,17 @@ export default function LeaderReportsPage() {
           </p>
         </div>
 
+        {/* Automated Retention & Cleanup Notice */}
+        <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3 shadow-sm">
+          <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <span className="font-bold text-sm block">Automated Report Retention &amp; Housekeeping Schedule</span>
+            <p className="leading-relaxed text-amber-800 dark:text-amber-300">
+              Under community GDPR policy, reports and evidence photos are automatically removed from the platform: <strong>after 6 months if unopened</strong>, or <strong>after 3 months once opened / resolved</strong>. You will receive an alert 4 weeks before a report is due to be removed. Use the <strong>&ldquo;Export Official PDF&rdquo;</strong> button inside any report dialog to retain permanent records for Police Liaison or Council archives before deletion.
+            </p>
+          </div>
+        </div>
+
         <Card>
           <CardHeader>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -486,8 +501,21 @@ export default function LeaderReportsPage() {
                         </div>
                     </div>
                 </ScrollArea>
-                 <DialogFooter className="p-6 pt-4 border-t sm:justify-between">
-                    <Button variant="outline" onClick={handleCloseDialog}>Close</Button>
+                 <DialogFooter className="p-6 pt-4 border-t flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            type="button" 
+                            variant="secondary" 
+                            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-semibold"
+                            onClick={() => viewingReport && printReportAsPdf({
+                                ...viewingReport,
+                                communityName: userProfile?.communityName || 'Community Network'
+                            })}
+                        >
+                            <Printer className="mr-2 h-4 w-4 text-primary" /> Export Official PDF
+                        </Button>
+                        <Button variant="outline" onClick={handleCloseDialog}>Close</Button>
+                    </div>
                      <div className="flex gap-2">
                         {viewingReport?.status === 'New' && (
                             <Button onClick={handleAcknowledgeClick} disabled={isProcessing}>

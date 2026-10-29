@@ -12,7 +12,7 @@ import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { createReportAction } from '@/lib/actions/reportActions';
 import { uploadImageAction } from '@/lib/actions/storageActions';
-import { Loader2, ShieldQuestion, Users, Upload, Camera, X, RefreshCw, Plus } from 'lucide-react';
+import { Loader2, ShieldQuestion, Users, Upload, Camera, X, RefreshCw, Plus, Clock, Info } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -342,8 +342,19 @@ function ReportIssueContent() {
                     Report an Issue
                 </h1>
                 <p className="text-muted-foreground">
-                    Having trouble? Let us know. Use the appropriate form below to direct your issue to the right people. Last platform update: 30/04/2026
+                    Having trouble? Let us know. Use the appropriate form below to direct your issue to the right people.
                 </p>
+
+                {/* Report Retention & Deletion Policy Disclosure */}
+                <div className="mt-4 p-4 rounded-xl border border-blue-200 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/20 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-3 shadow-sm">
+                    <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                    <div className="space-y-1">
+                        <span className="font-bold text-sm block">Data Protection & Automated Record Retention Notice</span>
+                        <p className="leading-relaxed text-blue-800 dark:text-blue-300">
+                            To protect resident privacy under GDPR and preserve platform storage hygiene, reports and attached photos are retained for a <strong>maximum of 6 months if unopened</strong>, or <strong>3 months once reviewed/resolved</strong>, after which they are permanently deleted from our servers. Authorised leaders or police liaison officers may download offline PDF records prior to deletion.
+                        </p>
+                    </div>
+                </div>
             </div>
             
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

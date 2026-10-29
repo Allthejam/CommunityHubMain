@@ -32,10 +32,16 @@ export async function updateReportStatusAction(params: {
     const updateData: any = { status, updatedAt: Timestamp.now() };
 
     if (status === 'In Progress') {
-        updateData.acknowledgedAt = Timestamp.now();
+        const openedAt = Timestamp.now();
+        updateData.acknowledgedAt = openedAt;
         if (acknowledgedBy) {
             updateData.acknowledgedBy = acknowledgedBy;
         }
+        // Once opened, report enters the 3-month retention window (90 days from opened date)
+        const expiryFromOpened = new Date();
+        expiryFromOpened.setDate(expiryFromOpened.getDate() + 90);
+        updateData.scheduledExpiryDate = Timestamp.fromDate(expiryFromOpened);
+        updateData.expiryWarningSent = false; // Reset warning flag for the new 3-month cycle
     }
 
     if (status === 'Resolved') {
@@ -46,6 +52,11 @@ export async function updateReportStatusAction(params: {
       if (resolvedBy) {
         updateData.resolvedBy = resolvedBy;
       }
+      // Resolved report retention: 3 months (90 days) from resolution date
+      const expiryFromResolved = new Date();
+      expiryFromResolved.setDate(expiryFromResolved.getDate() + 90);
+      updateData.scheduledExpiryDate = Timestamp.fromDate(expiryFromResolved);
+      updateData.expiryWarningSent = false;
     }
 
     await reportRef.update(updateData);
@@ -119,12 +130,19 @@ export async function createReportAction(params: {
             }
         }
         
+        const nowTimestamp = Timestamp.now();
+        // Calculate expiration date (6 months / 180 days from creation for unread reports)
+        const scheduledExpiryDate = new Date();
+        scheduledExpiryDate.setDate(scheduledExpiryDate.getDate() + 180);
+
         batch.set(newReportRef, {
             communityId: communityId || null,
             subject,
             reporterName: userName,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
+            createdAt: nowTimestamp,
+            reportedAt: nowTimestamp, // Explicit human-readable date & time of the report
+            updatedAt: nowTimestamp,
+            scheduledExpiryDate: Timestamp.fromDate(scheduledExpiryDate),
             status: 'New',
             description,
             category: category.toLowerCase(), // Standardize to lowercase
