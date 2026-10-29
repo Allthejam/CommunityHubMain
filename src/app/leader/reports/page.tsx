@@ -121,6 +121,7 @@ const TABS: { value: string; label: string }[] = [
 ];
 
 export default function LeaderReportsPage() {
+  const [isExportingPdf, setIsExportingPdf] = React.useState(false);
   const { user } = useUser();
   const db = useFirestore();
   const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
@@ -506,13 +507,27 @@ export default function LeaderReportsPage() {
                         <Button 
                             type="button" 
                             variant="secondary" 
+                            disabled={isExportingPdf}
                             className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-semibold"
-                            onClick={() => viewingReport && printReportAsPdf({
-                                ...viewingReport,
-                                communityName: userProfile?.communityName || 'Community Network'
-                            })}
+                            onClick={async () => {
+                                if (!viewingReport) return;
+                                setIsExportingPdf(true);
+                                try {
+                                    await printReportAsPdf({
+                                        ...viewingReport,
+                                        communityName: userProfile?.communityName || 'Community Network'
+                                    });
+                                } finally {
+                                    setIsExportingPdf(false);
+                                }
+                            }}
                         >
-                            <Printer className="mr-2 h-4 w-4 text-primary" /> Export Official PDF
+                            {isExportingPdf ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
+                            ) : (
+                                <Printer className="mr-2 h-4 w-4 text-primary" />
+                            )}
+                            {isExportingPdf ? 'Preparing PDF...' : 'Export Official PDF'}
                         </Button>
                         <Button variant="outline" onClick={handleCloseDialog}>Close</Button>
                     </div>

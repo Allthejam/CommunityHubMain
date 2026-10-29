@@ -46,8 +46,45 @@ function formatPrintDate(d: any): string {
   }
 }
 
-export function printReportAsPdf(report: PrintableReport) {
+// Convert any image URL (remote or local) into a base64 Data URL so that
+// when the new window renders or prints, the image is embedded directly in memory
+// and never fails cross-origin or async network loading.
+async function urlToDataUrl(url: string): Promise<string> {
+  if (!url) return "";
+  if (url.startsWith("data:image/")) return url;
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.warn("Direct fetch for PDF image failed, falling back to original URL:", err);
+    return url;
+  }
+}
+
+export async function printReportAsPdf(report: PrintableReport) {
   if (typeof window === "undefined") return;
+
+  const rawImages = Array.isArray(report.images) && report.images.length > 0 
+    ? report.images.filter(Boolean) 
+    : (report.image ? [report.image] : []);
+
+  // Pre-fetch images to base64 DataURLs in the parent window before opening the print sheet
+  const embeddedImages: string[] = [];
+  for (const imgUrl of rawImages) {
+    try {
+      const dataUrl = await urlToDataUrl(imgUrl);
+      embeddedImages.push(dataUrl);
+    } catch {
+      embeddedImages.push(imgUrl);
+    }
+  }
 
   const printWindow = window.open("", "_blank", "width=850,height=950");
   if (!printWindow) {
@@ -55,22 +92,18 @@ export function printReportAsPdf(report: PrintableReport) {
     return;
   }
 
-  const allImages = Array.isArray(report.images) && report.images.length > 0 
-    ? report.images 
-    : (report.image ? [report.image] : []);
-
   const createdDateStr = formatPrintDate(report.createdAt);
   const ackDateStr = formatPrintDate(report.acknowledgedAt);
   const resDateStr = formatPrintDate(report.resolvedAt);
 
-  const imagesHtml = allImages.length > 0
+  const imagesHtml = embeddedImages.length > 0
     ? `
       <div class="section">
-        <div class="section-title">Attached Evidence Photos (${allImages.length})</div>
+        <div class="section-title">Attached Evidence Photos (${embeddedImages.length})</div>
         <div class="image-grid">
-          ${allImages.map((url, i) => `
+          ${embeddedImages.map((src, i) => `
             <div class="image-card">
-              <img src="${url}" alt="Evidence Photo #${i + 1}" crossorigin="anonymous" />
+              <img src="${src}" alt="Evidence Photo #${i + 1}" />
               <div class="image-caption">Photo #${i + 1}</div>
             </div>
           `).join("")}
@@ -106,6 +139,8 @@ export function printReportAsPdf(report: PrintableReport) {
             padding: 24px;
             font-size: 13px;
             line-height: 1.5;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .header {
             display: flex;
@@ -190,6 +225,7 @@ export function printReportAsPdf(report: PrintableReport) {
           .severity-Low { background: #dbeafe; color: #1e40af; }
           .section {
             margin-bottom: 20px;
+            page-break-inside: avoid;
           }
           .section-title {
             font-size: 12px;
@@ -230,11 +266,13 @@ export function printReportAsPdf(report: PrintableReport) {
             border-radius: 6px;
             overflow: hidden;
             background: #f8fafc;
+            page-break-inside: avoid;
           }
           .image-card img {
             width: 100%;
-            height: 220px;
-            object-fit: cover;
+            height: 240px;
+            object-fit: contain;
+            background: #f1f5f9;
             display: block;
           }
           .image-caption {
@@ -274,8 +312,8 @@ export function printReportAsPdf(report: PrintableReport) {
             font-size: 12px;
           }
           @media print {
-            .no-print-bar { display: none; }
-            body { padding: 0; }
+            .no-print-bar { display: none !important; }
+            body { padding: 0 !important; }
           }
         </style>
       </head>
@@ -363,9 +401,15 @@ export function printReportAsPdf(report: PrintableReport) {
         </div>
 
         <script>
-          // Automatically prompt print dialog after page assets load
-          window.addEventListener('load', () => {
-            setTimeout(() => { window.print(); }, 400);
+          // Wait for all inline images to decode completely before triggering print dialog
+          Promise.all(
+            Array.from(document.images)
+              .filter(img => !img.complete)
+              .map(img => new Promise(resolve => {
+                img.onload = img.onerror = resolve;
+              }))
+          ).then(() => {
+            setTimeout(() => { window.print(); }, 300);
           });
         </script>
       </body>
