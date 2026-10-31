@@ -1,8 +1,10 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import * as React from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
+import dynamicMap from "next/dynamic";
 import { usePathname } from "next/navigation";
 import {
   HeartPulse,
@@ -30,10 +32,9 @@ import { doc } from "firebase/firestore";
 import {
   type DefibrillatorItem,
   defaultDemoDefibrillators,
-  getCommunityProfileAction,
 } from "@/lib/actions/communityProfileActions";
 
-const DefibrillatorMap = dynamic(() => import("@/components/defibrillator-map"), {
+const DefibrillatorMap = dynamicMap(() => import("@/components/defibrillator-map"), {
   ssr: false,
   loading: () => (
     <div className="h-[420px] flex flex-col items-center justify-center bg-muted/40 rounded-xl border">
@@ -91,11 +92,16 @@ export default function DefibrillatorsPage() {
     () => (activeCommunityId && db ? doc(db, "communities", activeCommunityId) : null),
     [activeCommunityId, db]
   );
-  const { data: activeCommunity } = useDoc<any>(communityDocRef);
+  const { data: activeCommunity, isLoading: communityLoading } = useDoc<any>(communityDocRef);
   const communityName = activeCommunity?.name || (isDemo ? "Grantown-on-Spey" : "Local Community");
 
-  const [defibrillators, setDefibrillators] = React.useState<DefibrillatorItem[]>(defaultDemoDefibrillators);
-  const [loading, setLoading] = React.useState(true);
+  const profileId = activeCommunity?.profileId || activeCommunityId;
+  const profileDocRef = useMemoFirebase(
+    () => (profileId && db ? doc(db, "community_profiles", profileId) : null),
+    [profileId, db]
+  );
+  const { data: profileData, isLoading: profileLoading } = useDoc<any>(profileDocRef);
+
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
 
   // User Geolocation
@@ -106,53 +112,31 @@ export default function DefibrillatorsPage() {
   // Filter: 'all' | '24_7'
   const [accessFilter, setAccessFilter] = React.useState<"all" | "24_7">("all");
 
-  React.useEffect(() => {
-    let isMounted = true;
-
-    async function loadData() {
-      setLoading(true);
+  // Resolve defibrillators without any Server Action waterfall
+  const defibrillators: DefibrillatorItem[] = React.useMemo(() => {
+    // 1. Check local session storage (demo mode)
+    if (typeof window !== "undefined") {
       try {
-        let loadedItems: DefibrillatorItem[] | null = null;
-
-        // 1. Check local session storage (demo mode)
-        if (typeof window !== "undefined") {
-          const cached =
-            sessionStorage.getItem(`demo_about_${activeCommunityId}`) ||
-            localStorage.getItem(`demo_about_${activeCommunityId}`);
-          if (cached) {
-            try {
-              const parsed = JSON.parse(cached);
-              if (parsed.defibrillators && parsed.defibrillators.length > 0) {
-                loadedItems = parsed.defibrillators;
-              }
-            } catch (e) {}
+        const cached =
+          sessionStorage.getItem(`demo_about_${activeCommunityId}`) ||
+          localStorage.getItem(`demo_about_${activeCommunityId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.defibrillators && parsed.defibrillators.length > 0) {
+            return parsed.defibrillators;
           }
         }
-
-        // 2. Load from server action
-        if (!loadedItems) {
-          const res = await getCommunityProfileAction(activeCommunityId);
-          if (res.success && res.data?.defibrillators && res.data.defibrillators.length > 0) {
-            loadedItems = res.data.defibrillators;
-          }
-        }
-
-        if (isMounted) {
-          setDefibrillators(loadedItems && loadedItems.length > 0 ? loadedItems : defaultDemoDefibrillators);
-        }
-      } catch (err) {
-        console.error("Failed to load defibrillators:", err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
+      } catch (e) {}
     }
 
-    loadData();
+    // 2. Client Firestore data
+    if (profileData?.defibrillators && profileData.defibrillators.length > 0) {
+      return profileData.defibrillators;
+    }
 
-    return () => {
-      isMounted = false;
-    };
-  }, [activeCommunityId]);
+    // 3. Fallback to default demo defibrillators
+    return defaultDemoDefibrillators;
+  }, [activeCommunityId, profileData]);
 
   // Request browser geolocation
   const handleFindNearest = () => {
@@ -216,6 +200,8 @@ export default function DefibrillatorsPage() {
     () => defibrillators.filter((d) => d.accessType === "24_7").length,
     [defibrillators]
   );
+
+  const loading = communityLoading && profileLoading;
 
   return (
     <div className="container max-w-6xl mx-auto py-6 sm:py-8 space-y-8">
