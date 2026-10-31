@@ -38,6 +38,7 @@ import {
   ArrowLeft,
   UserPlus,
   Navigation,
+  HeartPulse,
   Bus,
   Search,
   Sparkles,
@@ -108,6 +109,7 @@ const mainNavItems = [
 ];
 
 const discoverSubItems = [
+    { href: '/defibrillators', label: 'Nearest Defibrillators (AED)', icon: HeartPulse, isEmergency: true },
     { href: '/travel', label: 'Local Travel & Transit', icon: Navigation },
     { href: '/events', label: 'Events', icon: CalendarIcon },
     { href: '/whatson', label: "What's On", icon: Tv },
@@ -793,7 +795,10 @@ export default function AppHeader() {
                                             const Icon = subItem.icon;
                                             return (
                                                 <DropdownMenuItem key={subItem.href} asChild>
-                                                    <Link href={subItem.href}><Icon className="mr-2 h-4 w-4" /> {subItem.label}</Link>
+                                                    <Link href={subItem.href} className={(subItem as any).isEmergency ? "text-red-600 dark:text-red-400 font-bold hover:text-red-700" : ""}>
+    <Icon className={`mr-2 h-4 w-4 ${(subItem as any).isEmergency ? "text-red-600 dark:text-red-400" : ""}`} />
+    {subItem.label}
+  </Link>
                                                 </DropdownMenuItem>
                                             );
                                         })}

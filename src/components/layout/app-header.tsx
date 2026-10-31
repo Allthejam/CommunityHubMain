@@ -25,7 +25,7 @@ import BookText from 'lucide-react/dist/esm/icons/book-text';
 import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import MapIcon from 'lucide-react/dist/esm/icons/map';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
-import { Store } from 'lucide-react';
+import { Store, HeartPulse, Navigation } from 'lucide-react';
 import Tag from 'lucide-react/dist/esm/icons/tag';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import Shield from 'lucide-react/dist/esm/icons/shield';
@@ -95,6 +95,7 @@ const mainNavItems = [
 ];
 
 const discoverSubItems = [
+    { href: '/defibrillators', label: 'Nearest Defibrillators (AED)', icon: HeartPulse, isEmergency: true },
     { href: '/events', label: 'Events', icon: Calendar, permission: 'viewEvents' },
     { href: '/whatson', label: "What's On", icon: Tv, permission: 'viewWhatson' },
     { href: '/news', label: 'News', icon: Newspaper, permission: 'viewNews' },
@@ -818,7 +819,10 @@ export default function AppHeader() {
                                             const Icon = subItem.icon;
                                             return (
                                                 <DropdownMenuItem key={subItem.href} asChild>
-                                                    <Link href={subItem.href}><Icon className="mr-2 h-4 w-4" /> {subItem.label}</Link>
+                                                    <Link href={subItem.href} className={(subItem as any).isEmergency ? "text-red-600 dark:text-red-400 font-bold hover:text-red-700" : ""}>
+    <Icon className={`mr-2 h-4 w-4 ${(subItem as any).isEmergency ? "text-red-600 dark:text-red-400" : ""}`} />
+    {subItem.label}
+  </Link>
                                                 </DropdownMenuItem>
                                             );
                                         })}

@@ -34,6 +34,7 @@ import {
   Star,
   HeartHandshake,
   Heart,
+  HeartPulse,
   Settings as SettingsIcon,
   Siren,
   Home as HomeIcon,
@@ -171,6 +172,7 @@ const leaderAdminSubItems = [
 
 // ─── PUBLIC HUB SUBMENUS (Exact Match to live header.tsx) ─────────────────────────
 const discoverSubItems = [
+  { href: '/demo/defibrillators', label: 'Nearest Defibrillators (AED)', icon: HeartPulse, isEmergency: true },
   { href: '/demo/travel', label: 'Local Travel & Transit', icon: Navigation },
   { href: '/demo/events', label: 'Events', icon: CalendarIcon },
   { href: '/demo/whatson', label: "What's On", icon: Tv },
@@ -453,8 +455,8 @@ function DemoLayoutContent({ children }: { children: React.ReactNode }) {
                         {leaderReviewSubItems.map((item) => (
                           <DropdownMenuItem key={item.label} asChild>
                             <Link href={item.href} className="cursor-pointer text-xs flex items-center gap-2">
-                              <item.icon className="h-4 w-4 text-emerald-500" />
-                              <span>{item.label}</span>
+                              <item.icon className={`h-4 w-4 ${(item as any).isEmergency ? "text-red-600 dark:text-red-400" : "text-emerald-500"}`} />
+                              <span className={(item as any).isEmergency ? "font-bold text-red-600 dark:text-red-400" : ""}>{item.label}</span>
                             </Link>
                           </DropdownMenuItem>
                         ))}

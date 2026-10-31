@@ -3,7 +3,9 @@
 import * as React from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
+import dynamic from 'next/dynamic';
 import {
+  HeartPulse,
   Info,
   Save,
   Loader2,
@@ -36,7 +38,7 @@ import { RichTextEditor } from '@/components/rich-text-editor';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { doc } from 'firebase/firestore';
-import { updateCommunityProfileAction, getCommunityProfileAction } from '@/lib/actions/communityProfileActions';
+import { updateCommunityProfileAction, getCommunityProfileAction, type DefibrillatorItem, defaultDemoDefibrillators } from '@/lib/actions/communityProfileActions';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -82,6 +84,7 @@ type CommunityProfileData = {
   metaTitle?: string;
   metaDescription?: string;
   usefulInformation?: { name: string; number: string; address: string }[];
+  defibrillators?: DefibrillatorItem[];
   communityInformation?: {
     name: string;
     title: string;
@@ -96,6 +99,16 @@ type CommunityProfileData = {
   };
   showLeadershipOnAboutPage?: boolean;
 };
+
+
+const DefibrillatorMap = dynamic(() => import('@/components/defibrillator-map'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-64 flex items-center justify-center bg-muted rounded-xl border">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  ),
+});
 
 export default function LeaderAboutPage() {
   const { toast } = useToast();
@@ -135,6 +148,9 @@ export default function LeaderAboutPage() {
   const [currentLeaderItem, setCurrentLeaderItem] = React.useState<LeadershipItem | null>(null);
 
   const [usefulInfo, setUsefulInfo] = React.useState<UsefulInfoItem[]>([]);
+  const [defibrillators, setDefibrillators] = React.useState<DefibrillatorItem[]>([]);
+  const [isDefibDialogOpen, setIsDefibDialogOpen] = React.useState(false);
+  const [currentDefib, setCurrentDefib] = React.useState<DefibrillatorItem | null>(null);
   const [isUsefulInfoDialogOpen, setIsUsefulInfoDialogOpen] = React.useState(false);
   const [currentUsefulItem, setCurrentUsefulItem] = React.useState<UsefulInfoItem | null>(null);
 
@@ -192,6 +208,12 @@ export default function LeaderAboutPage() {
           phone: item.phone || '',
         }))
       );
+    }
+
+    if (data.defibrillators && Array.isArray(data.defibrillators)) {
+      setDefibrillators(data.defibrillators);
+    } else if (isDemo) {
+      setDefibrillators(defaultDemoDefibrillators);
     }
 
     if (data.usefulInformation && Array.isArray(data.usefulInformation)) {
@@ -716,6 +738,121 @@ export default function LeaderAboutPage() {
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Local Resource
               </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-t-4 border-t-red-600 shadow-sm">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
+                <HeartPulse className="h-5 w-5 text-red-600" />
+                Emergency Defibrillators (AED Locations)
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm mt-1">
+                Life-saving Automated External Defibrillators (AEDs) available in the community.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              onClick={() => {
+                setCurrentDefib({
+                  id: `new-defib-${Date.now()}`,
+                  name: '',
+                  address: '',
+                  locationNotes: '',
+                  accessType: '24_7',
+                  cabinetType: 'locked_keypad',
+                  cabinetCodeInstructions: 'Call 999 for ambulance keypad code',
+                  what3words: '',
+                  lat: 57.3308,
+                  lng: -3.6120,
+                  custodianContact: '',
+                });
+                setIsDefibDialogOpen(true);
+              }}
+              size="sm"
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold gap-1.5 shrink-0 shadow-xs"
+            >
+              <PlusCircle className="h-4 w-4" /> Add Defibrillator
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {defibrillators.length === 0 ? (
+            <div className="text-center py-8 border border-dashed rounded-xl bg-muted/20">
+              <HeartPulse className="h-8 w-8 text-muted-foreground/60 mx-auto mb-2" />
+              <p className="text-sm font-medium text-muted-foreground">No defibrillators registered yet.</p>
+              <p className="text-xs text-muted-foreground/80 mt-1">Click "Add Defibrillator" to register public AEDs in your town.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {defibrillators.map((defib) => (
+                <div key={defib.id} className="p-3.5 border rounded-xl bg-card hover:bg-muted/30 transition-colors flex flex-col justify-between space-y-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {defib.accessType === '24_7' ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                            ● 24/7 Public Access
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                            ● Restricted Hours
+                          </span>
+                        )}
+                        {defib.lat && defib.lng ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+                            📍 Pin Placed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            Address Only
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            setCurrentDefib(defib);
+                            setIsDefibDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => setDefibrillators(prev => prev.filter(d => d.id !== defib.id))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="font-bold text-sm leading-tight text-foreground">{defib.name}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <MapPin className="h-3 w-3 shrink-0 text-red-600" />
+                      <span className="truncate">{defib.address}</span>
+                    </p>
+                    {defib.locationNotes && (
+                      <p className="text-xs text-muted-foreground italic line-clamp-2">
+                        &quot;{defib.locationNotes}&quot;
+                      </p>
+                    )}
+                    {defib.what3words && (
+                      <p className="text-[11px] font-mono font-medium text-red-600 dark:text-red-400">
+                        {defib.what3words}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

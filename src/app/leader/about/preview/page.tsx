@@ -4,11 +4,12 @@
 import * as React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, MapPin, Phone, Shield, User, Mail } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Phone, Shield, User, Mail, HeartPulse, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { type DefibrillatorItem, defaultDemoDefibrillators } from '@/lib/actions/communityProfileActions';
 
 type AboutPagePreview = {
     headline?: string;
@@ -31,6 +32,7 @@ type AboutPagePreview = {
       contactPhone: string;
     };
     usefulInformation?: { name: string; number: string; address: string }[];
+    defibrillators?: DefibrillatorItem[];
     communityInformation?: { name: string; title: string }[];
     showLeadershipOnAboutPage?: boolean;
 };
@@ -117,6 +119,28 @@ const PreviewPageContent = () => {
                         className="prose dark:prose-invert max-w-none"
                         dangerouslySetInnerHTML={{ __html: aboutData.mainContent }} 
                     />
+                )}
+
+                {aboutData.defibrillators && aboutData.defibrillators.length > 0 && (
+                    <div className="pt-8 border-t">
+                         <h2 className="text-2xl font-bold font-headline mb-4 flex items-center gap-2 text-red-600"><HeartPulse className="h-6 w-6"/> Life-Saving Defibrillators (AED)</h2>
+                         <div className="grid gap-4 sm:grid-cols-2">
+                            {aboutData.defibrillators.map((defib, index) => (
+                                <Card key={index} className="border-2 border-red-100 bg-red-50/20">
+                                    <CardHeader className="p-4 pb-2">
+                                        <CardTitle className="text-base font-bold text-foreground">{defib.name}</CardTitle>
+                                        <CardDescription className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                            <MapPin className="h-3.5 w-3.5 text-red-600" /> {defib.address}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="p-4 pt-1 text-xs text-muted-foreground space-y-1">
+                                        {defib.locationNotes && <p className="italic">&ldquo;{defib.locationNotes}&rdquo;</p>}
+                                        {defib.cabinetCodeInstructions && <p className="font-semibold text-red-700">🔑 {defib.cabinetCodeInstructions}</p>}
+                                    </CardContent>
+                                </Card>
+                            ))}
+                         </div>
+                    </div>
                 )}
 
                 {aboutData.usefulInformation && aboutData.usefulInformation.length > 0 && (

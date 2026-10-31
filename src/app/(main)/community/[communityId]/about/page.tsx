@@ -6,10 +6,12 @@ import Link from "next/link";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import { doc, getDoc, collection, query, orderBy } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { updateCommunityProfileAction, getCommunityProfileAction } from '@/lib/actions/communityProfileActions';
+import { updateCommunityProfileAction, getCommunityProfileAction, type DefibrillatorItem, defaultDemoDefibrillators } from '@/lib/actions/communityProfileActions';
 import {
     ArrowLeft,
     Loader2,
+    HeartPulse,
+    Navigation,
     MapPin,
     HelpCircle,
     Phone,
@@ -41,6 +43,7 @@ type CommunityProfileData = {
     imageOne?: string;
     imageTwo?: string;
     usefulInformation?: { name: string; number: string; address: string; }[];
+    defibrillators?: DefibrillatorItem[];
     communityInformation?: {
         name: string;
         title: string;
@@ -160,6 +163,7 @@ export default function CommunityAboutPage() {
                         contactPhone: "101 (Non-Emergency) / 999 (Emergency)"
                     },
                     showLeadershipOnAboutPage: true,
+                    defibrillators: defaultDemoDefibrillators,
                 };
             }
 
@@ -284,6 +288,73 @@ export default function CommunityAboutPage() {
                         className="prose dark:prose-invert max-w-none leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: aboutData.mainContent }} 
                     />
+                )}
+
+                {/* Life-Saving Defibrillators Section */}
+                {((aboutData.defibrillators && aboutData.defibrillators.length > 0) || isDemo) && (
+                    <div className="pt-8 border-t">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                            <div>
+                                <h2 className="text-2xl font-bold font-headline flex items-center gap-2 text-red-600 dark:text-red-500">
+                                    <HeartPulse className="h-6 w-6" /> Life-Saving Defibrillators (AED)
+                                </h2>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    In a cardiac emergency, dial 999 immediately. The ambulance operator will provide the cabinet keypad access code.
+                                </p>
+                            </div>
+                            <Button asChild className="bg-red-600 hover:bg-red-700 text-white font-bold gap-2 shrink-0 shadow-sm">
+                                <Link href={`${demoPrefix}/defibrillators`}>
+                                    <Navigation className="h-4 w-4" /> Open Full AED Map &amp; Locator
+                                </Link>
+                            </Button>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            {(aboutData.defibrillators || defaultDemoDefibrillators).slice(0, 4).map((defib, index) => {
+                                const dest = defib.lat && defib.lng ? `${defib.lat},${defib.lng}` : encodeURIComponent(defib.address);
+                                const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=walking`;
+                                return (
+                                    <Card key={index} className="border-2 border-red-100 dark:border-red-950/60 bg-red-50/20 dark:bg-red-950/10 shadow-xs flex flex-col justify-between">
+                                        <CardHeader className="p-4 pb-2">
+                                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                {defib.accessType === '24_7' ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                                        ● 24/7 Public Access
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                                        ● Restricted Hours
+                                                    </span>
+                                                )}
+                                                {defib.cabinetCodeInstructions && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
+                                                        {defib.cabinetCodeInstructions}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <CardTitle className="text-base font-bold text-foreground leading-snug">{defib.name}</CardTitle>
+                                            <CardDescription className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                <MapPin className="h-3.5 w-3.5 shrink-0 text-red-600" />
+                                                <span className="line-clamp-1">{defib.address}</span>
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="p-4 pt-0 pb-3 text-xs text-muted-foreground">
+                                            {defib.locationNotes && (
+                                                <p className="italic bg-muted/40 p-2 rounded-md mb-2">&ldquo;{defib.locationNotes}&rdquo;</p>
+                                            )}
+                                        </CardContent>
+                                        <CardFooter className="p-4 pt-0 flex gap-2">
+                                            <Button asChild size="sm" className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold text-xs gap-1.5 shadow-xs">
+                                                <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                                                    <Navigation className="h-3.5 w-3.5" /> Walking Directions
+                                                </a>
+                                            </Button>
+                                        </CardFooter>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    </div>
                 )}
 
                 {/* Useful Contacts */}
