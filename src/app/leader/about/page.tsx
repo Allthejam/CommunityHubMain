@@ -361,6 +361,8 @@ export default function LeaderAboutPage() {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(`demo_about_${communityId}`, JSON.stringify(aboutData));
       localStorage.setItem(`demo_about_${communityId}`, JSON.stringify(aboutData));
+      sessionStorage.setItem('community_defibrillators', JSON.stringify(defibrillators));
+      localStorage.setItem('community_defibrillators', JSON.stringify(defibrillators));
       window.dispatchEvent(new CustomEvent('demo_about_updated', { detail: aboutData }));
     }
 
@@ -830,7 +832,30 @@ export default function LeaderAboutPage() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => setDefibrillators(prev => prev.filter(d => d.id !== defib.id))}
+                          onClick={async () => {
+                            const updatedList = defibrillators.filter(d => d.id !== defib.id);
+                            setDefibrillators(updatedList);
+                            if (typeof window !== 'undefined') {
+                              sessionStorage.setItem('community_defibrillators', JSON.stringify(updatedList));
+                              localStorage.setItem('community_defibrillators', JSON.stringify(updatedList));
+                              const cached = sessionStorage.getItem(`demo_about_${communityId}`) || localStorage.getItem(`demo_about_${communityId}`);
+                              if (cached) {
+                                try {
+                                  const parsed = JSON.parse(cached);
+                                  parsed.defibrillators = updatedList;
+                                  sessionStorage.setItem(`demo_about_${communityId}`, JSON.stringify(parsed));
+                                  localStorage.setItem(`demo_about_${communityId}`, JSON.stringify(parsed));
+                                  window.dispatchEvent(new CustomEvent('demo_about_updated', { detail: parsed }));
+                                } catch (e) {}
+                              }
+                            }
+                            if (communityId) {
+                              try {
+                                await updateCommunityProfileAction({ communityId, data: { defibrillators: updatedList } });
+                                toast({ title: 'Removed', description: `${defib.name} was removed.` });
+                              } catch (e) {}
+                            }
+                          }}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -1231,7 +1256,7 @@ export default function LeaderAboutPage() {
             <Button
               type="button"
               className="bg-red-600 hover:bg-red-700 text-white font-semibold gap-1.5"
-              onClick={() => {
+              onClick={async () => {
                 if (!currentDefib) return;
                 if (!currentDefib.name?.trim() || !currentDefib.address?.trim()) {
                   toast({
@@ -1241,20 +1266,57 @@ export default function LeaderAboutPage() {
                   });
                   return;
                 }
-                setDefibrillators(prev => {
-                  const idx = prev.findIndex(d => d.id === currentDefib.id);
+                const updatedList = (() => {
+                  const idx = defibrillators.findIndex(d => d.id === currentDefib.id);
                   if (idx > -1) {
-                    const next = [...prev];
+                    const next = [...defibrillators];
                     next[idx] = currentDefib;
                     return next;
                   }
-                  return [...prev, currentDefib];
-                });
+                  return [currentDefib, ...defibrillators];
+                })();
+
+                setDefibrillators(updatedList);
                 setIsDefibDialogOpen(false);
-                toast({
-                  title: 'Defibrillator Added',
-                  description: `${currentDefib.name} has been added. Click 'Save All Changes' to persist.`,
-                });
+
+                // Immediately persist to storage for instant cross-tab reactivity
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem('community_defibrillators', JSON.stringify(updatedList));
+                  localStorage.setItem('community_defibrillators', JSON.stringify(updatedList));
+
+                  const cached = sessionStorage.getItem(`demo_about_${communityId}`) || localStorage.getItem(`demo_about_${communityId}`);
+                  let parsed = cached ? JSON.parse(cached) : {};
+                  parsed.defibrillators = updatedList;
+                  sessionStorage.setItem(`demo_about_${communityId}`, JSON.stringify(parsed));
+                  localStorage.setItem(`demo_about_${communityId}`, JSON.stringify(parsed));
+                  window.dispatchEvent(new CustomEvent('demo_about_updated', { detail: parsed }));
+                }
+
+                // Immediately save to Firestore in the background
+                if (communityId) {
+                  try {
+                    const res = await updateCommunityProfileAction({
+                      communityId,
+                      data: { defibrillators: updatedList },
+                    });
+                    if (res.success) {
+                      toast({
+                        title: 'Defibrillator Saved',
+                        description: `${currentDefib.name} has been saved to the database.`,
+                      });
+                    } else {
+                      toast({
+                        title: 'Saved Locally',
+                        description: `${currentDefib.name} added. Click 'Save All Changes' to ensure full sync.`,
+                      });
+                    }
+                  } catch (e: any) {
+                    toast({
+                      title: 'Saved to Session',
+                      description: `${currentDefib.name} saved for session.`,
+                    });
+                  }
+                }
               }}
             >
               <HeartPulse className="h-4 w-4" /> Save Defibrillator

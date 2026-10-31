@@ -30,6 +30,7 @@ import {
   type DefibrillatorItem,
   DEFAULT_DEMO_DEFIBRILLATORS,
 } from "@/lib/types/defibrillators";
+import { getCommunityProfileAction } from "@/lib/actions/communityProfileActions";
 
 const DefibrillatorMap = dynamicMap(() => import("@/components/defibrillator-map"), {
   ssr: false,
@@ -109,18 +110,56 @@ export function DefibrillatorsClient() {
   // Filter: 'all' | '24_7'
   const [accessFilter, setAccessFilter] = React.useState<"all" | "24_7">("all");
 
+  // Real-time listener for same-session updates
+  const [liveDefibs, setLiveDefibs] = React.useState<DefibrillatorItem[] | null>(null);
+  React.useEffect(() => {
+    const handleUpdated = (e: any) => {
+      const list = e?.detail?.defibrillators;
+      if (Array.isArray(list) && list.length > 0) {
+        setLiveDefibs(list);
+      }
+    };
+    window.addEventListener("demo_about_updated", handleUpdated);
+    return () => window.removeEventListener("demo_about_updated", handleUpdated);
+  }, []);
+
+  // Server action fetch for seamless fallback across default & comfeed databases
+  const [serverDefibs, setServerDefibs] = React.useState<DefibrillatorItem[] | null>(null);
+  React.useEffect(() => {
+    if (!activeCommunityId) return;
+    let isMounted = true;
+    getCommunityProfileAction(activeCommunityId)
+      .then((res) => {
+        if (isMounted && res.success && res.data?.defibrillators && Array.isArray(res.data.defibrillators) && res.data.defibrillators.length > 0) {
+          setServerDefibs(res.data.defibrillators);
+        }
+      })
+      .catch(console.error);
+    return () => {
+      isMounted = false;
+    };
+  }, [activeCommunityId]);
+
   // Resolve defibrillators ensuring it is always a genuine array
   const defibrillators: DefibrillatorItem[] = React.useMemo(() => {
-    // 1. Check local session storage (demo mode)
+    // 0. Live session event updates
+    if (liveDefibs && liveDefibs.length > 0) {
+      return liveDefibs;
+    }
+
+    // 1. Check local session storage (demo mode or cross-page cache)
     if (typeof window !== "undefined") {
       try {
         const cached =
           sessionStorage.getItem(`demo_about_${activeCommunityId}`) ||
-          localStorage.getItem(`demo_about_${activeCommunityId}`);
+          localStorage.getItem(`demo_about_${activeCommunityId}`) ||
+          sessionStorage.getItem("community_defibrillators") ||
+          localStorage.getItem("community_defibrillators");
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed.defibrillators) && parsed.defibrillators.length > 0) {
-            return parsed.defibrillators;
+          const list = Array.isArray(parsed) ? parsed : parsed.defibrillators;
+          if (Array.isArray(list) && list.length > 0) {
+            return list;
           }
         }
       } catch (e) {}
@@ -131,9 +170,14 @@ export function DefibrillatorsClient() {
       return profileData.defibrillators;
     }
 
-    // 3. Fallback to default demo defibrillators
+    // 3. Server action data
+    if (serverDefibs && Array.isArray(serverDefibs) && serverDefibs.length > 0) {
+      return serverDefibs;
+    }
+
+    // 4. Fallback to default demo defibrillators
     return Array.isArray(DEFAULT_DEMO_DEFIBRILLATORS) ? DEFAULT_DEMO_DEFIBRILLATORS : [];
-  }, [activeCommunityId, profileData]);
+  }, [activeCommunityId, profileData, liveDefibs, serverDefibs]);
 
   // Request browser geolocation
   const handleFindNearest = () => {

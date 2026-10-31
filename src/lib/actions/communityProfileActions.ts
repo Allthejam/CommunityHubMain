@@ -77,6 +77,23 @@ async function uploadIfBase64(imageData: string | null | undefined, communityId:
     }
 }
 
+function cleanForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) return null as any;
+  if (Array.isArray(data)) {
+    return data.map(item => cleanForFirestore(item)) as any;
+  }
+  if (typeof data === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [key, val] of Object.entries(data)) {
+      if (val !== undefined) {
+        cleaned[key] = cleanForFirestore(val);
+      }
+    }
+    return cleaned as any;
+  }
+  return data;
+}
+
 export async function getCommunityProfileAction(communityId: string): Promise<{
   success: boolean;
   data?: CommunityProfile;
@@ -94,7 +111,22 @@ export async function getCommunityProfileAction(communityId: string): Promise<{
     const commData = commSnap.data();
     const profileId = commData?.profileId || communityId;
 
-    const profileSnap = await firestore.collection('community_profiles').doc(profileId).get();
+    let profileSnap = await firestore.collection('community_profiles').doc(profileId).get();
+    if (!profileSnap.exists && profileId !== communityId) {
+      profileSnap = await firestore.collection('community_profiles').doc(communityId).get();
+    }
+
+    // If not found in comfeed and isDemo, fallback to default database
+    if (!profileSnap.exists && isDemo) {
+      try {
+        const defaultDb = initializeAdminApp().firestore;
+        profileSnap = await defaultDb.collection('community_profiles').doc(profileId).get();
+        if (!profileSnap.exists && profileId !== communityId) {
+          profileSnap = await defaultDb.collection('community_profiles').doc(communityId).get();
+        }
+      } catch (e) {}
+    }
+
     if (profileSnap.exists) {
       const data = profileSnap.data() as CommunityProfile;
       if (isDemo && (!data.defibrillators || data.defibrillators.length === 0)) {
@@ -109,7 +141,7 @@ export async function getCommunityProfileAction(communityId: string): Promise<{
 
     return {
       success: true,
-      data: undefined,
+      data: isDemo ? { defibrillators: DEFAULT_DEMO_DEFIBRILLATORS } : undefined,
       communityName: commData?.name || (isDemo ? "Oakridge & DemoVille" : undefined),
     };
   } catch (error: any) {
@@ -120,7 +152,7 @@ export async function getCommunityProfileAction(communityId: string): Promise<{
 
 export async function updateCommunityProfileAction(params: {
   communityId: string;
-  data: CommunityProfile;
+  data: Partial<CommunityProfile>;
 }): Promise<ActionResponse> {
   const { communityId, data } = params;
   if (!communityId) {
@@ -134,26 +166,51 @@ export async function updateCommunityProfileAction(params: {
     
     const communitySnap = await communityRef.get();
     
-    // Process images
-    const bannerImageUrl = await uploadIfBase64(data.bannerImage, communityId, 'banner');
-    const imageOneUrl = await uploadIfBase64(data.imageOne, communityId, 'imageOne');
-    const imageTwoUrl = await uploadIfBase64(data.imageTwo, communityId, 'imageTwo');
+    // Process images safely without injecting undefined
+    const profileDataWithUrls: Record<string, any> = { ...data };
 
-    const profileDataWithUrls = {
-        ...data,
-        bannerImage: bannerImageUrl,
-        imageOne: imageOneUrl,
-        imageTwo: imageTwoUrl,
-    };
+    if (data.bannerImage !== undefined) {
+      const bannerImageUrl = await uploadIfBase64(data.bannerImage, communityId, 'banner');
+      if (bannerImageUrl !== null) profileDataWithUrls.bannerImage = bannerImageUrl;
+    }
+    if (data.imageOne !== undefined) {
+      const imageOneUrl = await uploadIfBase64(data.imageOne, communityId, 'imageOne');
+      if (imageOneUrl !== null) profileDataWithUrls.imageOne = imageOneUrl;
+    }
+    if (data.imageTwo !== undefined) {
+      const imageTwoUrl = await uploadIfBase64(data.imageTwo, communityId, 'imageTwo');
+      if (imageTwoUrl !== null) profileDataWithUrls.imageTwo = imageTwoUrl;
+    }
+
+    const cleanedProfile = cleanForFirestore(profileDataWithUrls);
 
     const communityData = communitySnap.exists ? communitySnap.data() : null;
     const profileId = communityData?.profileId || communityId;
 
+    // 1. Save to primary profile document
     const profileRef = firestore.collection('community_profiles').doc(profileId);
-    await profileRef.set(profileDataWithUrls, { merge: true });
+    await profileRef.set(cleanedProfile, { merge: true });
 
     if (communitySnap.exists && !communityData?.profileId) {
       await communityRef.update({ profileId });
+    }
+
+    // 2. Also save to community_profiles/{communityId} so lookups by communityId always succeed
+    if (profileId !== communityId) {
+      await firestore.collection('community_profiles').doc(communityId).set(cleanedProfile, { merge: true });
+    }
+
+    // 3. Mirror to default Firestore when in demo mode so both databases stay in sync
+    if (isDemo) {
+      try {
+        const defaultDb = initializeAdminApp().firestore;
+        await defaultDb.collection('community_profiles').doc(profileId).set(cleanedProfile, { merge: true });
+        if (profileId !== communityId) {
+          await defaultDb.collection('community_profiles').doc(communityId).set(cleanedProfile, { merge: true });
+        }
+      } catch (mirrorErr) {
+        console.warn("Could not mirror to default Firestore:", mirrorErr);
+      }
     }
 
     return { success: true };
