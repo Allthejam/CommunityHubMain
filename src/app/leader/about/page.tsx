@@ -38,7 +38,8 @@ import { RichTextEditor } from '@/components/rich-text-editor';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { doc } from 'firebase/firestore';
-import { updateCommunityProfileAction, getCommunityProfileAction, type DefibrillatorItem, defaultDemoDefibrillators } from '@/lib/actions/communityProfileActions';
+import { updateCommunityProfileAction, getCommunityProfileAction } from '@/lib/actions/communityProfileActions';
+import { type DefibrillatorItem, DEFAULT_DEMO_DEFIBRILLATORS as defaultDemoDefibrillators } from '@/lib/types/defibrillators';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,

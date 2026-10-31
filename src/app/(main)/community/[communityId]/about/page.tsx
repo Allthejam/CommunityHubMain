@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import { doc, getDoc, collection, query, orderBy } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { updateCommunityProfileAction, getCommunityProfileAction, type DefibrillatorItem, defaultDemoDefibrillators } from '@/lib/actions/communityProfileActions';
+import { type DefibrillatorItem, DEFAULT_DEMO_DEFIBRILLATORS as defaultDemoDefibrillators } from '@/lib/types/defibrillators';
 import {
     ArrowLeft,
     Loader2,

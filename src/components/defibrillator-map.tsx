@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { type DefibrillatorItem } from '@/lib/actions/communityProfileActions';
+import { type DefibrillatorItem } from '@/lib/types/defibrillators';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
