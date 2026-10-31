@@ -352,6 +352,7 @@ export default function LeaderAboutPage() {
       metaDescription,
       communityInformation: leadershipTeam.map(({ id, ...rest }) => rest),
       usefulInformation: usefulInfo.map(({ id, ...rest }) => rest),
+      defibrillators,
       policeContact,
       showLeadershipOnAboutPage: showLeadership,
     };
@@ -388,7 +389,8 @@ export default function LeaderAboutPage() {
       bannerImage, bannerImageDescription, imageOne, imageOneDescription, imageTwo, imageTwoDescription,
       metaTitle, metaDescription, policeContact, usefulInformation: usefulInfo.map(({ id, ...rest }) => rest),
       communityInformation: leadershipTeam.map(({ id, ...rest }) => rest),
-      showLeadershipOnAboutPage: showLeadership
+      showLeadershipOnAboutPage: showLeadership,
+      defibrillators,
     };
     sessionStorage.setItem('aboutPagePreview', JSON.stringify(dataToPreview));
     window.open(`${demoPrefix}/community/${communityId}/about`, '_blank');
@@ -1019,6 +1021,243 @@ export default function LeaderAboutPage() {
               }
             }}>
               Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDefibDialogOpen} onOpenChange={setIsDefibDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="p-6 pb-2">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600">
+                <HeartPulse className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">
+                  {currentDefib?.id?.startsWith('new') ? 'Register Public Defibrillator (AED)' : 'Edit Defibrillator (AED)'}
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Provide accurate details and pin the exact location to guide first responders and citizens in an emergency.
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 px-6 py-2 overflow-y-auto">
+            <div className="space-y-4 py-2">
+              {/* AED Name */}
+              <div className="space-y-1.5">
+                <Label htmlFor="defib-name" className="text-xs font-semibold">
+                  Location / Landmark Name <span className="text-red-600">*</span>
+                </Label>
+                <Input
+                  id="defib-name"
+                  placeholder="e.g. The Square - Heritage Red Telephone Kiosk"
+                  value={currentDefib?.name || ''}
+                  onChange={e => setCurrentDefib(p => p ? { ...p, name: e.target.value } : null)}
+                />
+              </div>
+
+              {/* Physical Address */}
+              <div className="space-y-1.5">
+                <Label htmlFor="defib-address" className="text-xs font-semibold">
+                  Physical Address / Postcode <span className="text-red-600">*</span>
+                </Label>
+                <Input
+                  id="defib-address"
+                  placeholder="e.g. The Square, High Street, Grantown-on-Spey PH26 3HG"
+                  value={currentDefib?.address || ''}
+                  onChange={e => setCurrentDefib(p => p ? { ...p, address: e.target.value } : null)}
+                />
+              </div>
+
+              {/* Exact Location Notes */}
+              <div className="space-y-1.5">
+                <Label htmlFor="defib-notes" className="text-xs font-semibold">
+                  Exact Position & Mounting Notes
+                </Label>
+                <Input
+                  id="defib-notes"
+                  placeholder="e.g. Mounted on exterior brick wall to the left of main entrance door"
+                  value={currentDefib?.locationNotes || ''}
+                  onChange={e => setCurrentDefib(p => p ? { ...p, locationNotes: e.target.value } : null)}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Give visual clues to help someone find it rapidly in the dark or under panic.
+                </p>
+              </div>
+
+              {/* Access Hours: 24/7 Switch */}
+              <div className="p-3 border rounded-xl bg-muted/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="defib-access" className="text-xs font-semibold block">
+                      24/7 Unrestricted Public Access
+                    </Label>
+                    <span className="text-[11px] text-muted-foreground">
+                      Can the public reach this device at all hours, every day?
+                    </span>
+                  </div>
+                  <Switch
+                    id="defib-access"
+                    checked={currentDefib?.accessType === '24_7'}
+                    onCheckedChange={(checked) => {
+                      setCurrentDefib(p => p ? {
+                        ...p,
+                        accessType: checked ? '24_7' : 'restricted',
+                        accessHours: checked ? '' : (p.accessHours || 'Mon - Fri 09:00 - 17:00')
+                      } : null);
+                    }}
+                  />
+                </div>
+
+                {currentDefib?.accessType === 'restricted' && (
+                  <div className="space-y-1.5 pt-2 border-t">
+                    <Label htmlFor="defib-hours" className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                      Restricted Opening / Access Hours
+                    </Label>
+                    <Input
+                      id="defib-hours"
+                      placeholder="e.g. Mon - Fri 08:00 - 21:00, Sat - Sun 09:00 - 17:00"
+                      value={currentDefib?.accessHours || ''}
+                      onChange={e => setCurrentDefib(p => p ? { ...p, accessHours: e.target.value } : null)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Cabinet Security & Keypad Instructions */}
+              <div className="p-3 border rounded-xl bg-muted/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="defib-cabinet" className="text-xs font-semibold block">
+                      Locked Keypad Cabinet
+                    </Label>
+                    <span className="text-[11px] text-muted-foreground">
+                      Is the cabinet locked with a digital keypad?
+                    </span>
+                  </div>
+                  <Switch
+                    id="defib-cabinet"
+                    checked={currentDefib?.cabinetType !== 'unlocked'}
+                    onCheckedChange={(checked) => {
+                      setCurrentDefib(p => p ? {
+                        ...p,
+                        cabinetType: checked ? 'locked_keypad' : 'unlocked',
+                        cabinetCodeInstructions: checked ? (p.cabinetCodeInstructions || 'Call 999 for ambulance keypad code') : 'Unlocked cabinet / Pull handle firmly'
+                      } : null);
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-1.5 pt-2 border-t">
+                  <Label htmlFor="defib-instructions" className="text-xs font-semibold">
+                    Cabinet Access Instructions
+                  </Label>
+                  <Input
+                    id="defib-instructions"
+                    placeholder="e.g. Call 999 for ambulance keypad code"
+                    value={currentDefib?.cabinetCodeInstructions || ''}
+                    onChange={e => setCurrentDefib(p => p ? { ...p, cabinetCodeInstructions: e.target.value } : null)}
+                  />
+                </div>
+              </div>
+
+              {/* What3Words & Custodian */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="defib-w3w" className="text-xs font-semibold">
+                    what3words Address (Optional)
+                  </Label>
+                  <Input
+                    id="defib-w3w"
+                    placeholder="e.g. ///reminds.stages.bounty"
+                    value={currentDefib?.what3words || ''}
+                    onChange={e => setCurrentDefib(p => p ? { ...p, what3words: e.target.value } : null)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="defib-custodian" className="text-xs font-semibold">
+                    Custodian / Contact (Optional)
+                  </Label>
+                  <Input
+                    id="defib-custodian"
+                    placeholder="e.g. Community Council / NHS Trust"
+                    value={currentDefib?.custodianContact || ''}
+                    onChange={e => setCurrentDefib(p => p ? { ...p, custodianContact: e.target.value } : null)}
+                  />
+                </div>
+              </div>
+
+              {/* Interactive Pin-Drop Leaflet Map */}
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-red-600" /> Drop Exact GPS Pin on Map
+                  </Label>
+                  {currentDefib?.lat && currentDefib?.lng && (
+                    <span className="text-[11px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                      {currentDefib.lat.toFixed(5)}, {currentDefib.lng.toFixed(5)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Use the search box on the map or click/drag the red heart pin to pinpoint the exact physical location.
+                </p>
+
+                <DefibrillatorMap
+                  mode="picker"
+                  initialLat={currentDefib?.lat || 57.3308}
+                  initialLng={currentDefib?.lng || -3.6120}
+                  onLocationSelect={(lat, lng) => {
+                    setCurrentDefib(p => p ? { ...p, lat, lng } : null);
+                  }}
+                  height="260px"
+                />
+              </div>
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="p-4 border-t bg-muted/10 gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDefibDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold gap-1.5"
+              onClick={() => {
+                if (!currentDefib) return;
+                if (!currentDefib.name?.trim() || !currentDefib.address?.trim()) {
+                  toast({
+                    title: 'Missing Required Fields',
+                    description: 'Please enter both an AED Location Name and Address.',
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                setDefibrillators(prev => {
+                  const idx = prev.findIndex(d => d.id === currentDefib.id);
+                  if (idx > -1) {
+                    const next = [...prev];
+                    next[idx] = currentDefib;
+                    return next;
+                  }
+                  return [...prev, currentDefib];
+                });
+                setIsDefibDialogOpen(false);
+                toast({
+                  title: 'Defibrillator Added',
+                  description: `${currentDefib.name} has been added. Click 'Save All Changes' to persist.`,
+                });
+              }}
+            >
+              <HeartPulse className="h-4 w-4" /> Save Defibrillator
             </Button>
           </DialogFooter>
         </DialogContent>

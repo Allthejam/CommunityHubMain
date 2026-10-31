@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import { doc, getDoc, collection, query, orderBy } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { getCommunityProfileAction } from '@/lib/actions/communityProfileActions';
 import { type DefibrillatorItem, DEFAULT_DEMO_DEFIBRILLATORS as defaultDemoDefibrillators } from '@/lib/types/defibrillators';
 import {
     ArrowLeft,
@@ -100,9 +101,9 @@ export default function CommunityAboutPage() {
             let loadedProfile: CommunityProfileData | null = null;
             let loadedCommunityName = isDemo ? "Oakridge & DemoVille" : "";
 
-            // 1. Check local / session storage first for demo mode
+            // 1. Check local / session storage first for demo mode or preview
             if (typeof window !== 'undefined') {
-                const cached = sessionStorage.getItem(`demo_about_${communityId}`) || localStorage.getItem(`demo_about_${communityId}`);
+                const cached = sessionStorage.getItem('aboutPagePreview') || sessionStorage.getItem(`demo_about_${communityId}`) || localStorage.getItem(`demo_about_${communityId}`);
                 if (cached) {
                     try {
                         loadedProfile = JSON.parse(cached);
