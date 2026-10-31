@@ -305,12 +305,18 @@ function WhatsonContent() {
 
   const loading = authLoading || profileLoading || itemsLoading;
 
-  // Scope filter: 'all' | 'in' | 'around'
-  const [scopeFilter, setScopeFilter] = React.useState<'all' | 'in' | 'around'>('all');
+  // Scope filter: 'in' | 'around' | 'all' (defaulting to 'in' - In Town / Community)
+  const [scopeFilter, setScopeFilter] = React.useState<'all' | 'in' | 'around'>(() => {
+    if (urlScope === 'around') return 'around';
+    if (urlScope === 'all') return 'all';
+    return 'in';
+  });
 
   React.useEffect(() => {
     if (urlScope === 'around') {
       setScopeFilter('around');
+    } else if (urlScope === 'all') {
+      setScopeFilter('all');
     } else if (urlScope === 'in') {
       setScopeFilter('in');
     }
@@ -378,10 +384,18 @@ function WhatsonContent() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">
-            What&apos;s On In &amp; Around {communityName ? communityName : 'the Community'}
+            {scopeFilter === 'in'
+              ? `What's On in ${communityName ? communityName : 'the Community'}`
+              : scopeFilter === 'around'
+              ? `Explore Around & Nearby ${communityName || ''}`
+              : `What's On In & Around ${communityName ? communityName : 'the Community'}`}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Discover local town venues, clubs, regional attractions, and surrounding day-trip destinations.
+            {scopeFilter === 'in'
+              ? `Local happenings, venues, weekly clubs, and town attractions in ${communityName || 'the community'}.`
+              : scopeFilter === 'around'
+              ? `Regional attractions, day-trip venues, and surrounding trails near ${communityName || 'the area'}.`
+              : 'Discover local town venues, clubs, regional attractions, and surrounding day-trip destinations.'}
           </p>
         </div>
         <div className="flex items-center gap-1 rounded-md bg-muted p-1 shrink-0">
@@ -398,14 +412,6 @@ function WhatsonContent() {
 
       {/* Scope Segmented Switcher */}
       <div className="flex flex-wrap items-center gap-2 p-1.5 bg-muted/60 dark:bg-muted/30 rounded-xl border w-fit">
-        <Button
-          size="sm"
-          variant={scopeFilter === 'all' ? 'default' : 'ghost'}
-          onClick={() => setScopeFilter('all')}
-          className="font-medium text-xs sm:text-sm"
-        >
-          All In &amp; Around ({whatsonToDisplay.length})
-        </Button>
         <Button
           size="sm"
           variant={scopeFilter === 'in' ? 'default' : 'ghost'}
@@ -431,6 +437,14 @@ function WhatsonContent() {
         >
           <Compass className="h-3.5 w-3.5" />
           Around &amp; Nearby ({aroundCount})
+        </Button>
+        <Button
+          size="sm"
+          variant={scopeFilter === 'all' ? 'default' : 'ghost'}
+          onClick={() => setScopeFilter('all')}
+          className="font-medium text-xs sm:text-sm"
+        >
+          All In &amp; Around ({whatsonToDisplay.length})
         </Button>
       </div>
 
