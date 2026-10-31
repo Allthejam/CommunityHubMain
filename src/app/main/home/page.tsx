@@ -150,7 +150,8 @@ export default function HomePage() {
       <div className='px-4 md:px-0 space-y-6 md:space-y-8'>
           <AnnouncementBanners allAnnouncements={standardAnnouncements} />
           <EventsFeed communityId={activeCommunityId} />
-          <WhatsonFeed communityId={activeCommunityId} />
+          <WhatsonFeed communityId={activeCommunityId} mode="in" communityName={(activeCommunity as any)?.name} />
+          <WhatsonFeed communityId={activeCommunityId} mode="around" communityName={(activeCommunity as any)?.name} />
           <AccommodationFeed communityId={activeCommunityId} />
           <LocalBusinessesFeed communityId={activeCommunityId} />
           <CommunityAdverts communityId={activeCommunityId} />

@@ -357,7 +357,10 @@ function HomePageContent() {
           <EventsFeed communityId={activeCommunityId} />
           <TravelCard communityId={activeCommunityId} />
           <div id="section-whatson" className="scroll-mt-20">
-            <WhatsonFeed communityId={activeCommunityId} />
+            <WhatsonFeed communityId={activeCommunityId} mode="in" communityName={activeCommunity?.name} />
+          </div>
+          <div id="section-whatson-around" className="scroll-mt-20">
+            <WhatsonFeed communityId={activeCommunityId} mode="around" communityName={activeCommunity?.name} />
           </div>
           <div id="section-accommodation" className="scroll-mt-20">
             <AccommodationFeed communityId={activeCommunityId} />

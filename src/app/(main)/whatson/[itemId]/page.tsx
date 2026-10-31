@@ -18,6 +18,7 @@ import {
   Share2,
   ExternalLink,
   Building2,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,8 @@ type WhatsonItem = {
   email?: string;
   phone?: string;
   businessName?: string;
+  scope?: 'in' | 'around';
+  areaName?: string;
 };
 
 const OpeningHoursDisplay = ({ hours }: { hours: any }) => {
@@ -146,9 +149,20 @@ export default function WhatsonDetailPage() {
             <ArrowLeft className="h-4 w-4" /> Back to What&apos;s On
           </Link>
         </Button>
-        <Badge variant="secondary" className="text-sm px-3 py-1 font-medium">
-          {item.category}
-        </Badge>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="secondary" className="text-sm px-3 py-1 font-medium">
+            {item.category}
+          </Badge>
+          {item.scope === 'around' ? (
+            <Badge className="bg-sky-600 hover:bg-sky-700 text-white text-xs px-2.5 py-1 font-semibold gap-1">
+              <Compass className="h-3 w-3" /> Around &amp; Nearby {item.areaName ? `· ${item.areaName}` : ''}
+            </Badge>
+          ) : (
+            <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5 py-1 font-semibold gap-1">
+              <MapPin className="h-3 w-3" /> In Town · Local
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Hero Image */}
@@ -173,6 +187,11 @@ export default function WhatsonDetailPage() {
             {item.businessName && (
               <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
                 <Building2 className="h-4 w-4" /> Hosted by {item.businessName}
+              </p>
+            )}
+            {item.scope === 'around' && item.areaName && (
+              <p className="text-sky-600 dark:text-sky-400 font-medium flex items-center gap-1.5 text-sm">
+                <Compass className="h-4 w-4 shrink-0" /> Surrounding Area / Locality: {item.areaName}
               </p>
             )}
           </div>

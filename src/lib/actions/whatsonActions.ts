@@ -23,6 +23,8 @@ type ItemData = {
     image: string | null;
     metaTitle?: string;
     metaDescription?: string;
+    scope?: 'in' | 'around';
+    areaName?: string;
 };
 
 export async function createWhatsonItemAction(data: ItemData): Promise<ActionResponse> {

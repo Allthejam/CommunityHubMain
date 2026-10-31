@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Globe, Mail, Phone, Share2, Clock, MapPin, LayoutGrid, List, ArrowRight, ExternalLink } from "lucide-react";
+import { Loader2, Globe, Mail, Phone, Share2, Clock, MapPin, LayoutGrid, List, ArrowRight, ExternalLink, Compass, Navigation, Sparkles, Tv } from "lucide-react";
 import { collection, query, where } from "firebase/firestore";
 
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -38,6 +38,8 @@ type WhatsonItem = {
   social?: string;
   email?: string;
   phone?: string;
+  scope?: 'in' | 'around';
+  areaName?: string;
 };
 
 
@@ -69,7 +71,18 @@ const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => {
     <>
         <DialogHeader className="p-6 pb-0">
             <DialogTitle className="text-2xl">{item.title}</DialogTitle>
-            <DialogDescription>{item.category}</DialogDescription>
+            <div className="flex items-center gap-2 flex-wrap pt-1">
+                <Badge variant="secondary" className="text-xs font-semibold">{item.category}</Badge>
+                {item.scope === 'around' ? (
+                    <Badge variant="outline" className="text-xs font-semibold bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300">
+                        Around {item.areaName ? `· ${item.areaName}` : '· Nearby Area'}
+                    </Badge>
+                ) : (
+                    <Badge variant="outline" className="text-xs font-semibold bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300">
+                        In Town (Local)
+                    </Badge>
+                )}
+            </div>
         </DialogHeader>
         <div className="grid overflow-y-auto">
             <ScrollArea className="max-h-[60vh] px-6">
@@ -153,10 +166,30 @@ const WhatsonCard = ({ item }: { item: WhatsonItem }) => (
                             className="object-cover"
                             data-ai-hint={item.dataAiHint || "local attraction"}
                         />
+                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="secondary" className="text-[10px] font-bold backdrop-blur-md bg-background/85 shadow-xs">
+                                {item.category}
+                            </Badge>
+                            {item.scope === 'around' ? (
+                                <Badge className="text-[10px] font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-xs">
+                                    Around {item.areaName ? `· ${item.areaName}` : ''}
+                                </Badge>
+                            ) : (
+                                <Badge className="text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">
+                                    In Town
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-4 flex-grow">
-                    <h3 className="font-semibold text-base line-clamp-2">{item.title}</h3>
+                    <h3 className="font-bold text-base line-clamp-2 leading-snug">{item.title}</h3>
+                    {item.address && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 truncate pt-0.5">
+                            <MapPin className="h-3 w-3 shrink-0 text-primary" />
+                            <span className="truncate">{item.address}</span>
+                        </p>
+                    )}
                 </CardContent>
                 <CardFooter className="p-4 pt-0 mt-auto">
                     <div className="text-sm font-medium text-primary w-full text-center">More Info</div>
@@ -169,7 +202,15 @@ const WhatsonCard = ({ item }: { item: WhatsonItem }) => (
     </Dialog>
 );
 
-export function WhatsonFeed({ communityId }: { communityId: string | null }) {
+export function WhatsonFeed({
+  communityId,
+  mode = 'in',
+  communityName,
+}: {
+  communityId: string | null;
+  mode?: 'in' | 'around';
+  communityName?: string;
+}) {
   const db = useFirestore();
   const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
   const demoPrefix = isDemo ? '/demo' : '';
@@ -205,20 +246,43 @@ export function WhatsonFeed({ communityId }: { communityId: string | null }) {
   const itemsToDisplay = React.useMemo(() => {
     const dbItems = whatsonItems || [];
     const combined = [...localDemoItems, ...dbItems.filter(d => !localDemoItems.some(l => l.id === d.id))];
-    if (combined.length > 0) return combined;
-    return mockWhatsOn.map(item => ({
-      ...item,
-      image: item.image?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
-      dataAiHint: item.image?.imageHint || 'local attraction'
-    }));
-  }, [whatsonItems, localDemoItems]);
+    if (mode === 'around') {
+      const aroundItems = combined.filter(item => item.scope === 'around');
+      if (aroundItems.length > 0) return aroundItems;
+      return mockWhatsOn
+        .filter(item => item.scope === 'around')
+        .map(item => ({
+          ...item,
+          address: item.address || item.location,
+          image: (item.image as any)?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
+          dataAiHint: (item.image as any)?.imageHint || 'local attraction'
+        } as WhatsonItem));
+    } else {
+      const inItems = combined.filter(item => item.scope !== 'around');
+      if (inItems.length > 0) return inItems;
+      return mockWhatsOn
+        .filter(item => item.scope !== 'around')
+        .map(item => ({
+          ...item,
+          address: item.address || item.location,
+          image: (item.image as any)?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
+          dataAiHint: (item.image as any)?.imageHint || 'local attraction'
+        } as WhatsonItem));
+    }
+
+
+  }, [whatsonItems, localDemoItems, mode]);
     
   if (itemsLoading) {
       return (
-          <Card>
+          <Card className={mode === 'around' ? "border-t-4 border-t-sky-500 shadow-sm" : "border-t-4 border-t-emerald-500 shadow-sm"}>
             <CardHeader>
-                <CardTitle>What's On</CardTitle>
-                <CardDescription>Permanent attractions and venues.</CardDescription>
+                <CardTitle>
+                  {mode === 'around' ? `Explore Around & Nearby ${communityName || ''}` : `What's On in ${communityName || 'the Community'}`}
+                </CardTitle>
+                <CardDescription>
+                  {mode === 'around' ? 'Loading regional day-trip venues and surrounding attractions...' : 'Loading local happenings, venues and weekly clubs...'}
+                </CardDescription>
             </CardHeader>
             <CardContent className="h-48 flex justify-center items-center">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -229,11 +293,33 @@ export function WhatsonFeed({ communityId }: { communityId: string | null }) {
 
   if (itemsToDisplay.length === 0) return null;
 
+  const isAround = mode === 'around';
+
   return (
-    <Card>
+    <Card className={isAround ? "border-t-4 border-t-sky-500 shadow-sm" : "border-t-4 border-t-emerald-500 shadow-sm"}>
       <CardHeader>
-        <CardTitle>What's On</CardTitle>
-        <CardDescription>Permanent attractions and venues in your community.</CardDescription>
+        <div className="flex items-center justify-between gap-2 mb-1">
+          {isAround ? (
+            <Badge variant="outline" className="text-sky-700 dark:text-sky-300 border-sky-300 dark:border-sky-800 bg-sky-50/60 dark:bg-sky-950/30 gap-1.5 font-semibold text-xs py-0.5">
+              <Compass className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" /> Around & Surrounding Area
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 gap-1.5 font-semibold text-xs py-0.5">
+              <MapPin className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> In Town · Local
+            </Badge>
+          )}
+          <span className="text-xs text-muted-foreground font-medium">{itemsToDisplay.length} listed</span>
+        </div>
+        <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight">
+          {isAround
+            ? `Explore Around & Nearby ${communityName || ''}`
+            : `What's On in ${communityName || 'the Community'}`}
+        </CardTitle>
+        <CardDescription className="text-sm text-muted-foreground">
+          {isAround
+            ? 'Regional attractions, day-trip venues, surrounding trails & activity centres.'
+            : 'Local happenings, venues, weekly clubs & town events.'}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
@@ -242,9 +328,16 @@ export function WhatsonFeed({ communityId }: { communityId: string | null }) {
             ))}
         </div>
       </CardContent>
-      <CardFooter>
-            <Button variant="outline" asChild>
-                <Link href={`${demoPrefix}/whatson`}>See All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+      <CardFooter className="pt-2">
+            <Button
+              variant="outline"
+              asChild
+              className={isAround ? "border-sky-200 dark:border-sky-800 hover:bg-sky-50 dark:hover:bg-sky-950/50" : "border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"}
+            >
+                <Link href={`${demoPrefix}/whatson?scope=${mode}`}>
+                  {isAround ? 'Explore All Around & Nearby' : 'See All In Town'}
+                  <ArrowRight className={`ml-2 h-4 w-4 ${isAround ? 'text-sky-600' : 'text-emerald-600'}`} />
+                </Link>
             </Button>
       </CardFooter>
     </Card>

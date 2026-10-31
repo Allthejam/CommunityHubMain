@@ -282,9 +282,12 @@ export const mockEvents = [
 ];
 
 export const mockWhatsOn = [
-  { id: '1', title: 'Live Music Night', location: 'The Daily Grind', time: 'Fri, 8 PM', image: getImage('whatsonImage1'), category: 'Music', description: 'Live acoustic music every Friday.' },
-  { id: '2', title: 'Open Mic Comedy', location: 'The Town Tavern', time: 'Sat, 9 PM', image: getImage('whatsonImage2'), category: 'Entertainment', description: 'Sign up and show us your talent.' },
-  { id: '3', title: 'Kids Story Time', location: 'Anytown Library', time: 'Sat, 10 AM', image: getImage('whatsonImage3'), category: 'Family', description: 'Fun stories for all ages.' },
+  { id: '1', title: 'Live Music Night', location: 'The Daily Grind', address: 'The Daily Grind', time: 'Fri, 8 PM', image: getImage('whatsonImage1'), category: 'Music', description: 'Live acoustic music every Friday.', scope: 'in' as const },
+  { id: '2', title: 'Open Mic Comedy', location: 'The Town Tavern', address: 'The Town Tavern', time: 'Sat, 9 PM', image: getImage('whatsonImage2'), category: 'Entertainment', description: 'Sign up and show us your talent.', scope: 'in' as const },
+  { id: '3', title: 'Kids Story Time', location: 'Anytown Library', address: 'Anytown Library', time: 'Sat, 10 AM', image: getImage('whatsonImage3'), category: 'Family', description: 'Fun stories for all ages.', scope: 'in' as const },
+  { id: '4', title: 'Highland Forest & Wildlife Park', location: 'Cairngorms National Park', address: 'Cairngorms National Park', time: 'Daily 09:30 - 17:00', image: getImage('whatsonImage1'), category: 'Attractions', description: 'Explore ancient Caledonian pine woods, wild deer, nature trails, and visitor centre.', scope: 'around' as const, areaName: 'Surrounding Area (8 miles)' },
+  { id: '5', title: 'Riverside Castle & Heritage Gardens', location: 'Spey Valley', address: 'Spey Valley', time: 'Mon - Sat 10:00 - 16:30', image: getImage('whatsonImage2'), category: 'Heritage', description: 'Historic Scottish castle with riverside walks, tea room, and seasonal guided tours.', scope: 'around' as const, areaName: 'Speyside (12 miles)' },
+  { id: '6', title: 'Mountain Bike & Outdoor Trail Centre', location: 'Glen Adventure Park', address: 'Glen Adventure Park', time: 'Daily 09:00 - 18:00', image: getImage('whatsonImage3'), category: 'Active', description: 'Paved pump track, downhill flow trails, bike rentals, and scenic forest cafe.', scope: 'around' as const, areaName: 'Valley Trails (10 miles)' },
 ];
 
 export const mockProducts = [

@@ -56,6 +56,8 @@ export type WhatsonItem = {
   title: string;
   category: string;
   status: ItemStatus;
+  scope?: 'in' | 'around';
+  areaName?: string;
 };
 
 
@@ -80,7 +82,20 @@ const ItemRow = React.memo(({ item, onUpdateStatus, onDelete, demoPrefix = '' }:
     const { status } = item;
     return (
         <TableRow>
-            <TableCell className="font-medium">{item.title}</TableCell>
+            <TableCell className="font-medium">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span>{item.title}</span>
+                    {item.scope === 'around' ? (
+                        <Badge variant="outline" className="text-[10px] bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 font-semibold">
+                            Around {item.areaName ? `· ${item.areaName}` : ''}
+                        </Badge>
+                    ) : (
+                        <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold">
+                            In Town
+                        </Badge>
+                    )}
+                </div>
+            </TableCell>
             <TableCell>{item.category}</TableCell>
             <TableCell><StatusBadge status={status} /></TableCell>
             <TableCell className="text-right">

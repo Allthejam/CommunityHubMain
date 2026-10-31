@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Save, PlusCircle, Trash2, Upload, X, Camera, Search } from "lucide-react";
+import { ArrowLeft, Loader2, Save, PlusCircle, Trash2, Upload, X, Camera, Search, Compass, MapPin, Navigation } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, getDoc } from 'firebase/firestore';
@@ -61,6 +61,9 @@ export default function CreateWhatsonItemPage() {
 
     const [metaTitle, setMetaTitle] = React.useState("");
     const [metaDescription, setMetaDescription] = React.useState("");
+
+    const [scope, setScope] = React.useState<'in' | 'around'>('in');
+    const [areaName, setAreaName] = React.useState('');
 
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
@@ -181,6 +184,8 @@ export default function CreateWhatsonItemPage() {
                 image,
                 metaTitle,
                 metaDescription,
+                scope,
+                areaName: scope === 'around' ? areaName : undefined,
             });
             setIsSubmitting(false);
 
@@ -206,6 +211,8 @@ export default function CreateWhatsonItemPage() {
                 image,
                 metaTitle,
                 metaDescription,
+                scope,
+                areaName: scope === 'around' ? areaName : undefined,
                 status: 'Active',
                 createdAt: new Date().toISOString(),
             };
@@ -274,6 +281,91 @@ export default function CreateWhatsonItemPage() {
                             )}
                         </div>
                     </div>
+
+                    {/* Listing Scope / Locality: In Community vs Around & Nearby */}
+                    <div className="space-y-3 p-4 rounded-2xl border bg-muted/40 dark:bg-muted/20">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-sm font-bold flex items-center gap-2">
+                                <Compass className="h-4 w-4 text-primary" /> Listing Scope / Locality *
+                            </Label>
+                            <span className="text-xs text-muted-foreground font-medium">Controls which page section & card this appears in</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Choose whether this listing is physically within your town boundary or is an attraction in the surrounding area.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <div 
+                                onClick={() => setScope('in')}
+                                className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                                    scope === 'in' 
+                                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs' 
+                                        : 'border-border hover:border-muted-foreground/40 bg-card'
+                                }`}
+                            >
+                                <input 
+                                    type="radio" 
+                                    name="scope" 
+                                    checked={scope === 'in'} 
+                                    onChange={() => setScope('in')}
+                                    className="mt-0.5 text-emerald-600 focus:ring-emerald-500" 
+                                />
+                                <div>
+                                    <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                        <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                                        In Town (Local)
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground leading-snug pt-0.5">
+                                        Hyper-local venue, hall, weekly club, High Street spot, or town happening.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div 
+                                onClick={() => setScope('around')}
+                                className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                                    scope === 'around' 
+                                        ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-950/20 shadow-xs' 
+                                        : 'border-border hover:border-muted-foreground/40 bg-card'
+                                }`}
+                            >
+                                <input 
+                                    type="radio" 
+                                    name="scope" 
+                                    checked={scope === 'around'} 
+                                    onChange={() => setScope('around')}
+                                    className="mt-0.5 text-sky-600 focus:ring-sky-500" 
+                                />
+                                <div>
+                                    <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                        <Navigation className="h-3.5 w-3.5 text-sky-600" />
+                                        Around & Nearby
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground leading-snug pt-0.5">
+                                        Regional attraction, day-trip venue, nature trail, or neighbouring village centre.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {scope === 'around' && (
+                            <div className="pt-2 space-y-1.5 animate-in fade-in-50 duration-200">
+                                <Label htmlFor="areaName" className="text-xs font-semibold">
+                                    Surrounding Area or Town Name (Optional)
+                                </Label>
+                                <Input 
+                                    id="areaName" 
+                                    placeholder="e.g. Carrbridge (10 miles away), Aviemore, Speyside Corridor" 
+                                    value={areaName} 
+                                    onChange={(e) => setAreaName(e.target.value)}
+                                    className="h-9 text-xs"
+                                />
+                                <p className="text-[11px] text-muted-foreground">
+                                    Displayed on public cards so residents and tourists quickly know which neighbouring area it is in.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="space-y-2">
                         <Label htmlFor="description">Description *</Label>
                         <RichTextEditor value={description} onChange={setDescription} />
