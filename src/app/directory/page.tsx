@@ -7,7 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { collection, query, where, doc, documentId, limit } from "firebase/firestore";
-import { Loader2, ChevronDown, LayoutGrid, List, FilterX, Truck } from "lucide-react";
+import { Loader2, ChevronDown, LayoutGrid, List, FilterX, Truck, Sparkles, Store } from "lucide-react";
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import Link from "next/link";
 import MainAppLayout from "../(main)/layout";
@@ -382,6 +382,57 @@ function BusinessDirectoryContent() {
         </div>
       </div>
       
+      {/* Eye-Catching "Why Advertise With Us?" Hero Card */}
+      {(() => {
+        const isDemoPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
+        const prefix = isDemoPage ? '/demo' : '';
+        const displayTown = communityData?.name || communityName || (isDemoPage ? 'Grantown-on-Spey' : 'Our Community');
+        return (
+          <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950/70 p-5 sm:p-7 shadow-xl shadow-emerald-500/10 text-white mb-2">
+            <div className="absolute top-0 right-0 -mt-10 -mr-10 h-56 w-56 rounded-full bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-purple-500/15 blur-2xl pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className="bg-emerald-500 text-slate-950 hover:bg-emerald-400 font-extrabold px-2.5 py-0.5 text-xs shadow-xs">
+                    Local Business Growth
+                  </Badge>
+                  <span className="text-xs font-semibold text-emerald-300 flex items-center gap-1">
+                    <Sparkles className="h-3.5 w-3.5 text-emerald-400" /> 60%–80% Reinvested in {displayTown}
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug">
+                  Own a local business, shop, or trade in {displayTown}?
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  Stop burning budget on social media pay-per-click meters. Get <strong className="text-white font-semibold">24/7 permanent visibility</strong> in front of verified local residents for just <strong className="text-emerald-400 font-bold">£20/month</strong> — with zero algorithmic games, 0% sales commission on e-commerce, and up to 80% put straight back into our town!
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row gap-2.5 shrink-0">
+                <Button
+                  asChild
+                  className="bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-bold shadow-lg shadow-emerald-500/20 text-xs sm:text-sm h-11 px-5"
+                >
+                  <Link href={`${prefix}/directory/advertise`}>
+                    <Sparkles className="h-4 w-4 mr-2" /> Why Advertise With Us?
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-200 hover:text-white text-xs sm:text-sm h-11 px-5"
+                >
+                  <Link href={`${prefix}/business/businesses/create`}>
+                    <Store className="h-4 w-4 mr-2 text-emerald-400" /> List Your Business
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
        {view === 'grid' ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                 {filteredBusinesses.map((business) => (
