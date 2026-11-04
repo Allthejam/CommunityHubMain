@@ -22,6 +22,7 @@ export type PublicBusinessSummary = {
   status: string;
   accountType?: string | null;
   listingType?: 'business' | 'featured_ad' | 'valued_partner';
+  ownerId?: string | null;
   isPublicDirectoryEnabled: boolean;
   isLive: boolean; // True if subscription/trial is active; False if expired/unpaid (locked)
 };
@@ -159,6 +160,7 @@ function normalizeAdvertDoc(id: string, data: any): PublicBusinessDetail | null 
     status: 'Active',
     accountType: isFeatured ? 'featured_ad' : 'valued_partner',
     listingType: isFeatured ? 'featured_ad' : 'valued_partner',
+    ownerId: data.ownerId || null,
     isPublicDirectoryEnabled: true,
     isLive: true,
   };
@@ -223,6 +225,7 @@ function normalizeBusinessDoc(
     status: data.status || 'Approved',
     accountType: data.accountType || (data.businessCategory?.toLowerCase() === 'courier' ? 'courier' : 'business'),
     listingType: 'business',
+    ownerId: data.ownerId || null,
     isPublicDirectoryEnabled: data.isPublicDirectoryEnabled !== false,
     isLive,
   };

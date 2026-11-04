@@ -62,6 +62,11 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
 
   const isCourierLockedToViewer = isCourier && (!user || !matchesCourierCommunity);
 
+  // Business Owner Status for Inactive / Reactivation controls
+  const isOwner = Boolean(user && business.ownerId && user.uid === business.ownerId);
+  const isGuest = !user;
+  const isNonOwnerLoggedIn = Boolean(user && (!business.ownerId || user.uid !== business.ownerId));
+
   const handleShare = () => {
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(window.location.href);
@@ -143,15 +148,42 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                   <span className="sm:hidden">App</span>
                 </Link>
               </Button>
-            ) : (
+            ) : isOwner ? (
+              // Owner logged in: Pulsing reactivate button
               <Button
                 size="sm"
                 asChild
-                className="bg-amber-600 hover:bg-amber-700 text-white text-xs gap-1.5 font-semibold"
+                className="bg-amber-600 hover:bg-amber-700 text-white text-xs gap-1.5 font-bold animate-pulse shadow-md ring-2 ring-amber-400 ring-offset-2"
               >
-                <Link href="/directory/advertise">
+                <Link href="/business/listings">
                   <Sparkles className="h-3.5 w-3.5" />
-                  <span>Reactivate Listing</span>
+                  <span>Your Listing: Reactivate</span>
+                </Link>
+              </Button>
+            ) : isGuest ? (
+              // Guest logged out: Opens login/register page
+              <Button
+                size="sm"
+                variant="outline"
+                asChild
+                className="border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 text-xs gap-1.5 font-medium"
+              >
+                <Link href={`/?redirect=/public-directory/${business.id}`}>
+                  <UserCheck className="h-3.5 w-3.5" />
+                  <span>Owner? Sign In</span>
+                </Link>
+              </Button>
+            ) : (
+              // Non-owner logged in: Hide reactivate option
+              <Button
+                size="sm"
+                variant="ghost"
+                asChild
+                className="text-xs text-muted-foreground gap-1.5"
+              >
+                <Link href="/public-directory">
+                  <Store className="h-3.5 w-3.5" />
+                  <span>Directory</span>
                 </Link>
               </Button>
             )}
@@ -196,15 +228,37 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
             <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-medium">
               <Lock className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <span>
-                <strong>Subscription Expired / Inactive:</strong> Direct contact links, opening hours schedule, and photo showcases are locked until renewed.
+                {isOwner ? (
+                  <>
+                    <strong>Your Business Subscription is Inactive:</strong> Direct contact links and schedules are locked until renewed.
+                  </>
+                ) : (
+                  <>
+                    <strong>Subscription Expired / Inactive:</strong> Direct contact links, opening hours schedule, and photo showcases are locked until renewed.
+                  </>
+                )}
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold h-8">
-                <Link href="/directory/advertise">
-                  Owner? Reactivate for £20/mo &rarr;
-                </Link>
-              </Button>
+              {isOwner ? (
+                <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold h-8 animate-pulse shadow-xs ring-1 ring-amber-400">
+                  <Link href="/directory/advertise">
+                    Renew Listing for £20/mo &rarr;
+                  </Link>
+                </Button>
+              ) : isGuest ? (
+                <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold h-8">
+                  <Link href="/directory/advertise">
+                    Owner? Reactivate for £20/mo &rarr;
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild variant="outline" size="sm" className="border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 text-xs font-medium h-8">
+                  <Link href="/directory/advertise">
+                    Advertise for £20/mo &rarr;
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -381,13 +435,35 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                       This listing is currently inactive awaiting subscription renewal. Active Community Partners enjoy click-to-call phone buttons, website backlinks, photo showcases, weekly opening hours, and direct customer messaging.
                     </p>
                     <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-                      <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md text-xs sm:text-sm">
-                        <Link href="/directory/advertise">
-                          <Sparkles className="mr-1.5 h-4 w-4" />
-                          Are You The Business Owner? Reactivate For £20/mo
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" size="sm" className="text-xs">
+                      {isOwner ? (
+                        <Button asChild className="bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-md text-xs sm:text-sm animate-pulse ring-2 ring-amber-400 ring-offset-2">
+                          <Link href="/directory/advertise">
+                            <Sparkles className="mr-1.5 h-4 w-4" />
+                            You Own This Listing &bull; Reactivate For £20/mo
+                          </Link>
+                        </Button>
+                      ) : isGuest ? (
+                        <>
+                          <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md text-xs sm:text-sm">
+                            <Link href={`/?redirect=/public-directory/${business.id}`}>
+                              <UserCheck className="mr-1.5 h-4 w-4" />
+                              Are You The Owner? Sign In to Reactivate
+                            </Link>
+                          </Button>
+                          <Button asChild variant="outline" size="sm" className="text-xs">
+                            <Link href="/directory/advertise">
+                              Why Advertise for £20/mo &rarr;
+                            </Link>
+                          </Button>
+                        </>
+                      ) : (
+                        <Button asChild variant="outline" size="sm" className="text-xs">
+                          <Link href="/directory/advertise">
+                            Advertise Your Business for £20/mo &rarr;
+                          </Link>
+                        </Button>
+                      )}
+                      <Button asChild variant="ghost" size="sm" className="text-xs text-muted-foreground">
                         <Link href="/public-directory">
                           Browse Active Listings &rarr;
                         </Link>
