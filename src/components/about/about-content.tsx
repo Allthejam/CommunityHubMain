@@ -30,7 +30,10 @@ import {
     Compass, 
     MapPin, 
     CheckCircle2, 
-    Sparkles 
+    Sparkles,
+    Globe,
+    ArrowUpDown,
+    ArrowRight
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +94,7 @@ const keyFeaturesList = [
     { icon: <FileText className="h-5 w-5 text-primary" />, title: "What's On Guide", description: "Real-time guide to local news, attractions, events, and community activities." },
     { icon: <Calendar className="h-5 w-5 text-primary" />, title: "Local Events Calendar", description: "Discover upcoming events and sync them directly to your device calendar." },
     { icon: <Building2 className="h-5 w-5 text-primary" />, title: "Local Business Directory", description: "Explore verified local shops, services, and annual business showcases." },
+    { icon: <Globe className="h-5 w-5 text-emerald-500" />, title: "Public Directory & Google SEO", description: "Open-access public business directory with Schema.org JSON-LD indexing, 10-line table pagination, custom sorting, and verified partner badges." },
     { icon: <HeartHandshake className="h-5 w-5 text-emerald-500" />, title: "Resilience Volunteer & Asset Registry", description: "Register local 4x4 vehicles, diesel generators, chainsaws, and licensed radio operators ready to deploy during extreme weather." },
     { icon: <Briefcase className="h-5 w-5 text-primary" />, title: "Local Jobs Board", description: "Connect local employers with nearby jobseekers." },
     { icon: <Truck className="h-5 w-5 text-primary" />, title: "Community Courier Network", description: "Dedicated local delivery from high street shops to resident doorsteps." },
@@ -353,6 +357,131 @@ export function AboutContent() {
                         <Button asChild variant="outline" size="lg" className="font-semibold">
                             <Link href="/communities">Explore Community Hubs</Link>
                         </Button>
+                    </div>
+                </div>
+            </section>
+
+            <Separator />
+
+            {/* Section 5: Public Business Directory & Google Search Indexing */}
+            <section className="grid lg:grid-cols-2 gap-12 items-center">
+                <div className="space-y-5">
+                    <Badge variant="outline" className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-xs font-semibold gap-1.5">
+                        <Globe className="h-3.5 w-3.5 text-emerald-600" />
+                        Open Public Access &bull; Google SEO Indexed
+                    </Badge>
+                    <h2 className="text-3xl font-bold font-headline leading-tight">
+                        Public Local Business Directory & Search Engine Indexing
+                    </h2>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                        While our community hubs provide secure, resident-only spaces for local news and discussion, our <strong>Public Directory</strong> sits outside the login gate. It gives independently owned local businesses, trades, and community partners maximum public visibility and automatic Google search indexing.
+                    </p>
+                    <div className="space-y-3 text-sm text-muted-foreground">
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span><strong>Zero-Friction Visitor Experience:</strong> Residents, visitors, and tourists can browse local shops, trades, stays, and dining schedules without downloading an app or registering an account. Includes a responsive card grid and a 10-line desktop table with instant sorting (A–Z, newest, active partners).</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span><strong>Structured Google Schema Markup:</strong> Every business profile is dynamically structured with <code>LocalBusiness</code> JSON-LD metadata for rich search engine snippets, local SEO discovery, and Google Maps visibility.</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span><strong>Community Couriers Reserved for Residents:</strong> While all public businesses are viewable by anyone, local community couriers remain safely accessible only to authenticated residents of that community.</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span><strong>Up to 80% Community Reinvestment:</strong> Subscription and advertising revenues flow back into local community funds to support village hall repairs, defibrillators, local resilience, and seasonal events.</span>
+                        </div>
+                    </div>
+                    <div className="pt-2 flex items-center gap-3 flex-wrap">
+                        <Button asChild size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md">
+                            <Link href="/public-directory">Explore Public Directory</Link>
+                        </Button>
+                        <Button asChild variant="outline" size="lg" className="font-semibold border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50">
+                            <Link href="/directory/advertise">Why Advertise With Us?</Link>
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Interactive Visual Graphic / Directory Preview Card */}
+                <div className="relative rounded-2xl border bg-gradient-to-br from-emerald-500/5 via-card to-background p-5 sm:p-6 shadow-xl space-y-4">
+                    {/* Header Mock */}
+                    <div className="flex items-center justify-between border-b pb-3.5">
+                        <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-emerald-600 text-white shadow-sm">
+                                <Store className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-semibold leading-tight">Public Directory Showcase</h4>
+                                <p className="text-[11px] text-muted-foreground">Indexed for Google Search &bull; No Login Required</p>
+                            </div>
+                        </div>
+                        <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-semibold border border-emerald-300/40">
+                            Live &amp; Searchable
+                        </Badge>
+                    </div>
+
+                    {/* Search & Filter Mock */}
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 bg-muted/60 border rounded-lg px-3 py-2 text-xs text-muted-foreground">
+                            <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate">Search local trades, restaurants, services...</span>
+                            <span className="ml-auto text-[10px] bg-background border px-1.5 py-0.5 rounded font-mono">10-Line Rule</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] pt-0.5">
+                            <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-full font-medium">All (Live)</span>
+                            <span className="bg-muted px-2 py-0.5 rounded-full text-muted-foreground">Local Businesses</span>
+                            <span className="bg-muted px-2 py-0.5 rounded-full text-muted-foreground">Featured Ads</span>
+                            <span className="bg-muted px-2 py-0.5 rounded-full text-muted-foreground">Valued Partners</span>
+                        </div>
+                    </div>
+
+                    {/* Mock Listing Rows / Cards */}
+                    <div className="space-y-2.5">
+                        <div className="p-3 rounded-xl border bg-card/90 shadow-sm hover:border-emerald-500/40 transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                                <div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-semibold text-xs">Cairngorm Artisan Bakery &amp; Coffee</span>
+                                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-emerald-200">Valued Partner</Badge>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">Fresh sourdough, organic coffee, seasonal bakery hampers</p>
+                                </div>
+                                <span className="text-[10px] font-semibold text-emerald-600 shrink-0">Open Now</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-2 pt-2 border-t border-border/40">
+                                <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-emerald-600" /> High Street Hub</span>
+                                <span className="flex items-center gap-1"><Sparkles className="h-3 w-3 text-amber-500" /> Google LocalBusiness Schema</span>
+                            </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl border bg-card/90 shadow-sm hover:border-emerald-500/40 transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                                <div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-semibold text-xs">Grampian Plumbing &amp; Renewable Heating</span>
+                                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20">Local Business</Badge>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">Certified heat pumps, emergency callouts, bathroom installation</p>
+                                </div>
+                                <span className="text-[10px] font-semibold text-emerald-600 shrink-0">Active</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-2 pt-2 border-t border-border/40">
+                                <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-emerald-600" /> Regional Network</span>
+                                <span className="flex items-center gap-1"><ArrowUpDown className="h-3 w-3 text-blue-500" /> Instant A-Z / Newest Sort</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer Info Strip */}
+                    <div className="pt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> 60%&ndash;80% Revenue Reinvested in Community
+                        </span>
+                        <Link href="/public-directory" className="text-primary hover:underline font-semibold flex items-center gap-1">
+                            Browse All <ArrowRight className="h-3 w-3" />
+                        </Link>
                     </div>
                 </div>
             </section>
