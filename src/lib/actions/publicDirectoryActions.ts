@@ -12,7 +12,6 @@ export type PublicBusinessSummary = {
   bannerImage?: string | null;
   primaryCommunityName?: string | null;
   primaryCommunityId?: string | null;
-  additionalCommunityNames?: string[];
   country?: string | null;
   city?: string | null;
   postcode?: string | null;
@@ -87,7 +86,7 @@ function checkIsBusinessLive(data: any): boolean {
 
 /**
  * Normalizes Firestore business document into a clean, JSON-serializable public object.
- * Resolves canonical community names regardless of leadership status and computes live/locked state.
+ * Resolves the primary registered community ONLY. Never injects placeholder community strings.
  */
 function normalizeBusinessDoc(
   id: string,
@@ -98,29 +97,23 @@ function normalizeBusinessDoc(
     ? data.addresses[0] 
     : (data.address ? { addressLine1: data.address, city: data.city || '', postcode: data.postcode || '' } : null);
 
-  // Resolve primary community name cleanly
+  // Resolve main registered community name cleanly
   let commName = data.primaryCommunityName || data.communityName;
   if (communityMap && data.primaryCommunityId && communityMap.has(data.primaryCommunityId)) {
     commName = communityMap.get(data.primaryCommunityId);
   }
   if (commName && typeof commName === 'string') {
     commName = commName.trim();
-  }
-
-  // Resolve additional community names
-  const additionalNames: string[] = [];
-  if (Array.isArray(data.additionalCommunities)) {
-    for (const ac of data.additionalCommunities) {
-      if (ac && typeof ac === 'object') {
-        const cId = ac.community || ac.id;
-        const name = ac.communityName || ac.name || (cId && communityMap ? communityMap.get(cId) : null);
-        if (name && typeof name === 'string' && name.trim()) {
-          additionalNames.push(name.trim());
-        }
-      } else if (typeof ac === 'string' && ac.trim()) {
-        const name = communityMap && communityMap.has(ac.trim()) ? communityMap.get(ac.trim()) : ac.trim();
-        if (name) additionalNames.push(name);
-      }
+    const lower = commName.toLowerCase();
+    // Filter out placeholders
+    if (
+      lower === 'local community' ||
+      lower === 'your community' ||
+      lower === 'our community' ||
+      lower === 'all' ||
+      lower === 'other'
+    ) {
+      commName = primaryAddress?.city || data.city || null;
     }
   }
 
@@ -137,9 +130,8 @@ function normalizeBusinessDoc(
     pageThreeContent: data.pageThreeContent || '',
     logoImage: data.logoImage || null,
     bannerImage: data.bannerImage || null,
-    primaryCommunityName: commName || 'Local Community',
+    primaryCommunityName: commName || primaryAddress?.city || data.city || null,
     primaryCommunityId: data.primaryCommunityId || data.communityId || null,
-    additionalCommunityNames: additionalNames,
     country: data.country || 'United Kingdom',
     city: primaryAddress?.city || data.city || commName || '',
     postcode: primaryAddress?.postcode || data.postcode || '',
@@ -160,7 +152,7 @@ function normalizeBusinessDoc(
 
 /**
  * Fetch all public-facing businesses across all communities, regardless of community leadership status.
- * Queries default Firestore and comfeed databases, computing live subscription vs locked states.
+ * Listings are strictly categorized under their main registered community only.
  */
 export async function getPublicBusinessesAction(): Promise<PublicBusinessSummary[]> {
   const results: Map<string, PublicBusinessSummary> = new Map();
@@ -241,7 +233,6 @@ export async function getPublicBusinessesAction(): Promise<PublicBusinessSummary
     mockBusinesses.forEach((mb, idx) => {
       const town = demoTowns[idx % demoTowns.length];
       const idStr = String(mb.id);
-      // Let every 3rd business simulate an expired subscription so locked behavior can be tested
       const isSimulatedLive = idx % 3 !== 0;
 
       results.set(idStr, {
@@ -253,7 +244,6 @@ export async function getPublicBusinessesAction(): Promise<PublicBusinessSummary
         bannerImage: null,
         primaryCommunityName: town,
         primaryCommunityId: `demo-${town.toLowerCase().replace(/\s+/g, '-')}`,
-        additionalCommunityNames: [],
         country: 'Scotland, UK',
         city: town,
         postcode: 'KY16 9AA',
@@ -344,7 +334,6 @@ export async function getPublicBusinessByIdAction(businessId: string): Promise<P
       bannerImage: null,
       primaryCommunityName: 'St Andrews',
       primaryCommunityId: 'demo-st-andrews',
-      additionalCommunityNames: [],
       country: 'Scotland, UK',
       city: 'St Andrews',
       postcode: 'KY16 9AA',
