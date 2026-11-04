@@ -47,34 +47,105 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
   const [selectedCategory, setSelectedCategory] = React.useState('all');
   const [selectedCommunity, setSelectedCommunity] = React.useState('all');
 
-  // Extract unique communities
-  const communities = React.useMemo(() => {
-    const set = new Set<string>();
+  // Extract unique communities without duplicates, regardless of leadership status
+  const { communities, communityCounts } = React.useMemo(() => {
+    const countsMap = new Map<string, { display: string; count: number }>();
+
+    const normalizeKey = (str: string) =>
+      str.trim().toLowerCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ');
+
     businesses.forEach((b) => {
-      if (b.primaryCommunityName) set.add(b.primaryCommunityName);
-      if (b.city) set.add(b.city);
+      // Find all community names associated with this business (primary + additional)
+      const directNames: string[] = [];
+      if (b.primaryCommunityName) directNames.push(b.primaryCommunityName);
+      if (Array.isArray(b.additionalCommunityNames)) {
+        b.additionalCommunityNames.forEach((n) => n && directNames.push(n));
+      }
+
+      // If no community name is set, fallback to city
+      if (directNames.length === 0 && b.city) {
+        directNames.push(b.city);
+      }
+
+      const matchedKeysForThisBusiness = new Set<string>();
+
+      directNames.forEach((raw) => {
+        if (!raw || typeof raw !== 'string') return;
+        const trimmed = raw.trim();
+        const lower = trimmed.toLowerCase();
+        if (
+          !trimmed ||
+          lower === 'all' ||
+          lower === 'other' ||
+          lower === 'none' ||
+          lower === 'undefined' ||
+          lower.includes('id will appear')
+        ) {
+          return;
+        }
+
+        const key = normalizeKey(trimmed);
+        if (!matchedKeysForThisBusiness.has(key)) {
+          matchedKeysForThisBusiness.add(key);
+
+          const existing = countsMap.get(key);
+          if (existing) {
+            existing.count += 1;
+            // Prefer Title Case or cleaner display name
+            if (trimmed[0] === trimmed[0].toUpperCase() && existing.display[0] !== existing.display[0].toUpperCase()) {
+              existing.display = trimmed;
+            }
+          } else {
+            countsMap.set(key, { display: trimmed, count: 1 });
+          }
+        }
+      });
     });
-    return Array.from(set).sort();
+
+    const sorted = Array.from(countsMap.values()).sort((a, b) => a.display.localeCompare(b.display));
+    const commList = sorted.map((s) => s.display);
+    const counts: Record<string, number> = {};
+    sorted.forEach((s) => {
+      counts[s.display] = s.count;
+    });
+
+    return { communities: commList, communityCounts: counts };
   }, [businesses]);
 
   // Filter businesses
   const filteredBusinesses = React.useMemo(() => {
+    const normalizeKey = (str: string) =>
+      str.trim().toLowerCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ');
+
     return businesses.filter((b) => {
       // Search term
       if (searchTerm.trim()) {
-        const term = searchTerm.toLowerCase();
+        const term = searchTerm.toLowerCase().trim();
         const matchesName = b.businessName?.toLowerCase().includes(term);
         const matchesDesc = b.shortDescription?.toLowerCase().includes(term);
         const matchesCat = b.businessCategory?.toLowerCase().includes(term);
-        const matchesTown = b.primaryCommunityName?.toLowerCase().includes(term) || b.city?.toLowerCase().includes(term);
-        if (!matchesName && !matchesDesc && !matchesCat && !matchesTown) {
+        const matchesPrimaryComm = b.primaryCommunityName?.toLowerCase().includes(term);
+        const matchesAdditionalComm = (b.additionalCommunityNames || []).some((c) => c.toLowerCase().includes(term));
+        const matchesCity = b.city?.toLowerCase().includes(term);
+
+        if (!matchesName && !matchesDesc && !matchesCat && !matchesPrimaryComm && !matchesAdditionalComm && !matchesCity) {
           return false;
         }
       }
 
       // Community filter
       if (selectedCommunity !== 'all') {
-        const matchesCommunity = b.primaryCommunityName === selectedCommunity || b.city === selectedCommunity;
+        const targetKey = normalizeKey(selectedCommunity);
+
+        const bCommKey = b.primaryCommunityName ? normalizeKey(b.primaryCommunityName) : '';
+        const bAdditionalKeys = (b.additionalCommunityNames || []).map((n) => normalizeKey(n));
+        const bCityKey = b.city ? normalizeKey(b.city) : '';
+
+        const matchesCommunity =
+          bCommKey === targetKey ||
+          bAdditionalKeys.includes(targetKey) ||
+          (!bCommKey && bCityKey === targetKey);
+
         if (!matchesCommunity) return false;
       }
 
@@ -157,7 +228,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Search by business name, keyword, or service..."
+                  placeholder="Search by business name, keyword, service, or town..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 h-11 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
@@ -166,16 +237,17 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
 
               {communities.length > 0 && (
                 <div className="flex items-center border-t sm:border-t-0 sm:border-l sm:pl-2.5">
-                  <MapPin className="h-4 w-4 text-muted-foreground ml-2 sm:ml-0 mr-1.5 shrink-0" />
+                  <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400 ml-2 sm:ml-0 mr-1.5 shrink-0" />
                   <select
                     value={selectedCommunity}
                     onChange={(e) => setSelectedCommunity(e.target.value)}
-                    className="h-11 bg-transparent border-0 text-sm font-medium focus:outline-none cursor-pointer pr-4"
+                    className="h-11 bg-transparent border-0 text-sm font-medium focus:outline-none cursor-pointer pr-4 max-w-[200px] truncate"
+                    aria-label="Filter by community"
                   >
-                    <option value="all">All Communities</option>
+                    <option value="all">All Communities ({businesses.length})</option>
                     {communities.map((comm) => (
                       <option key={comm} value={comm}>
-                        {comm}
+                        {comm} ({communityCounts[comm] || 0})
                       </option>
                     ))}
                   </select>
@@ -230,7 +302,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               Showing {filteredBusinesses.length} {filteredBusinesses.length === 1 ? 'business' : 'businesses'}
-              {selectedCommunity !== 'all' ? ` in ${selectedCommunity}` : ''} &bull; Open to public inspection
+              {selectedCommunity !== 'all' ? ` in ${selectedCommunity}` : ' across all communities'} &bull; Regardless of leadership status
             </p>
           </div>
 

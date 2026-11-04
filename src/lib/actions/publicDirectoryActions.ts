@@ -12,6 +12,7 @@ export type PublicBusinessSummary = {
   bannerImage?: string | null;
   primaryCommunityName?: string | null;
   primaryCommunityId?: string | null;
+  additionalCommunityNames?: string[];
   country?: string | null;
   city?: string | null;
   postcode?: string | null;
@@ -37,11 +38,42 @@ export type PublicBusinessDetail = PublicBusinessSummary & {
 
 /**
  * Normalizes Firestore business document into a clean, JSON-serializable public object.
+ * Resolves canonical community names regardless of leadership status.
  */
-function normalizeBusinessDoc(id: string, data: any): PublicBusinessDetail {
+function normalizeBusinessDoc(
+  id: string,
+  data: any,
+  communityMap?: Map<string, string>
+): PublicBusinessDetail {
   const primaryAddress = Array.isArray(data.addresses) && data.addresses.length > 0 
     ? data.addresses[0] 
     : (data.address ? { addressLine1: data.address, city: data.city || '', postcode: data.postcode || '' } : null);
+
+  // Resolve primary community name cleanly
+  let commName = data.primaryCommunityName || data.communityName;
+  if (communityMap && data.primaryCommunityId && communityMap.has(data.primaryCommunityId)) {
+    commName = communityMap.get(data.primaryCommunityId);
+  }
+  if (commName && typeof commName === 'string') {
+    commName = commName.trim();
+  }
+
+  // Resolve additional community names
+  const additionalNames: string[] = [];
+  if (Array.isArray(data.additionalCommunities)) {
+    for (const ac of data.additionalCommunities) {
+      if (ac && typeof ac === 'object') {
+        const cId = ac.community || ac.id;
+        const name = ac.communityName || ac.name || (cId && communityMap ? communityMap.get(cId) : null);
+        if (name && typeof name === 'string' && name.trim()) {
+          additionalNames.push(name.trim());
+        }
+      } else if (typeof ac === 'string' && ac.trim()) {
+        const name = communityMap && communityMap.has(ac.trim()) ? communityMap.get(ac.trim()) : ac.trim();
+        if (name) additionalNames.push(name);
+      }
+    }
+  }
 
   return {
     id: String(id),
@@ -54,10 +86,11 @@ function normalizeBusinessDoc(id: string, data: any): PublicBusinessDetail {
     pageThreeContent: data.pageThreeContent || '',
     logoImage: data.logoImage || null,
     bannerImage: data.bannerImage || null,
-    primaryCommunityName: data.primaryCommunityName || data.communityName || 'Local Community',
+    primaryCommunityName: commName || 'Local Community',
     primaryCommunityId: data.primaryCommunityId || data.communityId || null,
+    additionalCommunityNames: additionalNames,
     country: data.country || 'United Kingdom',
-    city: primaryAddress?.city || data.city || data.primaryCommunityName || '',
+    city: primaryAddress?.city || data.city || commName || '',
     postcode: primaryAddress?.postcode || data.postcode || '',
     isAccommodation: Boolean(data.isAccommodation),
     phone: data.contactNumber || data.phone || null,
@@ -74,76 +107,110 @@ function normalizeBusinessDoc(id: string, data: any): PublicBusinessDetail {
 }
 
 /**
- * Fetch all public-facing businesses across the default database and comfeed demo database.
- * Falls back to curated mock businesses if Firestore returns empty so the directory is always vibrant.
+ * Fetch all public-facing businesses across all communities, regardless of community leadership status.
+ * Queries default Firestore and comfeed databases, deduplicating canonical community names.
  */
 export async function getPublicBusinessesAction(): Promise<PublicBusinessSummary[]> {
   const results: Map<string, PublicBusinessSummary> = new Map();
+  const communityNameMap = new Map<string, string>();
 
-  // 1. Try querying default Firestore database
+  // 1. Fetch communities to resolve clean canonical names (no leader restriction)
+  try {
+    const { firestore } = initializeAdminApp();
+    const commSnap = await firestore.collection('communities').get();
+    commSnap.docs.forEach((doc) => {
+      const cdata = doc.data();
+      if (cdata.name && typeof cdata.name === 'string') {
+        communityNameMap.set(doc.id, cdata.name.trim());
+      }
+    });
+  } catch (err) {
+    console.warn('Error reading communities collection:', err);
+  }
+
+  // Also check comfeed communities if available
+  try {
+    const { firestore: comfeedDb } = initializeAdminApp('comfeed');
+    const commSnap2 = await comfeedDb.collection('communities').get();
+    commSnap2.docs.forEach((doc) => {
+      const cdata = doc.data();
+      if (cdata.name && typeof cdata.name === 'string' && !communityNameMap.has(doc.id)) {
+        communityNameMap.set(doc.id, cdata.name.trim());
+      }
+    });
+  } catch (err) {
+    // Ignore comfeed errors
+  }
+
+  // 2. Query default Firestore database for businesses (any community, regardless of leader status)
   try {
     const { firestore } = initializeAdminApp();
     const snap = await firestore.collection('businesses')
-      .where('status', 'in', ['Approved', 'Subscribed'])
-      .limit(100)
+      .limit(300)
       .get();
 
     for (const doc of snap.docs) {
       const data = doc.data();
-      if (data.isPublicDirectoryEnabled !== false) {
-        const item = normalizeBusinessDoc(doc.id, data);
-        results.set(item.id, item);
-      }
+      const status = data.status || 'Approved';
+      // Exclude explicitly declined, hidden, or drafts
+      if (status === 'Declined' || status === 'Hidden' || status === 'Draft') continue;
+      if (data.isPublicDirectoryEnabled === false) continue;
+
+      const item = normalizeBusinessDoc(doc.id, data, communityNameMap);
+      results.set(item.id, item);
     }
   } catch (error) {
     console.warn('Error reading businesses from default database:', error);
   }
 
-  // 2. Try querying comfeed sandbox database (for demo & community sandbox listings)
+  // 3. Query comfeed sandbox database (for demo & community sandbox listings)
   try {
     const { firestore: comfeedDb } = initializeAdminApp('comfeed');
     const snap = await comfeedDb.collection('businesses')
-      .where('status', 'in', ['Approved', 'Subscribed'])
-      .limit(50)
+      .limit(100)
       .get();
 
     for (const doc of snap.docs) {
       const data = doc.data();
-      if (data.isPublicDirectoryEnabled !== false && !results.has(doc.id)) {
-        const item = normalizeBusinessDoc(doc.id, data);
+      const status = data.status || 'Approved';
+      if (status === 'Declined' || status === 'Hidden' || status === 'Draft') continue;
+      if (data.isPublicDirectoryEnabled === false) continue;
+      if (!results.has(doc.id)) {
+        const item = normalizeBusinessDoc(doc.id, data, communityNameMap);
         results.set(item.id, item);
       }
     }
   } catch (error) {
-    // Ignore comfeed errors if db not configured
+    // Ignore comfeed errors
   }
 
-  // 3. If live database has few or no records (e.g. fresh environment or offline), supplement with mock businesses
-  if (results.size < 6 && Array.isArray(mockBusinesses)) {
-    for (const mb of mockBusinesses) {
+  // 4. If live database has 0 records (e.g. offline dev test), supplement with clean mock businesses
+  if (results.size === 0 && Array.isArray(mockBusinesses)) {
+    const demoTowns = ['St Andrews', 'Crail', 'Anstruther', 'Elie', 'Pittenweem'];
+    mockBusinesses.forEach((mb, idx) => {
+      const town = demoTowns[idx % demoTowns.length];
       const idStr = String(mb.id);
-      if (!results.has(idStr)) {
-        results.set(idStr, {
-          id: idStr,
-          businessName: mb.businessName,
-          businessCategory: mb.businessCategory || 'retail',
-          shortDescription: mb.shortDescription || 'Your friendly local neighborhood shop.',
-          logoImage: mb.logoImage || null,
-          bannerImage: null,
-          primaryCommunityName: 'St Andrews',
-          primaryCommunityId: 'demo-st-andrews',
-          country: 'Scotland, UK',
-          city: 'St Andrews',
-          postcode: 'KY16 9AA',
-          isAccommodation: (mb.businessCategory || '').includes('hotel') || (mb.businessCategory || '').includes('stay'),
-          phone: (mb as any).phone || '01334 000000',
-          website: (mb as any).website || null,
-          openingHours: (mb as any).openingHours || null,
-          status: 'Approved',
-          isPublicDirectoryEnabled: true,
-        });
-      }
-    }
+      results.set(idStr, {
+        id: idStr,
+        businessName: mb.businessName,
+        businessCategory: mb.businessCategory || 'retail',
+        shortDescription: mb.shortDescription || 'Your friendly local neighborhood shop.',
+        logoImage: mb.logoImage || null,
+        bannerImage: null,
+        primaryCommunityName: town,
+        primaryCommunityId: `demo-${town.toLowerCase().replace(/\s+/g, '-')}`,
+        additionalCommunityNames: [],
+        country: 'Scotland, UK',
+        city: town,
+        postcode: 'KY16 9AA',
+        isAccommodation: (mb.businessCategory || '').includes('hotel') || (mb.businessCategory || '').includes('stay'),
+        phone: (mb as any).phone || '01334 000000',
+        website: (mb as any).website || null,
+        openingHours: (mb as any).openingHours || null,
+        status: 'Approved',
+        isPublicDirectoryEnabled: true,
+      });
+    });
   }
 
   return Array.from(results.values());
@@ -156,15 +223,27 @@ export async function getPublicBusinessesAction(): Promise<PublicBusinessSummary
 export async function getPublicBusinessByIdAction(businessId: string): Promise<PublicBusinessDetail | null> {
   if (!businessId) return null;
 
+  // Pre-load community names
+  const communityNameMap = new Map<string, string>();
+  try {
+    const { firestore } = initializeAdminApp();
+    const commSnap = await firestore.collection('communities').get();
+    commSnap.docs.forEach((doc) => {
+      const cdata = doc.data();
+      if (cdata.name) communityNameMap.set(doc.id, cdata.name.trim());
+    });
+  } catch (err) {
+    // Ignore
+  }
+
   // 1. Try default Firestore database
   try {
     const { firestore } = initializeAdminApp();
     const doc = await firestore.collection('businesses').doc(businessId).get();
     if (doc.exists) {
       const data = doc.data()!;
-      // Only return if it's publicly viewable
       if (data.isPublicDirectoryEnabled !== false) {
-        return normalizeBusinessDoc(doc.id, data);
+        return normalizeBusinessDoc(doc.id, data, communityNameMap);
       }
     }
   } catch (error) {
@@ -178,7 +257,7 @@ export async function getPublicBusinessByIdAction(businessId: string): Promise<P
     if (doc.exists) {
       const data = doc.data()!;
       if (data.isPublicDirectoryEnabled !== false) {
-        return normalizeBusinessDoc(doc.id, data);
+        return normalizeBusinessDoc(doc.id, data, communityNameMap);
       }
     }
   } catch (error) {
@@ -207,6 +286,7 @@ export async function getPublicBusinessByIdAction(businessId: string): Promise<P
       bannerImage: null,
       primaryCommunityName: 'St Andrews',
       primaryCommunityId: 'demo-st-andrews',
+      additionalCommunityNames: [],
       country: 'Scotland, UK',
       city: 'St Andrews',
       postcode: 'KY16 9AA',
