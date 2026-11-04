@@ -5,6 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   Search,
+  ArrowUpDown,
+  ArrowUpAZ,
+  ArrowDownAZ,
   Handshake,
   Store,
   MapPin,
@@ -69,8 +72,12 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
   const [selectedCategory, setSelectedCategory] = React.useState('all');
   const [selectedCommunity, setSelectedCommunity] = React.useState('all');
 
-  // Subscription status filter: 'all' | 'active' (hide inactive) | 'inactive' (show only inactive)
-  const [statusFilter, setStatusFilter] = React.useState<'all' | 'active' | 'inactive'>('all');
+  // Subscription status filter: 'all' | 'businesses' | 'featured' | 'partner' | 'active' | 'inactive'
+  const [statusFilter, setStatusFilter] = React.useState<string>('all');
+
+  // Sort order: active_first, alphabetical_asc, alphabetical_desc, newest, oldest, inactive_first
+  type SortOption = 'active_first' | 'alphabetical_asc' | 'alphabetical_desc' | 'newest' | 'oldest' | 'inactive_first';
+  const [sortBy, setSortBy] = React.useState<SortOption>('active_first');
 
   // Pagination state (10-line rule by default)
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -252,21 +259,54 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
     });
   }, [visibleBusinesses, searchTerm, selectedCategory, selectedCommunity, statusFilter]);
 
-  // Reset to page 1 whenever any filter or search changes
+  // Sort filtered listings according to the active sort order
+  const sortedBusinesses = React.useMemo(() => {
+    return [...filteredBusinesses].sort((a, b) => {
+      if (sortBy === 'alphabetical_asc') {
+        return (a.businessName || '').localeCompare(b.businessName || '');
+      }
+      if (sortBy === 'alphabetical_desc') {
+        return (b.businessName || '').localeCompare(a.businessName || '');
+      }
+      if (sortBy === 'newest') {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      }
+      if (sortBy === 'oldest') {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeA - timeB;
+      }
+      if (sortBy === 'active_first') {
+        if (a.isLive && !b.isLive) return -1;
+        if (!a.isLive && b.isLive) return 1;
+        return (a.businessName || '').localeCompare(b.businessName || '');
+      }
+      if (sortBy === 'inactive_first') {
+        if (!a.isLive && b.isLive) return -1;
+        if (a.isLive && !b.isLive) return 1;
+        return (a.businessName || '').localeCompare(b.businessName || '');
+      }
+      return 0;
+    });
+  }, [filteredBusinesses, sortBy]);
+
+  // Reset to page 1 whenever any filter, search, or sort changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory, selectedCommunity, statusFilter, pageSize]);
+  }, [searchTerm, selectedCategory, selectedCommunity, statusFilter, sortBy, pageSize]);
 
   // Pagination metrics
-  const totalItems = filteredBusinesses.length;
+  const totalItems = sortedBusinesses.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const validCurrentPage = Math.min(currentPage, totalPages);
 
   const startIndex = (validCurrentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const paginatedBusinesses = React.useMemo(() => {
-    return filteredBusinesses.slice(startIndex, endIndex);
-  }, [filteredBusinesses, startIndex, endIndex]);
+    return sortedBusinesses.slice(startIndex, endIndex);
+  }, [sortedBusinesses, startIndex, endIndex]);
 
   const handlePageChange = (newPage: number) => {
     const target = Math.max(1, Math.min(newPage, totalPages));
@@ -470,7 +510,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
               <span className="font-medium">Filter:</span>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
+                onChange={(e) => setStatusFilter(e.target.value)}
                 className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer pr-1"
                 aria-label="Filter listings by type and status"
               >
@@ -480,6 +520,25 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 {valuedPartnersCount > 0 && <option value="partner">Valued Partners ({valuedPartnersCount})</option>}
                 <option value="active">Active Partners Only ({totalActiveCount})</option>
                 <option value="inactive">Inactive Subscriptions Only ({totalInactiveCount})</option>
+              </select>
+            </div>
+
+            {/* Sort Order Selector */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card border rounded-lg px-2.5 py-1 shadow-xs">
+              <ArrowUpDown className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-medium">Sort:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer pr-1"
+                aria-label="Sort listings"
+              >
+                <option value="active_first">Active Partners First</option>
+                <option value="alphabetical_asc">Alphabetical (A &rarr; Z)</option>
+                <option value="alphabetical_desc">Alphabetical (Z &rarr; A)</option>
+                <option value="newest">Newest Listed First</option>
+                <option value="oldest">Oldest Listed First</option>
+                <option value="inactive_first">Inactive / Unpaid First</option>
               </select>
             </div>
 
@@ -577,9 +636,37 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
             <Table>
               <TableHeader className="bg-muted/40">
                 <TableRow>
-                  <TableHead className="w-[300px] font-semibold text-xs text-foreground">Business</TableHead>
+                  <TableHead
+                    onClick={() => {
+                      setSortBy((prev) => (prev === 'alphabetical_asc' ? 'alphabetical_desc' : 'alphabetical_asc'));
+                    }}
+                    className="w-[300px] font-semibold text-xs text-foreground cursor-pointer select-none hover:text-emerald-600 transition-colors"
+                    title="Click to sort by Business Name"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Business</span>
+                      {sortBy === 'alphabetical_asc' ? (
+                        <ArrowUpAZ className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      ) : sortBy === 'alphabetical_desc' ? (
+                        <ArrowDownAZ className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                      )}
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[180px] font-semibold text-xs text-foreground">Community & Location</TableHead>
-                  <TableHead className="w-[160px] font-semibold text-xs text-foreground">Partner Status</TableHead>
+                  <TableHead
+                    onClick={() => {
+                      setSortBy((prev) => (prev === 'active_first' ? 'inactive_first' : 'active_first'));
+                    }}
+                    className="w-[160px] font-semibold text-xs text-foreground cursor-pointer select-none hover:text-emerald-600 transition-colors"
+                    title="Click to toggle Active vs Inactive first"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Partner Status</span>
+                      <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                    </div>
+                  </TableHead>
                   <TableHead className="hidden md:table-cell font-semibold text-xs text-foreground">Direct Contact</TableHead>
                   <TableHead className="text-right font-semibold text-xs text-foreground w-[130px]">Profile</TableHead>
                 </TableRow>

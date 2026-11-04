@@ -23,6 +23,7 @@ export type PublicBusinessSummary = {
   accountType?: string | null;
   listingType?: 'business' | 'featured_ad' | 'valued_partner';
   ownerId?: string | null;
+  createdAt?: string | null;
   isPublicDirectoryEnabled: boolean;
   isLive: boolean; // True if subscription/trial is active; False if expired/unpaid (locked)
 };
@@ -43,20 +44,25 @@ export type PublicBusinessDetail = PublicBusinessSummary & {
  * Checks whether a business has an active paid subscription, free active listing, or valid 14-day trial.
  * If expired or unpaid, the business will be listed in a locked non-functional state.
  */
+
+/**
+ * Safely parses Firestore Timestamps, ISO strings, and milliseconds into a JavaScript Date.
+ */
+function parseTimestampToDate(timestamp: any): Date | null {
+  if (!timestamp) return null;
+  if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+  if (timestamp.seconds !== undefined) return new Date(timestamp.seconds * 1000);
+  if (timestamp._seconds !== undefined) return new Date(timestamp._seconds * 1000);
+  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    const d = new Date(timestamp);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
 function checkIsBusinessLive(data: any): boolean {
   const now = new Date();
-
-  const toDate = (timestamp: any): Date | null => {
-    if (!timestamp) return null;
-    if (typeof timestamp.toDate === 'function') return timestamp.toDate();
-    if (timestamp.seconds !== undefined) return new Date(timestamp.seconds * 1000);
-    if (timestamp._seconds !== undefined) return new Date(timestamp._seconds * 1000);
-    if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-      const d = new Date(timestamp);
-      return isNaN(d.getTime()) ? null : d;
-    }
-    return null;
-  };
+  const toDate = parseTimestampToDate;
 
   const expiryDate = toDate(data.listingSubscriptionExpiresAt || data.subscriptionExpiresAt);
   const freeExpiry = toDate(data.freeListingExpiresAt);
@@ -161,6 +167,7 @@ function normalizeAdvertDoc(id: string, data: any): PublicBusinessDetail | null 
     accountType: isFeatured ? 'featured_ad' : 'valued_partner',
     listingType: isFeatured ? 'featured_ad' : 'valued_partner',
     ownerId: data.ownerId || null,
+    createdAt: parseTimestampToDate(data.createdAt || data.submittedAt)?.toISOString() || null,
     isPublicDirectoryEnabled: true,
     isLive: true,
   };
@@ -226,6 +233,7 @@ function normalizeBusinessDoc(
     accountType: data.accountType || (data.businessCategory?.toLowerCase() === 'courier' ? 'courier' : 'business'),
     listingType: 'business',
     ownerId: data.ownerId || null,
+    createdAt: parseTimestampToDate(data.createdAt || data.submittedAt)?.toISOString() || null,
     isPublicDirectoryEnabled: data.isPublicDirectoryEnabled !== false,
     isLive,
   };
