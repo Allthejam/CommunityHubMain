@@ -133,7 +133,11 @@ export async function updateUserCommunityAction(params: {
       communityName: communityData.name,
     }, { merge: true });
 
-    revalidatePath('/', 'layout');
+    try {
+      revalidatePath('/home');
+    } catch (e) {
+      console.warn("revalidatePath error:", e);
+    }
 
     return { success: true, communityName: communityData.name };
   } catch (error: any) {
@@ -182,7 +186,11 @@ export async function returnToHomeCommunityAction(params: { userId: string }): P
       primaryHomeCommunityName: communityData.name,
     }, { merge: true });
 
-    revalidatePath('/', 'layout');
+    try {
+      revalidatePath('/home');
+    } catch (e) {
+      console.warn("revalidatePath error:", e);
+    }
 
     return { success: true, communityName: communityData.name };
   } catch (error: any) {
@@ -637,7 +645,11 @@ export async function changeHomeCommunityAction(params: { userId: string; newCom
       memberOf: FieldValue.arrayUnion(newCommunityId)
     }, { merge: true });
 
-    revalidatePath('/', 'layout');
+    try {
+      revalidatePath('/home');
+    } catch (e) {
+      console.warn("revalidatePath error:", e);
+    }
     return { success: true };
   } catch (error: any) {
     console.error("Error changing home community:", error);
@@ -772,7 +784,11 @@ export async function migrateBusinessAndChangeCommunityAction(params: {
       await cancelSubscriptionAction({ subscriptionId: subId });
     }
 
-    revalidatePath('/', 'layout');
+    try {
+      revalidatePath('/home');
+    } catch (e) {
+      console.warn("revalidatePath error:", e);
+    }
 
     return { success: true };
 

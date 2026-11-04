@@ -313,11 +313,14 @@ export default function AppHeader() {
     }
     setIsCommunityDialogOpen(false);
     toast({ title: 'Visiting Community', description: `Opening hub for selected community.` });
-    router.push(`/home?community=${targetCommId}`);
+    window.location.href = `/home?community=${targetCommId}`;
   };
   
   const handleReturnHome = async () => {
     if (typeof window !== 'undefined') {
+      try {
+        window.history.replaceState({}, '', '/home');
+      } catch (e) {}
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
       sessionStorage.removeItem('isDemoMode');
@@ -331,8 +334,7 @@ export default function AppHeader() {
       setIsSwitching(false);
     }
     toast({ title: 'Returned Home', description: `Returned to your locked Home Community hub.` });
-    router.push('/home');
-    router.refresh();
+    window.location.href = '/home';
   };
 
   

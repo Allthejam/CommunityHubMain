@@ -339,25 +339,24 @@ export default function AppHeader() {
       showToast({ title: 'No Community Selected', description: 'Please select a community to switch to.', variant: 'destructive' });
       return;
     }
-    
+    const targetCommId = communitySelection.community;
     setIsSwitching(true);
-    const result = await updateUserCommunityAction({ userId: user.uid, communityId: communitySelection.community });
-    setIsSwitching(false);
-
-    if (result.success && result.communityName) {
-      setIsCommunityDialogOpen(false);
-      sessionStorage.setItem('visitedCommunityId', communitySelection.community);
-      sessionStorage.setItem('visitedCommunityName', result.communityName);
-      setVisitedCommunityId(communitySelection.community);
-      showToast({ title: 'Community Switched!', description: `You are now viewing the ${result.communityName} hub.` });
-      window.location.reload();
-    } else {
-      showToast({ title: 'Switch Failed', description: result.error || 'Could not switch communities.', variant: 'destructive' });
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('visitedCommunityId', targetCommId);
+      window.dispatchEvent(new Event('community-change'));
     }
+    await updateUserCommunityAction({ userId: user.uid, communityId: targetCommId }).catch(console.error);
+    setIsSwitching(false);
+    setIsCommunityDialogOpen(false);
+    showToast({ title: 'Community Switched!', description: `Opening hub for selected community.` });
+    window.location.href = `/home?community=${targetCommId}`;
   }
   
   const handleReturnHome = async () => {
     if (typeof window !== 'undefined') {
+      try {
+        window.history.replaceState({}, '', '/home');
+      } catch (e) {}
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
       sessionStorage.removeItem('isDemoMode');
@@ -371,8 +370,7 @@ export default function AppHeader() {
       setIsSwitching(false);
     }
     showToast({ title: 'Returned Home', description: `You are now back in your home community.` });
-    router.push('/home');
-    router.refresh();
+    window.location.href = '/home';
   }
 
   

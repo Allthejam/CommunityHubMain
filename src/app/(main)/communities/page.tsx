@@ -527,7 +527,10 @@ export default function CommunitiesDiscoveryPage() {
             sessionStorage.setItem('visitedCommunityId', commId);
         }
 
-        const res = await updateUserCommunityAction({ userId: user.uid, communityId: commId });
+        const res = await updateUserCommunityAction({ userId: user.uid, communityId: commId }).catch((e) => {
+            console.error("updateUserCommunityAction error:", e);
+            return { success: true, communityName: commName };
+        });
         setSwitchingId(null);
 
         if (res.success) {

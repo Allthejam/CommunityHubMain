@@ -259,6 +259,9 @@ export function NoticeboardCard() {
 
   const handleReturnHome = async () => {
     if (typeof window !== 'undefined') {
+      try {
+        window.history.replaceState({}, '', '/home');
+      } catch (e) {}
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
       sessionStorage.removeItem('isDemoMode');
@@ -271,8 +274,7 @@ export function NoticeboardCard() {
       setIsReturning(false);
     }
     toast({ title: "Returned Home", description: `You are now back at your home community hub.` });
-    router.push('/home');
-    router.refresh();
+    window.location.href = '/home';
   };
 
 

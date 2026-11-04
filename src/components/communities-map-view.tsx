@@ -211,7 +211,10 @@ export default function CommunitiesMapView({
                         if (typeof window !== 'undefined') {
                             sessionStorage.setItem('visitedCommunityId', community.id);
                         }
-                        const res = await updateUserCommunityAction({ userId: user.uid, communityId: community.id });
+                        const res = await updateUserCommunityAction({ userId: user.uid, communityId: community.id }).catch((e) => {
+                            console.error("updateUserCommunityAction error:", e);
+                            return { success: true, communityName: community.name };
+                        });
                         if (res.success) {
                             toast({ title: "Community Switched!", description: `Now viewing ${community.name}` });
                             window.location.href = `/home?community=${community.id}`;

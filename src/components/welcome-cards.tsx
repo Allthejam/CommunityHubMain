@@ -116,6 +116,9 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
   const handleReturnHome = async () => {
     if (!user) return;
     if (typeof window !== 'undefined') {
+      try {
+        window.history.replaceState({}, '', '/home');
+      } catch (e) {}
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
       sessionStorage.removeItem('isDemoMode');
@@ -124,8 +127,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
     }
     await returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
     toast({ title: 'Welcome Home!', description: `Returned to ${homeCommunityName}.` });
-    router.push('/home');
-    router.refresh();
+    window.location.href = '/home';
   };
 
   const hasActiveParticipation = Boolean(activePolls && activePolls.length > 0) || Boolean(activePetitions && activePetitions.length > 0);
