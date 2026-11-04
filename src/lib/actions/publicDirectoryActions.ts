@@ -58,7 +58,12 @@ function checkIsBusinessLive(data: any): boolean {
   const expiryDate = toDate(data.listingSubscriptionExpiresAt || data.subscriptionExpiresAt);
   const freeExpiry = toDate(data.freeListingExpiresAt);
 
-  // 1. Free live listing with unexpired date
+  // 1. Couriers are official community logistics partners — always free and live
+  if (data.accountType === 'courier' || data.businessCategory === 'courier') {
+    return true;
+  }
+
+  // 2. Free live listing with unexpired date
   const isFreeLive = Boolean(data.isFreeListing && (!freeExpiry || now <= freeExpiry));
   if (isFreeLive) return true;
 
@@ -136,7 +141,7 @@ function normalizeBusinessDoc(
     city: primaryAddress?.city || data.city || commName || '',
     postcode: primaryAddress?.postcode || data.postcode || '',
     isAccommodation: Boolean(data.isAccommodation),
-    phone: data.contactNumber || data.phone || null,
+    phone: data.contactNumber || data.phone || data.contactPhone || data.dispatchPhone || null,
     website: data.website || null,
     contactEmail: data.contactEmail || null,
     socialMedia: data.socialMedia || null,

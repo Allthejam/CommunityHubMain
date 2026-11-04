@@ -31,6 +31,9 @@ import {
   Lock,
   LayoutList,
   LayoutGrid,
+  Filter,
+  ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import {
@@ -62,6 +65,9 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState('all');
   const [selectedCommunity, setSelectedCommunity] = React.useState('all');
+
+  // Subscription status filter: 'all' | 'active' (hide inactive) | 'inactive' (show only inactive)
+  const [statusFilter, setStatusFilter] = React.useState<'all' | 'active' | 'inactive'>('all');
 
   // Pagination state (10-line rule by default)
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -130,6 +136,10 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
     return { communities: commList, communityCounts: counts };
   }, [businesses]);
 
+  // Overall status count totals
+  const totalActiveCount = React.useMemo(() => businesses.filter((b) => b.isLive).length, [businesses]);
+  const totalInactiveCount = React.useMemo(() => businesses.filter((b) => !b.isLive).length, [businesses]);
+
   // Filter businesses: each business ONLY appears in its main registered community
   const filteredBusinesses = React.useMemo(() => {
     const normalizeKey = (str: string) =>
@@ -173,14 +183,22 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
         }
       }
 
+      // 4. Subscription status filter
+      if (statusFilter === 'active' && !b.isLive) {
+        return false; // Hide inactive subscriptions
+      }
+      if (statusFilter === 'inactive' && b.isLive) {
+        return false; // Show ONLY inactive subscriptions
+      }
+
       return true;
     });
-  }, [businesses, searchTerm, selectedCategory, selectedCommunity]);
+  }, [businesses, searchTerm, selectedCategory, selectedCommunity, statusFilter]);
 
-  // Reset to page 1 whenever filters change
+  // Reset to page 1 whenever any filter or search changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory, selectedCommunity, pageSize]);
+  }, [searchTerm, selectedCategory, selectedCommunity, statusFilter, pageSize]);
 
   // Pagination metrics
   const totalItems = filteredBusinesses.length;
@@ -357,10 +375,13 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
         {/* Anchor for smooth page change scrolling */}
         <div ref={listingsTopRef} className="-mt-6 pt-6" />
 
+        {/* Listings Header & Filter Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="text-xl font-bold tracking-tight">
-              {selectedCategory === 'all'
+              {statusFilter === 'inactive'
+                ? 'Inactive / Unpaid Subscriptions'
+                : selectedCategory === 'all'
                 ? 'All Local Businesses'
                 : CATEGORY_FILTERS.find((c) => c.id === selectedCategory)?.label}
             </h2>
@@ -371,15 +392,33 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                   <strong>{totalItems}</strong> {totalItems === 1 ? 'business' : 'businesses'}
                   {selectedCommunity !== 'all' ? ` in ${selectedCommunity}` : ' across all communities'}
                   {' '}&bull; {pageSize} per page
+                  {statusFilter === 'active' && ' (Active only)'}
+                  {statusFilter === 'inactive' && ' (Inactive / Locked only)'}
                 </>
               ) : (
-                <>No businesses found</>
+                <>No businesses found for selected filters</>
               )}
             </p>
           </div>
 
-          {/* Controls: Table vs Grid Toggle & Page Size */}
+          {/* Controls: Subscription Status Filter, Table/Grid Toggle & Page Size */}
           <div className="flex items-center flex-wrap gap-2.5">
+            {/* Subscription Status Filter Dropdown */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card border rounded-lg px-2.5 py-1 shadow-xs">
+              <Filter className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-medium">Filter:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer pr-1"
+                aria-label="Filter by subscription status"
+              >
+                <option value="all">All Listings ({businesses.length})</option>
+                <option value="active">Active Only ({totalActiveCount})</option>
+                <option value="inactive">Inactive Subscriptions Only ({totalInactiveCount})</option>
+              </select>
+            </div>
+
             {/* View Mode Toggle: Table (10-line view) vs Grid Cards */}
             <div className="inline-flex rounded-lg border bg-card p-0.5 shadow-xs text-xs">
               <button
@@ -393,7 +432,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 title="Table view (10 lines per page)"
               >
                 <LayoutList className="h-3.5 w-3.5" />
-                <span>Table View</span>
+                <span>Table</span>
               </button>
               <button
                 type="button"
@@ -406,12 +445,12 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 title="Grid cards view"
               >
                 <LayoutGrid className="h-3.5 w-3.5" />
-                <span>Card Grid</span>
+                <span>Cards</span>
               </button>
             </div>
 
             {/* Page Size Selector */}
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card border rounded-lg px-2.5 py-1">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card border rounded-lg px-2.5 py-1 shadow-xs">
               <span>Lines:</span>
               <select
                 value={pageSize}
@@ -425,13 +464,24 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 <option value={50}>50</option>
               </select>
             </div>
-
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground pl-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Google Indexed</span>
-            </div>
           </div>
         </div>
+
+        {/* Helpful Banner when filtering by Inactive Subscriptions */}
+        {statusFilter === 'inactive' && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-300">
+            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold">
+                Viewing Inactive / Unpaid Listings ({totalItems} found)
+              </p>
+              <p className="text-muted-foreground leading-relaxed">
+                These listings are visible with contact actions locked until renewed. Business owners can click their profile
+                to view details or renew their £20/mo subscription.
+              </p>
+            </div>
+          </div>
+        )}
 
         {totalItems === 0 ? (
           <div className="p-12 text-center rounded-2xl border border-dashed bg-card/50 max-w-xl mx-auto space-y-4 my-8">
@@ -440,7 +490,9 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
             </div>
             <h3 className="font-semibold text-lg">No matching businesses found</h3>
             <p className="text-sm text-muted-foreground">
-              Try adjusting your search terms, selecting "All Communities", or choosing another category.
+              {statusFilter === 'inactive'
+                ? 'No inactive subscriptions matched your search criteria.'
+                : 'Try adjusting your search terms, selecting "All Communities", or changing the filter.'}
             </p>
             <Button
               variant="outline"
@@ -449,15 +501,14 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 setSearchTerm('');
                 setSelectedCategory('all');
                 setSelectedCommunity('all');
+                setStatusFilter('all');
               }}
             >
-              Reset Filters
+              Reset All Filters
             </Button>
           </div>
         ) : viewMode === 'table' ? (
-          /* ========================================================================= */
-          /* TABLE VIEW (10-Line Rule Table with full responsiveness)                */
-          /* ========================================================================= */
+          /* Table View: 10 lines per page */
           <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
             <Table>
               <TableHeader className="bg-muted/40">
@@ -470,7 +521,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedBusinesses.map((b, idx) => (
+                {paginatedBusinesses.map((b) => (
                   <TableRow
                     key={b.id}
                     className={`hover:bg-muted/50 transition-colors group ${
@@ -614,9 +665,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
             </Table>
           </div>
         ) : (
-          /* ========================================================================= */
-          /* GRID VIEW (10 Cards per page)                                            */
-          /* ========================================================================= */
+          /* Grid View: 10 cards per page */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {paginatedBusinesses.map((b) => (
               <Card
@@ -778,9 +827,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
           </div>
         )}
 
-        {/* ========================================================================= */}
-        /* PAGINATION CONTROLS BAR (10-Line Rule with Next/Prev/Page Numbers)         */
-        /* ========================================================================= */
+        {/* Pagination Controls Bar */}
         {totalPages > 1 && (
           <div className="mt-8 pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-xs text-muted-foreground">
