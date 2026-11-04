@@ -23,11 +23,24 @@ import {
   Bed,
   Layers,
   ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   Megaphone,
   UserCheck,
   Lock,
+  LayoutList,
+  LayoutGrid,
 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +62,13 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState('all');
   const [selectedCommunity, setSelectedCommunity] = React.useState('all');
+
+  // Pagination state (10-line rule by default)
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
+  const [viewMode, setViewMode] = React.useState<'table' | 'grid'>('table');
+
+  const listingsTopRef = React.useRef<HTMLDivElement>(null);
 
   // Check if user is logged in to contextualize "Your Community"
   const { user } = useUser();
@@ -156,6 +176,49 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
       return true;
     });
   }, [businesses, searchTerm, selectedCategory, selectedCommunity]);
+
+  // Reset to page 1 whenever filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, selectedCommunity, pageSize]);
+
+  // Pagination metrics
+  const totalItems = filteredBusinesses.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedBusinesses = React.useMemo(() => {
+    return filteredBusinesses.slice(startIndex, endIndex);
+  }, [filteredBusinesses, startIndex, endIndex]);
+
+  const handlePageChange = (newPage: number) => {
+    const target = Math.max(1, Math.min(newPage, totalPages));
+    setCurrentPage(target);
+    if (listingsTopRef.current) {
+      listingsTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  // Generate pagination page numbers
+  const pageNumbers = React.useMemo(() => {
+    const pages: (number | 'ellipsis')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (validCurrentPage > 3) pages.push('ellipsis');
+      const start = Math.max(2, validCurrentPage - 1);
+      const end = Math.min(totalPages - 1, validCurrentPage + 1);
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      if (validCurrentPage < totalPages - 2) pages.push('ellipsis');
+      pages.push(totalPages);
+    }
+    return pages;
+  }, [totalPages, validCurrentPage]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-muted/20 to-background text-foreground flex flex-col">
@@ -289,8 +352,11 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
         </div>
       </section>
 
-      {/* Main Listings Grid */}
+      {/* Main Listings Section */}
       <main className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-1">
+        {/* Anchor for smooth page change scrolling */}
+        <div ref={listingsTopRef} className="-mt-6 pt-6" />
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="text-xl font-bold tracking-tight">
@@ -299,18 +365,75 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 : CATEGORY_FILTERS.find((c) => c.id === selectedCategory)?.label}
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Showing {filteredBusinesses.length} {filteredBusinesses.length === 1 ? 'business' : 'businesses'}
-              {selectedCommunity !== 'all' ? ` in ${selectedCommunity}` : ' across all communities'}
+              {totalItems > 0 ? (
+                <>
+                  Showing <strong>{startIndex + 1}</strong> to <strong>{endIndex}</strong> of{' '}
+                  <strong>{totalItems}</strong> {totalItems === 1 ? 'business' : 'businesses'}
+                  {selectedCommunity !== 'all' ? ` in ${selectedCommunity}` : ' across all communities'}
+                  {' '}&bull; {pageSize} per page
+                </>
+              ) : (
+                <>No businesses found</>
+              )}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Search engines indexed</span>
+          {/* Controls: Table vs Grid Toggle & Page Size */}
+          <div className="flex items-center flex-wrap gap-2.5">
+            {/* View Mode Toggle: Table (10-line view) vs Grid Cards */}
+            <div className="inline-flex rounded-lg border bg-card p-0.5 shadow-xs text-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-medium transition-colors ${
+                  viewMode === 'table'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Table view (10 lines per page)"
+              >
+                <LayoutList className="h-3.5 w-3.5" />
+                <span>Table View</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-medium transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Grid cards view"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>Card Grid</span>
+              </button>
+            </div>
+
+            {/* Page Size Selector */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card border rounded-lg px-2.5 py-1">
+              <span>Lines:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer"
+                aria-label="Lines per page"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={30}>30</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground pl-1">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Google Indexed</span>
+            </div>
           </div>
         </div>
 
-        {filteredBusinesses.length === 0 ? (
+        {totalItems === 0 ? (
           <div className="p-12 text-center rounded-2xl border border-dashed bg-card/50 max-w-xl mx-auto space-y-4 my-8">
             <div className="p-3 bg-muted rounded-full inline-block">
               <Store className="h-8 w-8 text-muted-foreground" />
@@ -331,9 +454,171 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
               Reset Filters
             </Button>
           </div>
+        ) : viewMode === 'table' ? (
+          /* ========================================================================= */
+          /* TABLE VIEW (10-Line Rule Table with full responsiveness)                */
+          /* ========================================================================= */
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader className="bg-muted/40">
+                <TableRow>
+                  <TableHead className="w-[300px] font-semibold text-xs text-foreground">Business</TableHead>
+                  <TableHead className="w-[180px] font-semibold text-xs text-foreground">Community & Location</TableHead>
+                  <TableHead className="w-[160px] font-semibold text-xs text-foreground">Partner Status</TableHead>
+                  <TableHead className="hidden md:table-cell font-semibold text-xs text-foreground">Direct Contact</TableHead>
+                  <TableHead className="text-right font-semibold text-xs text-foreground w-[130px]">Profile</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedBusinesses.map((b, idx) => (
+                  <TableRow
+                    key={b.id}
+                    className={`hover:bg-muted/50 transition-colors group ${
+                      !b.isLive ? 'opacity-85 bg-muted/10' : ''
+                    }`}
+                  >
+                    {/* Business Column (Logo + Name + Category) */}
+                    <TableCell className="py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 shrink-0 rounded-lg bg-muted border overflow-hidden flex items-center justify-center relative">
+                          {b.logoImage ? (
+                            <Image
+                              src={b.logoImage}
+                              alt={b.businessName}
+                              width={40}
+                              height={40}
+                              className={`object-cover w-full h-full ${!b.isLive ? 'grayscale-[30%]' : ''}`}
+                            />
+                          ) : (
+                            <Building2 className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <Link
+                            href={`/public-directory/${b.id}`}
+                            className="font-semibold text-sm text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate block"
+                          >
+                            {b.businessName}
+                          </Link>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] py-0 px-1.5 font-medium capitalize truncate max-w-[150px]"
+                            >
+                              {b.businessCategory?.replace(/-/g, ' ') || 'General'}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Community & Location Column */}
+                    <TableCell className="py-3.5">
+                      <div className="flex items-center gap-1.5 text-xs text-foreground font-medium">
+                        <MapPin className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span className="truncate">
+                          {b.primaryCommunityName || b.city || 'Local Area'}
+                        </span>
+                      </div>
+                      {b.country && (
+                        <div className="text-[11px] text-muted-foreground pl-5 truncate">
+                          {b.country}
+                        </div>
+                      )}
+                    </TableCell>
+
+                    {/* Partner Status Column */}
+                    <TableCell className="py-3.5">
+                      {b.isLive ? (
+                        b.isAccommodation ? (
+                          <Badge className="text-[10px] bg-amber-500 text-white font-semibold">
+                            Accommodation
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 font-medium"
+                          >
+                            Active Partner
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/40 flex items-center gap-1 font-semibold w-fit"
+                        >
+                          <Lock className="h-2.5 w-2.5" />
+                          Subscription Inactive
+                        </Badge>
+                      )}
+                    </TableCell>
+
+                    {/* Direct Contact Column */}
+                    <TableCell className="py-3.5 hidden md:table-cell">
+                      {b.isLive ? (
+                        <div className="space-y-0.5 text-xs">
+                          {b.phone && (
+                            <div className="flex items-center gap-1.5 text-muted-foreground truncate">
+                              <Phone className="h-3 w-3 shrink-0" />
+                              <span>{b.phone}</span>
+                            </div>
+                          )}
+                          {b.website && (
+                            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 truncate">
+                              <Globe className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{b.website.replace(/^https?:\/\//, '')}</span>
+                            </div>
+                          )}
+                          {!b.phone && !b.website && (
+                            <span className="text-[11px] text-muted-foreground/70 italic">Verified Local</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-[11px] text-amber-700/80 dark:text-amber-400/80 italic font-medium">
+                          <Lock className="h-3 w-3 text-amber-500 shrink-0" />
+                          <span>Locked</span>
+                        </div>
+                      )}
+                    </TableCell>
+
+                    {/* Action Column */}
+                    <TableCell className="py-3.5 text-right">
+                      {b.isLive ? (
+                        <Button
+                          size="sm"
+                          asChild
+                          className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                        >
+                          <Link href={`/public-directory/${b.id}`}>
+                            <span>View</span>
+                            <ArrowRight className="h-3 w-3 ml-1" />
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          asChild
+                          className="h-8 text-xs border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 font-medium"
+                        >
+                          <Link href={`/public-directory/${b.id}`}>
+                            <Lock className="h-3 w-3 mr-1" />
+                            <span>Locked</span>
+                          </Link>
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
+          /* ========================================================================= */
+          /* GRID VIEW (10 Cards per page)                                            */
+          /* ========================================================================= */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBusinesses.map((b) => (
+            {paginatedBusinesses.map((b) => (
               <Card
                 key={b.id}
                 className={`group flex flex-col overflow-hidden transition-all duration-200 bg-card ${
@@ -490,6 +775,100 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 </CardFooter>
               </Card>
             ))}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        /* PAGINATION CONTROLS BAR (10-Line Rule with Next/Prev/Page Numbers)         */
+        /* ========================================================================= */
+        {totalPages > 1 && (
+          <div className="mt-8 pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-xs text-muted-foreground">
+              Page <strong>{validCurrentPage}</strong> of <strong>{totalPages}</strong> &bull; Showing lines{' '}
+              <strong>{startIndex + 1}</strong> &ndash; <strong>{endIndex}</strong> of{' '}
+              <strong>{totalItems}</strong>
+            </div>
+
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              {/* First Page Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(1)}
+                disabled={validCurrentPage === 1}
+                className="h-8 w-8 p-0"
+                aria-label="First page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+
+              {/* Previous Page Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(validCurrentPage - 1)}
+                disabled={validCurrentPage === 1}
+                className="h-8 px-2.5 text-xs flex items-center gap-1"
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Previous</span>
+              </Button>
+
+              {/* Numbered Page Buttons */}
+              <div className="flex items-center gap-1">
+                {pageNumbers.map((item, idx) => {
+                  if (item === 'ellipsis') {
+                    return (
+                      <span key={`ellipsis-${idx}`} className="px-2 text-xs text-muted-foreground">
+                        &hellip;
+                      </span>
+                    );
+                  }
+                  const isCurrent = item === validCurrentPage;
+                  return (
+                    <Button
+                      key={item}
+                      size="sm"
+                      variant={isCurrent ? 'default' : 'outline'}
+                      onClick={() => handlePageChange(item)}
+                      className={`h-8 min-w-[32px] px-2 text-xs font-semibold ${
+                        isCurrent
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                          : 'hover:bg-muted text-foreground'
+                      }`}
+                    >
+                      {item}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              {/* Next Page Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(validCurrentPage + 1)}
+                disabled={validCurrentPage === totalPages}
+                className="h-8 px-2.5 text-xs flex items-center gap-1"
+                aria-label="Next page"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+
+              {/* Last Page Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={validCurrentPage === totalPages}
+                className="h-8 w-8 p-0"
+                aria-label="Last page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
 
