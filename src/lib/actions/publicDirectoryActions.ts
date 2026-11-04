@@ -21,6 +21,7 @@ export type PublicBusinessSummary = {
   openingHours?: any;
   status: string;
   accountType?: string | null;
+  listingType?: 'business' | 'featured_ad' | 'valued_partner';
   isPublicDirectoryEnabled: boolean;
   isLive: boolean; // True if subscription/trial is active; False if expired/unpaid (locked)
 };
@@ -109,6 +110,60 @@ function checkIsBusinessLive(data: any): boolean {
  * Normalizes Firestore business document into a clean, JSON-serializable public object.
  * Resolves the primary registered community ONLY. Never injects placeholder community strings.
  */
+
+/**
+ * Normalizes an active Advert (Featured Ad or Valued Partner) from the adverts collection
+ * into the standard PublicBusinessDetail shape so it renders seamlessly in the directory cards and table.
+ */
+function normalizeAdvertDoc(id: string, data: any): PublicBusinessDetail | null {
+  const rawType = (data.type || '').toString().toLowerCase();
+  const isFeatured = rawType === 'featured';
+  const isPartner = rawType === 'partner';
+  if (!isFeatured && !isPartner) return null;
+
+  const headline = data.headline || data.title || data.brand || 'Featured Community Partner';
+  const categoryLabel = isFeatured ? 'Featured Ad' : 'Valued Partner';
+  const rawDesc = data.shortDescription || data.tagline || data.description || '';
+  const cleanShortDesc = rawDesc
+    ? rawDesc.replace(/<[^>]*>/g, '').trim()
+    : (data.fullDescription ? data.fullDescription.replace(/<[^>]*>/g, '').substring(0, 140).trim() + '...' : 'Verified platform partner offering quality services and exclusive community benefits.');
+
+  const targetUrl = data.websiteLink || data.link || data.websiteUrl || data.url || (data.emailAddress ? `mailto:${data.emailAddress}` : null);
+  const imageUrl = typeof data.image === 'string' ? data.image : (data.image?.imageUrl || data.logo?.imageUrl || data.logoImage || null);
+
+  return {
+    id: String(id),
+    businessName: headline,
+    businessCategory: categoryLabel,
+    shortDescription: cleanShortDesc,
+    longDescription: data.fullDescription || data.description || cleanShortDesc,
+    pageTwoIntro: 'About Our Partnership',
+    pageTwoContent: [],
+    pageThreeContent: '',
+    logoImage: imageUrl,
+    bannerImage: imageUrl,
+    primaryCommunityName: 'National Partner',
+    primaryCommunityId: 'platform-partner',
+    country: data.targetCountries?.[0] || 'United Kingdom',
+    city: 'National Partner',
+    postcode: '',
+    isAccommodation: false,
+    phone: null,
+    website: targetUrl,
+    contactEmail: data.emailAddress || null,
+    socialMedia: null,
+    openingHours: null,
+    metaTitle: `${headline} - ${categoryLabel}`,
+    metaDescription: cleanShortDesc,
+    addresses: [],
+    status: 'Active',
+    accountType: isFeatured ? 'featured_ad' : 'valued_partner',
+    listingType: isFeatured ? 'featured_ad' : 'valued_partner',
+    isPublicDirectoryEnabled: true,
+    isLive: true,
+  };
+}
+
 function normalizeBusinessDoc(
   id: string,
   data: any,
@@ -167,6 +222,7 @@ function normalizeBusinessDoc(
     addresses: Array.isArray(data.addresses) ? data.addresses : (primaryAddress ? [primaryAddress] : []),
     status: data.status || 'Approved',
     accountType: data.accountType || (data.businessCategory?.toLowerCase() === 'courier' ? 'courier' : 'business'),
+    listingType: 'business',
     isPublicDirectoryEnabled: data.isPublicDirectoryEnabled !== false,
     isLive,
   };
@@ -249,7 +305,26 @@ export async function getPublicBusinessesAction(): Promise<PublicBusinessSummary
     // Ignore comfeed errors
   }
 
-  // 4. If live database has 0 records (e.g. offline dev test), supplement with clean mock businesses
+  // 4. Query active adverts (Featured Ads & Valued Partners)
+  try {
+    const { firestore } = initializeAdminApp();
+    const adSnap = await firestore.collection('adverts')
+      .where('status', '==', 'Active')
+      .limit(60)
+      .get();
+
+    for (const doc of adSnap.docs) {
+      const data = doc.data();
+      const adItem = normalizeAdvertDoc(doc.id, data);
+      if (adItem) {
+        results.set(adItem.id, adItem);
+      }
+    }
+  } catch (err) {
+    console.warn('Error reading adverts collection:', err);
+  }
+
+  // 5. If live database has 0 records (e.g. offline dev test), supplement with clean mock businesses
   if (results.size === 0 && Array.isArray(mockBusinesses)) {
     const demoTowns = ['St Andrews', 'Crail', 'Anstruther', 'Elie', 'Pittenweem'];
     mockBusinesses.forEach((mb, idx) => {
@@ -331,7 +406,20 @@ export async function getPublicBusinessByIdAction(businessId: string): Promise<P
     // Ignore comfeed errors
   }
 
-  // 3. Fallback to mock data
+  // 3. Try adverts collection (for Featured Ads & Valued Partners)
+  try {
+    const { firestore } = initializeAdminApp();
+    const adDoc = await firestore.collection('adverts').doc(businessId).get();
+    if (adDoc.exists) {
+      const data = adDoc.data()!;
+      const adItem = normalizeAdvertDoc(adDoc.id, data);
+      if (adItem) return adItem;
+    }
+  } catch (error) {
+    // Ignore advert fetch errors
+  }
+
+  // 4. Fallback to mock data
   const mockMatch = mockBusinesses.find((b) => String(b.id) === String(businessId));
   if (mockMatch) {
     const mockIdx = mockBusinesses.indexOf(mockMatch);

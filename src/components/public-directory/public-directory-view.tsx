@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   Search,
+  Handshake,
   Store,
   MapPin,
   Phone,
@@ -59,6 +60,8 @@ const CATEGORY_FILTERS = [
   { id: 'trades', label: 'Trades & Services', icon: Wrench, match: ['trades', 'repair', 'automotive', 'bike', 'furniture', 'optician', 'stationery'] },
   { id: 'health', label: 'Health & Beauty', icon: HeartPulse, match: ['health', 'beauty', 'fitness', 'salon', 'pet'] },
   { id: 'accommodation', label: 'Stays & Lodging', icon: Bed, match: ['hotel', 'stay', 'accommodation', 'b&b', 'campsite'] },
+  { id: 'featured_ads', label: 'Featured Ads', icon: Sparkles, match: ['featured ad'] },
+  { id: 'valued_partners', label: 'Valued Partners', icon: Handshake, match: ['valued partner'] },
 ];
 
 export function PublicDirectoryView({ businesses }: { businesses: PublicBusinessSummary[] }) {
@@ -169,9 +172,12 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
     return { communities: commList, communityCounts: counts };
   }, [visibleBusinesses]);
 
-  // Overall status count totals
+  // Overall count totals
   const totalActiveCount = React.useMemo(() => visibleBusinesses.filter((b) => b.isLive).length, [visibleBusinesses]);
   const totalInactiveCount = React.useMemo(() => visibleBusinesses.filter((b) => !b.isLive).length, [visibleBusinesses]);
+  const localBusinessesCount = React.useMemo(() => visibleBusinesses.filter((b) => !b.listingType || b.listingType === 'business').length, [visibleBusinesses]);
+  const featuredAdsCount = React.useMemo(() => visibleBusinesses.filter((b) => b.listingType === 'featured_ad' || b.accountType === 'featured_ad' || b.businessCategory === 'Featured Ad').length, [visibleBusinesses]);
+  const valuedPartnersCount = React.useMemo(() => visibleBusinesses.filter((b) => b.listingType === 'valued_partner' || b.accountType === 'valued_partner' || b.businessCategory === 'Valued Partner').length, [visibleBusinesses]);
 
   // Filter businesses: each business ONLY appears in its main registered community
   const filteredBusinesses = React.useMemo(() => {
@@ -207,21 +213,39 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
 
       // 3. Category filter
       if (selectedCategory !== 'all') {
-        const filterDef = CATEGORY_FILTERS.find((c) => c.id === selectedCategory);
-        if (filterDef && filterDef.match) {
-          const cat = (b.businessCategory || '').toLowerCase();
-          const matchesCategoryKeyword = filterDef.match.some((m) => cat.includes(m));
-          const matchesAccommodation = selectedCategory === 'accommodation' && b.isAccommodation;
-          if (!matchesCategoryKeyword && !matchesAccommodation) return false;
+        if (selectedCategory === 'featured_ads') {
+          const isFeatured = b.listingType === 'featured_ad' || b.accountType === 'featured_ad' || b.businessCategory === 'Featured Ad';
+          if (!isFeatured) return false;
+        } else if (selectedCategory === 'valued_partners') {
+          const isPartner = b.listingType === 'valued_partner' || b.accountType === 'valued_partner' || b.businessCategory === 'Valued Partner';
+          if (!isPartner) return false;
+        } else {
+          // If searching for normal categories, exclude national adverts
+          if (b.listingType === 'featured_ad' || b.listingType === 'valued_partner') return false;
+          const filterDef = CATEGORY_FILTERS.find((c) => c.id === selectedCategory);
+          if (filterDef && filterDef.match) {
+            const cat = (b.businessCategory || '').toLowerCase();
+            const matchesCategoryKeyword = filterDef.match.some((m) => cat.includes(m));
+            const matchesAccommodation = selectedCategory === 'accommodation' && b.isAccommodation;
+            if (!matchesCategoryKeyword && !matchesAccommodation) return false;
+          }
         }
       }
 
-      // 4. Subscription status filter
-      if (statusFilter === 'active' && !b.isLive) {
-        return false; // Hide inactive subscriptions
-      }
-      if (statusFilter === 'inactive' && b.isLive) {
-        return false; // Show ONLY inactive subscriptions
+      // 4. Listing type and subscription status filter
+      if (statusFilter === 'businesses') {
+        const isAd = b.listingType === 'featured_ad' || b.listingType === 'valued_partner' || b.businessCategory === 'Featured Ad' || b.businessCategory === 'Valued Partner';
+        if (isAd) return false;
+      } else if (statusFilter === 'featured') {
+        const isFeatured = b.listingType === 'featured_ad' || b.accountType === 'featured_ad' || b.businessCategory === 'Featured Ad';
+        if (!isFeatured) return false;
+      } else if (statusFilter === 'partner') {
+        const isPartner = b.listingType === 'valued_partner' || b.accountType === 'valued_partner' || b.businessCategory === 'Valued Partner';
+        if (!isPartner) return false;
+      } else if (statusFilter === 'active' && !b.isLive) {
+        return false;
+      } else if (statusFilter === 'inactive' && b.isLive) {
+        return false;
       }
 
       return true;
@@ -414,8 +438,12 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
             <h2 className="text-xl font-bold tracking-tight">
               {statusFilter === 'inactive'
                 ? 'Inactive / Unpaid Subscriptions'
+                : statusFilter === 'featured' || selectedCategory === 'featured_ads'
+                ? '⭐ Featured National Ads'
+                : statusFilter === 'partner' || selectedCategory === 'valued_partners'
+                ? '🤝 Our Valued Partners'
                 : selectedCategory === 'all'
-                ? 'All Local Businesses'
+                ? 'All Local Businesses & Partners'
                 : CATEGORY_FILTERS.find((c) => c.id === selectedCategory)?.label}
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -444,10 +472,13 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
                 className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer pr-1"
-                aria-label="Filter by subscription status"
+                aria-label="Filter listings by type and status"
               >
                 <option value="all">All Listings ({visibleBusinesses.length})</option>
-                <option value="active">Active Only ({totalActiveCount})</option>
+                <option value="businesses">Local Businesses ({localBusinessesCount})</option>
+                {featuredAdsCount > 0 && <option value="featured">Featured Ads ({featuredAdsCount})</option>}
+                {valuedPartnersCount > 0 && <option value="partner">Valued Partners ({valuedPartnersCount})</option>}
+                <option value="active">Active Partners Only ({totalActiveCount})</option>
                 <option value="inactive">Inactive Subscriptions Only ({totalInactiveCount})</option>
               </select>
             </div>
@@ -613,7 +644,17 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
 
                     {/* Partner Status Column */}
                     <TableCell className="py-3.5">
-                      {b.isLive ? (
+                      {b.listingType === 'featured_ad' ? (
+                        <Badge className="text-[10px] bg-gradient-to-r from-amber-500 to-purple-600 text-white font-semibold flex items-center gap-1 w-fit shadow-xs">
+                          <Sparkles className="h-2.5 w-2.5" />
+                          <span>Featured Partner</span>
+                        </Badge>
+                      ) : b.listingType === 'valued_partner' ? (
+                        <Badge className="text-[10px] bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold flex items-center gap-1 w-fit shadow-xs">
+                          <Handshake className="h-2.5 w-2.5" />
+                          <span>Valued Partner</span>
+                        </Badge>
+                      ) : b.isLive ? (
                         b.isAccommodation ? (
                           <Badge className="text-[10px] bg-amber-500 text-white font-semibold">
                             Accommodation
@@ -730,7 +771,17 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                       {b.businessCategory?.replace(/-/g, ' ')}
                     </Badge>
 
-                    {b.isLive ? (
+                    {b.listingType === 'featured_ad' ? (
+                      <Badge className="text-[10px] bg-gradient-to-r from-amber-500 to-purple-600 text-white font-semibold flex items-center gap-1 shadow-xs">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        <span>Featured Ad</span>
+                      </Badge>
+                    ) : b.listingType === 'valued_partner' ? (
+                      <Badge className="text-[10px] bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold flex items-center gap-1 shadow-xs">
+                        <Handshake className="h-2.5 w-2.5" />
+                        <span>Valued Partner</span>
+                      </Badge>
+                    ) : b.isLive ? (
                       b.isAccommodation ? (
                         <Badge className="text-[10px] bg-amber-500 text-white font-semibold">
                           Accommodation
