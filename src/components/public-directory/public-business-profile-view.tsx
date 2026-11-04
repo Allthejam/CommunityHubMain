@@ -31,12 +31,36 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/icons';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import type { PublicBusinessDetail } from '@/lib/actions/publicDirectoryActions';
 
 const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
 export function PublicBusinessProfileView({ business }: { business: PublicBusinessDetail }) {
   const [copied, setCopied] = React.useState(false);
+
+  // Check viewer authentication and community
+  const { user } = useUser();
+  const db = useFirestore();
+  const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
+  const { data: userProfile } = useDoc<any>(userProfileRef);
+
+  const isCourier =
+    business.accountType === 'courier' ||
+    business.businessCategory?.toLowerCase() === 'courier' ||
+    (typeof business.businessCategory === 'string' && business.businessCategory.toLowerCase().includes('courier'));
+
+  const loggedInCommunityName = userProfile?.communityName || null;
+  const loggedInCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || null;
+
+  const matchesCourierCommunity =
+    user && (
+      (loggedInCommunityId && business.primaryCommunityId && loggedInCommunityId === business.primaryCommunityId) ||
+      (loggedInCommunityName && business.primaryCommunityName && loggedInCommunityName.trim().toLowerCase() === business.primaryCommunityName.trim().toLowerCase())
+    );
+
+  const isCourierLockedToViewer = isCourier && (!user || !matchesCourierCommunity);
 
   const handleShare = () => {
     if (typeof window !== 'undefined') {
@@ -135,6 +159,36 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
         </div>
       </header>
 
+      {/* Dedicated Notice if Courier is accessed by guest or non-resident */}
+      {isCourierLockedToViewer ? (
+        <main className="container max-w-2xl mx-auto px-4 py-16 flex-1 flex flex-col items-center text-center justify-center space-y-6">
+          <div className="p-4 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600">
+            <Lock className="h-10 w-10" />
+          </div>
+          <div className="space-y-2">
+            <Badge variant="outline" className="border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10">
+              Community Courier Service
+            </Badge>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              Member Sign-In Required
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
+              Local courier services are strictly dedicated to registered residents of{' '}
+              <strong>{business.primaryCommunityName || business.city || 'their local community'}</strong>.
+              Please sign in to your Community Hub account to view delivery coverage and dispatch contacts.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+              <Link href="/">Sign In to Community</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/public-directory">Back to Directory</Link>
+            </Button>
+          </div>
+        </main>
+      ) : (
+        <>
       {/* Prominent Inactive Subscription Notice Bar (if not live) */}
       {!business.isLive && (
         <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-3.5">
@@ -587,6 +641,9 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
           </div>
         </div>
       </main>
+
+        </>
+      )}
 
       {/* Footer */}
       <footer className="border-t bg-card py-8 mt-12">

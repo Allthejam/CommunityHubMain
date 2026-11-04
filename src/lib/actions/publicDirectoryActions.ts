@@ -20,6 +20,7 @@ export type PublicBusinessSummary = {
   website?: string | null;
   openingHours?: any;
   status: string;
+  accountType?: string | null;
   isPublicDirectoryEnabled: boolean;
   isLive: boolean; // True if subscription/trial is active; False if expired/unpaid (locked)
 };
@@ -46,7 +47,8 @@ function checkIsBusinessLive(data: any): boolean {
   const toDate = (timestamp: any): Date | null => {
     if (!timestamp) return null;
     if (typeof timestamp.toDate === 'function') return timestamp.toDate();
-    if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+    if (timestamp.seconds !== undefined) return new Date(timestamp.seconds * 1000);
+    if (timestamp._seconds !== undefined) return new Date(timestamp._seconds * 1000);
     if (typeof timestamp === 'string' || typeof timestamp === 'number') {
       const d = new Date(timestamp);
       return isNaN(d.getTime()) ? null : d;
@@ -54,37 +56,51 @@ function checkIsBusinessLive(data: any): boolean {
     return null;
   };
 
-  const creationDate = toDate(data.createdAt || data.submittedAt);
   const expiryDate = toDate(data.listingSubscriptionExpiresAt || data.subscriptionExpiresAt);
   const freeExpiry = toDate(data.freeListingExpiresAt);
+  const subStatus = data.listingSubscriptionStatus || '';
 
   // 1. Couriers are official community logistics partners — always free and live
-  if (data.accountType === 'courier' || data.businessCategory === 'courier') {
+  if (
+    data.accountType === 'courier' ||
+    data.businessCategory === 'courier' ||
+    (typeof data.businessCategory === 'string' && data.businessCategory.toLowerCase().includes('courier'))
+  ) {
     return true;
   }
 
-  // 2. Free live listing with unexpired date
-  const isFreeLive = Boolean(data.isFreeListing && (!freeExpiry || now <= freeExpiry));
-  if (isFreeLive) return true;
-
-  // 2. Active Subscribed status
-  if (data.status === 'Subscribed') {
-    if (!expiryDate || now <= expiryDate) return true;
-    return false; // Subscription expired
+  // 2. Explicit subscription cancellation or payment failure locks the business
+  if (subStatus === 'payment_failed' || subStatus === 'cancelled') {
+    return false;
   }
 
-  // 3. Approved status with 14-day trial
-  if (data.status === 'Approved') {
-    if (creationDate) {
-      const diffDays = (now.getTime() - creationDate.getTime()) / (1000 * 3600 * 24);
-      if (diffDays <= 14) return true;
-      return false; // 14-day trial expired
+  // 3. Explicit subscription expiration date in the past locks the business
+  if (expiryDate && now > expiryDate) {
+    return false;
+  }
+
+  // 4. Free listing with an explicit past expiry date locks the business
+  if (data.isFreeListing) {
+    if (freeExpiry && now > freeExpiry) {
+      return false;
     }
     return true;
   }
 
-  // 4. Legacy active status
-  if (data.status === 'active') return true;
+  // 5. Enterprise & township initiatives
+  if (data.accountType === 'enterprise') {
+    return true;
+  }
+
+  // 6. Subscribed status
+  if (data.status === 'Subscribed') {
+    return true;
+  }
+
+  // 7. Option A: Approved businesses are Live & Active unless explicitly expired/cancelled
+  if (data.status === 'Approved' || data.status === 'active') {
+    return true;
+  }
 
   return false;
 }
@@ -150,6 +166,7 @@ function normalizeBusinessDoc(
     metaDescription: data.metaDescription || null,
     addresses: Array.isArray(data.addresses) ? data.addresses : (primaryAddress ? [primaryAddress] : []),
     status: data.status || 'Approved',
+    accountType: data.accountType || (data.businessCategory?.toLowerCase() === 'courier' ? 'courier' : 'business'),
     isPublicDirectoryEnabled: data.isPublicDirectoryEnabled !== false,
     isLive,
   };

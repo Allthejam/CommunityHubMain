@@ -83,6 +83,39 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
   const { data: userProfile } = useDoc<any>(userProfileRef);
 
   const loggedInCommunityName = userProfile?.communityName || null;
+  const loggedInCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || null;
+
+  // Courier Visibility Rule:
+  // Couriers are strictly localized to their community and ONLY visible to logged-in residents of that community.
+  const isBusinessAllowedForViewer = React.useCallback(
+    (b: PublicBusinessSummary) => {
+      const isCourier =
+        b.accountType === 'courier' ||
+        b.businessCategory?.toLowerCase() === 'courier' ||
+        (typeof b.businessCategory === 'string' && b.businessCategory.toLowerCase().includes('courier'));
+
+      if (isCourier) {
+        // Hidden for unauthenticated visitors
+        if (!user) return false;
+
+        // If logged in, only visible if matching the user's registered community
+        const userCommName = (loggedInCommunityName || '').trim().toLowerCase();
+        const bCommName = (b.primaryCommunityName || b.city || '').trim().toLowerCase();
+        const matchesCommunityName = Boolean(userCommName && bCommName && userCommName === bCommName);
+        const matchesCommunityId = Boolean(loggedInCommunityId && b.primaryCommunityId && loggedInCommunityId === b.primaryCommunityId);
+
+        return matchesCommunityName || matchesCommunityId;
+      }
+
+      return true;
+    },
+    [user, loggedInCommunityName, loggedInCommunityId]
+  );
+
+  // Filter businesses by courier visibility
+  const visibleBusinesses = React.useMemo(() => {
+    return businesses.filter(isBusinessAllowedForViewer);
+  }, [businesses, isBusinessAllowedForViewer]);
 
   // Extract unique registered communities strictly from each business's MAIN registered community
   const { communities, communityCounts } = React.useMemo(() => {
@@ -91,7 +124,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
     const normalizeKey = (str: string) =>
       str.trim().toLowerCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ');
 
-    businesses.forEach((b) => {
+    visibleBusinesses.forEach((b) => {
       // Strictly use ONLY the primary registered community
       const rawComm = b.primaryCommunityName || b.city;
       if (!rawComm || typeof rawComm !== 'string') return;
@@ -134,18 +167,18 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
     });
 
     return { communities: commList, communityCounts: counts };
-  }, [businesses]);
+  }, [visibleBusinesses]);
 
   // Overall status count totals
-  const totalActiveCount = React.useMemo(() => businesses.filter((b) => b.isLive).length, [businesses]);
-  const totalInactiveCount = React.useMemo(() => businesses.filter((b) => !b.isLive).length, [businesses]);
+  const totalActiveCount = React.useMemo(() => visibleBusinesses.filter((b) => b.isLive).length, [visibleBusinesses]);
+  const totalInactiveCount = React.useMemo(() => visibleBusinesses.filter((b) => !b.isLive).length, [visibleBusinesses]);
 
   // Filter businesses: each business ONLY appears in its main registered community
   const filteredBusinesses = React.useMemo(() => {
     const normalizeKey = (str: string) =>
       str.trim().toLowerCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ');
 
-    return businesses.filter((b) => {
+    return visibleBusinesses.filter((b) => {
       // 1. Text search term
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase().trim();
@@ -193,7 +226,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
 
       return true;
     });
-  }, [businesses, searchTerm, selectedCategory, selectedCommunity, statusFilter]);
+  }, [visibleBusinesses, searchTerm, selectedCategory, selectedCommunity, statusFilter]);
 
   // Reset to page 1 whenever any filter or search changes
   React.useEffect(() => {
@@ -318,7 +351,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                     className="h-11 bg-transparent border-0 text-sm font-medium focus:outline-none cursor-pointer pr-4 max-w-[220px] truncate"
                     aria-label="Filter by community"
                   >
-                    <option value="all">All Communities ({businesses.length})</option>
+                    <option value="all">All Communities ({visibleBusinesses.length})</option>
                     {user && loggedInCommunityName && communities.includes(loggedInCommunityName) && (
                       <option value={loggedInCommunityName}>
                         📍 Your Community ({loggedInCommunityName})
@@ -413,7 +446,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer pr-1"
                 aria-label="Filter by subscription status"
               >
-                <option value="all">All Listings ({businesses.length})</option>
+                <option value="all">All Listings ({visibleBusinesses.length})</option>
                 <option value="active">Active Only ({totalActiveCount})</option>
                 <option value="inactive">Inactive Subscriptions Only ({totalInactiveCount})</option>
               </select>
