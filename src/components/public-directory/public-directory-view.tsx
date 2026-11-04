@@ -25,6 +25,7 @@ import {
   ChevronRight,
   Megaphone,
   UserCheck,
+  Lock,
 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -338,7 +339,11 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
             {filteredBusinesses.map((b) => (
               <Card
                 key={b.id}
-                className="group flex flex-col overflow-hidden hover:border-emerald-500/40 hover:shadow-lg transition-all duration-200 bg-card"
+                className={`group flex flex-col overflow-hidden transition-all duration-200 bg-card ${
+                  b.isLive
+                    ? 'hover:border-emerald-500/40 hover:shadow-lg'
+                    : 'border-border/60 opacity-90 hover:border-amber-500/40'
+                }`}
               >
                 {/* Banner or Header Accent */}
                 <div className="relative h-32 w-full bg-gradient-to-r from-emerald-600/20 via-teal-600/20 to-sky-600/20 flex items-center justify-center p-4">
@@ -347,7 +352,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                       src={b.bannerImage}
                       alt={b.businessName}
                       fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      className={`object-cover ${b.isLive ? 'group-hover:scale-105' : 'grayscale-[40%]'} transition-transform duration-300`}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-muted-foreground/40">
@@ -356,14 +361,25 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                   )}
 
                   {/* Badges on top of card */}
-                  <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
-                    <Badge variant="secondary" className="text-[10px] bg-background/90 backdrop-blur font-semibold capitalize">
+                  <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1 pointer-events-none">
+                    <Badge variant="secondary" className="text-[10px] bg-background/90 backdrop-blur font-semibold capitalize truncate max-w-[140px]">
                       {b.businessCategory?.replace(/-/g, ' ')}
                     </Badge>
 
-                    {b.isAccommodation && (
-                      <Badge className="text-[10px] bg-amber-500 text-white font-semibold">
-                        Accommodation
+                    {b.isLive ? (
+                      b.isAccommodation ? (
+                        <Badge className="text-[10px] bg-amber-500 text-white font-semibold">
+                          Accommodation
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
+                          Active Partner
+                        </Badge>
+                      )
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/40 flex items-center gap-1 font-semibold">
+                        <Lock className="h-2.5 w-2.5" />
+                        Subscription Inactive
                       </Badge>
                     )}
                   </div>
@@ -376,7 +392,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                         alt={b.businessName}
                         width={48}
                         height={48}
-                        className="object-cover w-full h-full"
+                        className={`object-cover w-full h-full ${!b.isLive ? 'grayscale-[30%]' : ''}`}
                       />
                     ) : (
                       <Building2 className="h-6 w-6 text-muted-foreground" />
@@ -403,40 +419,77 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                     </p>
                   </div>
 
-                  {/* Quick Contacts */}
+                  {/* Quick Contacts (Live vs Locked) */}
                   <div className="pt-2 border-t text-[11px] text-muted-foreground space-y-1">
-                    {b.phone && (
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Phone className="h-3 w-3 shrink-0 text-muted-foreground/70" />
-                        <span>{b.phone}</span>
-                      </div>
-                    )}
-                    {b.website && (
-                      <div className="flex items-center gap-1.5 truncate text-emerald-600 dark:text-emerald-400">
-                        <Globe className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{b.website.replace(/^https?:\/\//, '')}</span>
+                    {b.isLive ? (
+                      <>
+                        {b.phone && (
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Phone className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+                            <span>{b.phone}</span>
+                          </div>
+                        )}
+                        {b.website && (
+                          <div className="flex items-center gap-1.5 truncate text-emerald-600 dark:text-emerald-400">
+                            <Globe className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{b.website.replace(/^https?:\/\//, '')}</span>
+                          </div>
+                        )}
+                        {!b.phone && !b.website && (
+                          <div className="text-[11px] text-muted-foreground/70 italic">
+                            Verified Local Listing
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-amber-700/80 dark:text-amber-400/80 italic font-medium py-0.5">
+                        <Lock className="h-3 w-3 text-amber-500 shrink-0" />
+                        <span>Interactive links locked &bull; Subscription inactive</span>
                       </div>
                     )}
                   </div>
                 </CardContent>
 
                 <CardFooter className="px-4 py-3 bg-muted/30 border-t flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    No Login Needed
-                  </span>
+                  {b.isLive ? (
+                    <>
+                      <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                        No Login Needed
+                      </span>
 
-                  <Button
-                    size="sm"
-                    variant="default"
-                    asChild
-                    className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                  >
-                    <Link href={`/public-directory/${b.id}`}>
-                      <span>View Profile</span>
-                      <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                    </Link>
-                  </Button>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        asChild
+                        className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                      >
+                        <Link href={`/public-directory/${b.id}`}>
+                          <span>View Profile</span>
+                          <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                        </Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1">
+                        <Lock className="h-3 w-3 text-amber-500" />
+                        Locked Listing
+                      </span>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                        className="h-8 text-xs border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 font-medium"
+                      >
+                        <Link href={`/public-directory/${b.id}`}>
+                          <Lock className="h-3 w-3 mr-1" />
+                          <span>Locked Profile</span>
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                 </CardFooter>
               </Card>
             ))}

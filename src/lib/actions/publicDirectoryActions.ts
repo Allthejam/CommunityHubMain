@@ -22,6 +22,7 @@ export type PublicBusinessSummary = {
   openingHours?: any;
   status: string;
   isPublicDirectoryEnabled: boolean;
+  isLive: boolean; // True if subscription/trial is active; False if expired/unpaid (locked)
 };
 
 export type PublicBusinessDetail = PublicBusinessSummary & {
@@ -37,8 +38,56 @@ export type PublicBusinessDetail = PublicBusinessSummary & {
 };
 
 /**
+ * Checks whether a business has an active paid subscription, free active listing, or valid 14-day trial.
+ * If expired or unpaid, the business will be listed in a locked non-functional state.
+ */
+function checkIsBusinessLive(data: any): boolean {
+  const now = new Date();
+
+  const toDate = (timestamp: any): Date | null => {
+    if (!timestamp) return null;
+    if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+    if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+    if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+      const d = new Date(timestamp);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  };
+
+  const creationDate = toDate(data.createdAt || data.submittedAt);
+  const expiryDate = toDate(data.listingSubscriptionExpiresAt || data.subscriptionExpiresAt);
+  const freeExpiry = toDate(data.freeListingExpiresAt);
+
+  // 1. Free live listing with unexpired date
+  const isFreeLive = Boolean(data.isFreeListing && (!freeExpiry || now <= freeExpiry));
+  if (isFreeLive) return true;
+
+  // 2. Active Subscribed status
+  if (data.status === 'Subscribed') {
+    if (!expiryDate || now <= expiryDate) return true;
+    return false; // Subscription expired
+  }
+
+  // 3. Approved status with 14-day trial
+  if (data.status === 'Approved') {
+    if (creationDate) {
+      const diffDays = (now.getTime() - creationDate.getTime()) / (1000 * 3600 * 24);
+      if (diffDays <= 14) return true;
+      return false; // 14-day trial expired
+    }
+    return true;
+  }
+
+  // 4. Legacy active status
+  if (data.status === 'active') return true;
+
+  return false;
+}
+
+/**
  * Normalizes Firestore business document into a clean, JSON-serializable public object.
- * Resolves canonical community names regardless of leadership status.
+ * Resolves canonical community names regardless of leadership status and computes live/locked state.
  */
 function normalizeBusinessDoc(
   id: string,
@@ -75,6 +124,8 @@ function normalizeBusinessDoc(
     }
   }
 
+  const isLive = checkIsBusinessLive(data);
+
   return {
     id: String(id),
     businessName: data.businessName || data.name || 'Local Business',
@@ -103,12 +154,13 @@ function normalizeBusinessDoc(
     addresses: Array.isArray(data.addresses) ? data.addresses : (primaryAddress ? [primaryAddress] : []),
     status: data.status || 'Approved',
     isPublicDirectoryEnabled: data.isPublicDirectoryEnabled !== false,
+    isLive,
   };
 }
 
 /**
  * Fetch all public-facing businesses across all communities, regardless of community leadership status.
- * Queries default Firestore and comfeed databases, deduplicating canonical community names.
+ * Queries default Firestore and comfeed databases, computing live subscription vs locked states.
  */
 export async function getPublicBusinessesAction(): Promise<PublicBusinessSummary[]> {
   const results: Map<string, PublicBusinessSummary> = new Map();
@@ -152,7 +204,6 @@ export async function getPublicBusinessesAction(): Promise<PublicBusinessSummary
     for (const doc of snap.docs) {
       const data = doc.data();
       const status = data.status || 'Approved';
-      // Exclude explicitly declined, hidden, or drafts
       if (status === 'Declined' || status === 'Hidden' || status === 'Draft') continue;
       if (data.isPublicDirectoryEnabled === false) continue;
 
@@ -190,6 +241,9 @@ export async function getPublicBusinessesAction(): Promise<PublicBusinessSummary
     mockBusinesses.forEach((mb, idx) => {
       const town = demoTowns[idx % demoTowns.length];
       const idStr = String(mb.id);
+      // Let every 3rd business simulate an expired subscription so locked behavior can be tested
+      const isSimulatedLive = idx % 3 !== 0;
+
       results.set(idStr, {
         id: idStr,
         businessName: mb.businessName,
@@ -207,8 +261,9 @@ export async function getPublicBusinessesAction(): Promise<PublicBusinessSummary
         phone: (mb as any).phone || '01334 000000',
         website: (mb as any).website || null,
         openingHours: (mb as any).openingHours || null,
-        status: 'Approved',
+        status: isSimulatedLive ? 'Subscribed' : 'Approved',
         isPublicDirectoryEnabled: true,
+        isLive: isSimulatedLive,
       });
     });
   }
@@ -267,6 +322,9 @@ export async function getPublicBusinessByIdAction(businessId: string): Promise<P
   // 3. Fallback to mock data
   const mockMatch = mockBusinesses.find((b) => String(b.id) === String(businessId));
   if (mockMatch) {
+    const mockIdx = mockBusinesses.indexOf(mockMatch);
+    const isSimulatedLive = mockIdx % 3 !== 0;
+
     return {
       id: String(mockMatch.id),
       businessName: mockMatch.businessName,
@@ -313,8 +371,9 @@ export async function getPublicBusinessByIdAction(businessId: string): Promise<P
       },
       metaTitle: `${mockMatch.businessName} - St Andrews Local Business`,
       metaDescription: mockMatch.shortDescription,
-      status: 'Approved',
+      status: isSimulatedLive ? 'Subscribed' : 'Approved',
       isPublicDirectoryEnabled: true,
+      isLive: isSimulatedLive,
     };
   }
 

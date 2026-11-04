@@ -29,6 +29,9 @@ import {
   PhoneCall,
   Clock,
   Eye,
+  Globe,
+  Search,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -202,6 +205,33 @@ export default function AdvertiseWithUsPage() {
               <p className="text-xs sm:text-sm font-semibold text-amber-300">Keep 100% Of Your Profit</p>
               <p className="text-[11px] text-slate-400 mt-1">E-Commerce storefront upgrade for just £10 extra/mo.</p>
             </div>
+          </div>
+
+          {/* Global Public Directory Entry Highlight */}
+          <div className="mt-8 p-6 rounded-2xl bg-gradient-to-r from-blue-950/40 via-teal-950/40 to-slate-900/80 border border-teal-500/30 flex flex-col sm:flex-row items-center justify-between gap-5 text-left shadow-xl">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-teal-500/20 text-teal-400 shrink-0">
+                <Globe className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-extrabold text-white text-base sm:text-lg">
+                    Automatic Entry to Our Global Public Directory
+                  </h3>
+                  <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border-emerald-500/40">
+                    Google SEO Indexed
+                  </Badge>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
+                  Unlike closed apps where content is locked behind user logins, every Community Partner receives <strong>automatic inclusion in our open Global Public Directory</strong>. Tourists, regional visitors, and Googlebot can search and view your business profile with <strong>no login or account required</strong>.
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" size="sm" className="shrink-0 border-teal-500/40 text-teal-300 hover:bg-teal-950/60 hover:text-white font-semibold">
+              <Link href="/public-directory">
+                Browse Public Directory <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -575,6 +605,14 @@ export default function AdvertiseWithUsPage() {
               </CardHeader>
 
               <CardContent className="space-y-3 text-sm text-slate-300 border-t border-slate-800/80 pt-6">
+                <div className="flex items-center gap-2.5 font-bold text-emerald-300">
+                  <Globe className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span>Automatic entry to our Global Public Directory (No login needed)</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Search className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span>Google LocalBusiness SEO Schema indexing for open web searches</span>
+                </div>
                 <div className="flex items-center gap-2.5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
                   <span>Full business profile in the verified directory</span>
@@ -639,7 +677,11 @@ export default function AdvertiseWithUsPage() {
               <CardContent className="space-y-3 text-sm text-slate-200 border-t border-slate-800/80 pt-6">
                 <div className="flex items-center gap-2.5 font-semibold text-emerald-300">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                  <span>Everything included in the Business Partner plan</span>
+                  <span>Everything in Business Partner + Global Public Directory inclusion</span>
+                </div>
+                <div className="flex items-center gap-2.5 font-bold text-white">
+                  <Globe className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span>Public Directory Storefront showcase with direct customer order bridge</span>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
@@ -688,6 +730,15 @@ export default function AdvertiseWithUsPage() {
           </div>
 
           <Accordion type="single" collapsible className="space-y-4">
+            <AccordionItem value="item-global-dir" className="border border-teal-500/30 rounded-xl px-4 bg-gradient-to-r from-teal-950/30 to-slate-900/60">
+              <AccordionTrigger className="text-base font-bold text-white hover:text-emerald-400">
+                Can tourists and web visitors see my business on Google without an account?
+              </AccordionTrigger>
+              <AccordionContent className="text-slate-300 text-sm leading-relaxed">
+                Yes! Every active Community Partner listing is automatically published to our open-web <strong>Global Public Directory</strong> (/public-directory). It requires zero login or app download for customers to browse. In addition, each listing is injected with official <strong>Google Schema.org LocalBusiness structured data</strong>, allowing search engines (Google, Bing) to index your phone number, opening hours, directions, and menu directly in search results. If a subscription ever expires, contact links and hours are locked to protect partner exclusivity.
+              </AccordionContent>
+            </AccordionItem>
+
             <AccordionItem value="item-1" className="border border-slate-800 rounded-xl px-4 bg-slate-900/60">
               <AccordionTrigger className="text-base font-bold text-white hover:text-emerald-400">
                 How does this differ from spending £20 on Facebook or Instagram ads?

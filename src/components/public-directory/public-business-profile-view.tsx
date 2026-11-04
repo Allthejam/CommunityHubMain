@@ -23,6 +23,8 @@ import {
   UserCheck,
   ChevronRight,
   ShieldCheck,
+  Lock,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -79,8 +81,17 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
             <Separator orientation="vertical" className="h-5 hidden sm:block" />
 
             <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">No Login Required</span>
-              <span>&bull; Public Google Listing</span>
+              {business.isLive ? (
+                <>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">No Login Required</span>
+                  <span>&bull; Public Google Listing</span>
+                </>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                  <Lock className="h-3 w-3" />
+                  Listing Locked &bull; Subscription Inactive
+                </span>
+              )}
             </div>
           </div>
 
@@ -96,20 +107,54 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
               <span>{copied ? 'Link Copied!' : 'Share'}</span>
             </Button>
 
-            <Button
-              size="sm"
-              asChild
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5"
-            >
-              <Link href={`/businesses/${business.id}`}>
-                <Store className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Open in App</span>
-                <span className="sm:hidden">App</span>
-              </Link>
-            </Button>
+            {business.isLive ? (
+              <Button
+                size="sm"
+                asChild
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5"
+              >
+                <Link href={`/businesses/${business.id}`}>
+                  <Store className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Open in App</span>
+                  <span className="sm:hidden">App</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                asChild
+                className="bg-amber-600 hover:bg-amber-700 text-white text-xs gap-1.5 font-semibold"
+              >
+                <Link href="/directory/advertise">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Reactivate Listing</span>
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </header>
+
+      {/* Prominent Inactive Subscription Notice Bar (if not live) */}
+      {!business.isLive && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-3.5">
+          <div className="container max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
+            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-medium">
+              <Lock className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>
+                <strong>Subscription Expired / Inactive:</strong> Direct contact links, opening hours schedule, and photo showcases are locked until renewed.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold h-8">
+                <Link href="/directory/advertise">
+                  Owner? Reactivate for £20/mo &rarr;
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Banner Section */}
       <div className="relative w-full bg-muted/40 border-b">
@@ -119,7 +164,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
               src={business.bannerImage}
               alt={business.businessName}
               fill
-              className="object-cover"
+              className={`object-cover ${!business.isLive ? 'grayscale-[35%]' : ''}`}
               priority
             />
           ) : (
@@ -141,7 +186,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                     src={business.logoImage}
                     alt={business.businessName}
                     fill
-                    className="object-cover"
+                    className={`object-cover ${!business.isLive ? 'grayscale-[30%]' : ''}`}
                     priority
                   />
                 ) : (
@@ -162,10 +207,17 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                     </Badge>
                   )}
 
-                  <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 text-xs">
-                    <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-500" />
-                    Verified Local Business
-                  </Badge>
+                  {business.isLive ? (
+                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 text-xs">
+                      <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-500" />
+                      Verified Active Business
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10 text-xs">
+                      <Lock className="h-3 w-3 mr-1 text-amber-600" />
+                      Locked Listing &bull; Inactive
+                    </Badge>
+                  )}
                 </div>
 
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight font-headline">
@@ -181,7 +233,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                     </span>
                   </div>
 
-                  {business.phone && (
+                  {business.isLive && business.phone && (
                     <div className="flex items-center gap-1.5">
                       <Phone className="h-4 w-4 text-muted-foreground/70 shrink-0" />
                       <span>{business.phone}</span>
@@ -191,33 +243,44 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
               </div>
             </div>
 
-            {/* Quick Action Buttons */}
+            {/* Quick Action Buttons (Active vs Locked) */}
             <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0">
-              {business.phone && (
-                <Button variant="outline" size="sm" asChild className="gap-1.5">
-                  <a href={`tel:${business.phone}`}>
-                    <Phone className="h-4 w-4 text-emerald-600" />
-                    <span>Call Store</span>
-                  </a>
+              {business.isLive ? (
+                <>
+                  {business.phone && (
+                    <Button variant="outline" size="sm" asChild className="gap-1.5">
+                      <a href={`tel:${business.phone}`}>
+                        <Phone className="h-4 w-4 text-emerald-600" />
+                        <span>Call Store</span>
+                      </a>
+                    </Button>
+                  )}
+
+                  {business.website && (
+                    <Button variant="outline" size="sm" asChild className="gap-1.5">
+                      <a href={business.website} target="_blank" rel="noopener noreferrer">
+                        <Globe className="h-4 w-4 text-emerald-600" />
+                        <span>Website</span>
+                        <ExternalLink className="h-3 w-3 text-muted-foreground ml-0.5" />
+                      </a>
+                    </Button>
+                  )}
+
+                  <Button variant="outline" size="sm" asChild className="gap-1.5">
+                    <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
+                      <Compass className="h-4 w-4 text-emerald-600" />
+                      <span>Directions</span>
+                    </a>
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" asChild className="gap-1.5 border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10">
+                  <Link href="/directory/advertise">
+                    <Lock className="h-4 w-4 text-amber-600" />
+                    <span>Interactive Links Locked</span>
+                  </Link>
                 </Button>
               )}
-
-              {business.website && (
-                <Button variant="outline" size="sm" asChild className="gap-1.5">
-                  <a href={business.website} target="_blank" rel="noopener noreferrer">
-                    <Globe className="h-4 w-4 text-emerald-600" />
-                    <span>Website</span>
-                    <ExternalLink className="h-3 w-3 text-muted-foreground ml-0.5" />
-                  </a>
-                </Button>
-              )}
-
-              <Button variant="outline" size="sm" asChild className="gap-1.5">
-                <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
-                  <Compass className="h-4 w-4 text-emerald-600" />
-                  <span>Directions</span>
-                </a>
-              </Button>
             </div>
           </div>
         </div>
@@ -239,19 +302,50 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                 )}
               </CardHeader>
 
-              {business.longDescription && (
+              {business.isLive ? (
+                business.longDescription && (
+                  <CardContent className="pt-0">
+                    <Separator className="mb-4" />
+                    <div
+                      className="prose dark:prose-invert max-w-none text-sm text-muted-foreground leading-relaxed space-y-4"
+                      dangerouslySetInnerHTML={{ __html: business.longDescription }}
+                    />
+                  </CardContent>
+                )
+              ) : (
                 <CardContent className="pt-0">
                   <Separator className="mb-4" />
-                  <div
-                    className="prose dark:prose-invert max-w-none text-sm text-muted-foreground leading-relaxed space-y-4"
-                    dangerouslySetInnerHTML={{ __html: business.longDescription }}
-                  />
+                  {/* High-Converting Locked State Notice */}
+                  <div className="rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-card to-card p-6 text-center space-y-3">
+                    <div className="p-3 bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded-full inline-block">
+                      <Lock className="h-6 w-6" />
+                    </div>
+                    <h3 className="font-bold text-base text-foreground">
+                      Detailed Business Showcase & Direct Links Are Locked
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                      This listing is currently inactive awaiting subscription renewal. Active Community Partners enjoy click-to-call phone buttons, website backlinks, photo showcases, weekly opening hours, and direct customer messaging.
+                    </p>
+                    <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                      <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md text-xs sm:text-sm">
+                        <Link href="/directory/advertise">
+                          <Sparkles className="mr-1.5 h-4 w-4" />
+                          Are You The Business Owner? Reactivate For £20/mo
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="text-xs">
+                        <Link href="/public-directory">
+                          Browse Active Listings &rarr;
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               )}
             </Card>
 
-            {/* Page 2 Custom Content Blocks (if present) */}
-            {business.pageTwoContent && business.pageTwoContent.length > 0 && (
+            {/* Page 2 Custom Content Blocks (Only for live businesses) */}
+            {business.isLive && business.pageTwoContent && business.pageTwoContent.length > 0 && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold tracking-tight">
                   {business.pageTwoIntro || 'Specialities & Features'}
@@ -282,8 +376,8 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
               </div>
             )}
 
-            {/* Page 3 Content (if present) */}
-            {business.pageThreeContent && (
+            {/* Page 3 Content (Only for live businesses) */}
+            {business.isLive && business.pageThreeContent && (
               <Card className="border shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-lg">Additional Information</CardTitle>
@@ -311,8 +405,13 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                 <Button size="sm" asChild className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
                   <Link href="/signup/account-type">Join Community Hub (Free)</Link>
                 </Button>
-                <Button variant="outline" size="sm" asChild className="text-xs">
-                  <Link href={`/businesses/${business.id}`}>Open Full Profile in App</Link>
+                {business.isLive && (
+                  <Button variant="outline" size="sm" asChild className="text-xs">
+                    <Link href={`/businesses/${business.id}`}>Open Full Profile in App</Link>
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" asChild className="text-xs text-muted-foreground">
+                  <Link href="/directory/advertise">Learn Why Businesses Advertise With Us</Link>
                 </Button>
               </div>
             </div>
@@ -321,7 +420,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
           {/* Right Column (1 col): Location, Opening Hours, Contact Info */}
           <div className="space-y-6">
             {/* Opening Hours Card */}
-            {business.openingHours && (
+            {business.isLive && business.openingHours ? (
               <Card className="border shadow-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -365,74 +464,107 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                   </div>
                 </CardContent>
               </Card>
-            )}
+            ) : !business.isLive ? (
+              <Card className="border border-dashed border-amber-500/40 bg-muted/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
+                    <Lock className="h-4 w-4 text-amber-500" />
+                    Opening Hours (Locked)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 text-xs text-muted-foreground space-y-2">
+                  <p className="italic">
+                    Weekly opening times schedule is locked until business owner subscription is renewed.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : null}
 
             {/* Location & Contact Card */}
-            <Card className="border shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  Address & Contact
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-4 text-xs">
-                {primaryAddress && (
-                  <div className="space-y-1">
-                    <p className="font-semibold text-foreground">Physical Address</p>
-                    <p className="text-muted-foreground leading-relaxed">
-                      {primaryAddress.addressLine1}
-                      {primaryAddress.addressLine2 ? `, ${primaryAddress.addressLine2}` : ''}
-                      <br />
-                      {primaryAddress.city || business.city || business.primaryCommunityName}
-                      {primaryAddress.postcode ? ` ${primaryAddress.postcode}` : ''}
-                      <br />
-                      {business.country}
-                    </p>
-                    <Button variant="link" size="sm" asChild className="p-0 h-auto text-xs text-emerald-600">
-                      <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
-                        Get Directions on Google Maps &rarr;
-                      </a>
-                    </Button>
+            {business.isLive ? (
+              <Card className="border shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    Address & Contact
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-4 text-xs">
+                  {primaryAddress && (
+                    <div className="space-y-1">
+                      <p className="font-semibold text-foreground">Physical Address</p>
+                      <p className="text-muted-foreground leading-relaxed">
+                        {primaryAddress.addressLine1}
+                        {primaryAddress.addressLine2 ? `, ${primaryAddress.addressLine2}` : ''}
+                        <br />
+                        {primaryAddress.city || business.city || business.primaryCommunityName}
+                        {primaryAddress.postcode ? ` ${primaryAddress.postcode}` : ''}
+                        <br />
+                        {business.country}
+                      </p>
+                      <Button variant="link" size="sm" asChild className="p-0 h-auto text-xs text-emerald-600">
+                        <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
+                          Get Directions on Google Maps &rarr;
+                        </a>
+                      </Button>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <div className="space-y-2.5">
+                    {business.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <a href={`tel:${business.phone}`} className="hover:underline font-medium">
+                          {business.phone}
+                        </a>
+                      </div>
+                    )}
+
+                    {business.contactEmail && (
+                      <div className="flex items-center gap-2 truncate">
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <a href={`mailto:${business.contactEmail}`} className="hover:underline truncate">
+                          {business.contactEmail}
+                        </a>
+                      </div>
+                    )}
+
+                    {business.website && (
+                      <div className="flex items-center gap-2 truncate">
+                        <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <a
+                          href={business.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline text-emerald-600 dark:text-emerald-400 truncate"
+                        >
+                          {business.website.replace(/^https?:\/\//, '')}
+                        </a>
+                      </div>
+                    )}
                   </div>
-                )}
-
-                <Separator />
-
-                <div className="space-y-2.5">
-                  {business.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <a href={`tel:${business.phone}`} className="hover:underline font-medium">
-                        {business.phone}
-                      </a>
-                    </div>
-                  )}
-
-                  {business.contactEmail && (
-                    <div className="flex items-center gap-2 truncate">
-                      <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <a href={`mailto:${business.contactEmail}`} className="hover:underline truncate">
-                        {business.contactEmail}
-                      </a>
-                    </div>
-                  )}
-
-                  {business.website && (
-                    <div className="flex items-center gap-2 truncate">
-                      <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <a
-                        href={business.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline text-emerald-600 dark:text-emerald-400 truncate"
-                      >
-                        {business.website.replace(/^https?:\/\//, '')}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border border-dashed border-amber-500/40 bg-muted/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
+                    <Lock className="h-4 w-4 text-amber-500" />
+                    Direct Contact Locked
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 text-xs text-muted-foreground space-y-2">
+                  <p className="italic">
+                    Click-to-call phone numbers, direct website links, and Google directions are locked.
+                  </p>
+                  <p className="font-medium text-foreground pt-1">
+                    Town: {business.primaryCommunityName || business.city || 'Local Community'}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Business Owner / Advertising Callout */}
             <Card className="border border-border/80 bg-muted/30">
@@ -444,10 +576,10 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
               </CardHeader>
               <CardContent className="space-y-3 text-xs text-muted-foreground">
                 <p>
-                  List your business in the Community Hub public directory and app.
+                  List or unlock your business in the Community Hub public directory and app.
                   Up to 80% of listing fees go right back into local community repairs, defibrillators, and tourism events.
                 </p>
-                <Button variant="outline" size="sm" asChild className="w-full text-xs">
+                <Button variant="outline" size="sm" asChild className="w-full text-xs font-semibold">
                   <Link href="/directory/advertise">Learn Why to Advertise With Us &rarr;</Link>
                 </Button>
               </CardContent>
