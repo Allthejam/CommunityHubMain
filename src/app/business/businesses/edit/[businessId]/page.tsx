@@ -208,6 +208,7 @@ export default function EditBusinessPage() {
     const [pageThreeContent, setPageThreeContent] = React.useState('');
     const [showPageTwo, setShowPageTwo] = React.useState(true);
     const [showPageThree, setShowPageThree] = React.useState(true);
+    const [isPublicDirectoryEnabled, setIsPublicDirectoryEnabled] = React.useState(true);
     const [addresses, setAddresses] = React.useState([{...initialAddressState}]);
     const [bannerImage, setBannerImage] = React.useState<string | null>(null);
     const [logoImage, setLogoImage] = React.useState<string | null>(null);
@@ -245,6 +246,7 @@ export default function EditBusinessPage() {
             setPageThreeContent(businessData.pageThreeContent || '');
             setShowPageTwo(businessData.showPageTwo !== false);
             setShowPageThree(businessData.showPageThree !== false);
+            setIsPublicDirectoryEnabled(businessData.isPublicDirectoryEnabled !== false);
             setPageThreeType(businessData.pageThreeType || 'custom');
             setMeetingMinutes(businessData.meetingMinutes || []);
             setPageThreeTypeLocked(businessData.pageThreeTypeLocked || false);
@@ -380,7 +382,7 @@ export default function EditBusinessPage() {
                 meetingMinutes: meetingMinutes,
                 pageThreeType, pageThreeTypeLocked, addresses, bannerImage, logoImage, additionalCommunities,
                 openingHours, metaTitle, metaDescription,
-                showPageTwo, showPageThree,
+                showPageTwo, showPageThree, isPublicDirectoryEnabled,
                 ownerId: user.uid,
                 ownerName: userProfile?.name,
                 accountType: businessData?.accountType || 'business',
@@ -494,6 +496,23 @@ export default function EditBusinessPage() {
                      <div className="space-y-4 pt-4">
                         <h3 className="font-medium text-lg">Page Visibility</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="flex items-center space-x-2 rounded-lg border p-4 bg-emerald-500/5 border-emerald-500/20 sm:col-span-2">
+                                <Switch id="isPublicDirectoryEnabled" checked={isPublicDirectoryEnabled} onCheckedChange={setIsPublicDirectoryEnabled} />
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="isPublicDirectoryEnabled" className="font-semibold text-foreground cursor-pointer">
+                                            Include in Public Search Engine Directory (Google SEO)
+                                        </Label>
+                                        <span className="text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                                            No Login Required
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Index your business in Google Search and make your profile accessible to visitors, tourists, and web searchers without needing an account.
+                                    </p>
+                                </div>
+                            </div>
+
                             <div className="flex items-center space-x-2 rounded-lg border p-4">
                                 <Switch id="showPageTwo" checked={showPageTwo} onCheckedChange={setShowPageTwo} />
                                 <div>

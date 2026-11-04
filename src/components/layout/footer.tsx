@@ -187,6 +187,7 @@ export default function Footer() {
                         <span className="text-sm text-muted-foreground">Find a Community</span>
                     )}
                     <Link href="/events" className="text-sm hover:underline text-muted-foreground">Events</Link>
+                    <Link href="/public-directory" className="text-sm hover:underline text-muted-foreground flex items-center gap-1">Public Directory <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold px-1 rounded">No Login</span></Link>
                     <Link href="/directory" className="text-sm hover:underline text-muted-foreground">Local Businesses</Link>
                     <Link href="/whatson" className="text-sm hover:underline text-muted-foreground">What's On</Link>
                 </nav>

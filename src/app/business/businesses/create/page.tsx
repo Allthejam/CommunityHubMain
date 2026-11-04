@@ -148,6 +148,7 @@ const initialFormState = {
     metaDescription: "",
     showPageTwo: true,
     showPageThree: true,
+    isPublicDirectoryEnabled: true,
 };
 
 export default function CreateBusinessPage() {
@@ -171,6 +172,7 @@ export default function CreateBusinessPage() {
     const [pageThreeContent, setPageThreeContent] = React.useState<string>(initialFormState.pageThreeContent);
     const [showPageTwo, setShowPageTwo] = React.useState(initialFormState.showPageTwo);
     const [showPageThree, setShowPageThree] = React.useState(initialFormState.showPageThree);
+    const [isPublicDirectoryEnabled, setIsPublicDirectoryEnabled] = React.useState(initialFormState.isPublicDirectoryEnabled);
     const [addresses, setAddresses] = React.useState(initialFormState.addresses);
     const [bannerImage, setBannerImage] = React.useState<string | null>(initialFormState.bannerImage);
     const [logoImage, setLogoImage] = React.useState<string | null>(initialFormState.logoImage);
@@ -276,7 +278,7 @@ export default function CreateBusinessPage() {
     const getFormData = () => ({
         businessName, businessCategory, isAccommodation, sellsRestrictedProducts, website, socialMedia, contactEmail, contactNumber,
         shortDescription, longDescription, pageTwoIntro, pageTwoContent, addresses, bannerImage, logoImage, additionalCommunities,
-        showPageTwo, showPageThree,
+        showPageTwo, showPageThree, isPublicDirectoryEnabled,
         primaryCommunityId: userProfile?.communityId,
         primaryCommunityName: userProfile?.communityName,
         openingHours,
@@ -393,6 +395,7 @@ export default function CreateBusinessPage() {
         setMeetingMinutes([]);
         setShowPageTwo(initialFormState.showPageTwo);
         setShowPageThree(initialFormState.showPageThree);
+        setIsPublicDirectoryEnabled(initialFormState.isPublicDirectoryEnabled);
 
         const bannerInput = document.getElementById("banner-image") as HTMLInputElement;
         if (bannerInput) bannerInput.value = "";
@@ -454,6 +457,23 @@ export default function CreateBusinessPage() {
             <div className="space-y-4 pt-4">
                 <h3 className="font-medium text-lg">Page Visibility</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2 rounded-lg border p-4 bg-emerald-500/5 border-emerald-500/20 sm:col-span-2">
+                        <Switch id="isPublicDirectoryEnabled" checked={isPublicDirectoryEnabled} onCheckedChange={setIsPublicDirectoryEnabled} />
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="isPublicDirectoryEnabled" className="font-semibold text-foreground cursor-pointer">
+                                    Include in Public Search Engine Directory (Google SEO)
+                                </Label>
+                                <span className="text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                                    No Login Required
+                                </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Index your business in Google Search and make your profile accessible to visitors, tourists, and web searchers without needing an account.
+                            </p>
+                        </div>
+                    </div>
+
                     <div className="flex items-center space-x-2 rounded-lg border p-4">
                         <Switch id="showPageTwo" checked={showPageTwo} onCheckedChange={setShowPageTwo} />
                         <div>
@@ -731,7 +751,7 @@ export default function CreateBusinessPage() {
                 <CardContent className="space-y-6">
                     <div className="p-4 border rounded-lg bg-muted/50">
                         <p className="text-blue-800 dark:text-blue-400 text-lg font-medium group-hover:underline truncate">{metaTitle || businessName || 'Business Profile'}</p>
-                        <p className="text-green-700 dark:text-green-400 text-sm">https://my-community-hub.co.uk/businesses/[ID will appear here]</p>
+                        <p className="text-green-700 dark:text-green-400 text-sm">https://my-community-hub.co.uk/public-directory/[ID will appear here]</p>
                         <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{metaDescription || 'Your compelling meta description will appear here, helping you attract more visitors from search results.'}</p>
                     </div>
 
