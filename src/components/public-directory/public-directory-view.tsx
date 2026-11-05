@@ -38,7 +38,25 @@ import {
   Filter,
   ShieldCheck,
   AlertCircle,
+  PlusCircle,
+  Upload,
+  Check,
+  ImageIcon,
+  HelpCircle,
+  Loader2,
+  AlertTriangle,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import {
   Table,
@@ -54,7 +72,54 @@ import { Badge } from '@/components/ui/badge';
 import { Logo } from '@/components/icons';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import type { PublicBusinessSummary } from '@/lib/actions/publicDirectoryActions';
+import {
+  createPlatformUnclaimedBusinessAction,
+  type PublicBusinessSummary,
+} from '@/lib/actions/publicDirectoryActions';
+import { uploadImageAction } from '@/lib/actions/storageActions';
+
+const CATEGORY_COVER_PRESETS = [
+  {
+    label: 'Bakery & Deli',
+    category: 'Bakery & Deli',
+    url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    label: 'Café & Coffee',
+    category: 'Café & Coffee Shop',
+    url: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    label: 'Restaurant & Pub',
+    category: 'Restaurant & Bar',
+    url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    label: 'Retail & Boutique',
+    category: 'Retail & Boutique',
+    url: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    label: 'Trades & Workshop',
+    category: 'Trades & Services',
+    url: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    label: 'Stays & Lodging',
+    category: 'Stays & Lodging',
+    url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    label: 'Salon & Beauty',
+    category: 'Hair & Beauty',
+    url: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    label: 'Auto & Garage',
+    category: 'Automotive & Garage',
+    url: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=1200&q=80',
+  },
+];
 
 const CATEGORY_FILTERS = [
   { id: 'all', label: 'All Listings', icon: Layers },
@@ -67,7 +132,13 @@ const CATEGORY_FILTERS = [
   { id: 'valued_partners', label: 'Valued Partners', icon: Handshake, match: ['valued partner'] },
 ];
 
-export function PublicDirectoryView({ businesses }: { businesses: PublicBusinessSummary[] }) {
+export function PublicDirectoryView({
+  businesses,
+  communitiesList = [],
+}: {
+  businesses: PublicBusinessSummary[];
+  communitiesList?: { id: string; name: string }[];
+}) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState('all');
   const [selectedCommunity, setSelectedCommunity] = React.useState('all');
@@ -85,6 +156,8 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
   const [viewMode, setViewMode] = React.useState<'table' | 'grid'>('table');
 
   const listingsTopRef = React.useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const { toast } = useToast();
 
   // Check if user is logged in to contextualize "Your Community"
   const { user } = useUser();
@@ -94,6 +167,26 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
 
   const loggedInCommunityName = userProfile?.communityName || null;
   const loggedInCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || null;
+
+  // Platform Owner Check (Can seed unclaimed businesses)
+  const isPlatformOwner = Boolean(
+    userProfile?.accountType === 'owner' ||
+    userProfile?.role === 'owner' ||
+    user?.email === 'allan_jamieson@outlook.com' ||
+    userProfile?.email === 'allan_jamieson@outlook.com'
+  );
+
+  // 5-Field Quick-Add Modal State
+  const [isQuickAddOpen, setIsQuickAddOpen] = React.useState(false);
+  const [newBizName, setNewBizName] = React.useState('');
+  const [newBizCategory, setNewBizCategory] = React.useState('Retail & Boutique');
+  const [newBizCommunityId, setNewBizCommunityId] = React.useState('');
+  const [newBizCommunityName, setNewBizCommunityName] = React.useState('');
+  const [newBizPostcode, setNewBizPostcode] = React.useState('');
+  const [newBizCoverImage, setNewBizCoverImage] = React.useState('');
+  const [isUploadingCover, setIsUploadingCover] = React.useState(false);
+  const [isSubmittingQuickAdd, setIsSubmittingQuickAdd] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Courier Visibility Rule:
   // Couriers are strictly localized to their community and ONLY visible to logged-in residents of that community.
@@ -179,9 +272,153 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
     return { communities: commList, communityCounts: counts };
   }, [visibleBusinesses]);
 
+  // Combined available communities for dropdown selection
+  const allAvailableCommunities = React.useMemo(() => {
+    const map = new Map<string, { id?: string; name: string }>();
+    communitiesList.forEach((c) => {
+      if (c.name) map.set(c.name.toLowerCase().trim(), { id: c.id, name: c.name.trim() });
+    });
+    communities.forEach((commName) => {
+      const key = commName.toLowerCase().trim();
+      if (!map.has(key)) {
+        map.set(key, { name: commName });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [communitiesList, communities]);
+
+  // File upload handler for Quick-Add Cover Image
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload an image file (PNG, JPG, WebP).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Maximum image size is 5MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploadingCover(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result as string;
+        const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const path = `business-covers/platform-seed/${filename}`;
+
+        const res = await uploadImageAction({ base64Data, path });
+        if (res.success && res.url) {
+          setNewBizCoverImage(res.url);
+          toast({
+            title: 'Image uploaded!',
+            description: 'Cover photo successfully uploaded and linked.',
+          });
+        } else {
+          setNewBizCoverImage(base64Data);
+          toast({
+            title: 'Image ready',
+            description: 'Using uploaded preview.',
+          });
+        }
+        setIsUploadingCover(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setIsUploadingCover(false);
+      toast({
+        title: 'Upload failed',
+        description: err.message || 'Could not upload cover image.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Submit Quick-Add Unclaimed Business
+  const handleQuickAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newBizName.trim()) {
+      toast({ title: 'Business Name Required', description: 'Please enter the name of the business.', variant: 'destructive' });
+      return;
+    }
+    if (!newBizCategory.trim()) {
+      toast({ title: 'Category Required', description: 'Please select or enter a category.', variant: 'destructive' });
+      return;
+    }
+    if (!newBizCommunityName.trim()) {
+      toast({ title: 'Community Required', description: 'Please choose which community this business belongs to.', variant: 'destructive' });
+      return;
+    }
+    if (!newBizPostcode.trim()) {
+      toast({ title: 'Postcode Required', description: 'Please enter a valid UK postcode (e.g. PH22 1RH).', variant: 'destructive' });
+      return;
+    }
+
+    const coverToUse =
+      newBizCoverImage.trim() ||
+      CATEGORY_COVER_PRESETS.find((p) => p.category === newBizCategory)?.url ||
+      CATEGORY_COVER_PRESETS[0].url;
+
+    setIsSubmittingQuickAdd(true);
+    try {
+      const resolvedCommId =
+        newBizCommunityId ||
+        allAvailableCommunities.find((c) => c.name.toLowerCase() === newBizCommunityName.toLowerCase().trim())?.id ||
+        newBizCommunityName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+      const res = await createPlatformUnclaimedBusinessAction({
+        businessName: newBizName.trim(),
+        businessCategory: newBizCategory.trim(),
+        communityId: resolvedCommId,
+        communityName: newBizCommunityName.trim(),
+        postcode: newBizPostcode.trim().toUpperCase(),
+        coverImage: coverToUse,
+      });
+
+      if (res.success && res.businessId) {
+        toast({
+          title: 'Unclaimed Listing Created!',
+          description: `${newBizName} has been seeded into ${newBizCommunityName} with 14-day claim capability.`,
+        });
+        setIsQuickAddOpen(false);
+        setNewBizName('');
+        setNewBizPostcode('');
+        setNewBizCoverImage('');
+        router.refresh();
+      } else {
+        toast({
+          title: 'Error Creating Listing',
+          description: res.error || 'Failed to create business listing.',
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error Creating Listing',
+        description: err.message || 'Something went wrong.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingQuickAdd(false);
+    }
+  };
+
   // Overall count totals
   const totalActiveCount = React.useMemo(() => visibleBusinesses.filter((b) => b.isLive).length, [visibleBusinesses]);
   const totalInactiveCount = React.useMemo(() => visibleBusinesses.filter((b) => !b.isLive).length, [visibleBusinesses]);
+  const unclaimedCount = React.useMemo(() => visibleBusinesses.filter((b) => b.isUnclaimed).length, [visibleBusinesses]);
   const localBusinessesCount = React.useMemo(() => visibleBusinesses.filter((b) => !b.listingType || b.listingType === 'business').length, [visibleBusinesses]);
   const featuredAdsCount = React.useMemo(() => visibleBusinesses.filter((b) => b.listingType === 'featured_ad' || b.accountType === 'featured_ad' || b.businessCategory === 'Featured Ad').length, [visibleBusinesses]);
   const valuedPartnersCount = React.useMemo(() => visibleBusinesses.filter((b) => b.listingType === 'valued_partner' || b.accountType === 'valued_partner' || b.businessCategory === 'Valued Partner').length, [visibleBusinesses]);
@@ -192,7 +429,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
       str.trim().toLowerCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ');
 
     return visibleBusinesses.filter((b) => {
-      // 1. Text search term
+      // 1. Text search term (matches Name, Category, Description, Town, and Postcode)
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase().trim();
         const matchesName = b.businessName?.toLowerCase().includes(term);
@@ -200,8 +437,9 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
         const matchesCat = b.businessCategory?.toLowerCase().includes(term);
         const matchesPrimaryComm = b.primaryCommunityName?.toLowerCase().includes(term);
         const matchesCity = b.city?.toLowerCase().includes(term);
+        const matchesPostcode = b.postcode?.toLowerCase().includes(term);
 
-        if (!matchesName && !matchesDesc && !matchesCat && !matchesPrimaryComm && !matchesCity) {
+        if (!matchesName && !matchesDesc && !matchesCat && !matchesPrimaryComm && !matchesCity && !matchesPostcode) {
           return false;
         }
       }
@@ -252,6 +490,8 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
       } else if (statusFilter === 'active' && !b.isLive) {
         return false;
       } else if (statusFilter === 'inactive' && b.isLive) {
+        return false;
+      } else if (statusFilter === 'unclaimed' && !b.isUnclaimed) {
         return false;
       }
 
@@ -362,6 +602,17 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
+            {isPlatformOwner && (
+              <Button
+                size="sm"
+                onClick={() => setIsQuickAddOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm"
+              >
+                <PlusCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">+ Quick-Add Business</span>
+                <span className="sm:hidden">+ Seed</span>
+              </Button>
+            )}
             <Button variant="ghost" size="sm" asChild className="text-xs sm:text-sm">
               <Link href="/directory/advertise">Why Advertise?</Link>
             </Button>
@@ -399,7 +650,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Search by business name, keyword, service, or town..."
+                  placeholder="Search by business name, keyword, service, town, or postcode (e.g. PH22)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 h-11 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
@@ -476,7 +727,9 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="text-xl font-bold tracking-tight">
-              {statusFilter === 'inactive'
+              {statusFilter === 'unclaimed'
+                ? '🔍 Unclaimed Community Listings'
+                : statusFilter === 'inactive'
                 ? 'Inactive / Unpaid Subscriptions'
                 : statusFilter === 'featured' || selectedCategory === 'featured_ads'
                 ? '⭐ Featured National Ads'
@@ -495,6 +748,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                   {' '}&bull; {pageSize} per page
                   {statusFilter === 'active' && ' (Active only)'}
                   {statusFilter === 'inactive' && ' (Inactive / Locked only)'}
+                  {statusFilter === 'unclaimed' && ' (Unclaimed teaser listings only)'}
                 </>
               ) : (
                 <>No businesses found for selected filters</>
@@ -504,6 +758,17 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
 
           {/* Controls: Subscription Status Filter, Table/Grid Toggle & Page Size */}
           <div className="flex items-center flex-wrap gap-2.5">
+            {isPlatformOwner && (
+              <Button
+                size="sm"
+                onClick={() => setIsQuickAddOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span>+ Seed Business</span>
+              </Button>
+            )}
+
             {/* Subscription Status Filter Dropdown */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card border rounded-lg px-2.5 py-1 shadow-xs">
               <Filter className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -516,6 +781,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
               >
                 <option value="all">All Listings ({visibleBusinesses.length})</option>
                 <option value="businesses">Local Businesses ({localBusinessesCount})</option>
+                {unclaimedCount > 0 && <option value="unclaimed">Unclaimed ({unclaimedCount})</option>}
                 {featuredAdsCount > 0 && <option value="featured">Featured Ads ({featuredAdsCount})</option>}
                 {valuedPartnersCount > 0 && <option value="partner">Valued Partners ({valuedPartnersCount})</option>}
                 <option value="active">Active Partners Only ({totalActiveCount})</option>
@@ -686,7 +952,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                           {b.logoImage ? (
                             <Image
                               src={b.logoImage}
-                              alt={b.businessName}
+                              alt={`${b.businessName} - ${b.businessCategory || 'Local Business'} in ${b.primaryCommunityName || b.city || 'Local Community'}, UK`}
                               width={40}
                               height={40}
                               className={`object-cover w-full h-full ${!b.isLive ? 'grayscale-[30%]' : ''}`}
@@ -722,16 +988,24 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                           {b.primaryCommunityName || b.city || 'Local Area'}
                         </span>
                       </div>
-                      {b.country && (
+                      {(b.postcode || b.country) && (
                         <div className="text-[11px] text-muted-foreground pl-5 truncate">
-                          {b.country}
+                          {[b.postcode, b.country].filter(Boolean).join(' • ')}
                         </div>
                       )}
                     </TableCell>
 
                     {/* Partner Status Column */}
                     <TableCell className="py-3.5">
-                      {b.listingType === 'featured_ad' ? (
+                      {b.isUnclaimed ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/40 flex items-center gap-1 font-semibold w-fit"
+                        >
+                          <HelpCircle className="h-2.5 w-2.5 text-amber-600" />
+                          Unclaimed Listing
+                        </Badge>
+                      ) : b.listingType === 'featured_ad' ? (
                         <Badge className="text-[10px] bg-gradient-to-r from-amber-500 to-purple-600 text-white font-semibold flex items-center gap-1 w-fit shadow-xs">
                           <Sparkles className="h-2.5 w-2.5" />
                           <span>Featured Partner</span>
@@ -767,7 +1041,12 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
 
                     {/* Direct Contact Column */}
                     <TableCell className="py-3.5 hidden md:table-cell">
-                      {b.isLive ? (
+                      {b.isUnclaimed ? (
+                        <div className="flex items-center gap-1 text-[11px] text-amber-700/90 dark:text-amber-400/90 italic font-medium">
+                          <HelpCircle className="h-3 w-3 text-amber-500 shrink-0" />
+                          <span>Unclaimed &bull; Claim Available</span>
+                        </div>
+                      ) : b.isLive ? (
                         <div className="space-y-0.5 text-xs">
                           {b.phone && (
                             <div className="flex items-center gap-1.5 text-muted-foreground truncate">
@@ -795,7 +1074,19 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
 
                     {/* Action Column */}
                     <TableCell className="py-3.5 text-right">
-                      {b.isLive ? (
+                      {b.isUnclaimed ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          asChild
+                          className="h-8 text-xs border-amber-500/50 text-amber-800 dark:text-amber-300 hover:bg-amber-500/15 font-semibold"
+                        >
+                          <Link href={`/public-directory/${b.id}`}>
+                            <HelpCircle className="h-3 w-3 mr-1 text-amber-600" />
+                            <span>Claim / View</span>
+                          </Link>
+                        </Button>
+                      ) : b.isLive ? (
                         <Button
                           size="sm"
                           asChild
@@ -832,7 +1123,9 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
               <Card
                 key={b.id}
                 className={`group flex flex-col overflow-hidden transition-all duration-200 bg-card ${
-                  b.isLive
+                  b.isUnclaimed
+                    ? 'border-amber-500/40 hover:border-amber-500/70 shadow-xs hover:shadow-md'
+                    : b.isLive
                     ? 'hover:border-emerald-500/40 hover:shadow-lg'
                     : 'border-border/60 opacity-90 hover:border-amber-500/40'
                 }`}
@@ -842,7 +1135,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                   {b.bannerImage ? (
                     <Image
                       src={b.bannerImage}
-                      alt={b.businessName}
+                      alt={`${b.businessName} - ${b.businessCategory || 'Local Business'} in ${b.primaryCommunityName || b.city || 'Local Area'}, ${b.postcode ? b.postcode + ', ' : ''}UK`}
                       fill
                       className={`object-cover ${b.isLive ? 'group-hover:scale-105' : 'grayscale-[40%]'} transition-transform duration-300`}
                     />
@@ -858,7 +1151,15 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                       {b.businessCategory?.replace(/-/g, ' ')}
                     </Badge>
 
-                    {b.listingType === 'featured_ad' ? (
+                    {b.isUnclaimed ? (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40 flex items-center gap-1 font-semibold shadow-xs"
+                      >
+                        <HelpCircle className="h-2.5 w-2.5 text-amber-600" />
+                        <span>Unclaimed</span>
+                      </Badge>
+                    ) : b.listingType === 'featured_ad' ? (
                       <Badge className="text-[10px] bg-gradient-to-r from-amber-500 to-purple-600 text-white font-semibold flex items-center gap-1 shadow-xs">
                         <Sparkles className="h-2.5 w-2.5" />
                         <span>Featured Ad</span>
@@ -891,7 +1192,7 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                     {b.logoImage ? (
                       <Image
                         src={b.logoImage}
-                        alt={b.businessName}
+                        alt={`${b.businessName} logo - ${b.primaryCommunityName || b.city || 'Local Area'}`}
                         width={48}
                         height={48}
                         className={`object-cover w-full h-full ${!b.isLive ? 'grayscale-[30%]' : ''}`}
@@ -912,7 +1213,8 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                       <MapPin className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                       <span className="truncate">
                         {b.primaryCommunityName || b.city || 'Local Area'}
-                        {b.country ? ` &bull; ${b.country}` : ''}
+                        {b.postcode ? ` • ${b.postcode}` : ''}
+                        {b.country ? ` • ${b.country}` : ''}
                       </span>
                     </div>
 
@@ -921,9 +1223,14 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                     </p>
                   </div>
 
-                  {/* Quick Contacts (Live vs Locked) */}
+                  {/* Quick Contacts (Live vs Unclaimed vs Locked) */}
                   <div className="pt-2 border-t text-[11px] text-muted-foreground space-y-1">
-                    {b.isLive ? (
+                    {b.isUnclaimed ? (
+                      <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-medium py-0.5">
+                        <HelpCircle className="h-3 w-3 text-amber-600 shrink-0" />
+                        <span>Interactive links locked &bull; Claim available</span>
+                      </div>
+                    ) : b.isLive ? (
                       <>
                         {b.phone && (
                           <div className="flex items-center gap-1.5 truncate">
@@ -953,7 +1260,26 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
                 </CardContent>
 
                 <CardFooter className="px-4 py-3 bg-muted/30 border-t flex items-center justify-between gap-2">
-                  {b.isLive ? (
+                  {b.isUnclaimed ? (
+                    <>
+                      <span className="text-[11px] text-amber-800 dark:text-amber-300 font-semibold flex items-center gap-1">
+                        <HelpCircle className="h-3.5 w-3.5 text-amber-600" />
+                        Claimable Listing
+                      </span>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                        className="h-8 text-xs border-amber-500/50 text-amber-800 dark:text-amber-300 hover:bg-amber-500/15 font-semibold"
+                      >
+                        <Link href={`/public-directory/${b.id}`}>
+                          <span>Claim / View</span>
+                          <ArrowRight className="h-3.5 w-3.5 ml-1 text-amber-600" />
+                        </Link>
+                      </Button>
+                    </>
+                  ) : b.isLive ? (
                     <>
                       <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3 text-emerald-500" />
@@ -1153,6 +1479,270 @@ export function PublicDirectoryView({ businesses }: { businesses: PublicBusiness
           </div>
         </div>
       </footer>
+
+      {/* 5-Field Quick-Add Unclaimed Business Dialog for Platform Owner */}
+      <Dialog open={isQuickAddOpen} onOpenChange={setIsQuickAddOpen}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold w-fit">
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span>Platform Owner Seeding Tool</span>
+            </div>
+            <DialogTitle className="text-xl font-bold">
+              Seed Unclaimed Local Business
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Enter the 5 core details to create an indexed teaser profile. The listing will appear in search results,
+              and real business owners can discover and claim it for a 14-day free trial.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleQuickAddSubmit} className="space-y-4 pt-2">
+            {/* Field 1: Business Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="biz-name" className="text-xs font-semibold flex items-center gap-1">
+                <span>1. Business Name</span>
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="biz-name"
+                placeholder="e.g. Speyside Heather Honey & Deli"
+                value={newBizName}
+                onChange={(e) => setNewBizName(e.target.value)}
+                required
+                className="h-10 text-sm"
+              />
+            </div>
+
+            {/* Field 2: Business Category */}
+            <div className="space-y-1.5">
+              <Label htmlFor="biz-category" className="text-xs font-semibold flex items-center gap-1">
+                <span>2. Category</span>
+                <span className="text-red-500">*</span>
+              </Label>
+              <select
+                id="biz-category"
+                value={newBizCategory}
+                onChange={(e) => {
+                  const cat = e.target.value;
+                  setNewBizCategory(cat);
+                  const preset = CATEGORY_COVER_PRESETS.find((p) => p.category === cat);
+                  if (preset && !newBizCoverImage) {
+                    setNewBizCoverImage(preset.url);
+                  }
+                }}
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="Bakery & Deli">Bakery & Deli</option>
+                <option value="Café & Coffee Shop">Café & Coffee Shop</option>
+                <option value="Restaurant & Bar">Restaurant & Bar</option>
+                <option value="Retail & Boutique">Retail & Boutique</option>
+                <option value="Trades & Services">Trades & Services</option>
+                <option value="Stays & Lodging">Stays & Lodging</option>
+                <option value="Hair & Beauty">Hair & Beauty</option>
+                <option value="Automotive & Garage">Automotive & Garage</option>
+                <option value="Professional Services">Professional Services</option>
+                <option value="Health & Wellness">Health & Wellness</option>
+                <option value="Local Farm Shop">Local Farm Shop</option>
+                <option value="Other Local Business">Other Local Business</option>
+              </select>
+            </div>
+
+            {/* Field 3: Community / Town */}
+            <div className="space-y-1.5">
+              <Label htmlFor="biz-community" className="text-xs font-semibold flex items-center gap-1">
+                <span>3. Community / Town</span>
+                <span className="text-red-500">*</span>
+              </Label>
+              <select
+                id="biz-community"
+                value={newBizCommunityName}
+                onChange={(e) => {
+                  const commName = e.target.value;
+                  setNewBizCommunityName(commName);
+                  const found = allAvailableCommunities.find((c) => c.name === commName);
+                  if (found?.id) setNewBizCommunityId(found.id);
+                }}
+                required
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="">-- Choose Community / Town --</option>
+                {allAvailableCommunities.map((c) => (
+                  <option key={c.id || c.name} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Field 4: Postcode */}
+            <div className="space-y-1.5">
+              <Label htmlFor="biz-postcode" className="text-xs font-semibold flex items-center gap-1">
+                <span>4. Postcode</span>
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="biz-postcode"
+                placeholder="e.g. PH22 1RH"
+                value={newBizPostcode}
+                onChange={(e) => setNewBizPostcode(e.target.value.toUpperCase())}
+                required
+                className="h-10 text-sm font-mono uppercase"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Crucial for Google local search and resident directory filtering by postcode (e.g. PH22).
+              </p>
+            </div>
+
+            {/* Field 5: Cover Image */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold flex items-center gap-1">
+                  <span>5. Cover Image</span>
+                  <span className="text-red-500">*</span>
+                </Label>
+                {isUploadingCover && (
+                  <span className="text-xs text-emerald-600 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Uploading photo...
+                  </span>
+                )}
+              </div>
+
+              {/* 1-Click Curated Presets */}
+              <div className="space-y-1.5">
+                <p className="text-[11px] text-muted-foreground font-medium">
+                  1-Click High-Quality Presets:
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {CATEGORY_COVER_PRESETS.map((preset) => {
+                    const isSelected = newBizCoverImage === preset.url;
+                    return (
+                      <button
+                        type="button"
+                        key={preset.label}
+                        onClick={() => setNewBizCoverImage(preset.url)}
+                        className={`relative rounded-lg overflow-hidden border-2 text-left transition-all group h-14 ${
+                          isSelected
+                            ? 'border-emerald-600 ring-2 ring-emerald-500/30'
+                            : 'border-border hover:border-emerald-500/50'
+                        }`}
+                      >
+                        <Image
+                          src={preset.url}
+                          alt={preset.label}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <div className="absolute inset-0 bg-black/40 flex items-end p-1">
+                          <span className="text-[10px] text-white font-semibold leading-tight line-clamp-1">
+                            {preset.label}
+                          </span>
+                        </div>
+                        {isSelected && (
+                          <div className="absolute top-1 right-1 bg-emerald-600 rounded-full p-0.5 text-white">
+                            <Check className="h-2.5 w-2.5" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Or upload / paste URL */}
+              <div className="flex gap-2 pt-1">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingCover}
+                  className="text-xs flex items-center gap-1.5 h-9 shrink-0"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>Upload File</span>
+                </Button>
+                <Input
+                  type="url"
+                  placeholder="Or paste image URL (https://...)"
+                  value={newBizCoverImage}
+                  onChange={(e) => setNewBizCoverImage(e.target.value)}
+                  className="h-9 text-xs flex-1"
+                />
+              </div>
+
+              {/* Selected Image Preview with ALT tag indicator */}
+              {newBizCoverImage && (
+                <div className="relative h-28 w-full rounded-lg overflow-hidden border mt-2 bg-muted">
+                  <Image
+                    src={newBizCoverImage}
+                    alt={`${newBizName || 'Business'} in ${newBizCommunityName || 'Community'}`}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute bottom-0 inset-x-0 bg-black/75 p-1.5 text-[10px] text-white/90 truncate flex items-center justify-between">
+                    <span className="truncate">
+                      <strong>SEO ALT Tag:</strong>{' '}
+                      {newBizName ? `${newBizName} - ${newBizCategory} in ${newBizCommunityName || 'Local Community'}, ${newBizPostcode || ''} UK` : 'Pending business name...'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setNewBizCoverImage('')}
+                      className="ml-2 text-xs text-red-300 hover:text-red-100 shrink-0"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Information Notice */}
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-300 flex items-start gap-2">
+              <HelpCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                This listing will be marked as <strong>Platform-Created &bull; Unclaimed</strong>. Contact links and opening hours remain locked until the legitimate business owner verifies and claims it, initiating their 14-day free trial.
+              </p>
+            </div>
+
+            <DialogFooter className="gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsQuickAddOpen(false)}
+                disabled={isSubmittingQuickAdd}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmittingQuickAdd || isUploadingCover || !newBizName.trim() || !newBizCommunityName.trim() || !newBizPostcode.trim()}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+              >
+                {isSubmittingQuickAdd ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating Listing...
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="h-4 w-4 mr-1.5" />
+                    Create Unclaimed Listing
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

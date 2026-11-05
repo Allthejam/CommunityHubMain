@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { initializeAdminApp } from "@/firebase/admin-app";
 import { businesses as mockBusinesses } from "@/lib/mock-data";
 
@@ -26,6 +27,8 @@ export type PublicBusinessSummary = {
   createdAt?: string | null;
   isPublicDirectoryEnabled: boolean;
   isLive: boolean; // True if subscription/trial is active; False if expired/unpaid (locked)
+  isUnclaimed?: boolean;
+  isPlatformCreated?: boolean;
 };
 
 export type PublicBusinessDetail = PublicBusinessSummary & {
@@ -38,6 +41,8 @@ export type PublicBusinessDetail = PublicBusinessSummary & {
   socialMedia?: string | null;
   metaTitle?: string | null;
   metaDescription?: string | null;
+  isUnclaimed?: boolean;
+  isPlatformCreated?: boolean;
 };
 
 /**
@@ -63,6 +68,12 @@ function parseTimestampToDate(timestamp: any): Date | null {
 function checkIsBusinessLive(data: any): boolean {
   const now = new Date();
   const toDate = parseTimestampToDate;
+
+  // 0. Platform created unclaimed listings are strictly locked in teaser mode until claimed
+  const isPlatformCreated = data.isPlatformCreated === true || data.createdBy === 'platform' || data.ownerId === 'platform';
+  if ((data.isUnclaimed === true || isPlatformCreated) && data.claimed !== true && data.ownerId === 'platform') {
+    return false;
+  }
 
   const expiryDate = toDate(data.listingSubscriptionExpiresAt || data.subscriptionExpiresAt);
   const freeExpiry = toDate(data.freeListingExpiresAt);
@@ -203,6 +214,8 @@ function normalizeBusinessDoc(
   }
 
   const isLive = checkIsBusinessLive(data);
+  const isPlatformCreated = data.isPlatformCreated === true || data.createdBy === 'platform' || data.ownerId === 'platform';
+  const isUnclaimed = (data.isUnclaimed === true || isPlatformCreated) && data.claimed !== true && data.ownerId === 'platform';
 
   return {
     id: String(id),
@@ -236,6 +249,8 @@ function normalizeBusinessDoc(
     createdAt: parseTimestampToDate(data.createdAt || data.submittedAt)?.toISOString() || null,
     isPublicDirectoryEnabled: data.isPublicDirectoryEnabled !== false,
     isLive,
+    isUnclaimed,
+    isPlatformCreated,
   };
 }
 
@@ -488,4 +503,208 @@ export async function getPublicBusinessByIdAction(businessId: string): Promise<P
   }
 
   return null;
+}
+
+/**
+ * Creates a fast 5-field unclaimed business listing marked as created by Platform.
+ * Strictly locked in teaser state until claimed and subscribed.
+ */
+export async function createPlatformUnclaimedBusinessAction(params: {
+  businessName: string;
+  businessCategory: string;
+  communityId: string;
+  communityName: string;
+  postcode: string;
+  coverImage?: string | null;
+  shortDescription?: string;
+}): Promise<{ success: boolean; businessId?: string; error?: string }> {
+  const { businessName, businessCategory, communityId, communityName, postcode, coverImage, shortDescription } = params;
+
+  if (!businessName?.trim()) {
+    return { success: false, error: 'Business name is required.' };
+  }
+  if (!businessCategory?.trim()) {
+    return { success: false, error: 'Business category is required.' };
+  }
+  if (!communityId?.trim() || !communityName?.trim()) {
+    return { success: false, error: 'Community selection is required.' };
+  }
+  if (!postcode?.trim()) {
+    return { success: false, error: 'Postcode is required.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const cleanCommName = communityName.trim();
+    const cleanPostcode = postcode.trim().toUpperCase();
+    const cleanName = businessName.trim();
+    const cleanDesc = shortDescription?.trim() || `Independent local ${businessCategory} serving ${cleanCommName} and nearby communities.`;
+
+    const isAccommodation = ['hotel', 'b&b', 'stay', 'accommodation', 'campsite', 'motel', 'inn'].some((m) =>
+      businessCategory.toLowerCase().includes(m)
+    );
+
+    const businessDoc: any = {
+      businessName: cleanName,
+      name: cleanName,
+      businessCategory: businessCategory.trim(),
+      primaryCommunityId: communityId.trim(),
+      primaryCommunityName: cleanCommName,
+      communityId: communityId.trim(),
+      communityName: cleanCommName,
+      city: cleanCommName,
+      country: 'United Kingdom',
+      postcode: cleanPostcode,
+      addresses: [
+        {
+          addressLine1: cleanCommName,
+          city: cleanCommName,
+          postcode: cleanPostcode,
+        },
+      ],
+      bannerImage: coverImage?.trim() || null,
+      logoImage: coverImage?.trim() || null,
+      shortDescription: cleanDesc,
+      description: cleanDesc,
+      status: 'Approved',
+      isPublicDirectoryEnabled: true,
+      isPlatformCreated: true,
+      isUnclaimed: true,
+      claimed: false,
+      ownerId: 'platform',
+      createdBy: 'platform',
+      accountType: 'business',
+      listingType: 'business',
+      isAccommodation,
+      isLive: false, // Strictly locked teaser mode until claimed
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const docRef = await firestore.collection('businesses').add(businessDoc);
+
+    try {
+      revalidatePath('/public-directory');
+    } catch (e) {
+      // Ignore
+    }
+
+    return { success: true, businessId: docRef.id };
+  } catch (error: any) {
+    console.error('Error creating platform unclaimed business:', error);
+    return { success: false, error: error.message || 'Failed to create business listing.' };
+  }
+}
+
+/**
+ * Claim an unclaimed business listing.
+ * Transfers ownership to the claimant and starts an active 14-day trial period.
+ */
+export async function claimBusinessAction(params: {
+  businessId: string;
+  claimantUserId: string;
+  claimantName: string;
+  claimantEmail: string;
+  claimantPhone?: string;
+  claimantRole: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const { businessId, claimantUserId, claimantName, claimantEmail, claimantPhone, claimantRole } = params;
+
+  if (!businessId || !claimantUserId || !claimantName || !claimantEmail) {
+    return { success: false, error: 'Missing required claim details.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const businessRef = firestore.collection('businesses').doc(businessId);
+    const businessDoc = await businessRef.get();
+
+    if (!businessDoc.exists) {
+      return { success: false, error: 'Business listing not found.' };
+    }
+
+    const bData = businessDoc.data()!;
+    // Check if already claimed by another user
+    if (bData.claimed === true && bData.ownerId && bData.ownerId !== 'platform' && bData.ownerId !== claimantUserId) {
+      return { success: false, error: 'This business has already been claimed by another account.' };
+    }
+
+    // 14-day trial timestamp
+    const trialExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+    await businessRef.update({
+      ownerId: claimantUserId,
+      claimedByUserId: claimantUserId,
+      isUnclaimed: false,
+      claimed: true,
+      isLive: true,
+      status: 'Approved',
+      isFreeListing: true,
+      freeListingExpiresAt: trialExpiry,
+      claimantDetails: {
+        name: claimantName,
+        email: claimantEmail,
+        phone: claimantPhone || '',
+        role: claimantRole,
+        claimedAt: new Date().toISOString(),
+      },
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Also link to claimant's user document
+    try {
+      const userRef = firestore.collection('users').doc(claimantUserId);
+      const userDoc = await userRef.get();
+      if (userDoc.exists) {
+        const FieldValue = require('firebase-admin/firestore').FieldValue;
+        await userRef.set(
+          {
+            businesses: FieldValue.arrayUnion(businessId),
+          },
+          { merge: true }
+        );
+      }
+    } catch (e) {
+      console.warn('Could not update user businesses array:', e);
+    }
+
+    try {
+      revalidatePath('/public-directory');
+      revalidatePath(`/public-directory/${businessId}`);
+    } catch (e) {
+      // Ignore
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error claiming business listing:', error);
+    return { success: false, error: error.message || 'Failed to claim business listing.' };
+  }
+}
+
+
+/**
+ * Fetch list of registered communities for directory filter & quick-add dropdowns
+ */
+export async function getDirectoryCommunitiesAction(): Promise<{ id: string; name: string }[]> {
+  try {
+    const { firestore } = initializeAdminApp();
+    const snap = await firestore.collection('communities').get();
+    const list: { id: string; name: string }[] = [];
+    const seen = new Set<string>();
+
+    snap.docs.forEach((doc) => {
+      const data = doc.data();
+      const name = typeof data.name === 'string' ? data.name.trim() : '';
+      if (name && !seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
+        list.push({ id: doc.id, name });
+      }
+    });
+
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  } catch (error) {
+    console.error('Error fetching directory communities:', error);
+    return [];
+  }
 }

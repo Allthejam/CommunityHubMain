@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Building2,
@@ -25,26 +26,64 @@ import {
   ShieldCheck,
   Lock,
   AlertTriangle,
+  Loader2,
+  HelpCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/icons';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import type { PublicBusinessDetail } from '@/lib/actions/publicDirectoryActions';
+import { useToast } from '@/hooks/use-toast';
+import {
+  claimBusinessAction,
+  type PublicBusinessDetail,
+} from '@/lib/actions/publicDirectoryActions';
 
 const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
 export function PublicBusinessProfileView({ business }: { business: PublicBusinessDetail }) {
+  const router = useRouter();
+  const { toast } = useToast();
   const [copied, setCopied] = React.useState(false);
+
+  // Claim Business Modal state
+  const [isClaimModalOpen, setIsClaimModalOpen] = React.useState(false);
+  const [claimName, setClaimName] = React.useState('');
+  const [claimEmail, setClaimEmail] = React.useState('');
+  const [claimPhone, setClaimPhone] = React.useState('');
+  const [claimRole, setClaimRole] = React.useState('Owner');
+  const [isClaiming, setIsClaiming] = React.useState(false);
 
   // Check viewer authentication and community
   const { user } = useUser();
   const db = useFirestore();
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc<any>(userProfileRef);
+
+  // Pre-fill claim details from user profile when available
+  React.useEffect(() => {
+    if (userProfile) {
+      if (userProfile.name && !claimName) setClaimName(userProfile.name);
+      if (userProfile.email && !claimEmail) setClaimEmail(userProfile.email);
+      if (userProfile.phone && !claimPhone) setClaimPhone(userProfile.phone);
+    } else if (user) {
+      if (user.displayName && !claimName) setClaimName(user.displayName);
+      if (user.email && !claimEmail) setClaimEmail(user.email);
+    }
+  }, [user, userProfile, claimName, claimEmail, claimPhone]);
 
   const isCourier =
     business.accountType === 'courier' ||
@@ -63,15 +102,59 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
   const isCourierLockedToViewer = isCourier && (!user || !matchesCourierCommunity);
 
   // Business Owner Status for Inactive / Reactivation controls
-  const isOwner = Boolean(user && business.ownerId && user.uid === business.ownerId);
+  const isOwner = Boolean(user && business.ownerId && user.uid === business.ownerId && business.ownerId !== 'platform');
   const isGuest = !user;
-  const isNonOwnerLoggedIn = Boolean(user && (!business.ownerId || user.uid !== business.ownerId));
 
   const handleShare = () => {
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
+  const handleClaimSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      router.push(`/?redirect=/public-directory/${business.id}`);
+      return;
+    }
+
+    if (!claimName.trim() || !claimEmail.trim()) {
+      toast({
+        title: 'Missing information',
+        description: 'Please provide your full name and contact email to claim this business.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsClaiming(true);
+    const result = await claimBusinessAction({
+      businessId: business.id,
+      claimantUserId: user.uid,
+      claimantName: claimName.trim(),
+      claimantEmail: claimEmail.trim(),
+      claimantPhone: claimPhone.trim(),
+      claimantRole: claimRole,
+    });
+    setIsClaiming(false);
+
+    if (result.success) {
+      setIsClaimModalOpen(false);
+      toast({
+        title: 'Business Claimed Successfully!',
+        description: `Congratulations! You now manage ${business.businessName}. Your 14-day free live trial is active.`,
+      });
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+    } else {
+      toast({
+        title: 'Claim Failed',
+        description: result.error || 'Could not claim this business. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -94,6 +177,9 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
     new Date().getDay()
   ] as (typeof DAYS_OF_WEEK)[number];
 
+  // Rich descriptive alt tags for Google Image Search
+  const imageAltDescription = `${business.businessName} - ${business.businessCategory} in ${business.primaryCommunityName || business.city || 'Local Community'}, UK`;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-muted/20 to-background text-foreground flex flex-col">
       {/* Top Bar */}
@@ -115,6 +201,11 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                   <span className="text-emerald-600 dark:text-emerald-400 font-semibold">No Login Required</span>
                   <span>&bull; Public Google Listing</span>
                 </>
+              ) : business.isUnclaimed ? (
+                <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                  <Store className="h-3 w-3" />
+                  Unclaimed Listing &bull; Available to Claim
+                </span>
               ) : (
                 <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
                   <Lock className="h-3 w-3" />
@@ -130,99 +221,72 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
               variant="outline"
               size="sm"
               onClick={handleShare}
-              className="text-xs gap-1.5"
+              className="gap-1.5 text-xs sm:text-sm"
             >
               <Share2 className="h-3.5 w-3.5" />
-              <span>{copied ? 'Link Copied!' : 'Share'}</span>
+              <span>{copied ? 'Copied Link!' : 'Share'}</span>
             </Button>
 
-            {business.isLive ? (
-              <Button
-                size="sm"
-                asChild
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5"
-              >
-                <Link href={`/businesses/${business.id}`}>
-                  <Store className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Open in App</span>
-                  <span className="sm:hidden">App</span>
-                </Link>
-              </Button>
-            ) : isOwner ? (
-              // Owner logged in: Pulsing reactivate button
-              <Button
-                size="sm"
-                asChild
-                className="bg-amber-600 hover:bg-amber-700 text-white text-xs gap-1.5 font-bold animate-pulse shadow-md ring-2 ring-amber-400 ring-offset-2"
-              >
-                <Link href="/business/listings">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>Your Listing: Reactivate</span>
-                </Link>
-              </Button>
-            ) : isGuest ? (
-              // Guest logged out: Opens login/register page
-              <Button
-                size="sm"
-                variant="outline"
-                asChild
-                className="border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 text-xs gap-1.5 font-medium"
-              >
-                <Link href={`/?redirect=/public-directory/${business.id}`}>
-                  <UserCheck className="h-3.5 w-3.5" />
-                  <span>Owner? Sign In</span>
-                </Link>
-              </Button>
-            ) : (
-              // Non-owner logged in: Hide reactivate option
-              <Button
-                size="sm"
-                variant="ghost"
-                asChild
-                className="text-xs text-muted-foreground gap-1.5"
-              >
-                <Link href="/public-directory">
-                  <Store className="h-3.5 w-3.5" />
-                  <span>Directory</span>
-                </Link>
-              </Button>
-            )}
+            <Button variant="ghost" size="sm" asChild className="text-xs sm:text-sm">
+              <Link href="/directory/advertise">Advertise</Link>
+            </Button>
+
+            <Button size="sm" asChild className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm">
+              <Link href="/">Sign In</Link>
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Dedicated Notice if Courier is accessed by guest or non-resident */}
+      {/* Courier Protection Guard: If viewer is unauthenticated or not a resident of this courier's community */}
       {isCourierLockedToViewer ? (
-        <main className="container max-w-2xl mx-auto px-4 py-16 flex-1 flex flex-col items-center text-center justify-center space-y-6">
-          <div className="p-4 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600">
-            <Lock className="h-10 w-10" />
+        <main className="container max-w-4xl mx-auto px-4 py-16 flex-1 flex flex-col items-center justify-center text-center">
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 mb-6">
+            <ShieldCheck className="h-12 w-12" />
           </div>
-          <div className="space-y-2">
-            <Badge variant="outline" className="border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10">
-              Community Courier Service
-            </Badge>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Member Sign-In Required
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
-              Local courier services are strictly dedicated to registered residents of{' '}
-              <strong>{business.primaryCommunityName || business.city || 'their local community'}</strong>.
-              Please sign in to your Community Hub account to view delivery coverage and dispatch contacts.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 pt-2">
-            <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
-              <Link href="/">Sign In to Community</Link>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-3 font-headline">
+            Local Community Courier Service
+          </h1>
+          <p className="text-muted-foreground text-sm sm:text-base max-w-lg mb-6 leading-relaxed">
+            Community couriers are official local logistics partners reserved exclusively for verified residents of <strong>{business.primaryCommunityName || 'this community'}</strong>.
+            Sign in with an account registered to this community to view delivery schedules and book local courier requests.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button asChild size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+              <Link href={`/?redirect=/public-directory/${business.id}`}>
+                Sign In to View Courier
+              </Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button asChild variant="outline" size="lg">
               <Link href="/public-directory">Back to Directory</Link>
             </Button>
           </div>
         </main>
       ) : (
         <>
-      {/* Prominent Inactive Subscription Notice Bar (if not live) */}
-      {!business.isLive && (
+      {/* Prominent Banner (if unclaimed or inactive) */}
+      {business.isUnclaimed ? (
+        <div className="bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-amber-500/10 border-b border-emerald-500/30 px-4 py-3.5">
+          <div className="container max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
+            <div className="flex items-center gap-2 text-emerald-950 dark:text-emerald-200 font-medium">
+              <Store className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>
+                <strong>Unclaimed Community Listing:</strong> Created by Community Hub to support local discovery. Do you own or manage <strong>{business.businessName}</strong>?
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                onClick={() => setIsClaimModalOpen(true)}
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-8 shadow-xs animate-pulse ring-2 ring-emerald-400/50"
+              >
+                <UserCheck className="mr-1.5 h-3.5 w-3.5" />
+                Claim This Business &rarr;
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : !business.isLive ? (
         <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-3.5">
           <div className="container max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
             <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-medium">
@@ -262,7 +326,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Hero Banner Section */}
       <div className="relative w-full bg-muted/40 border-b">
@@ -270,7 +334,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
           {business.bannerImage ? (
             <Image
               src={business.bannerImage}
-              alt={business.businessName}
+              alt={imageAltDescription}
               fill
               className={`object-cover ${!business.isLive ? 'grayscale-[35%]' : ''}`}
               priority
@@ -292,7 +356,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                 {business.logoImage ? (
                   <Image
                     src={business.logoImage}
-                    alt={business.businessName}
+                    alt={`${business.businessName} logo - ${business.businessCategory} in ${business.primaryCommunityName || business.city || 'Local Community'}, UK`}
                     fill
                     className={`object-cover ${!business.isLive ? 'grayscale-[30%]' : ''}`}
                     priority
@@ -320,6 +384,11 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                       <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-500" />
                       Verified Active Business
                     </Badge>
+                  ) : business.isUnclaimed ? (
+                    <Badge variant="outline" className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 text-xs font-semibold flex items-center gap-1">
+                      <Building2 className="h-3 w-3 text-slate-500" />
+                      Unclaimed Community Listing
+                    </Badge>
                   ) : (
                     <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10 text-xs">
                       <Lock className="h-3 w-3 mr-1 text-amber-600" />
@@ -337,6 +406,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                     <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     <span>
                       {business.primaryCommunityName || business.city || 'Local Community'}
+                      {business.postcode ? ` (${business.postcode})` : ''}
                       {business.country ? `, ${business.country}` : ''}
                     </span>
                   </div>
@@ -351,7 +421,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
               </div>
             </div>
 
-            {/* Quick Action Buttons (Active vs Locked) */}
+            {/* Quick Action Buttons (Active vs Unclaimed vs Locked) */}
             <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0">
               {business.isLive ? (
                 <>
@@ -381,6 +451,15 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                     </a>
                   </Button>
                 </>
+              ) : business.isUnclaimed ? (
+                <Button
+                  onClick={() => setIsClaimModalOpen(true)}
+                  size="sm"
+                  className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold animate-pulse shadow-sm"
+                >
+                  <UserCheck className="h-4 w-4" />
+                  <span>Claim This Business</span>
+                </Button>
               ) : (
                 <Button variant="outline" size="sm" asChild className="gap-1.5 border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10">
                   <Link href="/directory/advertise">
@@ -420,6 +499,35 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                     />
                   </CardContent>
                 )
+              ) : business.isUnclaimed ? (
+                <CardContent className="pt-0">
+                  <Separator className="mb-4" />
+                  <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-card to-card p-6 text-center space-y-3">
+                    <div className="p-3 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-full inline-block">
+                      <Store className="h-6 w-6" />
+                    </div>
+                    <h3 className="font-bold text-base text-foreground">
+                      Are You The Owner or Manager of {business.businessName}?
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                      This listing was seeded by Community Hub to help local residents find you. Claim your profile today to publish direct contact numbers, opening hours, customer direct messaging, photo galleries, and receive official Verified Partner status.
+                    </p>
+                    <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                      <Button
+                        onClick={() => setIsClaimModalOpen(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md text-xs sm:text-sm animate-pulse ring-2 ring-emerald-400 ring-offset-2"
+                      >
+                        <UserCheck className="mr-1.5 h-4 w-4" />
+                        Claim This Listing (14-Day Free Trial)
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="text-xs">
+                        <Link href="/directory/advertise">
+                          Why Become a Partner for £20/mo &rarr;
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
               ) : (
                 <CardContent className="pt-0">
                   <Separator className="mb-4" />
@@ -489,7 +597,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                           <div className="relative h-48 sm:h-56 w-full rounded-lg overflow-hidden border">
                             <Image
                               src={block.image}
-                              alt={`Feature ${idx + 1}`}
+                              alt={`${business.businessName} feature photo ${idx + 1}`}
                               fill
                               className="object-cover"
                             />
@@ -506,13 +614,13 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
               </div>
             )}
 
-            {/* Page 3 Content (Only for live businesses) */}
+            {/* Page 3 Content Block (Only for live businesses) */}
             {business.isLive && business.pageThreeContent && (
               <Card className="border shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-lg">Additional Information</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <div
                     className="prose dark:prose-invert max-w-none text-sm text-muted-foreground leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: business.pageThreeContent }}
@@ -520,31 +628,6 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                 </CardContent>
               </Card>
             )}
-
-            {/* Resident Conversion Banner in Main Feed */}
-            <div className="p-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-500/30 space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                <h3 className="font-bold text-base">Are you a local resident?</h3>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Unlock exclusive member benefits for <strong>{business.businessName}</strong>, including local courier delivery,
-                exclusive resident discounts, community notices, and direct messaging with store owners.
-              </p>
-              <div className="pt-1 flex flex-wrap items-center gap-3">
-                <Button size="sm" asChild className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
-                  <Link href="/signup/account-type">Join Community Hub (Free)</Link>
-                </Button>
-                {business.isLive && (
-                  <Button variant="outline" size="sm" asChild className="text-xs">
-                    <Link href={`/businesses/${business.id}`}>Open Full Profile in App</Link>
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" asChild className="text-xs text-muted-foreground">
-                  <Link href="/directory/advertise">Learn Why Businesses Advertise With Us</Link>
-                </Button>
-              </div>
-            </div>
           </div>
 
           {/* Right Column (1 col): Location, Opening Hours, Contact Info */}
@@ -592,6 +675,28 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                       );
                     })}
                   </div>
+                </CardContent>
+              </Card>
+            ) : business.isUnclaimed ? (
+              <Card className="border border-dashed border-emerald-500/40 bg-muted/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-4 w-4 text-emerald-500" />
+                    Opening Hours (Unclaimed)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 text-xs text-muted-foreground space-y-2">
+                  <p className="italic">
+                    Opening hours have not yet been submitted by the business owner.
+                  </p>
+                  <Button
+                    onClick={() => setIsClaimModalOpen(true)}
+                    variant="link"
+                    size="sm"
+                    className="p-0 h-auto text-xs text-emerald-600 font-semibold"
+                  >
+                    Claim this business to set weekly hours &rarr;
+                  </Button>
                 </CardContent>
               </Card>
             ) : !business.isLive ? (
@@ -677,6 +782,31 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                   </div>
                 </CardContent>
               </Card>
+            ) : business.isUnclaimed ? (
+              <Card className="border border-dashed border-emerald-500/40 bg-muted/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
+                    <Store className="h-4 w-4 text-emerald-500" />
+                    Town &amp; Area
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 text-xs text-muted-foreground space-y-2">
+                  <p className="font-semibold text-foreground text-sm">
+                    {business.primaryCommunityName || business.city || 'Local Community'}
+                    {business.postcode ? ` (${business.postcode})` : ''}
+                  </p>
+                  <p className="italic text-[11px]">
+                    Direct phone and contact links will appear once claimed by the business owner.
+                  </p>
+                  <Button
+                    onClick={() => setIsClaimModalOpen(true)}
+                    size="sm"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs mt-1"
+                  >
+                    Claim &bull; Add Official Contact
+                  </Button>
+                </CardContent>
+              </Card>
             ) : (
               <Card className="border border-dashed border-amber-500/40 bg-muted/20">
                 <CardHeader className="pb-2">
@@ -730,6 +860,14 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
           </div>
 
           <div className="flex items-center gap-4">
+            {business.isUnclaimed && (
+              <button
+                onClick={() => setIsClaimModalOpen(true)}
+                className="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline"
+              >
+                Claim This Listing
+              </button>
+            )}
             <Link href="/public-directory" className="hover:underline">
               Public Directory
             </Link>
@@ -742,6 +880,121 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
           </div>
         </div>
       </footer>
+
+      {/* Claim Business Modal */}
+      <Dialog open={isClaimModalOpen} onOpenChange={setIsClaimModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Store className="h-5 w-5 text-emerald-600" />
+              Claim {business.businessName}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Take ownership of this business profile in <strong>{business.primaryCommunityName || business.city || 'your community'}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!user ? (
+            <div className="space-y-4 py-3">
+              <div className="p-4 rounded-xl border bg-muted/40 text-xs text-muted-foreground space-y-2">
+                <p>
+                  To protect business owners from unauthorized claims, you must be signed in with an authorized account.
+                </p>
+                <p className="font-medium text-foreground">
+                  Create a free business account or sign in to verify your ownership.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 pt-2">
+                <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                  <Link href={`/?redirect=/public-directory/${business.id}`}>
+                    Sign In to Claim Listing
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full font-semibold">
+                  <Link href={`/signup/business?redirect=/public-directory/${business.id}`}>
+                    Register Free Business Account
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleClaimSubmit} className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="claim-name" className="text-xs font-semibold">Your Full Name</Label>
+                <Input
+                  id="claim-name"
+                  value={claimName}
+                  onChange={(e) => setClaimName(e.target.value)}
+                  placeholder="e.g. John MacDonald"
+                  required
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="claim-email" className="text-xs font-semibold">Business / Contact Email</Label>
+                <Input
+                  id="claim-email"
+                  type="email"
+                  value={claimEmail}
+                  onChange={(e) => setClaimEmail(e.target.value)}
+                  placeholder="e.g. owner@business.co.uk"
+                  required
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="claim-phone" className="text-xs font-semibold">Contact Phone Number</Label>
+                <Input
+                  id="claim-phone"
+                  type="tel"
+                  value={claimPhone}
+                  onChange={(e) => setClaimPhone(e.target.value)}
+                  placeholder="e.g. 01479 000000"
+                  required
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="claim-role" className="text-xs font-semibold">Your Relationship to this Business</Label>
+                <select
+                  id="claim-role"
+                  value={claimRole}
+                  onChange={(e) => setClaimRole(e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                  required
+                >
+                  <option value="Business Owner">Business Owner</option>
+                  <option value="General Manager">General Manager / Director</option>
+                  <option value="Authorized Representative">Authorized Marketing / PR Representative</option>
+                </select>
+              </div>
+
+              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
+                <div className="font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  Includes Instant 14-Day Free Live Trial
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-normal">
+                  Your listing will be instantly activated. You can edit your opening hours, upload photos, and update contact info immediately.
+                </p>
+              </div>
+
+              <DialogFooter className="pt-2 gap-2 sm:gap-0">
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsClaimModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" disabled={isClaiming} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+                  {isClaiming ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <UserCheck className="mr-1.5 h-3.5 w-3.5" />}
+                  Confirm Ownership &amp; Activate
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

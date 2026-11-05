@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getPublicBusinessesAction } from '@/lib/actions/publicDirectoryActions';
+import { getPublicBusinessesAction, getDirectoryCommunitiesAction } from '@/lib/actions/publicDirectoryActions';
 import { PublicDirectoryView } from '@/components/public-directory/public-directory-view';
 
 export const dynamic = 'force-dynamic';
@@ -40,7 +40,10 @@ export const metadata: Metadata = {
 };
 
 export default async function PublicDirectoryPage() {
-  const businesses = await getPublicBusinessesAction();
+  const [businesses, communitiesList] = await Promise.all([
+    getPublicBusinessesAction(),
+    getDirectoryCommunitiesAction(),
+  ]);
 
   const directorySchema = {
     '@context': 'https://schema.org',
@@ -92,7 +95,7 @@ export default async function PublicDirectoryPage() {
           position: index + 1,
           name: b.businessName,
           url: `https://my-community-hub.co.uk/public-directory/${b.id}`,
-          description: b.shortDescription || `${b.businessCategory} in ${b.primaryCommunityName || 'Local Community'}`,
+          description: b.shortDescription || `${b.businessCategory} in ${b.primaryCommunityName || 'Local Community'}${b.postcode ? ', ' + b.postcode : ''}`,
         })),
       },
     ],
@@ -104,7 +107,7 @@ export default async function PublicDirectoryPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(directorySchema) }}
       />
-      <PublicDirectoryView businesses={businesses} />
+      <PublicDirectoryView businesses={businesses} communitiesList={communitiesList} />
     </>
   );
 }
