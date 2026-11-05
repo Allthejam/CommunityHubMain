@@ -190,9 +190,32 @@ export function PublicDirectoryView({
   const [isSubmittingQuickAdd, setIsSubmittingQuickAdd] = React.useState(false);
   const [communitySearchQuery, setCommunitySearchQuery] = React.useState('');
   const [isCommunityDropdownOpen, setIsCommunityDropdownOpen] = React.useState(false);
+  const [newBizMetaTitle, setNewBizMetaTitle] = React.useState('');
+  const [newBizMetaDescription, setNewBizMetaDescription] = React.useState('');
+  const [newBizImageAlt, setNewBizImageAlt] = React.useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const communityInputRef = React.useRef<HTMLInputElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Dynamically compute high-impact SEO defaults as user types core fields
+  const computedSuggestedSeo = React.useMemo(() => {
+    const name = newBizName.trim() || 'Speyside Business';
+    const cat = newBizCategory.trim() || 'Local Business';
+    const comm = newBizCommunityName.trim() || 'Highlands';
+    const pc = newBizPostcode.trim() ? ` (${newBizPostcode.trim().toUpperCase()})` : '';
+    const pcRaw = newBizPostcode.trim().toUpperCase();
+
+    const title = `${name} | ${cat} in ${comm}${pc}`;
+    const desc = `Discover ${name}, independent ${cat} based in ${comm}${pc}. Find local opening details, community updates, and directory profile.`;
+    const alt = `${name} - ${cat} in ${comm}${pcRaw ? `, ${pcRaw}` : ''}, UK`;
+
+    return { title, desc, alt };
+  }, [newBizName, newBizCategory, newBizCommunityName, newBizPostcode]);
+
+  // Active SEO values (custom if entered, otherwise auto-computed)
+  const activeMetaTitle = newBizMetaTitle.trim() || computedSuggestedSeo.title;
+  const activeMetaDescription = newBizMetaDescription.trim() || computedSuggestedSeo.desc;
+  const activeImageAlt = newBizImageAlt.trim() || computedSuggestedSeo.alt;
 
   // Courier Visibility Rule:
   // Couriers are strictly localized to their community and ONLY visible to logged-in residents of that community.
@@ -329,6 +352,9 @@ export function PublicDirectoryView({
       }
       setCommunitySearchQuery('');
       setIsCommunityDropdownOpen(false);
+      setNewBizMetaTitle('');
+      setNewBizMetaDescription('');
+      setNewBizImageAlt('');
       setIsQuickAddOpen(true);
     },
     [selectedCommunity, allAvailableCommunities]
@@ -432,6 +458,10 @@ export function PublicDirectoryView({
         communityName: newBizCommunityName.trim(),
         postcode: newBizPostcode.trim().toUpperCase(),
         coverImage: coverToUse,
+        metaTitle: activeMetaTitle,
+        metaDescription: activeMetaDescription,
+        shortDescription: activeMetaDescription,
+        imageAlt: activeImageAlt,
       });
 
       if (res.success && res.businessId) {
@@ -445,6 +475,9 @@ export function PublicDirectoryView({
         setNewBizCoverImage('');
         setNewBizCommunityName('');
         setNewBizCommunityId('');
+        setNewBizMetaTitle('');
+        setNewBizMetaDescription('');
+        setNewBizImageAlt('');
         setCommunitySearchQuery('');
         setIsCommunityDropdownOpen(false);
         router.refresh();
@@ -1003,7 +1036,10 @@ export function PublicDirectoryView({
                           {b.logoImage ? (
                             <Image
                               src={b.logoImage}
-                              alt={`${b.businessName} - ${b.businessCategory || 'Local Business'} in ${b.primaryCommunityName || b.city || 'Local Community'}, UK`}
+                              alt={
+                                b.imageAlt ||
+                                `${b.businessName} - ${b.businessCategory || 'Local Business'} in ${b.primaryCommunityName || b.city || 'Local Community'}, UK`
+                              }
                               width={40}
                               height={40}
                               className={`object-cover w-full h-full ${!b.isLive ? 'grayscale-[30%]' : ''}`}
@@ -1186,7 +1222,10 @@ export function PublicDirectoryView({
                   {b.bannerImage ? (
                     <Image
                       src={b.bannerImage}
-                      alt={`${b.businessName} - ${b.businessCategory || 'Local Business'} in ${b.primaryCommunityName || b.city || 'Local Area'}, ${b.postcode ? b.postcode + ', ' : ''}UK`}
+                      alt={
+                        b.imageAlt ||
+                        `${b.businessName} - ${b.businessCategory || 'Local Business'} in ${b.primaryCommunityName || b.city || 'Local Area'}, ${b.postcode ? b.postcode + ', ' : ''}UK`
+                      }
                       fill
                       className={`object-cover ${b.isLive ? 'group-hover:scale-105' : 'grayscale-[40%]'} transition-transform duration-300`}
                     />
@@ -1882,25 +1921,162 @@ export function PublicDirectoryView({
                 <div className="relative h-28 w-full rounded-lg overflow-hidden border mt-2 bg-muted">
                   <Image
                     src={newBizCoverImage}
-                    alt={`${newBizName || 'Business'} in ${newBizCommunityName || 'Community'}`}
+                    alt={activeImageAlt}
                     fill
                     className="object-cover"
                   />
-                  <div className="absolute bottom-0 inset-x-0 bg-black/75 p-1.5 text-[10px] text-white/90 truncate flex items-center justify-between">
-                    <span className="truncate">
-                      <strong>SEO ALT Tag:</strong>{' '}
-                      {newBizName ? `${newBizName} - ${newBizCategory} in ${newBizCommunityName || 'Local Community'}, ${newBizPostcode || ''} UK` : 'Pending business name...'}
+                  <div className="absolute bottom-0 inset-x-0 bg-black/85 backdrop-blur-xs p-2 text-[10px] text-white/90 flex items-center justify-between">
+                    <span className="truncate pr-2">
+                      <strong className="text-emerald-400">Image ALT Tag:</strong> &ldquo;{activeImageAlt}&rdquo;
                     </span>
                     <button
                       type="button"
                       onClick={() => setNewBizCoverImage('')}
-                      className="ml-2 text-xs text-red-300 hover:text-red-100 shrink-0"
+                      className="text-xs text-red-300 hover:text-red-100 shrink-0 font-medium cursor-pointer"
                     >
                       Clear
                     </button>
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Field 6: SEO & Google Search Elements */}
+            <div className="rounded-xl border-2 border-emerald-500/25 bg-muted/20 p-3.5 sm:p-4 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <Globe className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                      SEO & Google Search Elements
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      Title tag, meta description, and image ALT tag for crawlers & search engines.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNewBizMetaTitle(computedSuggestedSeo.title);
+                    setNewBizMetaDescription(computedSuggestedSeo.desc);
+                    setNewBizImageAlt(computedSuggestedSeo.alt);
+                  }}
+                  className="h-7 text-[11px] border-emerald-500/30 hover:bg-emerald-500/10 font-medium"
+                  title="Auto-fill recommended SEO values based on business details"
+                >
+                  <Sparkles className="h-3 w-3 mr-1 text-emerald-600" />
+                  Auto-Fill SEO
+                </Button>
+              </div>
+
+              {/* Live Google Search Snippet Preview */}
+              <div className="bg-white dark:bg-zinc-900 border rounded-lg p-3 shadow-xs space-y-1 font-sans">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+                  <div className="w-3.5 h-3.5 rounded-full bg-emerald-600 flex items-center justify-center text-[8px] text-white font-bold">
+                    G
+                  </div>
+                  <span className="truncate text-[11px] text-emerald-700 dark:text-emerald-400">
+                    https://my-community-hub.co.uk &rsaquo; public-directory &rsaquo; {newBizName ? newBizName.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'business-name'}
+                  </span>
+                </div>
+
+                {/* Simulated Google Title */}
+                <h5 className="text-sm font-medium text-[#1a0dab] dark:text-[#8ab4f8] hover:underline cursor-pointer leading-snug line-clamp-1">
+                  {activeMetaTitle}
+                </h5>
+
+                {/* Simulated Google Description */}
+                <p className="text-xs text-[#4d5156] dark:text-[#bdc1c6] leading-relaxed line-clamp-2">
+                  {activeMetaDescription}
+                </p>
+
+                {/* Image ALT tag badge attached to Google result */}
+                <div className="pt-2 mt-1 flex items-center gap-2 border-t text-[11px]">
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1 shrink-0 text-[10px]">
+                    <ImageIcon className="h-3 w-3" />
+                    Cover Image ALT:
+                  </span>
+                  <span className="text-muted-foreground truncate italic font-mono text-[10px]">
+                    &ldquo;{activeImageAlt}&rdquo;
+                  </span>
+                  <Badge variant="outline" className="text-[9px] ml-auto shrink-0 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-medium">
+                    Google Images Ready
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Editable Fields: Title, Meta Description, Image ALT Tag */}
+              <div className="space-y-3 pt-0.5">
+                {/* 1. Page Title */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <Label htmlFor="biz-meta-title" className="font-semibold flex items-center gap-1">
+                      <span>1. Page Title (Title Tag)</span>
+                    </Label>
+                    <span className={`text-[10px] ${activeMetaTitle.length > 65 ? 'text-amber-500 font-bold' : 'text-muted-foreground'}`}>
+                      {activeMetaTitle.length}/60 chars
+                    </span>
+                  </div>
+                  <Input
+                    id="biz-meta-title"
+                    placeholder={computedSuggestedSeo.title}
+                    value={newBizMetaTitle}
+                    onChange={(e) => setNewBizMetaTitle(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Headline indexed by Google and shown in browser tabs and search engine cards.
+                  </p>
+                </div>
+
+                {/* 2. Meta Description */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <Label htmlFor="biz-meta-desc" className="font-semibold flex items-center gap-1">
+                      <span>2. Meta Description</span>
+                    </Label>
+                    <span className={`text-[10px] ${activeMetaDescription.length > 160 ? 'text-amber-500 font-bold' : 'text-muted-foreground'}`}>
+                      {activeMetaDescription.length}/160 chars
+                    </span>
+                  </div>
+                  <textarea
+                    id="biz-meta-desc"
+                    rows={2}
+                    placeholder={computedSuggestedSeo.desc}
+                    value={newBizMetaDescription}
+                    onChange={(e) => setNewBizMetaDescription(e.target.value)}
+                    className="w-full rounded-md border bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    The short snippet Google displays under your page title in search results.
+                  </p>
+                </div>
+
+                {/* 3. Cover Image ALT Tag */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <Label htmlFor="biz-image-alt" className="font-semibold flex items-center gap-1">
+                      <span>3. Cover Image ALT Tag</span>
+                      <span className="text-emerald-600 text-[10px] font-normal">(Google Images & Accessibility)</span>
+                    </Label>
+                  </div>
+                  <Input
+                    id="biz-image-alt"
+                    placeholder={computedSuggestedSeo.alt}
+                    value={newBizImageAlt}
+                    onChange={(e) => setNewBizImageAlt(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Describes your cover image to Google Image Search crawlers and vision-impaired screen readers.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Information Notice */}

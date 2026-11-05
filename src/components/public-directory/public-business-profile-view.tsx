@@ -178,7 +178,10 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
   ] as (typeof DAYS_OF_WEEK)[number];
 
   // Rich descriptive alt tags for Google Image Search
-  const imageAltDescription = `${business.businessName} - ${business.businessCategory} in ${business.primaryCommunityName || business.city || 'Local Community'}, UK`;
+  const imageAltDescription =
+    business.imageAlt ||
+    business.coverImageAlt ||
+    `${business.businessName} - ${business.businessCategory} in ${business.primaryCommunityName || business.city || 'Local Community'}, UK`;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-muted/20 to-background text-foreground flex flex-col">

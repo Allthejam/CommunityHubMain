@@ -11,6 +11,8 @@ export type PublicBusinessSummary = {
   shortDescription: string;
   logoImage?: string | null;
   bannerImage?: string | null;
+  imageAlt?: string | null;
+  coverImageAlt?: string | null;
   primaryCommunityName?: string | null;
   primaryCommunityId?: string | null;
   country?: string | null;
@@ -41,6 +43,8 @@ export type PublicBusinessDetail = PublicBusinessSummary & {
   socialMedia?: string | null;
   metaTitle?: string | null;
   metaDescription?: string | null;
+  imageAlt?: string | null;
+  coverImageAlt?: string | null;
   isUnclaimed?: boolean;
   isPlatformCreated?: boolean;
 };
@@ -228,6 +232,8 @@ function normalizeBusinessDoc(
     pageThreeContent: data.pageThreeContent || '',
     logoImage: data.logoImage || null,
     bannerImage: data.bannerImage || null,
+    imageAlt: data.imageAlt || data.coverImageAlt || null,
+    coverImageAlt: data.coverImageAlt || data.imageAlt || null,
     primaryCommunityName: commName || primaryAddress?.city || data.city || null,
     primaryCommunityId: data.primaryCommunityId || data.communityId || null,
     country: data.country || 'United Kingdom',
@@ -517,8 +523,11 @@ export async function createPlatformUnclaimedBusinessAction(params: {
   postcode: string;
   coverImage?: string | null;
   shortDescription?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  imageAlt?: string;
 }): Promise<{ success: boolean; businessId?: string; error?: string }> {
-  const { businessName, businessCategory, communityId, communityName, postcode, coverImage, shortDescription } = params;
+  const { businessName, businessCategory, communityId, communityName, postcode, coverImage, shortDescription, metaTitle, metaDescription, imageAlt } = params;
 
   if (!businessName?.trim()) {
     return { success: false, error: 'Business name is required.' };
@@ -538,7 +547,9 @@ export async function createPlatformUnclaimedBusinessAction(params: {
     const cleanCommName = communityName.trim();
     const cleanPostcode = postcode.trim().toUpperCase();
     const cleanName = businessName.trim();
-    const cleanDesc = shortDescription?.trim() || `Independent local ${businessCategory} serving ${cleanCommName} and nearby communities.`;
+    const cleanMetaTitle = metaTitle?.trim() || `${cleanName} | ${businessCategory.trim()} in ${cleanCommName} (${cleanPostcode})`;
+    const cleanMetaDesc = metaDescription?.trim() || shortDescription?.trim() || `Discover ${cleanName}, independent ${businessCategory.trim()} in ${cleanCommName} (${cleanPostcode}). View community directory profile.`;
+    const cleanImageAlt = imageAlt?.trim() || `${cleanName} - ${businessCategory.trim()} in ${cleanCommName}, ${cleanPostcode}`;
 
     const isAccommodation = ['hotel', 'b&b', 'stay', 'accommodation', 'campsite', 'motel', 'inn'].some((m) =>
       businessCategory.toLowerCase().includes(m)
@@ -564,8 +575,12 @@ export async function createPlatformUnclaimedBusinessAction(params: {
       ],
       bannerImage: coverImage?.trim() || null,
       logoImage: coverImage?.trim() || null,
-      shortDescription: cleanDesc,
-      description: cleanDesc,
+      imageAlt: cleanImageAlt,
+      coverImageAlt: cleanImageAlt,
+      shortDescription: cleanMetaDesc,
+      description: cleanMetaDesc,
+      metaTitle: cleanMetaTitle,
+      metaDescription: cleanMetaDesc,
       status: 'Approved',
       isPublicDirectoryEnabled: true,
       isPlatformCreated: true,
