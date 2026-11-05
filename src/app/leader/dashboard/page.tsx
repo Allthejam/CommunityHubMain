@@ -133,6 +133,11 @@ export default function LeaderDashboardPage() {
                                 <Navigation className="mr-1.5 h-3.5 w-3.5 text-sky-600" /> Travel Guide
                             </Link>
                         </Button>
+                        <Button asChild size="sm" variant="outline" className="font-semibold text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20">
+                            <Link href="/public-directory">
+                                <Store className="mr-1.5 h-3.5 w-3.5 text-emerald-600" /> Public Directory (+ Seed)
+                            </Link>
+                        </Button>
                     </div>
                 </div>
 

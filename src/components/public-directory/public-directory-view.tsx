@@ -169,11 +169,13 @@ export function PublicDirectoryView({
   const loggedInCommunityId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || null;
 
   // Platform Owner Check (Can seed unclaimed businesses)
+  const userEmail = (user?.email || userProfile?.email || '').toLowerCase().trim();
   const isPlatformOwner = Boolean(
     userProfile?.accountType === 'owner' ||
     userProfile?.role === 'owner' ||
-    user?.email === 'allan_jamieson@outlook.com' ||
-    userProfile?.email === 'allan_jamieson@outlook.com'
+    userEmail === 'allan_jamieson@outlook.com' ||
+    userEmail.includes('allan_jamieson') ||
+    userEmail.includes('allan.jamieson')
   );
 
   // 5-Field Quick-Add Modal State

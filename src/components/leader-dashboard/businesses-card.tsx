@@ -81,11 +81,17 @@ export function BusinessesCard({ communityId: propCommunityId }: { communityId?:
                     </div>
                 )}
             </CardContent>
-            <CardFooter className="pt-0">
+            <CardFooter className="pt-0 flex flex-col gap-1.5">
                 <Button asChild size="sm" variant="outline" className="w-full text-xs font-semibold border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-800 dark:text-amber-200 justify-between">
                     <Link href={`${demoPrefix}/leader/businesses`}>
                         <span>Directory & Subscriptions</span>
                         <ChevronRight className="h-3.5 w-3.5" />
+                    </Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost" className="w-full text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 justify-between h-7 px-2">
+                    <Link href="/public-directory">
+                        <span className="flex items-center gap-1.5"><Store className="h-3 w-3" /> Public Directory (+ Seed)</span>
+                        <ChevronRight className="h-3 w-3" />
                     </Link>
                 </Button>
             </CardFooter>

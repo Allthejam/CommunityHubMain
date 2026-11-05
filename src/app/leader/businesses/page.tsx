@@ -18,6 +18,9 @@ import {
     CreditCard,
     EyeOff,
     HelpCircle,
+    PlusCircle,
+    Store,
+    ExternalLink,
 } from "lucide-react"
 import { collection, query, where, onSnapshot, getDocs } from "firebase/firestore";
 
@@ -332,14 +335,24 @@ function LeaderBusinessesContent() {
     return (
       <>
         <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2">
-                    <Building2 className="h-8 w-8" />
-                    Manage Businesses
-                </h1>
-                <p className="text-muted-foreground">
-                    Approve, decline, and manage business listings for your community.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2">
+                        <Building2 className="h-8 w-8" />
+                        Manage Businesses
+                    </h1>
+                    <p className="text-muted-foreground">
+                        Approve, decline, and manage business listings for your community.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm shadow-xs">
+                        <Link href="/public-directory">
+                            <PlusCircle className="mr-1.5 h-4 w-4" />
+                            + Quick-Add Business (Platform Seed)
+                        </Link>
+                    </Button>
+                </div>
             </div>
              {!isStripeConnected && sortedAndFilteredBusinesses.some(b => b.status === 'Pending Approval') && (
                 <Alert variant="destructive">
