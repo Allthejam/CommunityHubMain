@@ -249,7 +249,8 @@ export default function LeaderHeader() {
     if (!userProfile) return [];
 
     const impersonating = (userProfile as any)?.impersonating;
-    const activeCommunityId = impersonating?.communityId || userProfile.communityId;
+    const visitedId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
+    const activeCommunityId = impersonating?.communityId || visitedId || userProfile.communityId;
     const communityRoleData = activeCommunityId ? userProfile.communityRoles?.[activeCommunityId] : null;
 
     const permissions = communityRoleData?.permissions || userProfile.permissions || {};

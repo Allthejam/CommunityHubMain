@@ -47,13 +47,15 @@ export default function LeaderDashboardPage() {
     const impersonating = (userProfile as any)?.impersonating;
     const isDemo = typeof window !== 'undefined' && (sessionStorage.getItem('isDemoMode') === 'true' || window.location.pathname.startsWith('/demo'));
     const demoPrefix = isDemo ? '/demo' : '';
-    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (impersonating?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
+    const visitedCommunityId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
+    const visitedCommunityName = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityName') : null;
+    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (impersonating?.communityId || visitedCommunityId || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX');
     
     // Query the actual community doc in Firestore so any database edits update immediately
     const communityRef = useMemoFirebase(() => (communityId && db ? doc(db, 'communities', communityId) : null), [communityId, db]);
     const { data: communityData } = useDoc<any>(communityRef);
 
-    const communityName = impersonating?.communityName || communityData?.name || userProfile?.primaryHomeCommunityName || userProfile?.homeCommunityName || userProfile?.communityName || 'Community Hub';
+    const communityName = impersonating?.communityName || communityData?.name || (visitedCommunityId ? visitedCommunityName : null) || userProfile?.primaryHomeCommunityName || userProfile?.homeCommunityName || userProfile?.communityName || 'Community Hub';
     const communityRoleData = communityId ? userProfile?.communityRoles?.[communityId] : null;
 
     const permissions = communityRoleData?.permissions || userProfile?.permissions || {};
@@ -141,14 +143,14 @@ export default function LeaderDashboardPage() {
             {/* Dashboard Cards Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {hasAccess('viewDashboard') && <ActivityChart communityId={communityId} />}
-                <EmergencyPlanCard />
-                {hasAccess('viewUsers') && <MembersCard />}
-                {hasAccess('viewBusinesses') && <BusinessesCard />}
-                {hasAccess('viewEvents') && <EventsCard />}
-                {hasAccess('viewWhatson') && <WhatsonCard />}
-                {hasAccess('viewNewsManagement') && <NewsCard />}
-                {hasAccess('viewReports') && <ReportsCard />}
-                {hasAccess('viewNotifications') && <NotificationsCard />}
+                <EmergencyPlanCard communityId={communityId} />
+                {hasAccess('viewUsers') && <MembersCard communityId={communityId} />}
+                {hasAccess('viewBusinesses') && <BusinessesCard communityId={communityId} />}
+                {hasAccess('viewEvents') && <EventsCard communityId={communityId} />}
+                {hasAccess('viewWhatson') && <WhatsonCard communityId={communityId} />}
+                {hasAccess('viewNewsManagement') && <NewsCard communityId={communityId} />}
+                {hasAccess('viewReports') && <ReportsCard communityId={communityId} />}
+                {hasAccess('viewNotifications') && <NotificationsCard communityId={communityId} />}
             </div>
         </div>
     );

@@ -617,7 +617,8 @@ export default function LeaderEmergencyPlanPage() {
   const activeCommunityId = useMemo(() => {
     if (!userProfile) return null;
     const impersonating = (userProfile as any)?.impersonating;
-    return impersonating?.communityId || userProfile?.communityId || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || 'N3SarfGXPLxBI7XcsinX';
+    const visitedId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
+    return impersonating?.communityId || visitedId || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX';
   }, [userProfile]);
 
   // Real-time Community Doc for ownership check

@@ -10,7 +10,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@
 import { collection, query, where, doc, Timestamp } from "firebase/firestore";
 import { subDays } from "date-fns";
 
-export function MembersCard() {
+export function MembersCard({ communityId: propCommunityId }: { communityId?: string } = {}) {
     const { user } = useUser();
     const db = useFirestore();
 
@@ -18,7 +18,8 @@ export function MembersCard() {
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
     const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
     const demoPrefix = isDemo ? '/demo' : '';
-    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (userProfile?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || 'N3SarfGXPLxBI7XcsinX');
+    const visitedId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
+    const communityId = propCommunityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : (visitedId || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX'));
 
     const membersQuery = useMemoFirebase(() => {
         if (!communityId || !db) return null;
@@ -33,7 +34,8 @@ export function MembersCard() {
         if (!members || !communityId) return [];
         return members.filter(member => 
             member.homeCommunityId === communityId || 
-            (member.communityRoles && member.communityRoles[communityId])
+            (member.communityRoles && member.communityRoles[communityId]) ||
+            (member.memberOf && Array.isArray(member.memberOf) && member.memberOf.includes(communityId))
         );
     }, [members, communityId]);
 

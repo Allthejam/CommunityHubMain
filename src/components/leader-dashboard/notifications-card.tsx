@@ -10,7 +10,7 @@ import { Badge } from "../ui/badge";
 import Link from 'next/link';
 import { type Notification } from "@/lib/types/notifications";
 
-export function NotificationsCard() {
+export function NotificationsCard({ communityId }: { communityId?: string } = {}) {
     const { user, isUserLoading } = useUser();
     const db = useFirestore();
 

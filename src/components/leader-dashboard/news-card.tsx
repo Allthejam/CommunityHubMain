@@ -15,7 +15,7 @@ type NewsStory = {
     author: string;
 }
 
-export function NewsCard() {
+export function NewsCard({ communityId: propCommunityId }: { communityId?: string } = {}) {
     const { user } = useUser();
     const db = useFirestore();
 
@@ -23,7 +23,8 @@ export function NewsCard() {
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
     const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo');
     const demoPrefix = isDemo ? '/demo' : '';
-    const communityId = isDemo ? '9ayHMyZf4SRw2gof1AM9' : (userProfile?.communityId || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || 'N3SarfGXPLxBI7XcsinX');
+    const visitedId = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
+    const communityId = propCommunityId || (isDemo ? '9ayHMyZf4SRw2gof1AM9' : (visitedId || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX'));
 
     const newsQuery = useMemoFirebase(() => {
         if (!communityId || !db) return null;
