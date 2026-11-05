@@ -13,6 +13,59 @@ interface PageProps {
   params: Promise<{ businessId: string }>;
 }
 
+function getSpecificSchemaType(business: any): string {
+  if (business.isAccommodation) return 'LodgingBusiness';
+  const cat = (business.businessCategory || '').toLowerCase();
+  if (cat.includes('hotel') || cat.includes('b&b') || cat.includes('motel') || cat.includes('stay') || cat.includes('inn') || cat.includes('campsite')) return 'LodgingBusiness';
+  if (cat.includes('restaurant')) return 'Restaurant';
+  if (cat.includes('cafe') || cat.includes('coffee')) return 'CafeOrCoffeeShop';
+  if (cat.includes('bakery') || cat.includes('baker')) return 'Bakery';
+  if (cat.includes('bar') || cat.includes('pub')) return 'BarOrPub';
+  if (cat.includes('food') || cat.includes('bistro') || cat.includes('dining')) return 'FoodEstablishment';
+  if (cat.includes('hair') || cat.includes('beauty') || cat.includes('salon') || cat.includes('spa') || cat.includes('barber')) return 'HealthAndBeautyBusiness';
+  if (cat.includes('gym') || cat.includes('fitness')) return 'HealthClub';
+  if (cat.includes('medical') || cat.includes('dentist') || cat.includes('health') || cat.includes('therapy') || cat.includes('clinic')) return 'MedicalBusiness';
+  if (cat.includes('car') || cat.includes('motor') || cat.includes('garage') || cat.includes('auto')) return 'AutomotiveBusiness';
+  if (cat.includes('plumb') || cat.includes('electric') || cat.includes('roof') || cat.includes('build') || cat.includes('joiner') || cat.includes('trade')) return 'HomeAndConstructionBusiness';
+  if (cat.includes('legal') || cat.includes('solicitor') || cat.includes('law')) return 'LegalService';
+  if (cat.includes('accountant') || cat.includes('finance') || cat.includes('financial')) return 'FinancialService';
+  if (cat.includes('pet') || cat.includes('vet')) return 'VeterinaryCare';
+  if (cat.includes('shop') || cat.includes('store') || cat.includes('retail') || cat.includes('book') || cat.includes('clothing') || cat.includes('florist')) return 'Store';
+  return 'LocalBusiness';
+}
+
+function getSchemaOpeningHours(openingHours: any): any[] {
+  if (!openingHours || typeof openingHours !== 'object') return [];
+  const specs: any[] = [];
+  const daysMap: Record<string, string> = {
+    monday: 'https://schema.org/Monday',
+    tuesday: 'https://schema.org/Tuesday',
+    wednesday: 'https://schema.org/Wednesday',
+    thursday: 'https://schema.org/Thursday',
+    friday: 'https://schema.org/Friday',
+    saturday: 'https://schema.org/Saturday',
+    sunday: 'https://schema.org/Sunday',
+  };
+
+  for (const [dayKey, dayUrl] of Object.entries(daysMap)) {
+    const dayData = openingHours[dayKey];
+    if (!dayData || dayData.closed) continue;
+
+    const open = dayData.morningOpen || dayData.open;
+    const close = dayData.afternoonClose || dayData.afternoonOpen || dayData.close;
+    if (open && close) {
+      specs.push({
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: dayUrl,
+        opens: open,
+        closes: close,
+      });
+    }
+  }
+
+  return specs;
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { businessId } = await params;
   const business = await getPublicBusinessByIdAction(businessId);
@@ -38,6 +91,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
+    keywords: [
+      business.businessName,
+      business.businessCategory,
+      business.primaryCommunityName || '',
+      business.city || '',
+      'local business',
+      'community hub directory',
+      'verified local partner',
+      'uk community',
+    ].filter(Boolean),
     alternates: {
       canonical: canonicalUrl,
     },
@@ -46,6 +109,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       url: canonicalUrl,
       siteName: 'Community Hub',
+      locale: 'en_GB',
       type: 'profile',
       images: business.bannerImage || business.logoImage ? [{ url: (business.bannerImage || business.logoImage)! }] : undefined,
     },
@@ -82,28 +146,76 @@ export default async function PublicBusinessDetailPage({ params }: PageProps) {
     );
   }
 
-  // Generate Google Schema.org LocalBusiness JSON-LD
+  // Generate Google Schema.org LocalBusiness & BreadcrumbList JSON-LD
   const primaryAddress = business.addresses?.[0];
-  const schemaType = business.isAccommodation ? 'LodgingBusiness' : 'LocalBusiness';
+  const schemaType = getSpecificSchemaType(business);
+  const openingHoursSpecs = business.isLive ? getSchemaOpeningHours(business.openingHours) : [];
+  const canonicalUrl = `https://my-community-hub.co.uk/public-directory/${business.id}`;
+  const communityName = business.primaryCommunityName || business.city || 'Local Community';
+
+  const socialLinks = [business.website, business.socialMedia].filter(Boolean) as string[];
 
   const schemaData = {
     '@context': 'https://schema.org',
-    '@type': schemaType,
-    name: business.businessName,
-    description: business.shortDescription || business.metaDescription,
-    url: `https://my-community-hub.co.uk/public-directory/${business.id}`,
-    telephone: business.phone || undefined,
-    email: business.contactEmail || undefined,
-    image: business.bannerImage || business.logoImage || undefined,
-    address: primaryAddress
-      ? {
-          '@type': 'PostalAddress',
-          streetAddress: primaryAddress.addressLine1,
-          addressLocality: primaryAddress.city || business.city || business.primaryCommunityName,
-          postalCode: primaryAddress.postcode || business.postcode,
-          addressCountry: 'GB',
-        }
-      : undefined,
+    '@graph': [
+      {
+        '@type': schemaType,
+        '@id': `${canonicalUrl}#business`,
+        name: business.businessName,
+        description: business.shortDescription || business.metaDescription || `${business.businessCategory} located in ${communityName}`,
+        url: canonicalUrl,
+        telephone: business.isLive ? (business.phone || undefined) : undefined,
+        email: business.isLive ? (business.contactEmail || undefined) : undefined,
+        image: business.bannerImage || business.logoImage || undefined,
+        priceRange: '££',
+        currenciesAccepted: 'GBP',
+        areaServed: {
+          '@type': 'AdministrativeArea',
+          name: communityName,
+        },
+        sameAs: socialLinks.length > 0 ? socialLinks : undefined,
+        address: primaryAddress
+          ? {
+              '@type': 'PostalAddress',
+              streetAddress: primaryAddress.addressLine1,
+              addressLocality: primaryAddress.city || business.city || communityName,
+              postalCode: primaryAddress.postcode || business.postcode,
+              addressCountry: 'GB',
+            }
+          : undefined,
+        openingHoursSpecification: openingHoursSpecs.length > 0 ? openingHoursSpecs : undefined,
+      },
+      {
+        '@type': 'BreadcrumbList',
+        '@id': `${canonicalUrl}#breadcrumbs`,
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: 'https://my-community-hub.co.uk',
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Public Directory',
+            item: 'https://my-community-hub.co.uk/public-directory',
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: communityName,
+            item: 'https://my-community-hub.co.uk/public-directory',
+          },
+          {
+            '@type': 'ListItem',
+            position: 4,
+            name: business.businessName,
+            item: canonicalUrl,
+          },
+        ],
+      },
+    ],
   };
 
   return (

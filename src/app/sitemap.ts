@@ -45,9 +45,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const businesses = await getPublicBusinessesAction();
     const businessRoutes: MetadataRoute.Sitemap = businesses.map((b) => ({
       url: `${baseUrl}/public-directory/${b.id}`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.8,
+      lastModified: b.createdAt ? new Date(b.createdAt) : new Date(),
+      changeFrequency: (b.isLive ? 'daily' : 'weekly') as const,
+      priority: b.isLive ? 0.8 : 0.6,
     }));
 
     return [...routes, ...businessRoutes];
