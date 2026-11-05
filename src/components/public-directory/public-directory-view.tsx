@@ -188,7 +188,11 @@ export function PublicDirectoryView({
   const [newBizCoverImage, setNewBizCoverImage] = React.useState('');
   const [isUploadingCover, setIsUploadingCover] = React.useState(false);
   const [isSubmittingQuickAdd, setIsSubmittingQuickAdd] = React.useState(false);
+  const [communitySearchQuery, setCommunitySearchQuery] = React.useState('');
+  const [isCommunityDropdownOpen, setIsCommunityDropdownOpen] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const communityInputRef = React.useRef<HTMLInputElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   // Courier Visibility Rule:
   // Couriers are strictly localized to their community and ONLY visible to logged-in residents of that community.
@@ -288,6 +292,47 @@ export function PublicDirectoryView({
     });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [communitiesList, communities]);
+
+  // Filtered communities based on user typing in the Quick-Add modal
+  const filteredAvailableCommunities = React.useMemo(() => {
+    if (!communitySearchQuery.trim()) return allAvailableCommunities;
+    const q = communitySearchQuery.toLowerCase().trim();
+    return allAvailableCommunities.filter((c) => c.name.toLowerCase().includes(q));
+  }, [allAvailableCommunities, communitySearchQuery]);
+
+  // Close dropdown on click outside
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        communityInputRef.current &&
+        !communityInputRef.current.contains(e.target as Node)
+      ) {
+        setIsCommunityDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Helper to open Quick-Add modal with smart pre-population
+  const openQuickAddModal = React.useCallback(
+    (defaultComm?: string) => {
+      const targetComm = defaultComm || (selectedCommunity !== 'all' ? selectedCommunity : '');
+      if (targetComm) {
+        setNewBizCommunityName(targetComm);
+        const found = allAvailableCommunities.find(
+          (c) => c.name.toLowerCase() === targetComm.toLowerCase().trim()
+        );
+        if (found?.id) setNewBizCommunityId(found.id);
+      }
+      setCommunitySearchQuery('');
+      setIsCommunityDropdownOpen(false);
+      setIsQuickAddOpen(true);
+    },
+    [selectedCommunity, allAvailableCommunities]
+  );
 
   // File upload handler for Quick-Add Cover Image
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -398,6 +443,10 @@ export function PublicDirectoryView({
         setNewBizName('');
         setNewBizPostcode('');
         setNewBizCoverImage('');
+        setNewBizCommunityName('');
+        setNewBizCommunityId('');
+        setCommunitySearchQuery('');
+        setIsCommunityDropdownOpen(false);
         router.refresh();
       } else {
         toast({
@@ -607,7 +656,7 @@ export function PublicDirectoryView({
             {isPlatformOwner && (
               <Button
                 size="sm"
-                onClick={() => setIsQuickAddOpen(true)}
+                onClick={() => openQuickAddModal()}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm"
               >
                 <PlusCircle className="h-4 w-4" />
@@ -763,7 +812,7 @@ export function PublicDirectoryView({
             {isPlatformOwner && (
               <Button
                 size="sm"
-                onClick={() => setIsQuickAddOpen(true)}
+                onClick={() => openQuickAddModal()}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs"
               >
                 <PlusCircle className="h-3.5 w-3.5" />
@@ -1550,31 +1599,178 @@ export function PublicDirectoryView({
               </select>
             </div>
 
-            {/* Field 3: Community / Town */}
+            {/* Field 3: Community / Town (Searchable Typeahead) */}
             <div className="space-y-1.5">
-              <Label htmlFor="biz-community" className="text-xs font-semibold flex items-center gap-1">
-                <span>3. Community / Town</span>
-                <span className="text-red-500">*</span>
+              <Label htmlFor="biz-community-search" className="text-xs font-semibold flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <span>3. Community / Town</span>
+                  <span className="text-red-500">*</span>
+                </span>
+                {newBizCommunityName && (
+                  <span className="text-[11px] text-emerald-600 font-normal">
+                    Selected
+                  </span>
+                )}
               </Label>
-              <select
-                id="biz-community"
-                value={newBizCommunityName}
-                onChange={(e) => {
-                  const commName = e.target.value;
-                  setNewBizCommunityName(commName);
-                  const found = allAvailableCommunities.find((c) => c.name === commName);
-                  if (found?.id) setNewBizCommunityId(found.id);
-                }}
-                required
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="">-- Choose Community / Town --</option>
-                {allAvailableCommunities.map((c) => (
-                  <option key={c.id || c.name} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+
+              <input type="hidden" name="bizCommunity" value={newBizCommunityName} required />
+
+              {newBizCommunityName ? (
+                /* Confirmed Selected Town Display */
+                <div className="flex items-center justify-between p-2.5 rounded-lg border-2 border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-950/20">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-8 w-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Check className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-muted-foreground font-medium leading-none">
+                        Community / Town
+                      </p>
+                      <p className="text-sm font-bold text-foreground truncate mt-0.5">
+                        {newBizCommunityName}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setNewBizCommunityName('');
+                      setNewBizCommunityId('');
+                      setCommunitySearchQuery('');
+                      setIsCommunityDropdownOpen(true);
+                      setTimeout(() => communityInputRef.current?.focus(), 50);
+                    }}
+                    className="h-8 px-2.5 text-xs border-emerald-500/40 hover:bg-emerald-500/15"
+                  >
+                    Change Town
+                  </Button>
+                </div>
+              ) : (
+                /* Searchable Typeahead Input & Results */
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      ref={communityInputRef}
+                      id="biz-community-search"
+                      type="text"
+                      placeholder="Start typing town name (e.g. Aviemore, Grantown, Carrbridge)..."
+                      value={communitySearchQuery}
+                      onChange={(e) => {
+                        setCommunitySearchQuery(e.target.value);
+                        setIsCommunityDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsCommunityDropdownOpen(true)}
+                      className="pl-9 pr-8 h-10 text-sm focus:ring-2 focus:ring-emerald-500"
+                      autoComplete="off"
+                    />
+                    {communitySearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCommunitySearchQuery('');
+                          communityInputRef.current?.focus();
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs p-1"
+                        title="Clear search"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filtered Dropdown List */}
+                  {isCommunityDropdownOpen && (
+                    <div
+                      ref={dropdownRef}
+                      className="rounded-lg border bg-popover text-popover-foreground shadow-md max-h-52 overflow-y-auto divide-y divide-border/50 text-sm animate-in fade-in-50 duration-150"
+                    >
+                      {filteredAvailableCommunities.length > 0 ? (
+                        filteredAvailableCommunities.map((c) => (
+                          <button
+                            key={c.id || c.name}
+                            type="button"
+                            onClick={() => {
+                              setNewBizCommunityName(c.name);
+                              if (c.id) setNewBizCommunityId(c.id);
+                              setIsCommunityDropdownOpen(false);
+                              setCommunitySearchQuery('');
+                            }}
+                            className="w-full text-left px-3.5 py-2 hover:bg-emerald-500/10 flex items-center justify-between transition-colors group cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <MapPin className="h-3.5 w-3.5 text-muted-foreground group-hover:text-emerald-600 shrink-0" />
+                              <span className="font-medium group-hover:text-emerald-700 dark:group-hover:text-emerald-300 truncate">
+                                {c.name}
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-muted-foreground group-hover:text-emerald-600 shrink-0 ml-2">
+                              Select &rarr;
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-3 text-center text-xs text-muted-foreground">
+                          No matching registered community found for &ldquo;{communitySearchQuery}&rdquo;
+                        </div>
+                      )}
+
+                      {/* Fallback Option to Use Typed Query as New Location */}
+                      {communitySearchQuery.trim().length > 1 &&
+                        !filteredAvailableCommunities.some(
+                          (c) => c.name.toLowerCase() === communitySearchQuery.trim().toLowerCase()
+                        ) && (
+                          <div className="p-2 bg-muted/40 border-t">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const customName = communitySearchQuery.trim();
+                                setNewBizCommunityName(customName);
+                                const slug = customName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                                setNewBizCommunityId(slug);
+                                setIsCommunityDropdownOpen(false);
+                                setCommunitySearchQuery('');
+                              }}
+                              className="w-full text-xs text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 justify-start h-8 font-medium cursor-pointer"
+                            >
+                              <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
+                              Use &ldquo;{communitySearchQuery.trim()}&rdquo; as new location
+                            </Button>
+                          </div>
+                        )}
+                    </div>
+                  )}
+
+                  {/* 1-Click Quick-Pick Chips when search query is empty */}
+                  {!communitySearchQuery && allAvailableCommunities.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      <p className="text-[11px] font-medium text-muted-foreground">
+                        Quick pick community:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                        {allAvailableCommunities.slice(0, 10).map((c) => (
+                          <button
+                            key={`quick-${c.id || c.name}`}
+                            type="button"
+                            onClick={() => {
+                              setNewBizCommunityName(c.name);
+                              if (c.id) setNewBizCommunityId(c.id);
+                              setIsCommunityDropdownOpen(false);
+                            }}
+                            className="text-[11px] px-2.5 py-0.5 rounded-full border bg-muted/60 hover:bg-emerald-500/10 hover:border-emerald-500/40 text-muted-foreground hover:text-emerald-700 transition-all cursor-pointer font-medium"
+                          >
+                            {c.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Field 4: Postcode */}
