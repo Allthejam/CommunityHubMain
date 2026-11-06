@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Auth, setPersistence, browserLocalPersistence, browserSessionPersistence, signInWithEmailAndPassword, sendEmailVerification, type User } from 'firebase/auth'
-import { Eye, EyeOff, Loader2, ArrowLeft, Megaphone, Info, Sparkles, Store } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ArrowLeft, Megaphone, Info, Sparkles, Store, Users, Briefcase, ShieldAlert, ArrowRight } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -216,7 +216,7 @@ export default function SignInPage() {
   const hasAnnouncements = loginAnnouncementsData && loginAnnouncementsData.length > 0;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-background via-muted/20 to-background p-4 py-8">
       <div className="w-full max-w-md space-y-6">
         <Card>
             <CardHeader className="items-center text-center">
@@ -368,6 +368,127 @@ export default function SignInPage() {
             </form>
         </Card>
       </div>
+
+      {/* Crawlable Public SEO Discovery Section */}
+      <section aria-label="About Community Hub" className="w-full max-w-3xl mx-auto mt-10 pt-8 border-t border-border/50 text-center space-y-6">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Hyperlocal Civic Network & Digital High Street</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+            Connecting Towns, Villages & Local High Streets Across the UK
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            Community Hub is an algorithm-free local platform bringing together residents, independent high street businesses, community councils, and regional authorities with complete data privacy and real-time civil emergency resilience.
+          </p>
+        </div>
+
+        {/* 4 Quick Discovery Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+          {/* Card 1: Public Business Directory */}
+          <Link
+            href="/public-directory"
+            className="group p-4 rounded-xl border bg-card/60 hover:bg-card hover:border-emerald-500/40 hover:shadow-md transition-all flex flex-col justify-between"
+          >
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
+                <Store className="h-4 w-4" />
+                <span>Public Business Directory</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Discover independent shops, local trades, dining, and stays across local communities with zero login required.
+              </p>
+            </div>
+            <div className="mt-3 flex items-center text-xs font-medium text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
+              <span>Browse Local Directory</span>
+              <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </div>
+          </Link>
+
+          {/* Card 2: Register a Local Business */}
+          <Link
+            href="/signup/business"
+            className="group p-4 rounded-xl border bg-card/60 hover:bg-card hover:border-emerald-500/40 hover:shadow-md transition-all flex flex-col justify-between"
+          >
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-primary font-semibold text-sm">
+                <Briefcase className="h-4 w-4" />
+                <span>Register a Local Business</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Open a digital storefront, post special offers, announce new products, and reach verified local customers.
+              </p>
+            </div>
+            <div className="mt-3 flex items-center text-xs font-medium text-primary group-hover:translate-x-0.5 transition-transform">
+              <span>Open Business Account</span>
+              <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </div>
+          </Link>
+
+          {/* Card 3: Free Resident Account */}
+          <Link
+            href="/signup/personal"
+            className="group p-4 rounded-xl border bg-card/60 hover:bg-card hover:border-emerald-500/40 hover:shadow-md transition-all flex flex-col justify-between"
+          >
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-teal-600 dark:text-teal-400 font-semibold text-sm">
+                <Users className="h-4 w-4" />
+                <span>Resident Personal Account</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Connect with neighbours, view parish events, join community discussions, and receive vital emergency alert beacons.
+              </p>
+            </div>
+            <div className="mt-3 flex items-center text-xs font-medium text-teal-600 dark:text-teal-400 group-hover:translate-x-0.5 transition-transform">
+              <span>Join as Resident</span>
+              <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </div>
+          </Link>
+
+          {/* Card 4: Community Leaders & Councils */}
+          <Link
+            href="/signup/leader"
+            className="group p-4 rounded-xl border bg-card/60 hover:bg-card hover:border-emerald-500/40 hover:shadow-md transition-all flex flex-col justify-between"
+          >
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-semibold text-sm">
+                <ShieldAlert className="h-4 w-4" />
+                <span>Community Councils & Leaders</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Lead your town hub, coordinate ISO 22301-aligned civil resilience playbooks, and earn a 40% revenue share.
+              </p>
+            </div>
+            <div className="mt-3 flex items-center text-xs font-medium text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform">
+              <span>Lead a Community</span>
+              <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </div>
+          </Link>
+        </div>
+
+        {/* Semantic Navigation Footer */}
+        <nav aria-label="Public Navigation" className="pt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground border-t">
+          <Link href="/public-directory" className="hover:text-emerald-600 transition-colors">
+            Public Directory
+          </Link>
+          <Link href="/showcase" className="hover:text-foreground transition-colors">
+            Interactive Showcase
+          </Link>
+          <Link href="/about" className="hover:text-foreground transition-colors">
+            About Platform
+          </Link>
+          <Link href="/signup/account-type" className="hover:text-foreground transition-colors font-medium text-primary">
+            All Account Types
+          </Link>
+          <Link href="/directory/advertise" className="hover:text-emerald-600 transition-colors">
+            Advertise With Us
+          </Link>
+          <Link href="/terms" className="hover:text-foreground transition-colors">
+            Terms & Privacy
+          </Link>
+        </nav>
+      </section>
     </div>
   )
 }

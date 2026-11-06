@@ -38,6 +38,49 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 0.6,
     },
+    // Registration & Account Types (Public & Searchable)
+    {
+      url: `${baseUrl}/signup/account-type`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/signup/business`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/signup/leader`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/signup/personal`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/signup/regional`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/signup/enterprise`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/signup/national`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
   ];
 
   // Dynamic public business listings
@@ -46,7 +89,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const businessRoutes: MetadataRoute.Sitemap = businesses.map((b) => ({
       url: `${baseUrl}/public-directory/${b.id}`,
       lastModified: b.createdAt ? new Date(b.createdAt) : new Date(),
-      changeFrequency: (b.isLive ? 'daily' : 'weekly') as const,
+      changeFrequency: b.isLive ? ('daily' as const) : ('weekly' as const),
       priority: b.isLive ? 0.8 : 0.6,
     }));
 
