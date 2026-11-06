@@ -11,9 +11,25 @@ import { OfflineIndicatorBanner } from '@/components/offline-indicator-banner'
 import Script from 'next/script'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://my-community-hub.co.uk'), // Replace with your actual domain
-  title: 'Community Hub',
-  description: 'Your community at your fingertips.',
+  metadataBase: new URL('https://my-community-hub.co.uk'),
+  title: {
+    default: 'Community Hub | Local Business Directory & Community Network',
+    template: '%s | Community Hub',
+  },
+  description:
+    'Browse verified independent local shops, services, trades, dining, and stays across UK communities. Access local business directories with no login required.',
+  keywords: [
+    'local business directory',
+    'community hub',
+    'find local businesses',
+    'independent shops',
+    'local trades',
+    'uk community directory',
+    'local services',
+  ],
+  alternates: {
+    canonical: 'https://my-community-hub.co.uk',
+  },
   icons: {
     icon: [
       { url: 'https://i.postimg.cc/63VmdRcZ/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
@@ -41,9 +57,10 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: 'Community Hub',
-    description: 'Your community at your fingertips.',
-    url: '/',
+    title: 'Community Hub | Local Business Directory & Community Network',
+    description:
+      'Browse verified independent local shops, services, trades, dining, and stays across UK communities. No login required.',
+    url: 'https://my-community-hub.co.uk',
     siteName: 'Community Hub',
     images: [
       {
@@ -58,8 +75,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Community Hub',
-    description: 'Your community at your fingertips.',
+    title: 'Community Hub | Local Business Directory & Community Network',
+    description:
+      'Browse verified independent local shops, services, trades, dining, and stays across UK communities. No login required.',
     images: ['https://i.postimg.cc/ydfsPkvz/Hublogo512x512.png'],
   },
 }
