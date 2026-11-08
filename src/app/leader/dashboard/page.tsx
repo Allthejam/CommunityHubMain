@@ -14,7 +14,8 @@ import {
     ChevronRight,
     MapPin,
     Navigation,
-    Tv
+    Tv,
+    Store
 } from "lucide-react";
 import { BusinessesCard } from "@/components/leader-dashboard/businesses-card";
 import { EventsCard } from "@/components/leader-dashboard/events-card";
