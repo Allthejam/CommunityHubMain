@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
     BookOpen, Star, Loader2, User, SlidersHorizontal, ArrowUpDown, Image as ImageIcon, X,
-    PenLine, Send, Camera, CheckCircle2, Sparkles, Plus,
+    PenLine, Send, Camera, CheckCircle2, Sparkles, Plus, Compass, MapPin,
 } from 'lucide-react';
 import { collection, query, where, getDocs, addDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { uploadImageAction } from '@/lib/actions/storageActions';
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
 
 // ─── Star picker ───────────────────────────────────────────────────────────────
 const StarPicker = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => {
@@ -248,35 +249,23 @@ export default function GuestBookPage() {
     const [hasSubmitted, setHasSubmitted] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(false);
 
-    // Determine community from session / user profile
-    const [communityId, setCommunityId] = useState<string | null>(null);
-    const [communityName, setCommunityName] = useState<string>('');
-
-    const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
-    const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
-
-    useEffect(() => {
-        if (profileLoading) return;
-        const visited = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
-        const id = visited || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || null;
-        const name = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityName') : null) || userProfile?.communityName || '';
-        setCommunityId(id);
-        setCommunityName(name);
-    }, [userProfile, profileLoading]);
+    // Determine community using unified hook
+    const { communityId, communityName, isVisiting, userProfile, isLoading: profileLoading } = useActiveCommunityId();
 
     const fetchEntries = useCallback(async () => {
         if (!communityId || !db) return;
         setLoading(true);
         try {
-            const q = query(
-                collection(db, 'communities', communityId, 'guestbook'),
-                where('status', 'in', ['Live', 'Approved', 'approved'])
-            );
+            const q = query(collection(db, 'communities', communityId, 'guestbook'));
             const snap = await getDocs(q);
-            setEntries(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+            const allDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            const visible = allDocs.filter((e: any) => 
+                ['Live', 'Approved', 'approved'].includes(e.status) || (user && e.authorId === user.uid)
+            );
+            setEntries(visible);
         } catch { setEntries([]); }
         finally { setLoading(false); }
-    }, [communityId, db]);
+    }, [communityId, db, user]);
 
     useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
@@ -337,6 +326,8 @@ export default function GuestBookPage() {
             const authorAvatar = userProfile?.avatar || user.photoURL || '';
 
             await addDoc(collection(db, 'communities', communityId, 'guestbook'), {
+                communityId,
+                communityName,
                 authorId: user.uid,
                 authorName,
                 authorAvatar,
@@ -344,6 +335,7 @@ export default function GuestBookPage() {
                 rating: newRating,
                 imageUrl,
                 isAnonymous,
+                isVisitor: isVisiting,
                 status: 'Pending',
                 createdAt: serverTimestamp(),
             });
@@ -430,10 +422,20 @@ export default function GuestBookPage() {
 
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                     <div className="space-y-3 max-w-2xl">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-background/80 backdrop-blur-md border border-amber-500/30 text-xs font-semibold text-amber-600 dark:text-amber-400 shadow-xs">
-                            <BookOpen className="h-3.5 w-3.5" />
-                            <span>Visitor Messages & Reviews</span>
-                        </div>
+                        {isVisiting ? (
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-xs font-bold text-amber-700 dark:text-amber-300 shadow-xs">
+                                <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-0 text-[10px] font-extrabold uppercase px-1.5 py-0 tracking-wider">
+                                    Visitor
+                                </Badge>
+                                <Compass className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                                <span>Visiting {communityName} Guestbook</span>
+                            </div>
+                        ) : (
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-md border border-amber-500/30 text-xs font-semibold text-amber-600 dark:text-amber-400 shadow-xs">
+                                <MapPin className="h-3.5 w-3.5 text-amber-600" />
+                                <span>{communityName} Community Guestbook</span>
+                            </div>
+                        )}
 
                         <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight font-headline">
                             <span className="bg-gradient-to-r from-amber-600 via-yellow-600 to-rose-600 dark:from-amber-400 dark:via-yellow-400 dark:to-rose-400 bg-clip-text text-transparent">
@@ -442,7 +444,11 @@ export default function GuestBookPage() {
                         </h1>
 
                         <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                            Share your feedback, tourist memories, and resident experiences for <span className="font-semibold text-foreground">{communityName || 'your community'}</span>.
+                            {isVisiting 
+                                ? `Share your tourist feedback, visitor memories, and holiday impressions for `
+                                : `Share your local feedback, resident memories, and neighbourhood experiences for `
+                            }
+                            <span className="font-semibold text-foreground">{communityName || 'your community'}</span>.
                         </p>
 
                         {/* Direct action button in hero */}

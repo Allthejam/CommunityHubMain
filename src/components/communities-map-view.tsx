@@ -210,6 +210,8 @@ export default function CommunitiesMapView({
                         }
                         if (typeof window !== 'undefined') {
                             sessionStorage.setItem('visitedCommunityId', community.id);
+                            sessionStorage.setItem('visitedCommunityName', community.name);
+                            window.dispatchEvent(new Event('community-change'));
                         }
                         const res = await updateUserCommunityAction({ userId: user.uid, communityId: community.id }).catch((e) => {
                             console.error("updateUserCommunityAction error:", e);

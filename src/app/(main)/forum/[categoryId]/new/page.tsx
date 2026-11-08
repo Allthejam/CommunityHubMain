@@ -14,7 +14,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, PlusCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Loader2, Compass, MapPin } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
 import * as React from 'react';
 import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +32,7 @@ export default function NewTopicPage() {
   const { toast } = useToast();
 
   const categoryId = params.categoryId as string;
+  const { communityId: activeCommunityId, communityName, isVisiting } = useActiveCommunityId();
 
   const userProfileRef = useMemoFirebase(
     () => (user ? doc(db, `users/${user.uid}`) : null),
@@ -78,6 +81,7 @@ export default function NewTopicPage() {
           ? ''
           : (userProfile.avatar || `https://i.pravatar.cc/150?u=${user.uid}`),
         isAnonymous,
+        communityId: activeCommunityId || undefined,
       });
 
       if (result.success && result.topicId) {

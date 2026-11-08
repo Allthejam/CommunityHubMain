@@ -19,8 +19,11 @@ import {
   Search,
   PlusCircle,
   TrendingUp,
-  MessageCircleCode
+  MessageCircleCode,
+  Compass,
+  MapPin
 } from "lucide-react";
+import { useActiveCommunityId } from "@/hooks/use-active-community-id";
 import Link from "next/link";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
@@ -120,7 +123,7 @@ export default function ForumPage() {
 
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-    const activeCommunityId = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+    const { communityId: activeCommunityId, communityName, isVisiting, isLoading: communityLoading } = useActiveCommunityId();
 
     const categoriesQuery = useMemoFirebase(() => {
         if (!activeCommunityId || !db) return null;
@@ -140,11 +143,21 @@ export default function ForumPage() {
         return defaultCategories;
     }, [rawCategories]);
 
+    // Filter topics specifically for this community
+    const communityTopics = React.useMemo(() => {
+        if (!allTopics) return [];
+        return allTopics.filter(t => {
+            const comm = (t as any).communityId;
+            if (comm) return comm === activeCommunityId;
+            return !isVisiting;
+        });
+    }, [allTopics, activeCommunityId, isVisiting]);
+
     // Live statistics map calculated from actual topics & replies in real time
     const categoryStatsMap = React.useMemo(() => {
         const map = new Map<string, { topics: number; posts: number }>();
-        if (!allTopics) return map;
-        for (const t of allTopics) {
+        if (!communityTopics) return map;
+        for (const t of communityTopics) {
             const catId = (t as any).categoryId;
             if (!catId) continue;
             const current = map.get(catId) || { topics: 0, posts: 0 };
@@ -155,7 +168,7 @@ export default function ForumPage() {
             });
         }
         return map;
-    }, [allTopics]);
+    }, [communityTopics]);
     
     const filteredCategories = React.useMemo(() => {
       if (!searchQuery.trim()) return categories;
@@ -164,26 +177,26 @@ export default function ForumPage() {
     }, [categories, searchQuery]);
 
     const totalTopics = React.useMemo(() => {
-        if (allTopics && allTopics.length > 0) {
+        if (communityTopics && communityTopics.length > 0) {
             const categoryIds = new Set(categories.map(c => c.id));
-            const count = allTopics.filter(t => categoryIds.has((t as any).categoryId)).length;
+            const count = communityTopics.filter(t => categoryIds.has((t as any).categoryId)).length;
             if (count > 0) return count;
         }
         return categories.reduce((sum, c) => sum + (c.topics || 0), 0);
-    }, [allTopics, categories]);
+    }, [communityTopics, categories]);
 
     const totalPosts = React.useMemo(() => {
-        if (allTopics && allTopics.length > 0) {
+        if (communityTopics && communityTopics.length > 0) {
             const categoryIds = new Set(categories.map(c => c.id));
-            const count = allTopics
+            const count = communityTopics
                 .filter(t => categoryIds.has((t as any).categoryId))
                 .reduce((sum, t) => sum + 1 + Number((t as any).replies || 0), 0);
             if (count > 0) return count;
         }
         return categories.reduce((sum, c) => sum + (c.posts || 0), 0);
-    }, [allTopics, categories]);
+    }, [communityTopics, categories]);
 
-    const loading = authLoading || profileLoading || dataLoading;
+    const loading = authLoading || profileLoading || dataLoading || communityLoading;
 
     if (loading) {
       return (

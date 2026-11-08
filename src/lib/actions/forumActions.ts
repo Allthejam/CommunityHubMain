@@ -20,10 +20,11 @@ type CreateTopicParams = {
     authorName: string;
     authorAvatar: string;
     isAnonymous?: boolean;
+    communityId?: string;
 }
 
 export async function runCreateForumTopic(params: CreateTopicParams): Promise<ActionResponse> {
-    const { categoryId, title, message, authorId, authorName, authorAvatar, isAnonymous } = params;
+    const { categoryId, title, message, authorId, authorName, authorAvatar, isAnonymous, communityId } = params;
 
     if (!categoryId || !title || !message || !authorId || !authorName) {
         return { success: false, error: "Missing required fields." };
@@ -48,11 +49,13 @@ export async function runCreateForumTopic(params: CreateTopicParams): Promise<Ac
             const isPrivate = authorData?.settings?.publicProfile === false || isAnonymous === true;
             const displayName = isPrivate ? 'Anonymous Member' : (authorName || authorData?.name || 'Community Member');
             const displayAvatar = isPrivate ? '' : (authorAvatar || authorData?.avatar || '');
+            const effectiveCommunityId = communityId || authorData?.primaryHomeCommunityId || authorData?.homeCommunityId || authorData?.communityId || null;
 
             // 1. Create the topic document
             transaction.set(topicRef, {
                 title,
                 categoryId,
+                communityId: effectiveCommunityId,
                 authorId,
                 authorName: displayName,
                 authorAvatar: displayAvatar,
@@ -231,6 +234,14 @@ export async function runSanitizeForumTopicsPrivacy(): Promise<ActionResponse> {
 
             if (topicData.replies !== actualReplies) {
                 topicUpdates.replies = actualReplies;
+            }
+
+            if (!topicData.communityId) {
+                const userDoc = usersSnap.docs.find(d => d.id === topicData.authorId);
+                const userComm = userDoc?.data()?.primaryHomeCommunityId || userDoc?.data()?.homeCommunityId || userDoc?.data()?.communityId;
+                if (userComm) {
+                    topicUpdates.communityId = userComm;
+                }
             }
 
             if (privateUserMap.has(topicData.authorId)) {

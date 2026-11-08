@@ -4,7 +4,8 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, PlusCircle, ArrowLeft, Loader2, Clock, ChevronRight, MessageCircle } from "lucide-react";
+import { MessageSquare, PlusCircle, ArrowLeft, Loader2, Clock, ChevronRight, MessageCircle, Compass, MapPin } from "lucide-react";
+import { useActiveCommunityId } from "@/hooks/use-active-community-id";
 import Link from "next/link";
 import { type ForumCategory, type Topic } from "@/lib/forum-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,11 +16,20 @@ import * as React from "react";
 import { format, isValid } from "date-fns";
 import { runSanitizeForumTopicsPrivacy } from "@/lib/actions/forumActions";
 
+
+const defaultCategoriesMap: Record<string, { name: string; description: string }> = {
+    'cat-general': { name: 'General Community Discussions', description: 'Chat about local events, general news, and community topics.' },
+    'cat-services': { name: 'Local Services & Recommendations', description: 'Recommend tradespeople, local businesses, or ask for recommendations.' },
+    'cat-safety': { name: 'Safety & Neighbourhood Watch', description: 'Share safety updates, neighborhood watch alerts, and local advice.' },
+    'cat-marketplace': { name: 'Buy, Sell & Swap Chat', description: 'Discuss items for sale, wanted items, and local swaps.' }
+};
+
 export default function ForumCategoryPage() {
     const params = useParams();
     const router = useRouter();
     const categoryId = params.categoryId as string;
     const db = useFirestore();
+    const { communityId: activeCommunityId, communityName, isVisiting } = useActiveCommunityId();
 
     const categoryRef = useMemoFirebase(() => {
         if (!categoryId || !db) return null;
@@ -31,8 +41,34 @@ export default function ForumCategoryPage() {
         return query(collection(db, "forum-topics"), where("categoryId", "==", categoryId));
     }, [categoryId, db]);
 
-    const { data: category, isLoading: categoryLoading, error: categoryError } = useDoc<ForumCategory>(categoryRef);
-    const { data: topics, isLoading: topicsLoading, error: topicsError } = useCollection<Topic>(topicsQuery);
+    const { data: rawCategory, isLoading: categoryLoading, error: categoryError } = useDoc<ForumCategory>(categoryRef);
+    const category = React.useMemo(() => {
+        if (rawCategory) return rawCategory;
+        if (defaultCategoriesMap[categoryId]) {
+            return {
+                id: categoryId,
+                name: defaultCategoriesMap[categoryId].name,
+                description: defaultCategoriesMap[categoryId].description,
+                topics: 0,
+                posts: 0,
+                communityId: activeCommunityId || '',
+            } as ForumCategory;
+        }
+        return null;
+    }, [rawCategory, categoryId, activeCommunityId]);
+    const { data: rawTopics, isLoading: topicsLoading, error: topicsError } = useCollection<Topic>(topicsQuery);
+    
+    // Filter topics specifically for the active community
+    const topics = React.useMemo(() => {
+        if (!rawTopics) return [];
+        return rawTopics.filter(t => {
+            const comm = (t as any).communityId;
+            // If topic has communityId, strictly match activeCommunityId
+            if (comm) return comm === activeCommunityId;
+            // Fallback for legacy topics: only show if not visiting another community
+            return !isVisiting;
+        });
+    }, [rawTopics, activeCommunityId, isVisiting]);
     
     const [privacyMap, setPrivacyMap] = React.useState<Record<string, { isPrivate: boolean; realName?: string }>>({});
 
@@ -124,6 +160,19 @@ export default function ForumCategoryPage() {
                 </Button>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
+                        <div className="mb-2">
+                            {isVisiting ? (
+                                <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs gap-1.5 py-1 px-3 shadow-xs">
+                                    <Compass className="h-3.5 w-3.5" />
+                                    <span>Visitor Mode — {communityName}</span>
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-xs font-semibold gap-1.5 py-1 px-2.5">
+                                    <MapPin className="h-3.5 w-3.5 text-primary" />
+                                    <span>{communityName}</span>
+                                </Badge>
+                            )}
+                        </div>
                         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline flex items-center gap-3">
                             <span className="p-2 rounded-xl bg-primary/10 text-primary">
                                 <MessageSquare className="h-6 w-6 sm:h-7 sm:w-7" />

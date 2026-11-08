@@ -173,6 +173,17 @@ function HomePageContent() {
     return doc(db, 'communities', activeCommunityId);
   }, [activeCommunityId, db]);
   const { data: activeCommunity, isLoading: communityLoading } = useDoc(activeCommunityRef);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && activeCommunity?.name) {
+      const homeId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+      const isVisiting = Boolean(activeCommunityId && homeId && activeCommunityId !== homeId);
+      if (isVisiting) {
+        sessionStorage.setItem('visitedCommunityName', activeCommunity.name);
+        window.dispatchEvent(new Event('community-change'));
+      }
+    }
+  }, [activeCommunity?.name, activeCommunityId, userProfile]);
   
   const authoritiesQuery = useMemoFirebase(() => {
     if (!db) return null;

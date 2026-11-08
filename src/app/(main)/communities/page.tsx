@@ -525,6 +525,8 @@ export default function CommunitiesDiscoveryPage() {
 
         if (typeof window !== 'undefined') {
             sessionStorage.setItem('visitedCommunityId', commId);
+            sessionStorage.setItem('visitedCommunityName', commName);
+            window.dispatchEvent(new Event('community-change'));
         }
 
         const res = await updateUserCommunityAction({ userId: user.uid, communityId: commId }).catch((e) => {

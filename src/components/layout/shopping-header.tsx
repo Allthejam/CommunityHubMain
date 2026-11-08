@@ -20,6 +20,9 @@ import {
   Loader2,
   Store,
   ChevronDown,
+  Compass,
+  MapPin,
+  X,
   Shield,
   Truck,
   ShieldAlert,
@@ -164,6 +167,19 @@ export default function ShoppingHeader() {
     return doc(firestore, 'communities', visitedCommunityIdEffective);
   }, [visitedCommunityIdEffective, firestore]);
   const { data: visitedCommunityData } = useDoc(visitedCommunityRef);
+
+  const homeCommunityDataRef = useMemoFirebase(() => homeCommunityId && firestore ? doc(firestore, 'communities', homeCommunityId) : null, [homeCommunityId, firestore]);
+  const { data: homeCommunityData } = useDoc(homeCommunityDataRef);
+
+  const homeCommunityName = homeCommunityData?.name || userProfile?.primaryHomeCommunityName || userProfile?.homeCommunityName || userProfile?.communityName || 'Home Community';
+  const visitedCommunityName = visitedCommunityData?.name || (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityName') : null) || 'Visiting Community';
+  const effectiveCommunityName = isVisiting ? visitedCommunityName : homeCommunityName;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && visitedCommunityData?.name && isVisiting) {
+      sessionStorage.setItem('visitedCommunityName', visitedCommunityData.name);
+    }
+  }, [visitedCommunityData?.name, isVisiting]);
   
   const visitedCommunityHasNoLeader = useMemo(() => isVisiting && visitedCommunityData?.leaderCount === 0, [isVisiting, visitedCommunityData]);
 
@@ -490,7 +506,7 @@ export default function ShoppingHeader() {
     <header className={cn("sticky top-0 z-30 flex h-auto min-h-16 flex-col justify-center border-b bg-card")}>
        {isClient && isVisiting && (
         <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 p-2 text-sm flex items-center justify-center gap-4">
-          <p>You are currently visiting the <strong>{visitedCommunityData?.name || 'a community'}</strong> hub.</p>
+          <p>You are currently visiting the <strong>{visitedCommunityName}</strong> hub.</p>
           <div className="flex gap-2">
             {isVisiting && visitedCommunityData?.leaderCount === 0 ? (
               <Dialog>
@@ -510,13 +526,58 @@ export default function ShoppingHeader() {
       )}
       <div className="flex w-full items-center gap-4 px-4 sm:px-6 py-2">
         {isClient && <MobileNav menuItems={menuItems} />}
-        <Link href="/shopping" className="flex items-center gap-2 font-bold text-lg mr-4">
+        <Link href="/shopping" className="flex items-center gap-2 font-bold text-lg mr-2 shrink-0">
             <Store className="w-8 h-8 text-primary" />
             <div>
                 <span className="text-primary hidden sm:inline-block leading-tight">Community Marketplace</span>
                 <p className="text-xs text-muted-foreground font-normal hidden sm:block leading-tight">Shop Local</p>
             </div>
         </Link>
+
+        {/* Top Community Indicator: Visitor Badge when visiting, Name only (no visitor badge) when on home community */}
+        {isClient && (
+          <div className="flex items-center shrink-0 mr-2">
+            {isVisiting ? (
+              <div 
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-800 dark:text-amber-200 text-xs font-bold shadow-xs hover:bg-amber-500/25 transition-all cursor-pointer"
+                onClick={() => setIsCommunityDialogOpen(true)}
+                title={`You are currently visiting ${visitedCommunityName}. Click to change or return home.`}
+              >
+                <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-0 text-[10px] font-extrabold uppercase px-1.5 py-0 tracking-wider">
+                  Visitor
+                </Badge>
+                <Compass className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="font-bold truncate max-w-[110px] sm:max-w-[160px] md:max-w-[210px]">
+                  {visitedCommunityName}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleReturnHome();
+                  }}
+                  className="ml-0.5 p-0.5 rounded-full hover:bg-amber-500/30 text-amber-900 dark:text-amber-100 transition-colors"
+                  title="Return to your registered home community"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              homeCommunityId && (
+                <div 
+                  className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/60 hover:bg-muted border border-border/70 text-xs font-medium text-foreground transition-all cursor-pointer"
+                  onClick={() => setIsCommunityDialogOpen(true)}
+                  title={`Your registered community: ${homeCommunityName}. Click to switch.`}
+                >
+                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="font-semibold truncate max-w-[120px] md:max-w-[180px]">
+                    {homeCommunityName}
+                  </span>
+                </div>
+              )
+            )}
+          </div>
+        )}
           <div className="flex w-full items-center">
             <nav className="hidden w-full flex-1 md:flex">
                 {isClient ? (
