@@ -21,7 +21,10 @@ import {
   Target,
   Vote,
   ShieldAlert,
-  AlertTriangle
+  AlertTriangle,
+  BookOpen,
+  Store,
+  MessageSquare
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -91,25 +94,44 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
   const isLoading = isUserLoading || isProfileLoading || pollsLoading || petitionsLoading;
   const isNationalAdvertiser = userProfile?.accountType === 'national';
   
-  const isFavourited = userProfile?.favouriteCommunities?.includes(effectiveCommunityId);
+  const [optimisticFavourited, setOptimisticFavourited] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setOptimisticFavourited(null);
+  }, [effectiveCommunityId, userProfile?.favouriteCommunities]);
+
+  const isFavourited = optimisticFavourited !== null
+    ? optimisticFavourited
+    : Boolean(effectiveCommunityId && userProfile?.favouriteCommunities?.includes(effectiveCommunityId));
 
   const handleToggleFavourite = async () => {
     if (!user || !effectiveCommunityId) {
-        toast({ title: 'Error', description: 'Could not update favourites.', variant: 'destructive' });
+        toast({ title: 'Sign In Required', description: 'Please sign in to save favourite communities.', variant: 'destructive' });
         return;
     }
-    const result = await updateUserFavouriteCommunitiesAction({
-        userId: user.uid,
-        communityId: effectiveCommunityId,
-        isFavourited: !isFavourited
-    });
-    if (result.success) {
-        toast({
-            title: isFavourited ? 'Removed from Favourites' : 'Added to Favourites',
-            description: isFavourited ? `Removed ${effectiveCommunityName} from your favourite communities.` : `Added ${effectiveCommunityName} to your favourite communities.`
-        });
-    } else {
-        toast({ title: 'Error', description: result.error || 'Failed to update favourites.', variant: 'destructive' });
+    const currentStatus = isFavourited;
+    setOptimisticFavourited(!currentStatus);
+
+    try {
+      const result = await updateUserFavouriteCommunitiesAction({
+          userId: user.uid,
+          communityId: effectiveCommunityId,
+          isFavourited: currentStatus
+      });
+      if (result.success) {
+          toast({
+              title: !currentStatus ? '❤️ Added to Favourites' : 'Removed from Favourites',
+              description: !currentStatus 
+                ? `${effectiveCommunityName} has been saved to your favourite communities.` 
+                : `Removed ${effectiveCommunityName} from your favourite communities.`
+          });
+      } else {
+          setOptimisticFavourited(currentStatus);
+          toast({ title: 'Error', description: result.error || 'Failed to update favourites.', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      setOptimisticFavourited(currentStatus);
+      toast({ title: 'Error', description: err.message || 'Failed to update favourites.', variant: 'destructive' });
     }
   };
 
@@ -144,28 +166,120 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       {/* Left Card: Welcome / Profile Card */}
-      <Card className="border-0 md:border rounded-none md:rounded-lg flex flex-col justify-between">
-        <CardHeader className="p-4 md:p-6 pb-2 flex-row items-center gap-3 space-y-0">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={userProfile?.photoURL || ''} />
-            <AvatarFallback>
-              <UserIcon className="h-5 w-5" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <CardTitle className="text-xl font-bold font-headline">
-              Welcome, {userProfile?.name || 'Neighbour'}!
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {effectiveCommunityName}
-            </CardDescription>
+      <Card className="border-0 md:border rounded-none md:rounded-lg flex flex-col justify-between shadow-2xs">
+        <CardHeader className="p-4 md:p-6 pb-3 flex flex-row items-center justify-between gap-3 space-y-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar className="h-10 w-10 shrink-0">
+              <AvatarImage src={userProfile?.photoURL || ''} />
+              <AvatarFallback>
+                <UserIcon className="h-5 w-5" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <CardTitle className="text-xl font-bold font-headline truncate">
+                {isVisiting ? `Welcome to ${effectiveCommunityName}!` : `Welcome, ${userProfile?.name || 'Neighbour'}!`}
+              </CardTitle>
+              <CardDescription className="text-xs truncate">
+                {isVisiting ? (
+                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                    <Compass className="h-3.5 w-3.5 shrink-0" /> Visiting from {homeCommunityName}
+                  </span>
+                ) : (
+                  <span>{effectiveCommunityName}</span>
+                )}
+              </CardDescription>
+            </div>
           </div>
+
+          {/* Prominent Favourite Toggle on Welcome Card when Visiting */}
+          {isVisiting && (
+            <Button
+              variant={isFavourited ? "default" : "outline"}
+              size="sm"
+              onClick={handleToggleFavourite}
+              className={cn(
+                "h-8 px-2.5 sm:px-3 text-xs font-semibold gap-1.5 shrink-0 transition-all shadow-2xs",
+                isFavourited
+                  ? "bg-rose-50 text-rose-600 border-rose-300 hover:bg-rose-100 hover:text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800"
+                  : "text-muted-foreground hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50/50"
+              )}
+              title={isFavourited ? "Remove from favourite communities" : "Add this community to your favourites"}
+            >
+              <Heart className={cn("h-4 w-4 transition-transform", isFavourited ? "fill-rose-500 text-rose-500 scale-110" : "")} />
+              <span className="hidden sm:inline">{isFavourited ? "Favourited" : "Add to Favourites"}</span>
+            </Button>
+          )}
         </CardHeader>
-        <CardContent className="p-4 md:p-6 pt-2 space-y-3">
+
+        <CardContent className="p-4 md:p-6 pt-0 space-y-3.5 flex-1 flex flex-col justify-between">
           {isLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-2/3" />
+            </div>
+          ) : isVisiting ? (
+            <div className="space-y-3.5">
+              <p className="text-sm text-foreground/90 leading-relaxed">
+                You are currently exploring <strong>{effectiveCommunityName}</strong>. As a visitor, you can browse independent local businesses, check upcoming events, read public notices, and view what&apos;s on.
+              </p>
+
+              {/* Quick Discovery Cards for Visiting Community */}
+              <div className="grid grid-cols-3 gap-2">
+                <Link
+                  href={`${demoPrefix}/guestbook`}
+                  className="p-2.5 rounded-lg border border-border/80 bg-muted/40 hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-950/30 dark:hover:border-emerald-800 transition-all text-center flex flex-col items-center gap-1 group shadow-2xs"
+                >
+                  <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs font-bold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-300">Guestbook</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">Say hello</span>
+                </Link>
+
+                <Link
+                  href={`${demoPrefix}/directory`}
+                  className="p-2.5 rounded-lg border border-border/80 bg-muted/40 hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-950/30 dark:hover:border-emerald-800 transition-all text-center flex flex-col items-center gap-1 group shadow-2xs"
+                >
+                  <Store className="h-4 w-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs font-bold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-300">High Street</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">Local shops</span>
+                </Link>
+
+                <Link
+                  href={`${demoPrefix}/forum`}
+                  className="p-2.5 rounded-lg border border-border/80 bg-muted/40 hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-950/30 dark:hover:border-emerald-800 transition-all text-center flex flex-col items-center gap-1 group shadow-2xs"
+                >
+                  <MessageSquare className="h-4 w-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs font-bold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-300">Forum</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">Public topics</span>
+                </Link>
+              </div>
+
+              {/* Favourite Status Callout Strip */}
+              <div className={cn(
+                "p-2.5 rounded-lg border text-xs flex items-center justify-between gap-2 transition-all",
+                isFavourited
+                  ? "bg-rose-50/70 border-rose-200 text-rose-800 dark:bg-rose-950/30 dark:border-rose-900/60 dark:text-rose-300"
+                  : "bg-muted/40 border-border/70 text-muted-foreground"
+              )}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Heart className={cn("h-4 w-4 shrink-0 transition-transform", isFavourited ? "fill-rose-500 text-rose-500 scale-110" : "text-muted-foreground")} />
+                  <span className="truncate">
+                    {isFavourited
+                      ? <span><strong>{effectiveCommunityName}</strong> is saved to your favourite communities.</span>
+                      : <span>Add to your favourites to revisit anytime with 1 click.</span>
+                    }
+                  </span>
+                </div>
+                {!isFavourited && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggleFavourite}
+                    className="h-6 px-2 text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-100/60 shrink-0"
+                  >
+                    + Favourite
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -227,6 +341,20 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                   </Link>
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleToggleFavourite}
+                title={isFavourited ? "Remove from favourite communities" : "Add this community to your favourites"}
+                className={cn(
+                  "h-8 w-8 rounded-full transition-colors",
+                  isFavourited 
+                    ? "text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40" 
+                    : "text-muted-foreground hover:text-rose-600 hover:bg-rose-50/50"
+                )}
+              >
+                <Heart className={cn("h-5 w-5 transition-transform", isFavourited ? "fill-rose-500 text-rose-500 scale-110" : "")} />
+              </Button>
               <Badge variant="outline" className="w-fit bg-emerald-100 text-emerald-800 border-emerald-300 text-xs font-semibold">
                 🌐 Visiting Mode
               </Badge>
@@ -341,8 +469,17 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                 </Button>
               )}
               {!isNationalAdvertiser && (
-                <Button variant="ghost" size="icon" onClick={handleToggleFavourite}>
-                  <Heart className={cn("h-6 w-6 text-muted-foreground transition-colors", isFavourited && "fill-red-500 text-red-500")} />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={handleToggleFavourite}
+                  title={isFavourited ? "In your favourites" : "Add to favourite communities"}
+                  className={cn(
+                    "h-8 w-8 rounded-full transition-colors",
+                    isFavourited ? "text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40" : "text-muted-foreground hover:text-rose-600 hover:bg-rose-50/50"
+                  )}
+                >
+                  <Heart className={cn("h-5 w-5 transition-transform", isFavourited ? "fill-rose-500 text-rose-500 scale-110" : "")} />
                 </Button>
               )}
             </div>
