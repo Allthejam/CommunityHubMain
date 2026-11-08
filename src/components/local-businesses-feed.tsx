@@ -16,6 +16,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, limit } from 'firebase/firestore';
 import { differenceInDays } from 'date-fns';
+import { shuffleArray } from '@/lib/utils';
 import { accommodationCategories } from '@/lib/categories';
 
 type Business = {
@@ -232,11 +233,15 @@ export function LocalBusinessesFeed({ communityId }: { communityId: string | nul
     }
     
     const showMockCourier = (communityData?.leaderCount || 0) === 0 && !communityData?.courierId;
+    
+    // Fair exposure: Randomize businesses on each visit so all merchants get spotlight
+    let randomized = shuffleArray(combinedLocal);
     if (showMockCourier) {
-      combinedLocal.unshift({ ...mockCourierBusiness, leaderCount: communityData?.leaderCount || 0 } as any);
+      randomized = randomized.filter(b => b.id !== mockCourierBusiness.id);
+      randomized.unshift({ ...mockCourierBusiness, leaderCount: communityData?.leaderCount || 0 } as any);
     }
     
-    const finalBusinesses = Array.from(new Map(combinedLocal.map(item => [item.id, item])).values());
+    const finalBusinesses = Array.from(new Map(randomized.map(item => [item.id, item])).values());
     
     setClientBusinesses(finalBusinesses);
     setIsLoading(false);

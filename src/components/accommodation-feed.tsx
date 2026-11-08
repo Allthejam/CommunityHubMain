@@ -88,14 +88,15 @@ export function AccommodationFeed({ communityId }: { communityId: string | null 
     let liveFiltered = (liveAccommodations || []).filter(filterLive);
     
     if (liveFiltered.length > 0) {
-      setClientAccommodations(liveFiltered);
+      // Fair exposure: Randomize accommodations on each visit
+      setClientAccommodations(shuffleArray(liveFiltered));
     } else {
         const mockStays = [
             { ...mockBusinesses.find(b => b.businessName === 'The Corner Bistro'), businessCategory: 'guest-house' },
             { ...mockBusinesses.find(b => b.businessName === 'Wellness Studio'), businessCategory: 'b-and-b' },
             { ...mockBusinesses.find(b => b.businessName === 'Knot & Grain'), businessCategory: 'holiday-let' },
         ].filter(Boolean);
-        setClientAccommodations(mockStays as Business[]);
+        setClientAccommodations(shuffleArray(mockStays as Business[]));
     }
     setIsLoading(false);
   }, [JSON.stringify(liveAccommodations), overallLoading]);

@@ -244,35 +244,45 @@ export function WhatsonFeed({
 
   const { data: whatsonItems, isLoading: itemsLoading } = useCollection<WhatsonItem>(whatsonQuery);
   
-  const itemsToDisplay = React.useMemo(() => {
+  const [shuffledItems, setShuffledItems] = React.useState<WhatsonItem[]>([]);
+
+  React.useEffect(() => {
     const dbItems = whatsonItems || [];
     const combined = [...localDemoItems, ...dbItems.filter(d => !localDemoItems.some(l => l.id === d.id))];
     if (mode === 'around') {
       const aroundItems = combined.filter(item => item.scope === 'around');
-      if (aroundItems.length > 0) return aroundItems;
-      return mockWhatsOn
-        .filter(item => item.scope === 'around')
-        .map(item => ({
-          ...item,
-          address: item.address || item.location,
-          image: (item.image as any)?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
-          dataAiHint: (item.image as any)?.imageHint || 'local attraction'
-        } as WhatsonItem));
+      if (aroundItems.length > 0) {
+        setShuffledItems(shuffleArray(aroundItems));
+      } else {
+        const fallbacks = mockWhatsOn
+          .filter(item => item.scope === 'around')
+          .map(item => ({
+            ...item,
+            address: item.address || item.location,
+            image: (item.image as any)?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
+            dataAiHint: (item.image as any)?.imageHint || 'local attraction'
+          } as WhatsonItem));
+        setShuffledItems(shuffleArray(fallbacks));
+      }
     } else {
       const inItems = combined.filter(item => item.scope !== 'around');
-      if (inItems.length > 0) return inItems;
-      return mockWhatsOn
-        .filter(item => item.scope !== 'around')
-        .map(item => ({
-          ...item,
-          address: item.address || item.location,
-          image: (item.image as any)?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
-          dataAiHint: (item.image as any)?.imageHint || 'local attraction'
-        } as WhatsonItem));
+      if (inItems.length > 0) {
+        setShuffledItems(shuffleArray(inItems));
+      } else {
+        const fallbacks = mockWhatsOn
+          .filter(item => item.scope !== 'around')
+          .map(item => ({
+            ...item,
+            address: item.address || item.location,
+            image: (item.image as any)?.imageUrl || 'https://picsum.photos/seed/whatson-placeholder/600/400',
+            dataAiHint: (item.image as any)?.imageHint || 'local attraction'
+          } as WhatsonItem));
+        setShuffledItems(shuffleArray(fallbacks));
+      }
     }
-
-
   }, [whatsonItems, localDemoItems, mode]);
+
+  const itemsToDisplay = shuffledItems.length > 0 ? shuffledItems : (whatsonItems || []);
     
   if (itemsLoading) {
       return (

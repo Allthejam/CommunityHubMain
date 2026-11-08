@@ -132,15 +132,24 @@ export function LocalCharitiesFeed({ communityId }: { communityId: string | null
   }, [db, communityId]);
 
   const { data: liveCharities, isLoading: charitiesLoading } = useCollection<Charity>(charitiesQuery);
+  const [shuffledCharities, setShuffledCharities] = React.useState<Charity[]>([]);
 
-  const charitiesToDisplay = (liveCharities && liveCharities.length > 0)
-    ? liveCharities
-    : mockCharities.map(c => ({
-        ...c,
-        id: String(c.id),
-        image: c.image?.imageUrl,
-        dataAiHint: c.image?.imageHint
-    }));
+  React.useEffect(() => {
+    const raw = (liveCharities && liveCharities.length > 0)
+      ? liveCharities
+      : mockCharities.map(c => ({
+          ...c,
+          id: String(c.id),
+          image: c.image?.imageUrl,
+          dataAiHint: c.image?.imageHint
+      } as Charity));
+    // Fair exposure: Randomize charities on each visit
+    setShuffledCharities(shuffleArray(raw as Charity[]));
+  }, [liveCharities]);
+
+  const charitiesToDisplay = shuffledCharities.length > 0 
+    ? shuffledCharities 
+    : ((liveCharities && liveCharities.length > 0) ? liveCharities : (mockCharities as any[]));
     
   if (charitiesLoading) {
     return (
