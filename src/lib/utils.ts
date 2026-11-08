@@ -5,11 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function getCombinations<T>(arrays: T[][]): T[][] {
+export function getCombinations(arrays: any[][]): any[][] {
   if (!arrays || arrays.length === 0) {
     return [];
   }
-  return arrays.reduce<T[][]>(
+  return arrays.reduce<any[][]>(
     (acc, current) => {
       if (!current || current.length === 0) {
         // If an option has no values, we treat it as if it has one empty value
@@ -22,5 +22,15 @@ export function getCombinations<T>(arrays: T[][]): T[][] {
       return acc.flatMap(a => current.map(c => [...a, c]));
     },
     []
-  ).map(combo => combo.filter(val => val !== '')); // Filter out empty strings from combos
+  ).map((combo: any[]) => combo.filter((val: any) => val !== '')); // Filter out empty strings from combos
+}
+
+export function shuffleArray<T>(array: T[]): T[] {
+  if (!array || array.length <= 1) return array ? [...array] : [];
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }

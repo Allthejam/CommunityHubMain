@@ -12,6 +12,7 @@ import { collection, query, where } from "firebase/firestore";
 
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { mockWhatsOn } from "@/lib/mock-data";
+import { shuffleArray } from "@/lib/utils";
 
 import {
   Dialog,

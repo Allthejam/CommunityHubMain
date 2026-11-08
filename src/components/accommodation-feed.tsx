@@ -12,6 +12,7 @@ import BusinessCard from '@/components/business-card';
 import { businesses as mockBusinesses } from '@/lib/mock-data';
 import { accommodationCategories } from '@/lib/categories';
 import { differenceInDays } from 'date-fns';
+import { shuffleArray } from '@/lib/utils';
 
 type Business = {
   id: string;

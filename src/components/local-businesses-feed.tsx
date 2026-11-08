@@ -132,7 +132,9 @@ const BusinessDialogContent = ({ business }: { business: Business }) => (
 
 export function LocalBusinessesFeed({ communityId }: { communityId: string | null }) {
   const db = useFirestore();
-  const { userProfile, isLoading: profileLoading } = useUser();
+  const { user, isUserLoading: userLoading } = useUser();
+  const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
+  const { data: userProfile, isLoading: profileLoading } = useDoc<any>(userProfileRef);
   const [displayCount, setDisplayCount] = React.useState(3);
   const [clientBusinesses, setClientBusinesses] = React.useState<Business[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -226,7 +228,7 @@ export function LocalBusinessesFeed({ communityId }: { communityId: string | nul
     
     if(livePrimary.length === 0 && couriers.length === 0) {
         const fallback = mockBusinesses.filter(b => !accommodationCategoryValues.includes(b.businessCategory || ''));
-        combinedLocal.push(...fallback as Business[]);
+        combinedLocal.push(...fallback as unknown as Business[]);
     }
     
     const showMockCourier = (communityData?.leaderCount || 0) === 0 && !communityData?.courierId;

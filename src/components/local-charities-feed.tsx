@@ -23,6 +23,7 @@ import { collection, query, where } from 'firebase/firestore';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
+import { shuffleArray } from "@/lib/utils";
 
 type Charity = {
   id: string;
