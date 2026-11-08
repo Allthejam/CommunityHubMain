@@ -29,7 +29,7 @@ export default function ForumCategoryPage() {
     const router = useRouter();
     const categoryId = params.categoryId as string;
     const db = useFirestore();
-    const { communityId: activeCommunityId, communityName, isVisiting } = useActiveCommunityId();
+    const { communityId: activeCommunityId, communityName, isVisiting, homeCommunityId } = useActiveCommunityId();
 
     const categoryRef = useMemoFirebase(() => {
         if (!categoryId || !db) return null;
@@ -66,7 +66,7 @@ export default function ForumCategoryPage() {
             // If topic has communityId, strictly match activeCommunityId
             if (comm) return comm === activeCommunityId;
             // Fallback for legacy topics: only show if not visiting another community
-            return !isVisiting;
+            return !isVisiting && activeCommunityId === homeCommunityId;
         });
     }, [rawTopics, activeCommunityId, isVisiting]);
     

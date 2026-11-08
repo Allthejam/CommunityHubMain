@@ -208,7 +208,7 @@ export default function AppHeader() {
       }
 
       // 3. Fallback to active session storage
-      const stored = sessionStorage.getItem('visitedCommunityId');
+      const stored = sessionStorage.getItem('visitedCommunityId') || localStorage.getItem('visitedCommunityId');
       if (!pathname?.startsWith('/demo') && (stored === '9ayHMyZf4SRw2gof1AM9' || sessionStorage.getItem('isDemoMode') === 'true')) {
         sessionStorage.removeItem('visitedCommunityId');
         sessionStorage.removeItem('visitedCommunityName');
@@ -324,6 +324,7 @@ export default function AppHeader() {
     const targetCommId = communitySelection.community;
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('visitedCommunityId', targetCommId);
+      localStorage.setItem('visitedCommunityId', targetCommId);
       window.dispatchEvent(new Event('community-change'));
     }
     setIsCommunityDialogOpen(false);

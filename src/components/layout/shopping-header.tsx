@@ -148,6 +148,8 @@ export default function ShoppingHeader() {
     if (typeof window !== 'undefined' && homeCommunityId && visitedSessionId === homeCommunityId) {
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
+      localStorage.removeItem('visitedCommunityId');
+      localStorage.removeItem('visitedCommunityName');
     }
   }, [homeCommunityId, visitedSessionId]);
 
@@ -289,6 +291,7 @@ export default function ShoppingHeader() {
     setIsSwitching(true);
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('visitedCommunityId', targetCommId);
+      localStorage.setItem('visitedCommunityId', targetCommId);
       window.dispatchEvent(new Event('community-change'));
     }
     await updateUserCommunityAction({ userId: user.uid, communityId: targetCommId }).catch(console.error);

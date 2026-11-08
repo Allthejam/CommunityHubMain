@@ -382,7 +382,7 @@ export default function GuestBookPage() {
       }
     ];
 
-    const displayEntries = (entries && entries.length > 0) ? entries : DEMO_GUESTBOOK_ENTRIES;
+    const displayEntries = entries ?? [];
 
     // Apply client-side filters on displayEntries
     const { filtered, starCounts, avgRating } = useMemo(() => {

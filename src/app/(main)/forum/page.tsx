@@ -47,10 +47,10 @@ type Topic = {
 };
 
 const defaultCategories: ForumCategory[] = [
-    { id: 'cat-general', name: 'General Community Discussions', description: 'Chat about local events, general news, and community topics.', topics: 12, posts: 48, communityId: '' },
-    { id: 'cat-services', name: 'Local Services & Recommendations', description: 'Recommend tradespeople, local businesses, or ask for recommendations.', topics: 8, posts: 29, communityId: '' },
-    { id: 'cat-safety', name: 'Safety & Neighbourhood Watch', description: 'Share safety updates, neighborhood watch alerts, and local advice.', topics: 5, posts: 18, communityId: '' },
-    { id: 'cat-marketplace', name: 'Buy, Sell & Swap Chat', description: 'Discuss items for sale, wanted items, and local swaps.', topics: 15, posts: 64, communityId: '' }
+    { id: 'cat-general', name: 'General Community Discussions', description: 'Chat about local events, general news, and community topics.', topics: 0, posts: 0, communityId: '' },
+    { id: 'cat-services', name: 'Local Services & Recommendations', description: 'Recommend tradespeople, local businesses, or ask for recommendations.', topics: 0, posts: 0, communityId: '' },
+    { id: 'cat-safety', name: 'Safety & Neighbourhood Watch', description: 'Share safety updates, neighborhood watch alerts, and local advice.', topics: 0, posts: 0, communityId: '' },
+    { id: 'cat-marketplace', name: 'Buy, Sell & Swap Chat', description: 'Discuss items for sale, wanted items, and local swaps.', topics: 0, posts: 0, communityId: '' }
 ];
 
 // Helper to get category color theme and icon
@@ -123,7 +123,7 @@ export default function ForumPage() {
 
     const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
 
-    const { communityId: activeCommunityId, communityName, isVisiting, isLoading: communityLoading } = useActiveCommunityId();
+    const { communityId: activeCommunityId, communityName, isVisiting, homeCommunityId, isLoading: communityLoading } = useActiveCommunityId();
 
     const categoriesQuery = useMemoFirebase(() => {
         if (!activeCommunityId || !db) return null;
@@ -149,7 +149,7 @@ export default function ForumPage() {
         return allTopics.filter(t => {
             const comm = (t as any).communityId;
             if (comm) return comm === activeCommunityId;
-            return !isVisiting;
+            return !isVisiting && activeCommunityId === homeCommunityId;
         });
     }, [allTopics, activeCommunityId, isVisiting]);
 
@@ -182,7 +182,7 @@ export default function ForumPage() {
             const count = communityTopics.filter(t => categoryIds.has((t as any).categoryId)).length;
             if (count > 0) return count;
         }
-        return categories.reduce((sum, c) => sum + (c.topics || 0), 0);
+        return 0;
     }, [communityTopics, categories]);
 
     const totalPosts = React.useMemo(() => {
@@ -193,7 +193,7 @@ export default function ForumPage() {
                 .reduce((sum, t) => sum + 1 + Number((t as any).replies || 0), 0);
             if (count > 0) return count;
         }
-        return categories.reduce((sum, c) => sum + (c.posts || 0), 0);
+        return 0;
     }, [communityTopics, categories]);
 
     const loading = authLoading || profileLoading || dataLoading || communityLoading;
@@ -317,8 +317,8 @@ export default function ForumPage() {
                                         <div className="flex items-center gap-3 pt-3 border-t border-border/50 text-xs font-medium text-muted-foreground">
                                             {(() => {
                                                 const liveStats = categoryStatsMap.get(category.id);
-                                                const topicCount = liveStats ? liveStats.topics : (category.topics || 0);
-                                                const postCount = liveStats ? liveStats.posts : (category.posts || 0);
+                                                const topicCount = liveStats ? liveStats.topics : 0;
+                                                const postCount = liveStats ? liveStats.posts : 0;
                                                 return (
                                                     <>
                                                         <Badge variant="outline" className={cn("gap-1 py-0.5 px-2 font-medium text-xs", theme.badgeClass)}>

@@ -143,6 +143,8 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
       } catch (e) {}
       sessionStorage.removeItem('visitedCommunityId');
       sessionStorage.removeItem('visitedCommunityName');
+      localStorage.removeItem('visitedCommunityId');
+      localStorage.removeItem('visitedCommunityName');
       sessionStorage.removeItem('isDemoMode');
       sessionStorage.removeItem('sandboxPersona');
       window.dispatchEvent(new Event('community-change'));
