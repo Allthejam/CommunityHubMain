@@ -6,7 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDocs, collection, query, where, documentId, orderBy } from "firebase/firestore";
-import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { claimBusinessAction } from "@/lib/actions/publicDirectoryActions";
 import {
     ArrowLeft,
     Loader2,
@@ -93,9 +94,17 @@ type BusinessProfile = {
     contactNumber?: string;
     socialMedia?: string;
     addresses?: { addressLine1: string, city: string, postcode: string }[];
+    primaryCommunityId?: string;
     primaryCommunityName?: string;
+    communityName?: string;
     additionalCommunities?: CommunitySelection[];
     openingHours?: any;
+    gallery?: any[];
+    isUnclaimed?: boolean;
+    ownerId?: string;
+    claimed?: boolean;
+    isLive?: boolean;
+    isFreeListing?: boolean;
     pageTwoContent?: { id: string; text: string; image: string | null }[];
     pageThreeContent?: string;
     showPageTwo?: boolean;
@@ -477,6 +486,26 @@ export default function BusinessProfilePage() {
     const router = useRouter();
     const { businessId } = params;
     const db = useFirestore();
+    const { toast } = useToast();
+    const { user } = useUser();
+    const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
+    const { data: userProfile } = useDoc<any>(userProfileRef);
+
+    // Claim state
+    const [isClaimDialogOpen, setIsClaimDialogOpen] = React.useState(false);
+    const [claimantName, setClaimantName] = React.useState('');
+    const [claimantEmail, setClaimantEmail] = React.useState('');
+    const [claimantPhone, setClaimantPhone] = React.useState('');
+    const [claimantRole, setClaimantRole] = React.useState('Owner / Co-owner');
+    const [isSubmittingClaim, setIsSubmittingClaim] = React.useState(false);
+
+    React.useEffect(() => {
+        if (userProfile) {
+            if (userProfile.name && !claimantName) setClaimantName(userProfile.name);
+            if (userProfile.email && !claimantEmail) setClaimantEmail(userProfile.email);
+            if (userProfile.contactNumber && !claimantPhone) setClaimantPhone(userProfile.contactNumber);
+        }
+    }, [userProfile]);
     const [activeTab, setActiveTab] = React.useState('page1');
 
     const [additionalCommunityNames, setAdditionalCommunityNames] = React.useState<string[]>([]);
@@ -617,6 +646,58 @@ export default function BusinessProfilePage() {
     );
     const page3Available = page3MinutesAvailable || page3ContactAvailable || page3CustomAvailable;
     const page3TabTitle = page3Type === 'minutes' ? 'Meeting Minutes' : (isCourier ? 'Contact & Depot' : 'Contact Us');
+    const isUnclaimed = Boolean((profile as any)?.isUnclaimed || (profile as any)?.ownerId === 'platform' || (profile as any)?.claimed === false);
+
+    const handleClaimSubmit = async () => {
+        if (!user) {
+            toast({
+                title: "Sign In Required",
+                description: "Please sign in or create an account to claim this business.",
+                variant: "destructive"
+            });
+            router.push(`/signup?redirect=/businesses/${businessId}`);
+            return;
+        }
+        if (!claimantName.trim() || !claimantEmail.trim()) {
+            toast({
+                title: "Missing Information",
+                description: "Please provide your name and contact email.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        setIsSubmittingClaim(true);
+        try {
+            const res = await claimBusinessAction({
+                businessId: businessId as string,
+                claimantUserId: user.uid,
+                claimantName: claimantName.trim(),
+                claimantEmail: claimantEmail.trim(),
+                claimantPhone: claimantPhone.trim() || undefined,
+                claimantRole,
+            });
+
+            if (res.success) {
+                toast({
+                    title: "🎉 Business Claimed!",
+                    description: `Congratulations! You now own and manage ${name} with an instant 14-day free trial.`,
+                });
+                setIsClaimDialogOpen(false);
+                window.location.reload();
+            } else {
+                throw new Error(res.error || "Failed to claim business.");
+            }
+        } catch (err: any) {
+            toast({
+                title: "Claim Failed",
+                description: err.message || "An unexpected error occurred.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsSubmittingClaim(false);
+        }
+    };
 
     return (
         <div className="max-w-6xl mx-auto">

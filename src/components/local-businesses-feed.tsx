@@ -198,6 +198,11 @@ export function LocalBusinessesFeed({ communityId }: { communityId: string | nul
             return false;
         }
 
+        // Seeded unclaimed businesses are always live & open for claiming
+        if ((business as any).isUnclaimed || (business as any).ownerId === 'platform' || (business as any).claimed === false) {
+            return true;
+        }
+
         if (business.isFreeListing) {
             const expiryDate = toDate(business.freeListingExpiresAt);
             return !expiryDate || now <= expiryDate;

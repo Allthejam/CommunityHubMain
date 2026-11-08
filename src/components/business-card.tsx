@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { BusinessStatusBadge } from "./business-status-badge";
 import { differenceInDays } from "date-fns";
+import { Sparkles } from "lucide-react";
 
 type Business = {
   id: string | number;
@@ -38,7 +39,10 @@ export default function BusinessCard({ business }: { business: Business }) {
     const freeExpiry = toDate((business as any).freeListingExpiresAt);
     const isFreeLive = (business as any).isFreeListing && (!freeExpiry || now <= freeExpiry);
 
-    const isLive = isFreeLive || 
+    const isUnclaimed = Boolean((business as any).isUnclaimed || (business as any).ownerId === 'platform' || (business as any).claimed === false);
+
+    const isLive = isUnclaimed ||
+                   isFreeLive || 
                    (business.status === 'Subscribed' && (!expiryDate || now <= expiryDate)) ||
                    (business.status === 'Approved' && creationDate && differenceInDays(now, creationDate) <= 14);
 
@@ -67,6 +71,13 @@ export default function BusinessCard({ business }: { business: Business }) {
               className="object-contain p-4"
               data-ai-hint="company logo"
             />
+            {isUnclaimed && (
+              <div className="absolute top-2 left-2 z-10">
+                <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] gap-1 shadow-sm px-2 py-0.5">
+                  <Sparkles className="h-3 w-3" /> Unclaimed
+                </Badge>
+              </div>
+            )}
             {!isLive && !isMockCourier && (
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                   <BusinessStatusBadge status={business.status} createdAt={business.createdAt} listingSubscriptionExpiresAt={business.listingSubscriptionExpiresAt} />
@@ -86,6 +97,11 @@ export default function BusinessCard({ business }: { business: Business }) {
         <CardFooter className="p-2 mt-auto">
           <div className="text-sm font-medium text-primary w-full text-center">
               {isMockCourier ? (communityHasNoLeader ? 'Apply Now' : 'Leader Required') 
+                : isUnclaimed ? (
+                  <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center justify-center gap-1">
+                    Claim Business <span aria-hidden="true">&rarr;</span>
+                  </span>
+                )
                 : isLive ? 'View Info'
                 : 'Subscription Expired'
               }

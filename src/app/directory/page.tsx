@@ -55,14 +55,17 @@ const BusinessRow = ({ business }: { business: Business }) => {
     const expiryDate = toDate(business.listingSubscriptionExpiresAt);
 
     const freeExpiry = toDate((business as any).freeListingExpiresAt);
+    const isUnclaimed = Boolean((business as any).isUnclaimed || (business as any).ownerId === 'platform' || (business as any).claimed === false);
+
     const isFreeLive = (business as any).isFreeListing && (!freeExpiry || now <= freeExpiry);
 
-    const isLive = isFreeLive || 
+    const isLive = isUnclaimed ||
+                   isFreeLive || 
                    (business.status === 'Subscribed' && (!expiryDate || now <= expiryDate)) ||
                    (business.status === 'Approved' && creationDate && differenceInDays(now, creationDate) <= 14);
 
     const handleCardClick = () => {
-        if(isLive) {
+        if (isLive) {
             router.push(`/businesses/${business.id}`);
         }
     };
@@ -79,11 +82,23 @@ const BusinessRow = ({ business }: { business: Business }) => {
                 />
             </div>
             <div className="flex-1">
-                <h3 className="font-semibold">{business.businessName}</h3>
+                <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">{business.businessName}</h3>
+                    {isUnclaimed && (
+                        <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-1.5 py-0 gap-1">
+                            <Sparkles className="h-2.5 w-2.5" /> Unclaimed
+                        </Badge>
+                    )}
+                </div>
                 <p className="text-sm text-muted-foreground">{business.businessCategory?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' & ')}</p>
             </div>
-            <Button variant="secondary" size="sm" className="ml-4" disabled={!isLive}>
-                {isLive ? 'View Profile' : 'Subscription Expired'}
+            <Button 
+                variant={isUnclaimed ? "default" : "secondary"} 
+                size="sm" 
+                className={cn("ml-4", isUnclaimed && "bg-amber-600 hover:bg-amber-700 text-white font-semibold")} 
+                disabled={!isLive}
+            >
+                {isUnclaimed ? 'Claim Listing' : isLive ? 'View Profile' : 'Subscription Expired'}
             </Button>
         </Card>
     );

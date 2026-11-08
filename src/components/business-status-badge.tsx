@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Pencil, Clock, CheckCircle, ShieldAlert, XCircle, EyeOff, Gift, AlertTriangle } from 'lucide-react';
+import { Pencil, Clock, CheckCircle, ShieldAlert, XCircle, EyeOff, Gift, AlertTriangle, Sparkles } from 'lucide-react';
 import * as React from 'react';
 import { differenceInDays, format, isValid } from "date-fns";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -59,7 +59,8 @@ export const BusinessStatusBadge = ({
     isFreeListing,
     freeListingExpiresAt,
     amendmentReason,
-    now: nowProp
+    now: nowProp,
+    isUnclaimed
 }: { 
     status: BusinessStatus, 
     listingSubscriptionStatus?: 'pending_cancellation' | 'payment_failed',
@@ -68,8 +69,18 @@ export const BusinessStatusBadge = ({
     isFreeListing?: boolean,
     freeListingExpiresAt?: any,
     amendmentReason?: string,
-    now?: Date | null
+    now?: Date | null,
+    isUnclaimed?: boolean
 }) => {
+  if (isUnclaimed || (status as any) === 'Unclaimed') {
+      return (
+          <Badge variant="outline" className="gap-1.5 bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 whitespace-nowrap">
+              <Sparkles className="h-3 w-3" />
+              Unclaimed
+          </Badge>
+      );
+  }
+
   if (!nowProp) {
       return null;
   }

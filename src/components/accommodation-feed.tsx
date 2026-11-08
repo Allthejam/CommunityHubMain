@@ -68,6 +68,10 @@ export function AccommodationFeed({ communityId }: { communityId: string | null 
 
     const now = new Date();
     const filterLive = (business: Business) => {
+        // Seeded unclaimed accommodations are always live & open for claiming
+        if ((business as any).isUnclaimed || (business as any).ownerId === 'platform' || (business as any).claimed === false) {
+            return true;
+        }
         if (business.status === 'Subscribed') {
             const expiryDate = toDate(business.listingSubscriptionExpiresAt);
             return !expiryDate || now <= expiryDate;
