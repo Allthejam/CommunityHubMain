@@ -68,6 +68,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { CommunitySelector, type CommunitySelection } from '../community-selector';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserCommunityAction, returnToHomeCommunityAction } from '@/lib/actions/userActions';
+import { clearVisitedCommunity } from '@/hooks/use-active-community-id';
 import { runAddCommunityToLeadership } from '@/lib/actions/teamActions';
 import { ScrollArea } from '../ui/scroll-area';
 import { Skeleton } from '../ui/skeleton';
@@ -288,30 +289,23 @@ export default function ShoppingHeader() {
       return;
     }
     const targetCommId = communitySelection.community;
-    setIsSwitching(true);
+    if (homeCommunityId && targetCommId === homeCommunityId) {
+      handleReturnHome();
+      return;
+    }
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('visitedCommunityId', targetCommId);
-      localStorage.setItem('visitedCommunityId', targetCommId);
+      localStorage.removeItem('visitedCommunityId');
+      localStorage.removeItem('visitedCommunityName');
       window.dispatchEvent(new Event('community-change'));
     }
-    await updateUserCommunityAction({ userId: user.uid, communityId: targetCommId }).catch(console.error);
-    setIsSwitching(false);
     setIsCommunityDialogOpen(false);
-    toast({ title: 'Community Switched!', description: `Opening hub for selected community.` });
+    toast({ title: 'Visiting Community', description: `Opening hub for selected community.` });
     window.location.href = `/home?community=${targetCommId}`;
   }
   
   const handleReturnHome = async () => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.history.replaceState({}, '', '/home');
-      } catch (e) {}
-      sessionStorage.removeItem('visitedCommunityId');
-      sessionStorage.removeItem('visitedCommunityName');
-      sessionStorage.removeItem('isDemoMode');
-      sessionStorage.removeItem('sandboxPersona');
-      window.dispatchEvent(new Event('community-change'));
-    }
+    clearVisitedCommunity();
     if (user) {
       setIsSwitching(true);
       await returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);

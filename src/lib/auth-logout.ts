@@ -25,6 +25,10 @@ export async function performGlobalLogout(
         sessionStorage.removeItem('activePersona');
         sessionStorage.removeItem('hasSkippedOnboarding');
         sessionStorage.removeItem('impersonatedRole');
+        localStorage.removeItem('visitedCommunityId');
+        localStorage.removeItem('visitedCommunityName');
+        localStorage.removeItem('isDemoMode');
+        localStorage.removeItem('sandboxPersona');
       } catch (storageErr) {
         console.warn('Could not clear sessionStorage on logout:', storageErr);
       }

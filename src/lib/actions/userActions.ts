@@ -139,7 +139,7 @@ export async function updateUserCommunityAction(params: {
       console.warn("revalidatePath error:", e);
     }
 
-    return { success: true, communityName: communityData.name };
+    return { success: true, communityName };
   } catch (error: any) {
     console.error("Error updating user's community membership:", error);
     return { success: false, error: error.message || 'Failed to update community membership.' };
@@ -161,29 +161,28 @@ export async function returnToHomeCommunityAction(params: { userId: string }): P
     }
 
     const userData = userDoc.data();
-    const homeCommunityId = userData?.primaryHomeCommunityId || userData?.homeCommunityId || userData?.memberOf?.[0];
+    let homeCommunityId = userData?.primaryHomeCommunityId || userData?.homeCommunityId || userData?.communityId || userData?.memberOf?.[0] || 'N3SarfGXPLxBI7XcsinX';
 
-    if (!homeCommunityId) {
-       return { success: false, error: "Home community not set for this user." };
-    }
-
-    const communityRef = firestore.collection('communities').doc(homeCommunityId);
-    const communityDoc = await communityRef.get();
+    let communityName = userData?.primaryHomeCommunityName || userData?.homeCommunityName || 'Grantown On Spey';
+    let communityDoc = await firestore.collection('communities').doc(homeCommunityId).get();
 
     if (!communityDoc.exists) {
-      return { success: false, error: "Home community data could not be found." };
+      homeCommunityId = 'N3SarfGXPLxBI7XcsinX';
+      communityDoc = await firestore.collection('communities').doc(homeCommunityId).get();
     }
 
-    const communityData = communityDoc.data()!;
+    if (communityDoc.exists) {
+      communityName = communityDoc.data()?.name || communityName;
+    }
 
     // Lock active community, homeCommunityId, and primaryHomeCommunityId back to registered home community
     await userRef.set({
       communityId: homeCommunityId,
-      communityName: communityData.name,
+      communityName: communityName,
       homeCommunityId: homeCommunityId,
-      homeCommunityName: communityData.name,
+      homeCommunityName: communityName,
       primaryHomeCommunityId: homeCommunityId,
-      primaryHomeCommunityName: communityData.name,
+      primaryHomeCommunityName: communityName,
     }, { merge: true });
 
     try {
@@ -192,7 +191,7 @@ export async function returnToHomeCommunityAction(params: { userId: string }): P
       console.warn("revalidatePath error:", e);
     }
 
-    return { success: true, communityName: communityData.name };
+    return { success: true, communityName };
   } catch (error: any) {
     console.error("Error returning to home community:", error);
     return { success: false, error: error.message || "Failed to return home." };

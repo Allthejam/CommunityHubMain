@@ -35,6 +35,7 @@ import { doc, collection, query, where, limit, orderBy } from 'firebase/firestor
 import { type Notification } from '@/lib/types/notifications';
 import { type Announcement } from '@/lib/announcement-data';
 import { returnToHomeCommunityAction, updateUserFavouriteCommunitiesAction } from '@/lib/actions/userActions';
+import { clearVisitedCommunity } from '@/hooks/use-active-community-id';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -258,16 +259,7 @@ export function NoticeboardCard() {
   };
 
   const handleReturnHome = async () => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.history.replaceState({}, '', '/home');
-      } catch (e) {}
-      sessionStorage.removeItem('visitedCommunityId');
-      sessionStorage.removeItem('visitedCommunityName');
-      sessionStorage.removeItem('isDemoMode');
-      sessionStorage.removeItem('sandboxPersona');
-      window.dispatchEvent(new Event('community-change'));
-    }
+    clearVisitedCommunity();
     if (user) {
       setIsReturning(true);
       await returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);

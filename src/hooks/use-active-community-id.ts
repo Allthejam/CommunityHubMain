@@ -4,21 +4,52 @@ import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 
+/**
+ * Centrally clear all visited community session data across both sessionStorage and localStorage,
+ * strip any ?community= query parameter from the URL, and notify all listeners.
+ */
+export function clearVisitedCommunity() {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem('visitedCommunityId');
+    sessionStorage.removeItem('visitedCommunityName');
+    sessionStorage.removeItem('isDemoMode');
+    sessionStorage.removeItem('sandboxPersona');
+    localStorage.removeItem('visitedCommunityId');
+    localStorage.removeItem('visitedCommunityName');
+    localStorage.removeItem('isDemoMode');
+    localStorage.removeItem('sandboxPersona');
+    if (window.location.search.includes('community=')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('community');
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+    }
+  } catch (e) {
+    console.error('Error clearing visited community:', e);
+  }
+  window.dispatchEvent(new Event('community-change'));
+}
+
 export function getActiveCommunityId(userProfile?: any): string {
   if (typeof window !== 'undefined') {
     const isDemo = window.location.pathname.startsWith('/demo');
     if (isDemo) {
-      return sessionStorage.getItem('visitedCommunityId') || localStorage.getItem('visitedCommunityId') || '9ayHMyZf4SRw2gof1AM9';
+      return sessionStorage.getItem('visitedCommunityId') || '9ayHMyZf4SRw2gof1AM9';
     }
     // Clean up any stale demo keys when on live routes
     if (sessionStorage.getItem('isDemoMode') === 'true') {
       sessionStorage.removeItem('isDemoMode');
     }
+    // Purge any stale localStorage visited keys on live routes so user is never trapped
+    if (localStorage.getItem('visitedCommunityId')) {
+      localStorage.removeItem('visitedCommunityId');
+      localStorage.removeItem('visitedCommunityName');
+    }
     const urlParams = new URLSearchParams(window.location.search);
     const urlComm = urlParams.get('community');
     if (urlComm) return urlComm;
 
-    const visitedId = sessionStorage.getItem('visitedCommunityId') || localStorage.getItem('visitedCommunityId');
+    const visitedId = sessionStorage.getItem('visitedCommunityId');
     if (visitedId && visitedId !== '9ayHMyZf4SRw2gof1AM9') return visitedId;
   }
   return userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || 'N3SarfGXPLxBI7XcsinX';
@@ -43,21 +74,25 @@ export function useActiveCommunityId() {
 
   const [sessionVisitedId, setSessionVisitedId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
+      // Purge any stale localStorage keys so browser refresh or overnight tab never traps user
+      if (localStorage.getItem('visitedCommunityId')) {
+        localStorage.removeItem('visitedCommunityId');
+        localStorage.removeItem('visitedCommunityName');
+      }
       const urlParams = new URLSearchParams(window.location.search);
       const urlComm = urlParams.get('community');
       if (urlComm) {
         sessionStorage.setItem('visitedCommunityId', urlComm);
-        localStorage.setItem('visitedCommunityId', urlComm);
         return urlComm;
       }
-      return sessionStorage.getItem('visitedCommunityId') || localStorage.getItem('visitedCommunityId');
+      return sessionStorage.getItem('visitedCommunityId');
     }
     return null;
   });
 
   const [sessionVisitedName, setSessionVisitedName] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('visitedCommunityName') || localStorage.getItem('visitedCommunityName');
+      return sessionStorage.getItem('visitedCommunityName');
     }
     return null;
   });
@@ -66,18 +101,22 @@ export function useActiveCommunityId() {
     if (typeof window === 'undefined') return;
 
     const handleSync = () => {
+      if (localStorage.getItem('visitedCommunityId')) {
+        localStorage.removeItem('visitedCommunityId');
+        localStorage.removeItem('visitedCommunityName');
+      }
+
       const urlParams = new URLSearchParams(window.location.search);
       const urlComm = urlParams.get('community');
       if (urlComm) {
         sessionStorage.setItem('visitedCommunityId', urlComm);
-        localStorage.setItem('visitedCommunityId', urlComm);
         setSessionVisitedId(urlComm);
       } else {
-        const storedId = sessionStorage.getItem('visitedCommunityId') || localStorage.getItem('visitedCommunityId');
+        const storedId = sessionStorage.getItem('visitedCommunityId');
         setSessionVisitedId(storedId);
       }
 
-      const storedName = sessionStorage.getItem('visitedCommunityName') || localStorage.getItem('visitedCommunityName');
+      const storedName = sessionStorage.getItem('visitedCommunityName');
       setSessionVisitedName(storedName);
     };
 
@@ -117,7 +156,6 @@ export function useActiveCommunityId() {
     if (communityDoc?.name) {
       if (typeof window !== 'undefined' && isVisiting) {
         sessionStorage.setItem('visitedCommunityName', communityDoc.name);
-        localStorage.setItem('visitedCommunityName', communityDoc.name);
       }
       return communityDoc.name;
     }

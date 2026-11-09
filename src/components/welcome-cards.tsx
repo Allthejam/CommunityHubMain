@@ -32,6 +32,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserFavouriteCommunitiesAction, returnToHomeCommunityAction } from '@/lib/actions/userActions';
+import { clearVisitedCommunity } from '@/hooks/use-active-community-id';
 import { Badge } from './ui/badge';
 import { CommunityWeatherAlertStrip } from './community-weather-alert';
 
@@ -137,18 +138,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
 
   const handleReturnHome = async () => {
     if (!user) return;
-    if (typeof window !== 'undefined') {
-      try {
-        window.history.replaceState({}, '', '/home');
-      } catch (e) {}
-      sessionStorage.removeItem('visitedCommunityId');
-      sessionStorage.removeItem('visitedCommunityName');
-      localStorage.removeItem('visitedCommunityId');
-      localStorage.removeItem('visitedCommunityName');
-      sessionStorage.removeItem('isDemoMode');
-      sessionStorage.removeItem('sandboxPersona');
-      window.dispatchEvent(new Event('community-change'));
-    }
+    clearVisitedCommunity();
     await returnToHomeCommunityAction({ userId: user.uid }).catch(console.error);
     toast({ title: 'Welcome Home!', description: `Returned to ${homeCommunityName}.` });
     window.location.href = '/home';

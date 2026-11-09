@@ -131,7 +131,23 @@ function HomePageContent() {
         sessionStorage.removeItem('isDemoMode');
       }
 
+      // Purge any stale localStorage visited keys so the user is never stuck
+      if (typeof window !== 'undefined' && localStorage.getItem('visitedCommunityId')) {
+        localStorage.removeItem('visitedCommunityId');
+        localStorage.removeItem('visitedCommunityName');
+      }
+
+      const lockedHomeId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
+
       if (urlCommunityId) {
+        if (lockedHomeId && urlCommunityId === lockedHomeId) {
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('visitedCommunityId');
+            sessionStorage.removeItem('visitedCommunityName');
+          }
+          setActiveCommunityId(lockedHomeId);
+          return;
+        }
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('visitedCommunityId', urlCommunityId);
         }
@@ -140,7 +156,6 @@ function HomePageContent() {
       }
 
       const visitedSession = typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null;
-      const lockedHomeId = userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId;
 
       if (visitedSession && visitedSession !== '9ayHMyZf4SRw2gof1AM9') {
         setActiveCommunityId(visitedSession);

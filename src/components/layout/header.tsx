@@ -84,6 +84,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { CommunitySelector, type CommunitySelection } from '../community-selector';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserCommunityAction, returnToHomeCommunityAction } from '@/lib/actions/userActions';
+import { clearVisitedCommunity } from '@/hooks/use-active-community-id';
 import { runAddCommunityToLeadership } from '@/lib/actions/teamActions';
 import { ScrollArea } from '../ui/scroll-area';
 import { Skeleton } from '../ui/skeleton';
@@ -207,19 +208,16 @@ export default function AppHeader() {
         }
       }
 
-      // 3. Fallback to active session storage
-      const stored = sessionStorage.getItem('visitedCommunityId') || localStorage.getItem('visitedCommunityId');
+      // 3. Fallback to active session storage (never use localStorage so user isn't stuck across days)
+      const stored = sessionStorage.getItem('visitedCommunityId');
       if (!pathname?.startsWith('/demo') && (stored === '9ayHMyZf4SRw2gof1AM9' || sessionStorage.getItem('isDemoMode') === 'true')) {
-        sessionStorage.removeItem('visitedCommunityId');
-        sessionStorage.removeItem('visitedCommunityName');
-        sessionStorage.removeItem('isDemoMode');
-        sessionStorage.removeItem('sandboxPersona');
+        clearVisitedCommunity();
         setVisitedSessionId(null);
         return;
       }
 
       if (stored && homeCommunityId && stored === homeCommunityId) {
-        sessionStorage.removeItem('visitedCommunityId');
+        clearVisitedCommunity();
         setVisitedSessionId(null);
       } else {
         setVisitedSessionId(stored && stored !== homeCommunityId ? stored : null);
@@ -322,9 +320,14 @@ export default function AppHeader() {
       return;
     }
     const targetCommId = communitySelection.community;
+    if (homeCommunityId && targetCommId === homeCommunityId) {
+      handleReturnHome();
+      return;
+    }
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('visitedCommunityId', targetCommId);
-      localStorage.setItem('visitedCommunityId', targetCommId);
+      localStorage.removeItem('visitedCommunityId');
+      localStorage.removeItem('visitedCommunityName');
       window.dispatchEvent(new Event('community-change'));
     }
     setIsCommunityDialogOpen(false);
@@ -333,16 +336,7 @@ export default function AppHeader() {
   };
   
   const handleReturnHome = async () => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.history.replaceState({}, '', '/home');
-      } catch (e) {}
-      sessionStorage.removeItem('visitedCommunityId');
-      sessionStorage.removeItem('visitedCommunityName');
-      sessionStorage.removeItem('isDemoMode');
-      sessionStorage.removeItem('sandboxPersona');
-      window.dispatchEvent(new Event('community-change'));
-    }
+    clearVisitedCommunity();
     setVisitedSessionId(null);
     if (user) {
       setIsSwitching(true);
