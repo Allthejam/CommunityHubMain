@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Trophy, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { RotateCcw, Trophy, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Sparkles, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Grid = number[][];
@@ -247,6 +247,14 @@ export function Game2048() {
             <RotateCcw className="w-4 h-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Quick Strategy Bar */}
+      <div className="w-full max-w-[400px] flex items-center justify-between bg-amber-500/10 border border-amber-500/25 px-3 py-1.5 rounded-lg text-xs text-amber-800 dark:text-amber-200">
+        <span className="flex items-center gap-1.5 font-medium">
+          <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span><strong>Rule:</strong> Same numbers merge (2+2=4). <strong>Tip:</strong> Keep highest tile in a corner!</span>
+        </span>
       </div>
 
       {/* 2048 Grid (4x4) with Swipe Support */}

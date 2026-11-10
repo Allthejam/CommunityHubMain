@@ -15,11 +15,22 @@ import {
   Layers,
   Compass,
   MapPin,
+  HelpCircle,
+  Lightbulb,
+  CheckCircle2,
+  Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useActiveCommunityId } from '@/hooks/use-active-community-id';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +44,12 @@ import { MinesweeperGame } from '@/components/timewaisters/minesweeper-game';
 
 type GameId = 'sudoku' | 'connect4' | '2048' | 'wordle' | 'snake' | 'minesweeper';
 
+interface GameInstructions {
+  objective: string;
+  howToPlay: string[];
+  proTip: string;
+}
+
 interface GameMeta {
   id: GameId;
   title: string;
@@ -43,6 +60,7 @@ interface GameMeta {
   color: string;
   timeEstimate: string;
   component: React.ComponentType;
+  instructions: GameInstructions;
 }
 
 const GAMES: GameMeta[] = [
@@ -56,6 +74,16 @@ const GAMES: GameMeta[] = [
     color: 'from-amber-500 to-orange-500 text-amber-500',
     timeEstimate: '3-8 mins',
     component: SudokuGame,
+    instructions: {
+      objective: 'Fill the 9x9 grid so every single row, column, and 3x3 box contains the numbers 1 through 9 with no duplicates.',
+      howToPlay: [
+        'Tap an empty cell on the board to select it.',
+        'Tap a number from 1 to 9 on the bottom keypad to place it.',
+        'Turn on "Notes Mode" to pencil in small candidate numbers when you are unsure.',
+        'Use "Erase" to clear a cell, or "Hint" if you get stuck on a tricky square.',
+      ],
+      proTip: 'Look for rows, columns, or 3x3 blocks that already have 6 or 7 numbers filled in—they only have 2 or 3 numbers missing, making them easiest to solve first!',
+    },
   },
   {
     id: 'connect4',
@@ -67,6 +95,16 @@ const GAMES: GameMeta[] = [
     color: 'from-blue-500 to-indigo-600 text-blue-500',
     timeEstimate: '2-5 mins',
     component: ConnectFourGame,
+    instructions: {
+      objective: 'Be the first player to form an unbroken horizontal, vertical, or diagonal line of 4 discs.',
+      howToPlay: [
+        'Tap any of the 7 column slots (or use the arrow buttons below) to drop your disc into that column.',
+        'Discs drop down to the lowest unoccupied slot in that column.',
+        'Red always moves first, followed by Yellow.',
+        'Choose "vs Computer" to challenge the AI, or "2 Players" to pass and play with someone on the same device.',
+      ],
+      proTip: 'Control the center column! Discs placed in the middle column offer the highest number of 4-in-a-row combinations in every direction. Always watch the board closely to block your opponent before they get 4!',
+    },
   },
   {
     id: 'wordle',
@@ -78,6 +116,17 @@ const GAMES: GameMeta[] = [
     color: 'from-emerald-500 to-teal-600 text-emerald-500',
     timeEstimate: '2-4 mins',
     component: WordGuessGame,
+    instructions: {
+      objective: 'Guess the secret 5-letter word in 6 attempts or fewer.',
+      howToPlay: [
+        'Type a 5-letter word using the on-screen keypad (or physical keyboard) and press Enter.',
+        'Green tile (🟩): The letter is correct and in the exact right spot.',
+        'Yellow tile (🟨): The letter is in the word, but in a different position.',
+        'Gray tile (⬛): The letter is not in the secret word at all.',
+        'Use the color feedback on the keyboard to narrow down remaining letters.',
+      ],
+      proTip: 'Start your first guess with words rich in common vowels (A, E, I, O) and frequent consonants like R, S, T, L.',
+    },
   },
   {
     id: '2048',
@@ -89,6 +138,16 @@ const GAMES: GameMeta[] = [
     color: 'from-yellow-500 to-amber-600 text-yellow-500',
     timeEstimate: '3-6 mins',
     component: Game2048,
+    instructions: {
+      objective: 'Merge matching numbers together by sliding tiles until you create the magic 2048 tile!',
+      howToPlay: [
+        'Swipe in any direction (or use Arrow keys / on-screen arrow buttons) to slide all tiles across the board.',
+        'When two tiles with the SAME number collide, they merge into one (2+2=4, 4+4=8, 8+8=16, 16+16=32, 32+32=64, ..., 1024+1024=2048).',
+        'Every single time you move, a new 2 or 4 appears in an empty space.',
+        'The game ends when the entire board fills up and no more merges can be made.',
+      ],
+      proTip: '🌟 THE GOLDEN CORNER RULE: Pick one corner (e.g. bottom-right) and NEVER move tiles away from it. Keep your highest number locked in that corner at all times, and build descending chains next to it. Never swipe Up unless you have zero other legal moves!',
+    },
   },
   {
     id: 'snake',
@@ -100,6 +159,16 @@ const GAMES: GameMeta[] = [
     color: 'from-green-500 to-emerald-600 text-green-500',
     timeEstimate: '2-5 mins',
     component: SnakeGame,
+    instructions: {
+      objective: 'Steer the snake around the screen to eat red apples, grow longer, and achieve the highest score possible.',
+      howToPlay: [
+        'Use the on-screen directional D-pad, keyboard Arrow keys, or WASD to steer the snake.',
+        'Each red apple eaten scores 10 points and extends your snake by one segment.',
+        'Hitting the outer border walls or crashing into your own tail ends the game.',
+        'Press Spacebar or the Pause button at any time to take a break.',
+      ],
+      proTip: 'Travel around the outer perimeter of the screen in wide loops instead of turning back into the middle so you never get trapped by your own tail.',
+    },
   },
   {
     id: 'minesweeper',
@@ -111,12 +180,23 @@ const GAMES: GameMeta[] = [
     color: 'from-rose-500 to-red-600 text-rose-500',
     timeEstimate: '1-4 mins',
     component: MinesweeperGame,
+    instructions: {
+      objective: 'Uncover every single safe square on the 9x9 board without detonating any of the 10 hidden mines.',
+      howToPlay: [
+        'Tap an unopened square to dig it up.',
+        'Numbers on revealed squares tell you exactly how many mines are touching that square (including diagonals).',
+        'Toggle "Mode: Place Flag 🚩" (or right-click on desktop) to place a flag on tiles where you suspect a mine.',
+        'If you tap an empty cell with 0 touching mines, the board automatically opens all surrounding safe tiles for you!',
+      ],
+      proTip: 'If a revealed square shows "1" and is only touching one unrevealed tile, that tile is guaranteed to be a mine—flag it right away to stay safe!',
+    },
   },
 ];
 
 export default function TimeWaistersPage() {
   const [activeGameId, setActiveGameId] = useState<GameId | null>(null);
   const [filter, setFilter] = useState<'all' | 'brain' | 'classic' | 'arcade'>('all');
+  const [inspectingInstructionsGame, setInspectingInstructionsGame] = useState<GameMeta | null>(null);
   const { communityName, isVisiting, visitedCommunityName } = useActiveCommunityId();
 
   const activeGame = GAMES.find((g) => g.id === activeGameId);
@@ -195,6 +275,17 @@ export default function TimeWaistersPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Prominent How to Play Button */}
+            <Button
+              variant="secondary"
+              size="sm"
+              className="text-xs font-bold gap-1.5 bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 hover:bg-amber-200"
+              onClick={() => setInspectingInstructionsGame(activeGame)}
+            >
+              <HelpCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span>How to Play</span>
+            </Button>
+
             <Button
               variant="ghost"
               size="sm"
@@ -242,9 +333,22 @@ export default function TimeWaistersPage() {
                       <div className={cn('p-3 rounded-2xl bg-gradient-to-br shadow-sm text-white', game.color.split(' ').slice(0, 2).join(' '))}>
                         <IconComponent className="w-6 h-6" />
                       </div>
-                      <Badge variant="secondary" className="text-[11px] font-bold">
-                        {game.badge}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInspectingInstructionsGame(game);
+                          }}
+                        >
+                          <HelpCircle className="w-3.5 h-3.5 mr-1 text-primary" /> Rules
+                        </Button>
+                        <Badge variant="secondary" className="text-[11px] font-bold">
+                          {game.badge}
+                        </Badge>
+                      </div>
                     </div>
 
                     <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors">
@@ -276,6 +380,90 @@ export default function TimeWaistersPage() {
           <activeGame.component />
         </div>
       )}
+
+      {/* ─── Universal How to Play / Instructions Dialog ─── */}
+      <Dialog
+        open={Boolean(inspectingInstructionsGame)}
+        onOpenChange={(open) => {
+          if (!open) setInspectingInstructionsGame(null);
+        }}
+      >
+        <DialogContent className="max-w-md sm:max-w-lg">
+          {inspectingInstructionsGame && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={cn('p-2 rounded-xl bg-gradient-to-br text-white shadow-xs', inspectingInstructionsGame.color.split(' ').slice(0, 2).join(' '))}>
+                    <inspectingInstructionsGame.icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-black">
+                      How to Play {inspectingInstructionsGame.title}
+                    </DialogTitle>
+                    <DialogDescription className="text-xs">
+                      {inspectingInstructionsGame.badge} • Estimated play: {inspectingInstructionsGame.timeEstimate}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-4 text-sm mt-2">
+                {/* Objective */}
+                <div className="bg-muted/50 p-3 rounded-xl border border-border/60">
+                  <h4 className="font-bold text-xs uppercase text-primary mb-1 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    The Objective
+                  </h4>
+                  <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
+                    {inspectingInstructionsGame.instructions.objective}
+                  </p>
+                </div>
+
+                {/* How to Play Steps */}
+                <div className="space-y-2">
+                  <h4 className="font-bold text-xs uppercase text-muted-foreground flex items-center gap-1.5">
+                    <Info className="w-4 h-4 text-primary" />
+                    Rules & Controls
+                  </h4>
+                  <ul className="space-y-1.5 text-xs sm:text-sm">
+                    {inspectingInstructionsGame.instructions.howToPlay.map((step, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-muted-foreground">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center mt-0.5">
+                          {idx + 1}
+                        </span>
+                        <span className="leading-relaxed text-foreground">{step}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Pro Strategy Tip */}
+                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-3 rounded-xl">
+                  <h4 className="font-bold text-xs uppercase text-amber-800 dark:text-amber-300 mb-1 flex items-center gap-1.5">
+                    <Lightbulb className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    Winning Strategy Tip
+                  </h4>
+                  <p className="text-xs sm:text-sm text-amber-950 dark:text-amber-200/90 leading-relaxed font-medium">
+                    {inspectingInstructionsGame.instructions.proTip}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4 pt-2 border-t">
+                <Button
+                  className="font-bold text-xs"
+                  onClick={() => {
+                    setActiveGameId(inspectingInstructionsGame.id);
+                    setInspectingInstructionsGame(null);
+                  }}
+                >
+                  Play {inspectingInstructionsGame.title}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
