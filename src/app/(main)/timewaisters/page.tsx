@@ -19,6 +19,11 @@ import {
   Lightbulb,
   CheckCircle2,
   Info,
+  Shield,
+  Search,
+  Eye,
+  Heart,
+  Grid,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,15 +39,31 @@ import {
 import { useActiveCommunityId } from '@/hooks/use-active-community-id';
 import { cn } from '@/lib/utils';
 
-// Game Components
+// Game Components (11 Games)
 import { SudokuGame } from '@/components/timewaisters/sudoku-game';
 import { ConnectFourGame } from '@/components/timewaisters/connect-four-game';
 import { Game2048 } from '@/components/timewaisters/game-2048';
 import { WordGuessGame } from '@/components/timewaisters/word-guess-game';
 import { SnakeGame } from '@/components/timewaisters/snake-game';
 import { MinesweeperGame } from '@/components/timewaisters/minesweeper-game';
+import { SolitaireGame } from '@/components/timewaisters/solitaire-game';
+import { BrickBreakerGame } from '@/components/timewaisters/brick-breaker-game';
+import { MemoryMatchGame } from '@/components/timewaisters/memory-match-game';
+import { WordSearchGame } from '@/components/timewaisters/word-search-game';
+import { TicTacToeGame } from '@/components/timewaisters/tictactoe-game';
 
-type GameId = 'sudoku' | 'connect4' | '2048' | 'wordle' | 'snake' | 'minesweeper';
+type GameId =
+  | 'sudoku'
+  | 'connect4'
+  | '2048'
+  | 'wordle'
+  | 'snake'
+  | 'minesweeper'
+  | 'solitaire'
+  | 'brickbreaker'
+  | 'memory'
+  | 'wordsearch'
+  | 'tictactoe';
 
 interface GameInstructions {
   objective: string;
@@ -64,6 +85,27 @@ interface GameMeta {
 }
 
 const GAMES: GameMeta[] = [
+  {
+    id: 'solitaire',
+    title: 'Klondike Solitaire',
+    tagline: 'The timeless card game. Sort all 52 cards into the 4 suit foundations from Ace to King.',
+    category: 'classic',
+    badge: 'Popular Classic',
+    icon: Trophy,
+    color: 'from-emerald-600 to-teal-700 text-emerald-600',
+    timeEstimate: '5-10 mins',
+    component: SolitaireGame,
+    instructions: {
+      objective: 'Build all 52 cards up into the 4 foundation piles by suit, starting from Ace through to King.',
+      howToPlay: [
+        'On the tableau columns below, build cards down in descending rank with alternating colors (e.g. Red 6 on Black 7).',
+        'Kings (K) or groups starting with a King can fill empty tableau columns.',
+        'Tap the stock pile on the top left to draw fresh cards to the waste pile.',
+        'Tap or double-tap cards to move them automatically to the foundation piles.',
+      ],
+      proTip: 'Always focus on making moves that uncover face-down cards in the tableau before drawing new cards from the stock pile!',
+    },
+  },
   {
     id: 'sudoku',
     title: 'Sudoku',
@@ -107,6 +149,27 @@ const GAMES: GameMeta[] = [
     },
   },
   {
+    id: '2048',
+    title: '2048',
+    tagline: 'Swipe and slide matching numbers to double tiles all the way to 2048.',
+    category: 'arcade',
+    badge: 'Addictive',
+    icon: Sparkles,
+    color: 'from-yellow-500 to-amber-600 text-yellow-500',
+    timeEstimate: '3-6 mins',
+    component: Game2048,
+    instructions: {
+      objective: 'Merge matching numbers together by sliding tiles until you create the magic 2048 tile!',
+      howToPlay: [
+        'Swipe in any direction (or use Arrow keys / on-screen arrow buttons) to slide all tiles across the board.',
+        'When two tiles with the SAME number collide, they merge into one (2+2=4, 4+4=8, 8+8=16, 16+16=32, 32+32=64, ..., 1024+1024=2048).',
+        'Every single time you move, a new 2 or 4 appears in an empty space.',
+        'The game ends when the entire board fills up and no more merges can be made.',
+      ],
+      proTip: '🌟 THE GOLDEN CORNER RULE: Pick one corner (e.g. bottom-right) and NEVER move tiles away from it. Keep your highest number locked in that corner at all times, and build descending chains next to it. Never swipe Up unless you have zero other legal moves!',
+    },
+  },
+  {
     id: 'wordle',
     title: 'Town Word Guess',
     tagline: 'Guess the hidden 5-letter word in 6 attempts with color-coded clue tiles.',
@@ -129,24 +192,64 @@ const GAMES: GameMeta[] = [
     },
   },
   {
-    id: '2048',
-    title: '2048',
-    tagline: 'Swipe and slide matching numbers to double tiles all the way to 2048.',
+    id: 'brickbreaker',
+    title: 'Brick Breaker',
+    tagline: 'Slide your paddle to bounce the ball and smash colorful brick rows.',
     category: 'arcade',
-    badge: 'Addictive',
-    icon: Sparkles,
-    color: 'from-yellow-500 to-amber-600 text-yellow-500',
-    timeEstimate: '3-6 mins',
-    component: Game2048,
+    badge: 'Arcade Action',
+    icon: Grid,
+    color: 'from-rose-500 to-orange-600 text-rose-500',
+    timeEstimate: '2-5 mins',
+    component: BrickBreakerGame,
     instructions: {
-      objective: 'Merge matching numbers together by sliding tiles until you create the magic 2048 tile!',
+      objective: 'Destroy every brick on the screen by bouncing the ball off your paddle without dropping it.',
       howToPlay: [
-        'Swipe in any direction (or use Arrow keys / on-screen arrow buttons) to slide all tiles across the board.',
-        'When two tiles with the SAME number collide, they merge into one (2+2=4, 4+4=8, 8+8=16, 16+16=32, 32+32=64, ..., 1024+1024=2048).',
-        'Every single time you move, a new 2 or 4 appears in an empty space.',
-        'The game ends when the entire board fills up and no more merges can be made.',
+        'Move your paddle left and right by dragging with your finger/mouse or using the Arrow keys.',
+        'Bounce the ball into the bricks to shatter them and earn points.',
+        'You have 3 lives—if the ball slips past your paddle and falls off the bottom, you lose a life.',
       ],
-      proTip: '🌟 THE GOLDEN CORNER RULE: Pick one corner (e.g. bottom-right) and NEVER move tiles away from it. Keep your highest number locked in that corner at all times, and build descending chains next to it. Never swipe Up unless you have zero other legal moves!',
+      proTip: 'Hitting the ball with the outer edges of your paddle deflects it at sharp sideways angles. Use this to send the ball above the brick wall for rapid-fire combo clears!',
+    },
+  },
+  {
+    id: 'memory',
+    title: 'Memory Match',
+    tagline: 'Flip cards two at a time to find all 8 matching pairs in fewest moves.',
+    category: 'brain',
+    badge: 'Casual & Relaxing',
+    icon: Eye,
+    color: 'from-purple-500 to-indigo-600 text-purple-500',
+    timeEstimate: '1-3 mins',
+    component: MemoryMatchGame,
+    instructions: {
+      objective: 'Find and uncover all 8 matching pairs of cards in the fewest number of flips.',
+      howToPlay: [
+        'Tap any face-down card to reveal its picture.',
+        'Tap a second card. If the symbols match, they stay face up!',
+        'If they do not match, remember their positions before they flip back down.',
+      ],
+      proTip: 'Say the card names in your head (e.g. "top-right is coffee, bottom-left is tree") to easily recall them when you see their counterpart!',
+    },
+  },
+  {
+    id: 'wordsearch',
+    title: 'Word Search',
+    tagline: 'Search the letter grid to find 6 hidden words horizontally, vertically, or diagonally.',
+    category: 'brain',
+    badge: 'Word Puzzle',
+    icon: Search,
+    color: 'from-teal-500 to-cyan-600 text-teal-500',
+    timeEstimate: '2-4 mins',
+    component: WordSearchGame,
+    instructions: {
+      objective: 'Locate and circle all 6 hidden words concealed inside the 10x10 letter grid.',
+      howToPlay: [
+        'Words may be hidden across, down, or diagonally.',
+        'Tap the FIRST letter of a hidden word.',
+        'Then tap the LAST letter of the word to highlight the whole word.',
+        'The word list at the bottom will cross off words as you discover them.',
+      ],
+      proTip: 'Scan the grid for rare letters (like K, P, L, or double letters) to spot words much faster than reading line by line.',
     },
   },
   {
@@ -168,6 +271,26 @@ const GAMES: GameMeta[] = [
         'Press Spacebar or the Pause button at any time to take a break.',
       ],
       proTip: 'Travel around the outer perimeter of the screen in wide loops instead of turning back into the middle so you never get trapped by your own tail.',
+    },
+  },
+  {
+    id: 'tictactoe',
+    title: 'Noughts & Crosses',
+    tagline: 'The classic 3x3 game. Challenge the smart bot or pass and play with a friend.',
+    category: 'classic',
+    badge: 'Quick 30s',
+    icon: Bot,
+    color: 'from-blue-600 to-cyan-600 text-blue-600',
+    timeEstimate: '30s - 1 min',
+    component: TicTacToeGame,
+    instructions: {
+      objective: 'Be the first player to place 3 of your marks in a horizontal, vertical, or diagonal line.',
+      howToPlay: [
+        'Player X moves first, followed by Player O.',
+        'Tap any empty square on the 3x3 grid to claim it.',
+        'Select "vs Bot" to play against the computer AI or "2 Players" to play with a friend.',
+      ],
+      proTip: 'Taking the center square on turn 1 gives you the strongest winning chances and blocks the most lines!',
     },
   },
   {
@@ -249,7 +372,7 @@ export default function TimeWaistersPage() {
               <span>Coffee Break Ready</span>
             </div>
             <div className="text-xs text-muted-foreground pr-2 font-medium hidden sm:inline">
-              6 Games Available
+              11 Games Available
             </div>
           </div>
         </div>
@@ -310,7 +433,7 @@ export default function TimeWaistersPage() {
               className="w-full sm:w-auto"
             >
               <TabsList className="grid grid-cols-4 w-full sm:w-auto">
-                <TabsTrigger value="all">All Games</TabsTrigger>
+                <TabsTrigger value="all">All Games ({GAMES.length})</TabsTrigger>
                 <TabsTrigger value="brain">Brain & Word</TabsTrigger>
                 <TabsTrigger value="classic">Classics</TabsTrigger>
                 <TabsTrigger value="arcade">Arcade</TabsTrigger>
