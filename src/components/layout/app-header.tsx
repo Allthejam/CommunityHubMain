@@ -25,7 +25,7 @@ import BookText from 'lucide-react/dist/esm/icons/book-text';
 import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import MapIcon from 'lucide-react/dist/esm/icons/map';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
-import { Store, HeartPulse, Navigation } from 'lucide-react';
+import { Store, HeartPulse, Navigation, Gamepad2 } from 'lucide-react';
 import Tag from 'lucide-react/dist/esm/icons/tag';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import Shield from 'lucide-react/dist/esm/icons/shield';
@@ -115,6 +115,7 @@ const engageSubItems = [
     { href: '/polls', label: 'Polls', icon: BadgeHelp, permission: 'viewPolls' },
     { href: '/campaigns', label: 'Local Petitions', icon: Target, permission: 'viewPolls' },
     { href: '/guestbook', label: 'Guest Book', icon: BookOpen, permission: 'viewGuestBook' },
+    { href: '/timewaisters', label: 'Time Waisters', icon: Gamepad2 },
 ];
 
 const accountTypeIcons = {

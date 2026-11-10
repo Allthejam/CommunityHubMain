@@ -46,6 +46,7 @@ import {
   Printer,
   Compass,
   MapPin,
+  Gamepad2,
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -133,6 +134,7 @@ const engageSubItems = [
     { href: '/polls', label: 'Polls', icon: BadgeHelp },
     { href: '/campaigns', label: 'Local Petitions', icon: Target },
     { href: '/guestbook', label: 'Guest Book', icon: BookOpen },
+    { href: '/timewaisters', label: 'Time Waisters', icon: Gamepad2 },
 ];
 
 const getInitials = (name: string | undefined) => {
