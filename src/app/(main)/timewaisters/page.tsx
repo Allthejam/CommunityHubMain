@@ -24,6 +24,11 @@ import {
   Eye,
   Heart,
   Grid,
+  BookOpen,
+  Crosshair,
+  Zap,
+  Crown,
+  Anchor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +44,7 @@ import {
 import { useActiveCommunityId } from '@/hooks/use-active-community-id';
 import { cn } from '@/lib/utils';
 
-// Game Components (11 Games)
+// Game Components (16 Games)
 import { SudokuGame } from '@/components/timewaisters/sudoku-game';
 import { ConnectFourGame } from '@/components/timewaisters/connect-four-game';
 import { Game2048 } from '@/components/timewaisters/game-2048';
@@ -51,6 +56,11 @@ import { BrickBreakerGame } from '@/components/timewaisters/brick-breaker-game';
 import { MemoryMatchGame } from '@/components/timewaisters/memory-match-game';
 import { WordSearchGame } from '@/components/timewaisters/word-search-game';
 import { TicTacToeGame } from '@/components/timewaisters/tictactoe-game';
+import { TriviaGame } from '@/components/timewaisters/trivia-game';
+import { BattleshipGame } from '@/components/timewaisters/battleship-game';
+import { WordRescueGame } from '@/components/timewaisters/word-rescue-game';
+import { TownHopperGame } from '@/components/timewaisters/town-hopper-game';
+import { CheckersGame } from '@/components/timewaisters/checkers-game';
 
 type GameId =
   | 'sudoku'
@@ -63,7 +73,12 @@ type GameId =
   | 'brickbreaker'
   | 'memory'
   | 'wordsearch'
-  | 'tictactoe';
+  | 'tictactoe'
+  | 'trivia'
+  | 'battleship'
+  | 'wordrescue'
+  | 'townhopper'
+  | 'checkers';
 
 interface GameInstructions {
   objective: string;
@@ -312,6 +327,111 @@ const GAMES: GameMeta[] = [
         'If you tap an empty cell with 0 touching mines, the board automatically opens all surrounding safe tiles for you!',
       ],
       proTip: 'If a revealed square shows "1" and is only touching one unrevealed tile, that tile is guaranteed to be a mine—flag it right away to stay safe!',
+    },
+  },
+  {
+    id: 'trivia',
+    title: 'Daily Pub Quiz',
+    tagline: '5 daily trivia questions covering culture, history, nature, and entertainment.',
+    category: 'brain',
+    badge: 'Daily 5-Min',
+    icon: BookOpen,
+    color: 'from-amber-600 to-yellow-600 text-amber-600',
+    timeEstimate: '2-4 mins',
+    component: TriviaGame,
+    instructions: {
+      objective: 'Answer all 5 daily multiple-choice questions correctly to build your winning streak and score 5/5.',
+      howToPlay: [
+        'Choose "Daily Quiz" for today\'s global community questions, or "Practice" for unlimited rounds.',
+        'Read the question and select one of the four possible answers (A, B, C, or D).',
+        'Green confirms the right answer; red indicates an incorrect guess.',
+        'Read the "Did you know?" insight box after each question to learn fascinating trivia.',
+      ],
+      proTip: 'Eliminate two obviously wrong answers first—this instantly doubles your chances of picking the right one!',
+    },
+  },
+  {
+    id: 'battleship',
+    title: 'Battleship Radar',
+    tagline: 'Deploy your naval warships on the 10x10 ocean grid and sink the enemy fleet.',
+    category: 'classic',
+    badge: 'Naval Warfare',
+    icon: Crosshair,
+    color: 'from-sky-600 to-blue-700 text-sky-600',
+    timeEstimate: '3-6 mins',
+    component: BattleshipGame,
+    instructions: {
+      objective: 'Locate and sink all 5 enemy warships (Carrier, Battleship, Cruiser, Submarine, Destroyer) before your own fleet is eliminated.',
+      howToPlay: [
+        'Press "Randomize Fleet" to position your ships, then tap "Engage Battle!" to start radar combat.',
+        'Tap any coordinate on the 10x10 Radar grid to fire a salvo at enemy waters.',
+        'Red flames mark direct hits; blue ripples mark splashes in open ocean.',
+        'Toggle between "Radar" (attack mode) and "My Fleet" (defense mode) to monitor ship damage.',
+      ],
+      proTip: 'When you score a direct hit on an enemy vessel, systematically fire at the 4 adjacent coordinates (North, South, East, West) to trace and sink the rest of the ship!',
+    },
+  },
+  {
+    id: 'wordrescue',
+    title: 'Word Rescue',
+    tagline: 'Save the floating town mascot before 6 balloons pop in this friendly word puzzle.',
+    category: 'brain',
+    badge: 'Word Puzzle',
+    icon: Heart,
+    color: 'from-pink-500 to-rose-600 text-pink-500',
+    timeEstimate: '1-3 mins',
+    component: WordRescueGame,
+    instructions: {
+      objective: 'Guess the mystery word letter-by-letter to safely rescue the floating town mascot before 6 balloons pop.',
+      howToPlay: [
+        'Read the category clue at the top (Castles, High Street, Scottish Wildlife, or Traditional Treats).',
+        'Tap letters on the on-screen keyboard to make your guesses.',
+        'Every incorrect letter pops 1 balloon—you have 6 total chances.',
+        'Tap "Need a clue?" if you need an extra hint for difficult words.',
+      ],
+      proTip: 'Start by guessing the most frequent vowels (E, A, O, I) before testing common consonants like T, R, S, and N.',
+    },
+  },
+  {
+    id: 'townhopper',
+    title: 'Town Hopper',
+    tagline: 'One-finger reflex arcade. Tap to flap and navigate through town chimneys and pillars.',
+    category: 'arcade',
+    badge: 'One-Finger Reflex',
+    icon: Zap,
+    color: 'from-amber-500 to-orange-600 text-amber-500',
+    timeEstimate: '1-3 mins',
+    component: TownHopperGame,
+    instructions: {
+      objective: 'Steer the flying town mascot through the gaps between town chimneys without colliding with obstacles or the ground.',
+      howToPlay: [
+        'Tap anywhere on the game canvas, press the big "TAP TO FLAP" button, or press Spacebar on desktop to flap upwards.',
+        'Gravity pulls the mascot downwards when you are not tapping.',
+        'Pass cleanly between upper and lower chimneys to score 1 point per obstacle.',
+        'Keep your rhythm steady to beat your personal best high score!',
+      ],
+      proTip: 'Use short, gentle taps to maintain a level cruising altitude—falling too low requires frantic tapping that makes controlling the mascot harder.',
+    },
+  },
+  {
+    id: 'checkers',
+    title: 'Checkers (Draughts)',
+    tagline: 'Classic 8x8 board game. Jump opponent pieces and reach the back rank to crown a King.',
+    category: 'classic',
+    badge: 'Board Game',
+    icon: Crown,
+    color: 'from-red-600 to-amber-700 text-red-600',
+    timeEstimate: '3-8 mins',
+    component: CheckersGame,
+    instructions: {
+      objective: 'Capture all opponent pieces or block them so they have no legal moves remaining.',
+      howToPlay: [
+        'Red pieces start at the bottom and move first, stepping diagonally forward one dark square.',
+        'Jump over an adjacent opponent piece into the empty space directly beyond to capture and remove it.',
+        'Advance a piece to the opponent\'s back rank (row 0 for Red, row 7 for White) to crown it as a King (👑).',
+        'Kings gain the power to move and jump both forwards and backwards diagonally.',
+      ],
+      proTip: 'Keep your own back-row pieces stationed in place as long as possible—this prevents your opponent from easily crowning their pieces Kings early in the match!',
     },
   },
 ];
