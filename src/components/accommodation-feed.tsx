@@ -30,51 +30,28 @@ export function AccommodationFeed({ communityId }: { communityId: string | null 
   const [clientAccommodations, setClientAccommodations] = React.useState<Business[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  const accommodationCategoryValues = React.useMemo(() => {
-    const raw = [
-      'Stays & Lodging',
-      'stays-lodging',
-      'stays & lodging',
-      'accommodation',
-      'Accommodation',
-      'hotel',
-      'Hotel',
-      'guest-house',
-      'Guest House',
-      'b-and-b',
-      'B&B',
-      'holiday-home',
-      'Holiday Home',
-      'caravan-park',
-      'Caravan Park',
-      'camping-site',
-      'Camping Site',
-      'glamping',
-      'Glamping',
-      'short-stay',
-      'Short Stay',
-      'airbnb',
-      'Airbnb',
-      'other-stay',
-      ...accommodationCategories.map(c => c.value),
-      ...accommodationCategories.map(c => c.label),
-    ];
-    return Array.from(new Set(raw)).slice(0, 30);
-  }, []);
-
-  const accommodationQuery = useMemoFirebase(() => {
+  // Query all businesses in this community (single-field query, fast & 100% indexed)
+  const primaryQuery = useMemoFirebase(() => {
     if (!communityId || !db) return null;
     return query(
       collection(db, "businesses"),
-      where("primaryCommunityId", "==", communityId),
-      where("status", "in", ["Approved", "Subscribed"]),
-      where("businessCategory", "in", accommodationCategoryValues)
+      where("primaryCommunityId", "==", communityId)
     );
-  }, [db, communityId, accommodationCategoryValues]);
+  }, [db, communityId]);
 
-  const { data: liveAccommodations, isLoading: accommodationsLoading } = useCollection<Business>(accommodationQuery);
+  // Also query businesses advertising additionally in this community
+  const additionalQuery = useMemoFirebase(() => {
+    if (!communityId || !db) return null;
+    return query(
+      collection(db, "businesses"),
+      where("additionalCommunityIds", "array-contains", communityId)
+    );
+  }, [db, communityId]);
+
+  const { data: primaryBusinesses, isLoading: primaryLoading } = useCollection<Business>(primaryQuery);
+  const { data: additionalBusinesses, isLoading: additionalLoading } = useCollection<Business>(additionalQuery);
   
-  const overallLoading = accommodationsLoading;
+  const overallLoading = primaryLoading || additionalLoading;
 
   React.useEffect(() => {
     if (overallLoading) {
@@ -98,24 +75,72 @@ export function AccommodationFeed({ communityId }: { communityId: string | null 
     };
 
     const now = new Date();
+
+    const isAccommodationBusiness = (b: any): boolean => {
+      if (b.isAccommodation === true) return true;
+      const cat = (b.businessCategory || '').toLowerCase().trim();
+      return (
+        cat.includes('stay') ||
+        cat.includes('lodg') ||
+        cat.includes('hotel') ||
+        cat.includes('b&b') ||
+        cat.includes('b-and-b') ||
+        cat.includes('guest') ||
+        cat.includes('campsite') ||
+        cat.includes('camping') ||
+        cat.includes('caravan') ||
+        cat.includes('glamping') ||
+        cat.includes('holiday') ||
+        cat.includes('airbnb') ||
+        cat.includes('accommodation') ||
+        cat.includes('motel') ||
+        cat.includes('inn') ||
+        cat.includes('resort') ||
+        cat.includes('hostel') ||
+        cat.includes('cottage')
+      );
+    };
+
     const filterLive = (business: Business) => {
-        // Seeded unclaimed accommodations are always live & open for claiming
-        if ((business as any).isUnclaimed || (business as any).ownerId === 'platform' || (business as any).claimed === false) {
+        const b = business as any;
+
+        // 1. Must be an accommodation / stay
+        if (!isAccommodationBusiness(b)) return false;
+
+        // 2. Seeded / public directory unclaimed accommodations are ALWAYS live & claimable!
+        if (b.isUnclaimed || b.ownerId === 'platform' || b.claimed === false || b.createdBy === 'platform') {
             return true;
         }
-        if (business.status === 'Subscribed') {
-            const expiryDate = toDate(business.listingSubscriptionExpiresAt);
+
+        // 3. Subscribed businesses
+        if (b.status === 'Subscribed') {
+            const expiryDate = toDate(b.listingSubscriptionExpiresAt);
             return !expiryDate || now <= expiryDate;
         }
-        if (business.status === 'Approved' && business.createdAt) {
-            const creationDate = toDate(business.createdAt);
-            if (!creationDate) return false;
-            return differenceInDays(now, creationDate) <= 14;
+
+        // 4. Free listings
+        const freeExpiry = toDate(b.freeListingExpiresAt);
+        if (b.isFreeListing && (!freeExpiry || now <= freeExpiry)) {
+            return true;
         }
+
+        // 5. Approved businesses
+        if (b.status === 'Approved') {
+            const creationDate = toDate(b.createdAt);
+            if (!creationDate) return true;
+            return differenceInDays(now, creationDate) <= 30;
+        }
+
         return false;
     };
     
-    let liveFiltered = (liveAccommodations || []).filter(filterLive);
+    // Combine and deduplicate
+    const combined = [
+      ...(primaryBusinesses || []),
+      ...(additionalBusinesses || []),
+    ];
+    const unique = Array.from(new Map(combined.map(b => [b.id, b])).values());
+    let liveFiltered = unique.filter(filterLive);
     
     if (liveFiltered.length > 0) {
       // Fair exposure: Randomize accommodations on each visit
@@ -129,7 +154,7 @@ export function AccommodationFeed({ communityId }: { communityId: string | null 
         setClientAccommodations(shuffleArray(mockStays as Business[]));
     }
     setIsLoading(false);
-  }, [JSON.stringify(liveAccommodations), overallLoading]);
+  }, [primaryBusinesses, additionalBusinesses, overallLoading]);
 
   if (isLoading && clientAccommodations.length === 0) {
     return (
