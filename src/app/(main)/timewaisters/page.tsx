@@ -29,6 +29,7 @@ import {
   Zap,
   Crown,
   Anchor,
+  Coins,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +45,7 @@ import {
 import { useActiveCommunityId } from '@/hooks/use-active-community-id';
 import { cn } from '@/lib/utils';
 
-// Game Components (16 Games)
+// Game Components (21 Games)
 import { SudokuGame } from '@/components/timewaisters/sudoku-game';
 import { ConnectFourGame } from '@/components/timewaisters/connect-four-game';
 import { Game2048 } from '@/components/timewaisters/game-2048';
@@ -61,6 +62,11 @@ import { BattleshipGame } from '@/components/timewaisters/battleship-game';
 import { WordRescueGame } from '@/components/timewaisters/word-rescue-game';
 import { TownHopperGame } from '@/components/timewaisters/town-hopper-game';
 import { CheckersGame } from '@/components/timewaisters/checkers-game';
+import { MiniCrosswordGame } from '@/components/timewaisters/mini-crossword-game';
+import { FreeCellGame } from '@/components/timewaisters/freecell-game';
+import { FifteenPuzzleGame } from '@/components/timewaisters/fifteen-puzzle-game';
+import { BlackjackGame } from '@/components/timewaisters/blackjack-game';
+import { ReversiGame } from '@/components/timewaisters/reversi-game';
 
 type GameId =
   | 'sudoku'
@@ -78,7 +84,12 @@ type GameId =
   | 'battleship'
   | 'wordrescue'
   | 'townhopper'
-  | 'checkers';
+  | 'checkers'
+  | 'minicrossword'
+  | 'freecell'
+  | '15puzzle'
+  | 'blackjack'
+  | 'reversi';
 
 interface GameInstructions {
   objective: string;
@@ -432,6 +443,111 @@ const GAMES: GameMeta[] = [
         'Kings gain the power to move and jump both forwards and backwards diagonally.',
       ],
       proTip: 'Keep your own back-row pieces stationed in place as long as possible—this prevents your opponent from easily crowning their pieces Kings early in the match!',
+    },
+  },
+  {
+    id: 'minicrossword',
+    title: 'Mini Crossword (5x5)',
+    tagline: 'Bite-sized 5x5 daily crossword with Across & Down clues and letter reveal helper.',
+    category: 'brain',
+    badge: 'Daily 2-Min',
+    icon: Grid,
+    color: 'from-blue-600 to-indigo-700 text-blue-600',
+    timeEstimate: '2-4 mins',
+    component: MiniCrosswordGame,
+    instructions: {
+      objective: 'Fill the entire 5x5 crossword grid with the correct intersecting letters based on the Across and Down clues.',
+      howToPlay: [
+        'Tap any square to select it; tap it again to switch typing direction between Across and Down.',
+        'Use the on-screen letter keyboard or physical keyboard to type in letters.',
+        'Tap "Reveal Letter" if you get stuck on a tricky intersecting clue.',
+        'Tap "Next Puzzle" to solve another mini crossword anytime.',
+      ],
+      proTip: 'Solve the shortest 3-letter and 4-letter clues first—their letters will automatically give you free hints for the longer 5-letter words!',
+    },
+  },
+  {
+    id: 'freecell',
+    title: 'FreeCell Solitaire',
+    tagline: 'The strategic card classic. Use 4 free reserve cells to build all 4 suit foundations.',
+    category: 'classic',
+    badge: 'Card Classic',
+    icon: Layers,
+    color: 'from-emerald-700 to-teal-800 text-emerald-700',
+    timeEstimate: '5-10 mins',
+    component: FreeCellGame,
+    instructions: {
+      objective: 'Move all 52 cards into the 4 foundation piles by suit from Ace up to King.',
+      howToPlay: [
+        'All cards are dealt face-up into 8 tableau cascades.',
+        'Use the 4 Free Cells in the top-left as temporary holding spots for any single card.',
+        'Build tableau cascades downward in alternating colors (e.g. Red 7 on Black 8).',
+        'Tap "Auto Move" at any time to automatically promote safe cards into the foundation piles.',
+      ],
+      proTip: 'Keep your 4 free cells as empty as possible—having 3 or 4 open free cells allows you to move long runs of cards at once!',
+    },
+  },
+  {
+    id: '15puzzle',
+    title: 'Sliding 15-Puzzle',
+    tagline: 'Slide scrambled wooden tiles into numerical order 1 to 15 in this classic test of logic.',
+    category: 'brain',
+    badge: 'Slide Logic',
+    icon: Hash,
+    color: 'from-amber-700 to-orange-800 text-amber-700',
+    timeEstimate: '2-5 mins',
+    component: FifteenPuzzleGame,
+    instructions: {
+      objective: 'Arrange the 15 numbered wooden tiles in numerical order from 1 to 15, leaving the empty space in the bottom-right.',
+      howToPlay: [
+        'Tap any tile adjacent to the empty square to slide it into the empty space.',
+        'Work row by row, starting by positioning tiles 1, 2, 3, and 4 in the top row.',
+        'Continue with rows 2 and 3 until the puzzle falls into place.',
+        'Press "Scramble New Puzzle" for a fresh guaranteed-solvable challenge.',
+      ],
+      proTip: 'Solve the top row (1, 2, 3, 4) first, then the second row (5, 6, 7, 8). Once the top two rows are locked in, solve the remaining two rows together!',
+    },
+  },
+  {
+    id: 'blackjack',
+    title: 'Blackjack 21',
+    tagline: 'Arcade casino cards. Beat the dealer by getting closest to 21 without busting!',
+    category: 'classic',
+    badge: 'Arcade Casino',
+    icon: Coins,
+    color: 'from-emerald-600 to-green-700 text-emerald-600',
+    timeEstimate: '1-3 mins',
+    component: BlackjackGame,
+    instructions: {
+      objective: 'Score closer to 21 than the dealer without exceeding 21 ("busting").',
+      howToPlay: [
+        'Select your bet amount ($10, $25, $50, $100) and tap "DEAL CARDS".',
+        'Tap "HIT" to take another card, or "STAND" to end your turn and let the dealer play.',
+        'Tap "DOUBLE (2x)" on your initial 2 cards to double your wager and receive exactly 1 more card.',
+        'A natural 21 (Ace + 10/J/Q/K) is a Blackjack and pays 3:2!',
+      ],
+      proTip: 'Always stand on hard 17 or higher, and always hit if your hand is 11 or lower—the dealer must hit until they reach at least 17!',
+    },
+  },
+  {
+    id: 'reversi',
+    title: 'Reversi (Othello)',
+    tagline: 'Trap and flip opponent disks on the 8x8 felt board. A minute to learn, a lifetime to master.',
+    category: 'classic',
+    badge: 'Board Game',
+    icon: Shield,
+    color: 'from-emerald-800 to-slate-900 text-emerald-800',
+    timeEstimate: '3-7 mins',
+    component: ReversiGame,
+    instructions: {
+      objective: 'Have the majority of disks showing your color when the 8x8 board fills or neither player can move.',
+      howToPlay: [
+        'Black pieces move first. Tap any glowing green indicator dot to place your disk.',
+        'Your placed disk must trap one or more opponent disks in a straight line between itself and another disk of your color.',
+        'All trapped opponent disks immediately flip to your color!',
+        'Switch between "vs AI" and "Pass & Play" at the top.',
+      ],
+      proTip: 'Corners are the most powerful squares on the board because they can NEVER be flipped back—seize corners whenever possible and avoid giving them away!',
     },
   },
 ];
