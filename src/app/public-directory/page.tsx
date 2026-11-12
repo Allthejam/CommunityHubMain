@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getPublicBusinessesAction, getDirectoryCommunitiesAction } from '@/lib/actions/publicDirectoryActions';
+import { Suspense } from 'react';
 import { PublicDirectoryView } from '@/components/public-directory/public-directory-view';
 
 export const dynamic = 'force-dynamic';
@@ -107,7 +108,9 @@ export default async function PublicDirectoryPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(directorySchema) }}
       />
-      <PublicDirectoryView businesses={businesses} communitiesList={communitiesList} />
+      <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div></div>}>
+        <PublicDirectoryView businesses={businesses} communitiesList={communitiesList} />
+      </Suspense>
     </>
   );
 }

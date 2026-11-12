@@ -272,12 +272,41 @@ function BusinessDirectoryContent() {
   React.useEffect(() => {
     const categoryFromUrl = searchParams.get('category');
     if (categoryFromUrl && categories.length > 0) {
-      if (categoryFromUrl === 'accommodation') {
-          const accommodationLabels = accommodationCategories.map(c => c.label);
-          setActiveFilters(prev => [...new Set([...prev, ...accommodationLabels])]);
+      const lower = categoryFromUrl.toLowerCase().trim();
+      if (lower === 'accommodation' || lower === 'stays' || lower === 'stays-lodging' || lower === 'stays & lodging') {
+        const accommodationKeywords = [
+          'stays & lodging',
+          'stays and lodging',
+          'stays',
+          'lodging',
+          'accommodation',
+          'hotel',
+          'guest house',
+          'b&b',
+          'holiday home',
+          'caravan park',
+          'camping site',
+          'glamping',
+          'short stay',
+          'airbnb',
+          ...accommodationCategories.map(c => c.label.toLowerCase()),
+          ...accommodationCategories.map(c => c.value.toLowerCase()),
+        ];
+        const matchingCategories = categories.filter(c => {
+          const cl = c.toLowerCase();
+          return accommodationKeywords.some(k => cl.includes(k) || k.includes(cl));
+        });
+        if (matchingCategories.length > 0) {
+          setActiveFilters(prev => [...new Set([...prev, ...matchingCategories, 'Stays & Lodging'])]);
+        } else {
+          setActiveFilters(prev => [...new Set([...prev, 'Stays & Lodging', 'Accommodation'])]);
+        }
       } else {
         const categoryLabel = categoryFromUrl.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' & ');
-        if (categories.includes(categoryLabel) && !activeFilters.includes(categoryLabel)) {
+        const matched = categories.find(c => c.toLowerCase() === categoryLabel.toLowerCase() || c.toLowerCase() === categoryFromUrl.toLowerCase());
+        if (matched && !activeFilters.includes(matched)) {
+          setActiveFilters([matched]);
+        } else if (!activeFilters.includes(categoryLabel)) {
           setActiveFilters([categoryLabel]);
         }
       }
@@ -295,7 +324,48 @@ function BusinessDirectoryContent() {
 
   const filteredBusinesses = React.useMemo(() => {
     if (activeFilters.length === 0) return businessesToDisplay;
-    return businessesToDisplay.filter(business => activeFilters.includes(business.businessCategory?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' & ') || ''));
+    return businessesToDisplay.filter(business => {
+      const rawCat = business.businessCategory || '';
+      const formattedCat = rawCat.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' & ');
+      const rawLower = rawCat.toLowerCase();
+      const formattedLower = formattedCat.toLowerCase();
+
+      // Direct or case-insensitive match
+      if (activeFilters.some(f => {
+        const fl = f.toLowerCase();
+        return fl === rawLower || fl === formattedLower;
+      })) {
+        return true;
+      }
+
+      // Check if filtering for stays/accommodations
+      const isFilteringAccommodation = activeFilters.some(f => {
+        const fl = f.toLowerCase();
+        return fl.includes('stay') || fl.includes('lodg') || fl.includes('hotel') || fl.includes('b&b') || fl.includes('accommodation');
+      });
+
+      if (isFilteringAccommodation) {
+        if ((business as any).isAccommodation) return true;
+        if (
+          rawLower.includes('stay') ||
+          rawLower.includes('lodg') ||
+          rawLower.includes('hotel') ||
+          rawLower.includes('b&b') ||
+          rawLower.includes('guest') ||
+          rawLower.includes('campsite') ||
+          rawLower.includes('camping') ||
+          rawLower.includes('caravan') ||
+          rawLower.includes('glamping') ||
+          rawLower.includes('holiday') ||
+          rawLower.includes('airbnb') ||
+          rawLower.includes('accommodation')
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    });
   }, [businessesToDisplay, activeFilters]);
     
   const isFiltered = activeFilters.length > 0 || listingTypeFilter !== 'All';

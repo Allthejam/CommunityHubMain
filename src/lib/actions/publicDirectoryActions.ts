@@ -239,7 +239,12 @@ function normalizeBusinessDoc(
     country: data.country || 'United Kingdom',
     city: primaryAddress?.city || data.city || commName || '',
     postcode: primaryAddress?.postcode || data.postcode || '',
-    isAccommodation: Boolean(data.isAccommodation),
+    isAccommodation: Boolean(
+      data.isAccommodation ||
+      ['hotel', 'b&b', 'stay', 'lodg', 'accommodation', 'campsite', 'motel', 'inn', 'caravan', 'glamping', 'guest', 'holiday', 'airbnb'].some((m) =>
+        (data.businessCategory || '').toLowerCase().includes(m)
+      )
+    ),
     phone: data.contactNumber || data.phone || data.contactPhone || data.dispatchPhone || null,
     website: data.website || null,
     contactEmail: data.contactEmail || null,
@@ -551,7 +556,7 @@ export async function createPlatformUnclaimedBusinessAction(params: {
     const cleanMetaDesc = metaDescription?.trim() || shortDescription?.trim() || `Discover ${cleanName}, independent ${businessCategory.trim()} in ${cleanCommName} (${cleanPostcode}). View community directory profile.`;
     const cleanImageAlt = imageAlt?.trim() || `${cleanName} - ${businessCategory.trim()} in ${cleanCommName}, ${cleanPostcode}`;
 
-    const isAccommodation = ['hotel', 'b&b', 'stay', 'accommodation', 'campsite', 'motel', 'inn'].some((m) =>
+    const isAccommodation = ['hotel', 'b&b', 'stay', 'lodg', 'accommodation', 'campsite', 'motel', 'inn', 'caravan', 'glamping', 'guest', 'holiday', 'airbnb'].some((m) =>
       businessCategory.toLowerCase().includes(m)
     );
 

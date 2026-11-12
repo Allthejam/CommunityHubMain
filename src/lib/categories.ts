@@ -1,4 +1,3 @@
-
 export const businessCategories = [
     { value: 'accounting', label: 'Accounting' },
     { value: 'automotive', label: 'Automotive' },
@@ -33,6 +32,8 @@ export const businessCategories = [
 ];
 
 export const accommodationCategories = [
+    { value: 'Stays & Lodging', label: 'Stays & Lodging' },
+    { value: 'stays-lodging', label: 'Stays & Lodging' },
     { value: 'hotel', label: 'Hotel' },
     { value: 'guest-house', label: 'Guest House' },
     { value: 'b-and-b', label: 'B&B' },
@@ -42,5 +43,27 @@ export const accommodationCategories = [
     { value: 'glamping', label: 'Glamping' },
     { value: 'short-stay', label: 'Short Stay' },
     { value: 'airbnb', label: 'Airbnb' },
-    { value: 'other-stay', label: 'Other' },
+    { value: 'accommodation', label: 'Accommodation' },
+    { value: 'other-stay', label: 'Other Stays' },
 ];
+
+export const isAccommodationCategory = (category?: string | null): boolean => {
+    if (!category) return false;
+    const lower = category.toLowerCase().trim();
+    return (
+        lower.includes('stay') ||
+        lower.includes('lodg') ||
+        lower.includes('hotel') ||
+        lower.includes('b&b') ||
+        lower.includes('b-and-b') ||
+        lower.includes('guest') ||
+        lower.includes('campsite') ||
+        lower.includes('camping') ||
+        lower.includes('caravan') ||
+        lower.includes('glamping') ||
+        lower.includes('holiday') ||
+        lower.includes('airbnb') ||
+        lower.includes('accommodation') ||
+        accommodationCategories.some(c => c.value.toLowerCase() === lower || c.label.toLowerCase() === lower)
+    );
+};

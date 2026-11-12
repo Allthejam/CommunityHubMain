@@ -30,7 +30,37 @@ export function AccommodationFeed({ communityId }: { communityId: string | null 
   const [clientAccommodations, setClientAccommodations] = React.useState<Business[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  const accommodationCategoryValues = React.useMemo(() => accommodationCategories.map(c => c.value), []);
+  const accommodationCategoryValues = React.useMemo(() => {
+    const raw = [
+      'Stays & Lodging',
+      'stays-lodging',
+      'stays & lodging',
+      'accommodation',
+      'Accommodation',
+      'hotel',
+      'Hotel',
+      'guest-house',
+      'Guest House',
+      'b-and-b',
+      'B&B',
+      'holiday-home',
+      'Holiday Home',
+      'caravan-park',
+      'Caravan Park',
+      'camping-site',
+      'Camping Site',
+      'glamping',
+      'Glamping',
+      'short-stay',
+      'Short Stay',
+      'airbnb',
+      'Airbnb',
+      'other-stay',
+      ...accommodationCategories.map(c => c.value),
+      ...accommodationCategories.map(c => c.label),
+    ];
+    return Array.from(new Set(raw)).slice(0, 30);
+  }, []);
 
   const accommodationQuery = useMemoFirebase(() => {
     if (!communityId || !db) return null;

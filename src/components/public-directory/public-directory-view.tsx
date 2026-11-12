@@ -46,7 +46,7 @@ import {
   Loader2,
   AlertTriangle,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -127,7 +127,7 @@ const CATEGORY_FILTERS = [
   { id: 'retail', label: 'Retail & Shops', icon: ShoppingBag, match: ['retail', 'book', 'clothing', 'jewellery', 'electronics', 'gift', 'toys', 'florist'] },
   { id: 'trades', label: 'Trades & Services', icon: Wrench, match: ['trades', 'repair', 'automotive', 'bike', 'furniture', 'optician', 'stationery'] },
   { id: 'health', label: 'Health & Beauty', icon: HeartPulse, match: ['health', 'beauty', 'fitness', 'salon', 'pet'] },
-  { id: 'accommodation', label: 'Stays & Lodging', icon: Bed, match: ['hotel', 'stay', 'accommodation', 'b&b', 'campsite'] },
+  { id: 'accommodation', label: 'Stays & Lodging', icon: Bed, match: ['hotel', 'stay', 'lodg', 'accommodation', 'b&b', 'campsite', 'guest house', 'holiday home', 'glamping', 'caravan', 'airbnb'] },
   { id: 'featured_ads', label: 'Featured Ads', icon: Sparkles, match: ['featured ad'] },
   { id: 'valued_partners', label: 'Valued Partners', icon: Handshake, match: ['valued partner'] },
 ];
@@ -141,6 +141,22 @@ export function PublicDirectoryView({
 }) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState('all');
+  const searchParams = useSearchParams();
+
+  React.useEffect(() => {
+    const categoryFromUrl = searchParams?.get('category');
+    if (categoryFromUrl) {
+      const lower = categoryFromUrl.toLowerCase().trim();
+      if (lower === 'accommodation' || lower === 'stays' || lower === 'stays-lodging' || lower === 'stays & lodging') {
+        setSelectedCategory('accommodation');
+      } else {
+        const found = CATEGORY_FILTERS.find((c) => c.id.toLowerCase() === lower || c.label.toLowerCase() === lower);
+        if (found) {
+          setSelectedCategory(found.id);
+        }
+      }
+    }
+  }, [searchParams]);
   const [selectedCommunity, setSelectedCommunity] = React.useState('all');
 
   // Subscription status filter: 'all' | 'businesses' | 'featured' | 'partner' | 'active' | 'inactive'
@@ -555,7 +571,21 @@ export function PublicDirectoryView({
           if (filterDef && filterDef.match) {
             const cat = (b.businessCategory || '').toLowerCase();
             const matchesCategoryKeyword = filterDef.match.some((m) => cat.includes(m));
-            const matchesAccommodation = selectedCategory === 'accommodation' && b.isAccommodation;
+            const matchesAccommodation = selectedCategory === 'accommodation' && (
+              b.isAccommodation ||
+              cat.includes('stay') ||
+              cat.includes('lodg') ||
+              cat.includes('hotel') ||
+              cat.includes('b&b') ||
+              cat.includes('guest') ||
+              cat.includes('campsite') ||
+              cat.includes('camping') ||
+              cat.includes('caravan') ||
+              cat.includes('glamping') ||
+              cat.includes('holiday') ||
+              cat.includes('airbnb') ||
+              cat.includes('accommodation')
+            );
             if (!matchesCategoryKeyword && !matchesAccommodation) return false;
           }
         }
