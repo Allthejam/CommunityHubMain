@@ -8,6 +8,7 @@ import { GoogleAnalytics } from '@/components/google-analytics'
 import { CookieConsentDialog } from '@/components/cookie-consent-dialog'
 import { ServiceWorkerRegistrar } from '@/components/service-worker-registrar'
 import { OfflineIndicatorBanner } from '@/components/offline-indicator-banner'
+import { ChunkErrorHandler } from '@/components/chunk-error-handler'
 import Script from 'next/script'
 
 export const metadata: Metadata = {
@@ -101,6 +102,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <ServiceWorkerRegistrar />
           <OfflineIndicatorBanner />
+          <ChunkErrorHandler />
           <GoogleAnalytics />
           <CartProvider>
             {children}

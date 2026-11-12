@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'community-hub-v3';
+const CACHE_NAME = 'community-hub-v4';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ASSETS = [
@@ -55,9 +55,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
 
-  // Don't intercept non-GET requests or Firebase internal API endpoints
+  // Don't intercept:
+  // - Non-GET requests
+  // - Next.js internal chunks & assets (/_next/)
+  // - Next.js React Server Component payloads (_rsc query param or RSC headers)
+  // - Next.js dynamic routing & middleware state
+  // - Firebase internal API endpoints
+  // - API routes (/api/)
+  // - Chrome extensions
   if (
     request.method !== 'GET' ||
+    request.url.includes('/_next/') ||
+    request.url.includes('_rsc') ||
+    request.headers.get('RSC') === '1' ||
+    request.headers.get('Next-Router-State-Tree') ||
+    request.headers.get('Next-Url') ||
     request.url.includes('firestore.googleapis.com') ||
     request.url.includes('identitytoolkit.googleapis.com') ||
     request.url.includes('securetoken.googleapis.com') ||
