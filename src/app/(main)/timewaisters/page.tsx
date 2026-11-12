@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Gamepad2,
   Trophy,
@@ -319,6 +319,18 @@ const GAMES: GameMeta[] = [
 export default function TimeWaistersPage() {
   const [activeGameId, setActiveGameId] = useState<GameId | null>(null);
   const [filter, setFilter] = useState<'all' | 'brain' | 'classic' | 'arcade'>('all');
+  const topRef = useRef<HTMLDivElement | null>(null);
+
+  // Automatically scroll instantly to the very top whenever entering a game or returning to the arcade
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        topRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' });
+      });
+    }
+  }, [activeGameId]);
   const [inspectingInstructionsGame, setInspectingInstructionsGame] = useState<GameMeta | null>(null);
   const { communityName, isVisiting, visitedCommunityName } = useActiveCommunityId();
 
@@ -330,7 +342,7 @@ export default function TimeWaistersPage() {
   });
 
   return (
-    <div className="container max-w-6xl mx-auto py-6 px-4 sm:px-6 space-y-6">
+    <div ref={topRef} className="container max-w-6xl mx-auto py-6 px-4 sm:px-6 space-y-6">
       {/* Visitor Indicator Badge if visiting another community */}
       {isVisiting && visitedCommunityName && (
         <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-xs">
@@ -383,7 +395,7 @@ export default function TimeWaistersPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setActiveGameId(null)}
+              onClick={() => { setActiveGameId(null); if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }}
               className="gap-1.5 font-bold text-xs"
             >
               <ArrowLeft className="w-4 h-4" /> Back to Arcade
@@ -413,7 +425,7 @@ export default function TimeWaistersPage() {
               variant="ghost"
               size="sm"
               className="text-xs text-muted-foreground"
-              onClick={() => setActiveGameId(null)}
+              onClick={() => { setActiveGameId(null); if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }}
             >
               Change Game
             </Button>
@@ -449,7 +461,7 @@ export default function TimeWaistersPage() {
                 <Card
                   key={game.id}
                   className="group relative overflow-hidden border transition-all duration-200 hover:shadow-lg hover:border-primary/50 flex flex-col justify-between cursor-pointer"
-                  onClick={() => setActiveGameId(game.id)}
+                  onClick={() => { setActiveGameId(game.id); if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }}
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2 mb-2">
@@ -487,7 +499,7 @@ export default function TimeWaistersPage() {
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5 text-primary" /> {game.timeEstimate}
                       </span>
-                      <Button size="sm" className="h-8 px-4 font-bold rounded-lg group-hover:bg-primary transition-all">
+                      <Button size="sm" className="h-8 px-4 font-bold rounded-lg group-hover:bg-primary transition-all" onClick={(e) => { e.stopPropagation(); setActiveGameId(game.id); if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }}>
                         Play Now
                       </Button>
                     </div>
@@ -578,6 +590,7 @@ export default function TimeWaistersPage() {
                   onClick={() => {
                     setActiveGameId(inspectingInstructionsGame.id);
                     setInspectingInstructionsGame(null);
+                    if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
                   }}
                 >
                   Play {inspectingInstructionsGame.title}
