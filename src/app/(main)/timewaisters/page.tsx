@@ -342,7 +342,7 @@ export default function TimeWaistersPage() {
   });
 
   return (
-    <div ref={topRef} className="container max-w-6xl mx-auto py-6 px-4 sm:px-6 space-y-6">
+    <div ref={topRef} className="container max-w-6xl mx-auto py-6 px-3 sm:px-6 space-y-6 overflow-x-hidden">
       {/* Visitor Indicator Badge if visiting another community */}
       {isVisiting && visitedCommunityName && (
         <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-xs">
@@ -389,46 +389,48 @@ export default function TimeWaistersPage() {
           </div>
         </div>
       ) : (
-        /* In-Game Header */
-        <div className="flex items-center justify-between border-b pb-4">
-          <div className="flex items-center gap-3">
+        /* In-Game Header: Fully responsive on mobile and desktop without horizontal overflow */
+        <div className="flex flex-col gap-2.5 border-b pb-3 w-full">
+          {/* Top row on mobile & desktop: Navigation on left, How to Play on right */}
+          <div className="flex items-center justify-between gap-2 w-full">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { setActiveGameId(null); if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }}
-              className="gap-1.5 font-bold text-xs"
+              onClick={() => {
+                setActiveGameId(null);
+                if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+              }}
+              className="gap-1.5 font-bold text-xs h-8 px-3 shrink-0"
             >
-              <ArrowLeft className="w-4 h-4" /> Back to Arcade
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Arcade</span>
             </Button>
-            <div className="flex items-center gap-2">
-              <activeGame.icon className={cn('w-5 h-5', activeGame.color.split(' ')[2])} />
-              <h2 className="text-lg sm:text-xl font-black">{activeGame.title}</h2>
-              <Badge variant="secondary" className="text-[11px] hidden sm:inline">
-                {activeGame.badge}
-              </Badge>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            {/* Prominent How to Play Button */}
+            {/* How to Play Button neatly placed on the right */}
             <Button
               variant="secondary"
               size="sm"
-              className="text-xs font-bold gap-1.5 bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 hover:bg-amber-200"
+              className="text-xs font-bold gap-1.5 h-8 px-3 bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 hover:bg-amber-200 shrink-0"
               onClick={() => setInspectingInstructionsGame(activeGame)}
             >
-              <HelpCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <HelpCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               <span>How to Play</span>
             </Button>
+          </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-muted-foreground"
-              onClick={() => { setActiveGameId(null); if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }}
-            >
-              Change Game
-            </Button>
+          {/* Title row */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <activeGame.icon className={cn('w-5 h-5 sm:w-6 sm:h-6 shrink-0', activeGame.color.split(' ')[2])} />
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight truncate">{activeGame.title}</h2>
+              <Badge variant="secondary" className="text-[11px] shrink-0">
+                {activeGame.badge}
+              </Badge>
+            </div>
+
+            <span className="text-xs text-muted-foreground font-medium hidden sm:inline">
+              ⏱️ {activeGame.timeEstimate}
+            </span>
           </div>
         </div>
       )}
@@ -511,7 +513,7 @@ export default function TimeWaistersPage() {
         </div>
       ) : (
         /* ─── Active Playable Game Container ─── */
-        <div className="bg-card border rounded-2xl p-4 sm:p-6 shadow-sm min-h-[500px] flex flex-col items-center justify-center">
+        <div className="bg-card border rounded-2xl p-2.5 sm:p-6 shadow-sm min-h-[480px] flex flex-col items-center justify-center w-full overflow-hidden">
           <activeGame.component />
         </div>
       )}
