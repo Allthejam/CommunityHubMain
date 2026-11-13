@@ -28,6 +28,9 @@ import {
   AlertTriangle,
   Loader2,
   HelpCircle,
+  Pencil,
+  Upload,
+  Save,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,21 +46,135 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
   claimBusinessAction,
+  updatePlatformUnclaimedBusinessAction,
   type PublicBusinessDetail,
 } from '@/lib/actions/publicDirectoryActions';
+import { uploadImageAction } from '@/lib/actions/storageActions';
+import { useIsSeoManager } from '@/components/about/seo-editor-controls';
 
 const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
-export function PublicBusinessProfileView({ business }: { business: PublicBusinessDetail }) {
+export function PublicBusinessProfileView({ business: initialBusiness }: { business: PublicBusinessDetail }) {
+  const [business, setBusiness] = React.useState<PublicBusinessDetail>(initialBusiness);
   const router = useRouter();
   const { toast } = useToast();
   const [copied, setCopied] = React.useState(false);
+  const { isSeoManager } = useIsSeoManager();
+
+  // Edit Seeded Unclaimed Listing Modal state (ONLY for platform-seeded unclaimed listings)
+  const canEditSeededListing = Boolean(
+    isSeoManager &&
+      business.isUnclaimed === true &&
+      (business.isPlatformCreated === true || business.ownerId === 'platform')
+  );
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const [isSavingEdit, setIsSavingEdit] = React.useState(false);
+  const [isUploadingEditCover, setIsUploadingEditCover] = React.useState(false);
+  const [editName, setEditName] = React.useState(initialBusiness.businessName || '');
+  const [editCategory, setEditCategory] = React.useState(initialBusiness.businessCategory || '');
+  const [editPostcode, setEditPostcode] = React.useState(initialBusiness.postcode || '');
+  const [editCoverUrl, setEditCoverUrl] = React.useState(initialBusiness.bannerImage || initialBusiness.logoImage || '');
+  const [editImageAlt, setEditImageAlt] = React.useState(initialBusiness.imageAlt || initialBusiness.coverImageAlt || '');
+  const [editMetaTitle, setEditMetaTitle] = React.useState(initialBusiness.metaTitle || '');
+  const [editMetaDesc, setEditMetaDesc] = React.useState(initialBusiness.metaDescription || initialBusiness.shortDescription || '');
+  const [editH1, setEditH1] = React.useState(initialBusiness.seoHeadings?.h1 || initialBusiness.businessName || '');
+  const [editH2, setEditH2] = React.useState(initialBusiness.seoHeadings?.h2 || '');
+  const [editH3, setEditH3] = React.useState(initialBusiness.seoHeadings?.h3 || '');
+  const [editH4, setEditH4] = React.useState(initialBusiness.seoHeadings?.h4 || '');
+  const [editH5, setEditH5] = React.useState(initialBusiness.seoHeadings?.h5 || '');
+  const [editH6, setEditH6] = React.useState(initialBusiness.seoHeadings?.h6 || '');
+
+  const openEditModal = () => {
+    setEditName(business.businessName || '');
+    setEditCategory(business.businessCategory || '');
+    setEditPostcode(business.postcode || '');
+    setEditCoverUrl(business.bannerImage || business.logoImage || '');
+    setEditImageAlt(business.imageAlt || business.coverImageAlt || '');
+    setEditMetaTitle(business.metaTitle || '');
+    setEditMetaDesc(business.metaDescription || business.shortDescription || '');
+    setEditH1(business.seoHeadings?.h1 || business.businessName || '');
+    setEditH2(business.seoHeadings?.h2 || '');
+    setEditH3(business.seoHeadings?.h3 || '');
+    setEditH4(business.seoHeadings?.h4 || '');
+    setEditH5(business.seoHeadings?.h5 || '');
+    setEditH6(business.seoHeadings?.h6 || '');
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingEditCover(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result as string;
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const res = await uploadImageAction({
+          base64Data,
+          path: `public-directory/${business.id}-${Date.now()}-${safeName}`,
+        });
+        if (res.success && res.url) {
+          setEditCoverUrl(res.url);
+          toast({ title: 'Cover uploaded', description: 'Image URL updated.' });
+        } else {
+          toast({ variant: 'destructive', title: 'Upload failed', description: res.error || 'Could not upload image.' });
+        }
+        setIsUploadingEditCover(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Upload error', description: err?.message });
+      setIsUploadingEditCover(false);
+    }
+  };
+
+  const handleSaveUnclaimedEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setIsSavingEdit(true);
+    try {
+      const idToken = await user.getIdToken();
+      const res = await updatePlatformUnclaimedBusinessAction({
+        idToken,
+        businessId: business.id,
+        businessName: editName,
+        businessCategory: editCategory,
+        postcode: editPostcode,
+        coverImage: editCoverUrl,
+        imageAlt: editImageAlt,
+        metaTitle: editMetaTitle,
+        metaDescription: editMetaDesc,
+        seoHeadings: {
+          h1: editH1,
+          h2: editH2,
+          h3: editH3,
+          h4: editH4,
+          h5: editH5,
+          h6: editH6,
+        },
+      });
+      if (res.success && res.business) {
+        setBusiness(res.business);
+        setIsEditModalOpen(false);
+        toast({ title: 'Listing Updated', description: 'Unclaimed listing & SEO metadata saved.' });
+        router.refresh();
+      } else {
+        toast({ variant: 'destructive', title: 'Update Failed', description: res.error || 'Could not update listing.' });
+      }
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Error', description: err?.message || 'Unexpected error saving changes.' });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   // Claim Business Modal state
   const [isClaimModalOpen, setIsClaimModalOpen] = React.useState(false);
@@ -388,10 +505,23 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                       Verified Active Business
                     </Badge>
                   ) : business.isUnclaimed ? (
-                    <Badge variant="outline" className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 text-xs font-semibold flex items-center gap-1">
-                      <Building2 className="h-3 w-3 text-slate-500" />
-                      Unclaimed Community Listing
-                    </Badge>
+                    <>
+                      <Badge variant="outline" className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 text-xs font-semibold flex items-center gap-1">
+                        <Building2 className="h-3 w-3 text-slate-500" />
+                        Unclaimed Community Listing
+                      </Badge>
+                      {canEditSeededListing && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={openEditModal}
+                          className="h-7 px-2.5 text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold gap-1.5 shadow-sm"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Edit Unclaimed Listing &amp; SEO
+                        </Button>
+                      )}
+                    </>
                   ) : (
                     <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10 text-xs">
                       <Lock className="h-3 w-3 mr-1 text-amber-600" />
@@ -1016,6 +1146,113 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit Seeded Unclaimed Listing & SEO Dialog (Only visible for platform-seeded unclaimed listings) */}
+      {canEditSeededListing && (
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pencil className="h-5 w-5 text-amber-500" />
+                Edit Unclaimed Listing &amp; SEO
+              </DialogTitle>
+              <DialogDescription>
+                Only platform-seeded unclaimed listings can be edited here. Once claimed by its owner, this editor is locked.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleSaveUnclaimedEdit} className="space-y-4 py-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-biz-name" className="text-xs font-semibold">Business Name</Label>
+                  <Input id="edit-biz-name" value={editName} onChange={(e) => setEditName(e.target.value)} required className="h-9 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-biz-cat" className="text-xs font-semibold">Category</Label>
+                  <Input id="edit-biz-cat" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} required className="h-9 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-biz-pc" className="text-xs font-semibold">Postcode</Label>
+                  <Input id="edit-biz-pc" value={editPostcode} onChange={(e) => setEditPostcode(e.target.value)} required className="h-9 text-xs uppercase" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-biz-cover" className="text-xs font-semibold">Cover Image URL</Label>
+                  <div className="flex gap-2">
+                    <Input id="edit-biz-cover" value={editCoverUrl} onChange={(e) => setEditCoverUrl(e.target.value)} className="h-9 text-xs" />
+                    <label className="inline-flex items-center justify-center rounded-md border px-3 text-xs font-medium cursor-pointer hover:bg-muted shrink-0">
+                      {isUploadingEditCover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleEditCoverUpload} disabled={isUploadingEditCover} />
+                    </label>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-biz-alt" className="text-xs font-semibold">Cover Image ALT Tag</Label>
+                  <Input id="edit-biz-alt" value={editImageAlt} onChange={(e) => setEditImageAlt(e.target.value)} className="h-9 text-xs" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <Label htmlFor="edit-biz-mtitle" className="font-semibold">Meta Title</Label>
+                  <span className="text-[10px] text-muted-foreground">{editMetaTitle.length}/60 chars</span>
+                </div>
+                <Input id="edit-biz-mtitle" value={editMetaTitle} onChange={(e) => setEditMetaTitle(e.target.value)} className="h-9 text-xs" />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <Label htmlFor="edit-biz-mdesc" className="font-semibold">Meta Description</Label>
+                  <span className="text-[10px] text-muted-foreground">{editMetaDesc.length}/160 chars</span>
+                </div>
+                <Textarea id="edit-biz-mdesc" rows={2} value={editMetaDesc} onChange={(e) => setEditMetaDesc(e.target.value)} className="text-xs" />
+              </div>
+
+              <div className="space-y-2 pt-2 border-t">
+                <Label className="text-xs font-semibold">Page Headings (H1 to H6)</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-h1" className="text-[11px] text-muted-foreground">H1 (Main Title)</Label>
+                    <Input id="edit-h1" value={editH1} onChange={(e) => setEditH1(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-h2" className="text-[11px] text-muted-foreground">H2 (About Section)</Label>
+                    <Input id="edit-h2" value={editH2} onChange={(e) => setEditH2(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-h3" className="text-[11px] text-muted-foreground">H3 (Services / Category)</Label>
+                    <Input id="edit-h3" value={editH3} onChange={(e) => setEditH3(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-h4" className="text-[11px] text-muted-foreground">H4 (Location / Area)</Label>
+                    <Input id="edit-h4" value={editH4} onChange={(e) => setEditH4(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-h5" className="text-[11px] text-muted-foreground">H5 (Claim / Contact)</Label>
+                    <Input id="edit-h5" value={editH5} onChange={(e) => setEditH5(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-h6" className="text-[11px] text-muted-foreground">H6 (Directory Label)</Label>
+                    <Input id="edit-h6" value={editH6} onChange={(e) => setEditH6(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSavingEdit} className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold gap-1.5">
+                  {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

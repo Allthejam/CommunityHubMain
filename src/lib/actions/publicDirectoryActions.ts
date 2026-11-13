@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { getAuth } from 'firebase-admin/auth';
 import { initializeAdminApp } from "@/firebase/admin-app";
 import { businesses as mockBusinesses } from "@/lib/mock-data";
 
@@ -745,5 +746,95 @@ export async function getDirectoryCommunitiesAction(): Promise<{ id: string; nam
   } catch (error) {
     console.error('Error fetching directory communities:', error);
     return [];
+  }
+}
+
+export async function updatePlatformUnclaimedBusinessAction(params: {
+  idToken: string;
+  businessId: string;
+  businessName: string;
+  businessCategory: string;
+  postcode: string;
+  coverImage?: string | null;
+  metaTitle?: string;
+  metaDescription?: string;
+  imageAlt?: string;
+  seoHeadings?: SeoHeadingsMap;
+}): Promise<{ success: boolean; business?: PublicBusinessDetail; error?: string }> {
+  const { idToken, businessId, businessName, businessCategory, postcode, coverImage, metaTitle, metaDescription, imageAlt, seoHeadings } = params;
+  if (!idToken || !businessId) return { success: false, error: "Authentication and business ID are required." };
+  if (!businessName?.trim()) return { success: false, error: "Business name is required." };
+  if (!businessCategory?.trim()) return { success: false, error: "Business category is required." };
+  if (!postcode?.trim()) return { success: false, error: "Postcode is required." };
+
+  try {
+    const { adminApp, firestore } = initializeAdminApp();
+    const decoded = await getAuth(adminApp).verifyIdToken(idToken);
+    const userSnap = await firestore.collection("users").doc(decoded.uid).get();
+    const userData = userSnap.exists ? userSnap.data() : null;
+    const isAllowed = userData?.permissions?.isSeoManager === true || userData?.accountType === "owner" || userData?.role === "owner";
+    if (!isAllowed) {
+      return { success: false, error: "Unauthorized: Owner or SEO Manager permission required." };
+    }
+
+    const docRef = firestore.collection("businesses").doc(businessId);
+    const snap = await docRef.get();
+    if (!snap.exists) return { success: false, error: "Listing not found." };
+
+    const existing = snap.data()!;
+    const isStillUnclaimed =
+      existing.claimed !== true &&
+      (existing.isUnclaimed === true || (existing.isPlatformCreated === true && existing.ownerId === "platform"));
+    if (!isStillUnclaimed) {
+      return { success: false, error: "This listing has been claimed by its owner and can no longer be edited here." };
+    }
+
+    const cleanName = businessName.trim();
+    const cleanCategory = businessCategory.trim();
+    const cleanPostcode = postcode.trim().toUpperCase();
+    const cleanComm = existing.primaryCommunityName || existing.city || "Local Community";
+    const cleanMetaTitle = metaTitle?.trim() || `${cleanName} | ${cleanCategory} in ${cleanComm} (${cleanPostcode})`;
+    const cleanMetaDesc = metaDescription?.trim() || existing.shortDescription || `Discover ${cleanName}, independent ${cleanCategory} in ${cleanComm} (${cleanPostcode}).`;
+    const cleanImageAlt = imageAlt?.trim() || `${cleanName} - ${cleanCategory} in ${cleanComm}, ${cleanPostcode}`;
+    const isAccommodation = ["hotel", "b&b", "stay", "lodg", "accommodation", "campsite", "motel", "inn", "caravan", "glamping", "guest", "holiday", "airbnb"].some((m) => cleanCategory.toLowerCase().includes(m));
+
+    const updatePayload: any = {
+      businessName: cleanName,
+      name: cleanName,
+      businessCategory: cleanCategory,
+      postcode: cleanPostcode,
+      bannerImage: coverImage !== undefined ? (coverImage?.trim() || null) : (existing.bannerImage || null),
+      logoImage: coverImage !== undefined ? (coverImage?.trim() || null) : (existing.logoImage || null),
+      imageAlt: cleanImageAlt,
+      coverImageAlt: cleanImageAlt,
+      shortDescription: cleanMetaDesc,
+      description: cleanMetaDesc,
+      metaTitle: cleanMetaTitle,
+      metaDescription: cleanMetaDesc,
+      seoHeadings: {
+        h1: seoHeadings?.h1?.trim() || cleanName,
+        h2: seoHeadings?.h2?.trim() || `About ${cleanName} in ${cleanComm}`,
+        h3: seoHeadings?.h3?.trim() || `${cleanCategory} Services & Local Details`,
+        h4: seoHeadings?.h4?.trim() || `Serving ${cleanComm} (${cleanPostcode})`,
+        h5: seoHeadings?.h5?.trim() || `Claim or Manage ${cleanName}`,
+        h6: seoHeadings?.h6?.trim() || `${cleanComm} Community Hub Public Directory`,
+      },
+      isAccommodation,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (Array.isArray(existing.addresses) && existing.addresses.length > 0) {
+      updatePayload.addresses = [{ ...existing.addresses[0], postcode: cleanPostcode }, ...existing.addresses.slice(1)];
+    }
+
+    await docRef.update(updatePayload);
+    revalidatePath("/public-directory");
+    revalidatePath(`/public-directory/${businessId}`);
+
+    const updatedBusiness = await getPublicBusinessByIdAction(businessId);
+    return { success: true, business: updatedBusiness || undefined };
+  } catch (error: any) {
+    console.error("Error updating unclaimed business:", error);
+    return { success: false, error: error?.message || "Failed to update unclaimed listing." };
   }
 }
