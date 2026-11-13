@@ -33,6 +33,15 @@ export type PublicBusinessSummary = {
   isPlatformCreated?: boolean;
 };
 
+export type SeoHeadingsMap = {
+  h1?: string;
+  h2?: string;
+  h3?: string;
+  h4?: string;
+  h5?: string;
+  h6?: string;
+};
+
 export type PublicBusinessDetail = PublicBusinessSummary & {
   longDescription?: string;
   pageTwoIntro?: string;
@@ -43,6 +52,7 @@ export type PublicBusinessDetail = PublicBusinessSummary & {
   socialMedia?: string | null;
   metaTitle?: string | null;
   metaDescription?: string | null;
+  seoHeadings?: SeoHeadingsMap | null;
   imageAlt?: string | null;
   coverImageAlt?: string | null;
   isUnclaimed?: boolean;
@@ -252,6 +262,7 @@ function normalizeBusinessDoc(
     openingHours: data.openingHours || null,
     metaTitle: data.metaTitle || null,
     metaDescription: data.metaDescription || null,
+    seoHeadings: data.seoHeadings || null,
     addresses: Array.isArray(data.addresses) ? data.addresses : (primaryAddress ? [primaryAddress] : []),
     status: data.status || 'Approved',
     accountType: data.accountType || (data.businessCategory?.toLowerCase() === 'courier' ? 'courier' : 'business'),
@@ -586,6 +597,14 @@ export async function createPlatformUnclaimedBusinessAction(params: {
       description: cleanMetaDesc,
       metaTitle: cleanMetaTitle,
       metaDescription: cleanMetaDesc,
+      seoHeadings: {
+        h1: seoHeadings?.h1?.trim() || cleanName,
+        h2: seoHeadings?.h2?.trim() || About  in ,
+        h3: seoHeadings?.h3?.trim() || ${businessCategory.trim()} Services & Local Details,
+        h4: seoHeadings?.h4?.trim() || Serving  (),
+        h5: seoHeadings?.h5?.trim() || Claim or Manage ,
+        h6: seoHeadings?.h6?.trim() || ${cleanCommName} Community Hub Public Directory,
+      },
       status: 'Approved',
       isPublicDirectoryEnabled: true,
       isPlatformCreated: true,

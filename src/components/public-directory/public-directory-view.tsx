@@ -245,6 +245,12 @@ export function PublicDirectoryView({
   const [newBizMetaTitle, setNewBizMetaTitle] = React.useState('');
   const [newBizMetaDescription, setNewBizMetaDescription] = React.useState('');
   const [newBizImageAlt, setNewBizImageAlt] = React.useState('');
+  const [newBizH1, setNewBizH1] = React.useState('');
+  const [newBizH2, setNewBizH2] = React.useState('');
+  const [newBizH3, setNewBizH3] = React.useState('');
+  const [newBizH4, setNewBizH4] = React.useState('');
+  const [newBizH5, setNewBizH5] = React.useState('');
+  const [newBizH6, setNewBizH6] = React.useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const communityInputRef = React.useRef<HTMLInputElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -260,14 +266,26 @@ export function PublicDirectoryView({
     const title = `${name} | ${cat} in ${comm}${pc}`;
     const desc = `Discover ${name}, independent ${cat} based in ${comm}${pc}. Find local opening details, community updates, and directory profile.`;
     const alt = `${name} - ${cat} in ${comm}${pcRaw ? `, ${pcRaw}` : ''}, UK`;
+    const h1 = name;
+    const h2 = `About ${name} in ${comm}`;
+    const h3 = `${cat} Services & Local Details`;
+    const h4 = `Serving ${comm}${pc}`;
+    const h5 = `Claim or Manage ${name}`;
+    const h6 = `${comm} Community Hub Public Directory`;
 
-    return { title, desc, alt };
+    return { title, desc, alt, h1, h2, h3, h4, h5, h6 };
   }, [newBizName, newBizCategory, newBizCommunityName, newBizPostcode]);
 
   // Active SEO values (custom if entered, otherwise auto-computed)
   const activeMetaTitle = newBizMetaTitle.trim() || computedSuggestedSeo.title;
   const activeMetaDescription = newBizMetaDescription.trim() || computedSuggestedSeo.desc;
   const activeImageAlt = newBizImageAlt.trim() || computedSuggestedSeo.alt;
+  const activeH1 = newBizH1.trim() || computedSuggestedSeo.h1;
+  const activeH2 = newBizH2.trim() || computedSuggestedSeo.h2;
+  const activeH3 = newBizH3.trim() || computedSuggestedSeo.h3;
+  const activeH4 = newBizH4.trim() || computedSuggestedSeo.h4;
+  const activeH5 = newBizH5.trim() || computedSuggestedSeo.h5;
+  const activeH6 = newBizH6.trim() || computedSuggestedSeo.h6;
 
   // Courier Visibility Rule:
   // Couriers are strictly localized to their community and ONLY visible to logged-in residents of that community.
@@ -514,6 +532,14 @@ export function PublicDirectoryView({
         metaDescription: activeMetaDescription,
         shortDescription: activeMetaDescription,
         imageAlt: activeImageAlt,
+        seoHeadings: {
+          h1: activeH1,
+          h2: activeH2,
+          h3: activeH3,
+          h4: activeH4,
+          h5: activeH5,
+          h6: activeH6,
+        },
       });
 
       if (res.success && res.businessId) {
@@ -530,6 +556,12 @@ export function PublicDirectoryView({
         setNewBizMetaTitle('');
         setNewBizMetaDescription('');
         setNewBizImageAlt('');
+        setNewBizH1('');
+        setNewBizH2('');
+        setNewBizH3('');
+        setNewBizH4('');
+        setNewBizH5('');
+        setNewBizH6('');
         setCommunitySearchQuery('');
         setIsCommunityDropdownOpen(false);
         router.refresh();
@@ -2095,6 +2127,12 @@ export function PublicDirectoryView({
                     setNewBizMetaTitle(computedSuggestedSeo.title);
                     setNewBizMetaDescription(computedSuggestedSeo.desc);
                     setNewBizImageAlt(computedSuggestedSeo.alt);
+                    setNewBizH1(computedSuggestedSeo.h1);
+                    setNewBizH2(computedSuggestedSeo.h2);
+                    setNewBizH3(computedSuggestedSeo.h3);
+                    setNewBizH4(computedSuggestedSeo.h4);
+                    setNewBizH5(computedSuggestedSeo.h5);
+                    setNewBizH6(computedSuggestedSeo.h6);
                   }}
                   className="h-7 text-[11px] border-emerald-500/30 hover:bg-emerald-500/10 font-medium"
                   title="Auto-fill recommended SEO values based on business details"
@@ -2205,6 +2243,92 @@ export function PublicDirectoryView({
                   <p className="text-[10px] text-muted-foreground">
                     Describes your cover image to Google Image Search crawlers and vision-impaired screen readers.
                   </p>
+                </div>
+
+                {/* 4. Page Headings (H1 - H6 SEO Hierarchy) */}
+                <div className="space-y-2 pt-2 border-t">
+                  <div className="flex items-center justify-between text-xs">
+                    <Label className="font-semibold">
+                      4. Page Headings (H1 to H6 SEO Hierarchy)
+                    </Label>
+                    <span className="text-[10px] text-muted-foreground">
+                      Auto-filled if left blank
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="biz-h1" className="text-[11px] text-muted-foreground">
+                        H1 (Main Business Heading)
+                      </Label>
+                      <Input
+                        id="biz-h1"
+                        placeholder={computedSuggestedSeo.h1}
+                        value={newBizH1}
+                        onChange={(e) => setNewBizH1(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="biz-h2" className="text-[11px] text-muted-foreground">
+                        H2 (About / Overview Heading)
+                      </Label>
+                      <Input
+                        id="biz-h2"
+                        placeholder={computedSuggestedSeo.h2}
+                        value={newBizH2}
+                        onChange={(e) => setNewBizH2(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="biz-h3" className="text-[11px] text-muted-foreground">
+                        H3 (Services / Category Heading)
+                      </Label>
+                      <Input
+                        id="biz-h3"
+                        placeholder={computedSuggestedSeo.h3}
+                        value={newBizH3}
+                        onChange={(e) => setNewBizH3(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="biz-h4" className="text-[11px] text-muted-foreground">
+                        H4 (Location / Area Heading)
+                      </Label>
+                      <Input
+                        id="biz-h4"
+                        placeholder={computedSuggestedSeo.h4}
+                        value={newBizH4}
+                        onChange={(e) => setNewBizH4(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="biz-h5" className="text-[11px] text-muted-foreground">
+                        H5 (Claim / Contact Heading)
+                      </Label>
+                      <Input
+                        id="biz-h5"
+                        placeholder={computedSuggestedSeo.h5}
+                        value={newBizH5}
+                        onChange={(e) => setNewBizH5(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="biz-h6" className="text-[11px] text-muted-foreground">
+                        H6 (Directory Sub-label)
+                      </Label>
+                      <Input
+                        id="biz-h6"
+                        placeholder={computedSuggestedSeo.h6}
+                        value={newBizH6}
+                        onChange={(e) => setNewBizH6(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

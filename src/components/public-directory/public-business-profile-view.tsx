@@ -401,7 +401,7 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                 </div>
 
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight font-headline">
-                  {business.businessName}
+                  {business.seoHeadings?.h1 || business.businessName}
                 </h1>
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-muted-foreground pt-0.5">
@@ -509,12 +509,30 @@ export function PublicBusinessProfileView({ business }: { business: PublicBusine
                     <div className="p-3 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-full inline-block">
                       <Store className="h-6 w-6" />
                     </div>
-                    <h3 className="font-bold text-base text-foreground">
-                      Are You The Owner or Manager of {business.businessName}?
-                    </h3>
+                    <h2 className="font-bold text-base text-foreground">
+                      {business.seoHeadings?.h2 || `About ${business.businessName}`}
+                    </h2>
+                    {business.seoHeadings?.h3 && (
+                      <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                        {business.seoHeadings.h3}
+                      </h3>
+                    )}
+                    {business.seoHeadings?.h4 && (
+                      <h4 className="text-xs font-medium text-muted-foreground">
+                        {business.seoHeadings.h4}
+                      </h4>
+                    )}
+                    <h5 className="font-semibold text-sm text-foreground">
+                      {business.seoHeadings?.h5 || `Are You The Owner or Manager of ${business.businessName}?`}
+                    </h5>
                     <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
                       This listing was seeded by Community Hub to help local residents find you. Claim your profile today to publish direct contact numbers, opening hours, customer direct messaging, photo galleries, and receive official Verified Partner status.
                     </p>
+                    {business.seoHeadings?.h6 && (
+                      <h6 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                        {business.seoHeadings.h6}
+                      </h6>
+                    )}
                     <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
                       <Button
                         onClick={() => setIsClaimModalOpen(true)}
