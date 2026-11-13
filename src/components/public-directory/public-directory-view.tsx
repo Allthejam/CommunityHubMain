@@ -46,8 +46,21 @@ import {
   Loader2,
   AlertTriangle,
 } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DEFAULT_PUBLIC_DIRECTORY_SEO_DATA,
+  type PublicDirectorySectionKey,
+  type PublicDirectorySeoData,
+} from '@/lib/seo/page-seo-defaults';
+import {
+  SeoEditPencil,
+  SeoHeading,
+  SeoManagerBar,
+  SeoMetaEditorDialog,
+  SeoSectionEditorDialog,
+  useIsSeoManager,
+} from '@/components/about/seo-editor-controls';
 import {
   Dialog,
   DialogContent,
@@ -135,28 +148,48 @@ const CATEGORY_FILTERS = [
 export function PublicDirectoryView({
   businesses,
   communitiesList = [],
+  initialSeoData,
+  initialPage = 1,
+  initialCategory = null,
 }: {
   businesses: PublicBusinessSummary[];
   communitiesList?: { id: string; name: string }[];
+  initialSeoData?: PublicDirectorySeoData;
+  initialPage?: number;
+  initialCategory?: string | null;
 }) {
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [selectedCategory, setSelectedCategory] = React.useState('all');
-  const searchParams = useSearchParams();
+  const [seoData, setSeoData] = React.useState<PublicDirectorySeoData>(
+    initialSeoData || DEFAULT_PUBLIC_DIRECTORY_SEO_DATA
+  );
+  const { isSeoManager } = useIsSeoManager();
+  const [showPencils, setShowPencils] = React.useState(true);
+  const [metaDialogOpen, setMetaDialogOpen] = React.useState(false);
+  const [editingSection, setEditingSection] = React.useState<{
+    key: PublicDirectorySectionKey;
+    label: string;
+  } | null>(null);
 
-  React.useEffect(() => {
-    const categoryFromUrl = searchParams?.get('category');
-    if (categoryFromUrl) {
-      const lower = categoryFromUrl.toLowerCase().trim();
-      if (lower === 'accommodation' || lower === 'stays' || lower === 'stays-lodging' || lower === 'stays & lodging') {
-        setSelectedCategory('accommodation');
-      } else {
-        const found = CATEGORY_FILTERS.find((c) => c.id.toLowerCase() === lower || c.label.toLowerCase() === lower);
-        if (found) {
-          setSelectedCategory(found.id);
-        }
-      }
+  const resolveCategory = (rawCat: string | null | undefined) => {
+    if (!rawCat) return 'all';
+    const lower = rawCat.toLowerCase().trim();
+    if (
+      lower === 'accommodation' ||
+      lower === 'stays' ||
+      lower === 'stays-lodging' ||
+      lower === 'stays & lodging'
+    ) {
+      return 'accommodation';
     }
-  }, [searchParams]);
+    const found = CATEGORY_FILTERS.find(
+      (c) => c.id.toLowerCase() === lower || c.label.toLowerCase() === lower
+    );
+    return found ? found.id : 'all';
+  };
+
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [selectedCategory, setSelectedCategory] = React.useState(() =>
+    resolveCategory(initialCategory)
+  );
   const [selectedCommunity, setSelectedCommunity] = React.useState('all');
 
   // Subscription status filter: 'all' | 'businesses' | 'featured' | 'partner' | 'active' | 'inactive'
@@ -167,9 +200,12 @@ export function PublicDirectoryView({
   const [sortBy, setSortBy] = React.useState<SortOption>('active_first');
 
   // Pagination state (10-line rule by default)
-  const [currentPage, setCurrentPage] = React.useState(1);
+  const [currentPage, setCurrentPage] = React.useState(initialPage > 0 ? initialPage : 1);
   const [pageSize, setPageSize] = React.useState(10);
   const [viewMode, setViewMode] = React.useState<'table' | 'grid'>('table');
+
+  const canEditSeo = isSeoManager && showPencils;
+  const { sections, meta } = seoData;
 
   const listingsTopRef = React.useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -646,8 +682,13 @@ export function PublicDirectoryView({
     });
   }, [filteredBusinesses, sortBy]);
 
-  // Reset to page 1 whenever any filter, search, or sort changes
+  // Reset to page 1 whenever any filter, search, or sort changes (skip initial mount so ?page=N works)
+  const isFirstRenderRef = React.useRef(true);
   React.useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
     setCurrentPage(1);
   }, [searchTerm, selectedCategory, selectedCommunity, statusFilter, sortBy, pageSize]);
 
@@ -740,21 +781,40 @@ export function PublicDirectoryView({
         </div>
       </header>
 
+      {isSeoManager && (
+        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <SeoManagerBar
+            seoData={seoData}
+            showPencils={showPencils}
+            onTogglePencils={() => setShowPencils((prev) => !prev)}
+            onOpenMetaEditor={() => setMetaDialogOpen(true)}
+          />
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative py-12 md:py-16 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border-b">
         <div className="container max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+          {canEditSeo && (
+            <div className="flex justify-end">
+              <SeoEditPencil
+                label="Hero"
+                tagHint={sections.hero.headingTag}
+                onClick={() => setEditingSection({ key: 'hero', label: 'Directory Hero Section' })}
+              />
+            </div>
+          )}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-semibold uppercase tracking-wider">
             <Store className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Public Local Business Directory &bull; Google Indexed</span>
+            <span>{sections.hero.badge}</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight font-headline">
-            Discover Great Local Shops, Services & Stays
-          </h1>
+          <SeoHeading tag={sections.hero.headingTag} className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight font-headline">
+            {sections.hero.heading}
+          </SeoHeading>
 
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-            Browse independently owned local businesses across our regional communities.
-            No sign-in or account needed &mdash; view opening hours, contact details, directions, and services.
+            {sections.hero.description}
           </p>
 
           {/* Search & Location Bar */}
@@ -840,19 +900,30 @@ export function PublicDirectoryView({
         {/* Listings Header & Filter Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-xl font-bold tracking-tight">
-              {statusFilter === 'unclaimed'
-                ? '🔍 Unclaimed Community Listings'
-                : statusFilter === 'inactive'
-                ? 'Inactive / Unpaid Subscriptions'
-                : statusFilter === 'featured' || selectedCategory === 'featured_ads'
-                ? '⭐ Featured National Ads'
-                : statusFilter === 'partner' || selectedCategory === 'valued_partners'
-                ? '🤝 Our Valued Partners'
-                : selectedCategory === 'all'
-                ? 'All Local Businesses & Partners'
-                : CATEGORY_FILTERS.find((c) => c.id === selectedCategory)?.label}
-            </h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <SeoHeading tag={sections.directoryListing.headingTag} className="text-xl font-bold tracking-tight">
+                {statusFilter === 'unclaimed'
+                  ? '🔍 Unclaimed Community Listings'
+                  : statusFilter === 'inactive'
+                  ? 'Inactive / Unpaid Subscriptions'
+                  : statusFilter === 'featured' || selectedCategory === 'featured_ads'
+                  ? '⭐ Featured National Ads'
+                  : statusFilter === 'partner' || selectedCategory === 'valued_partners'
+                  ? '🤝 Our Valued Partners'
+                  : selectedCategory === 'all'
+                  ? sections.directoryListing.heading
+                  : CATEGORY_FILTERS.find((c) => c.id === selectedCategory)?.label}
+              </SeoHeading>
+              {canEditSeo && (
+                <SeoEditPencil
+                  label="Listing Heading"
+                  tagHint={sections.directoryListing.headingTag}
+                  onClick={() =>
+                    setEditingSection({ key: 'directoryListing', label: 'Directory Listing Header' })
+                  }
+                />
+              )}
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {totalItems > 0 ? (
                 <>
@@ -1444,9 +1515,9 @@ export function PublicDirectoryView({
           </div>
         )}
 
-        {/* Pagination Controls Bar */}
+        {/* Pagination Controls Bar (Crawlable <Link> elements for Google & Screaming Frog) */}
         {totalPages > 1 && (
-          <div className="mt-8 pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
+          <nav aria-label="Directory pagination" className="mt-8 pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-xs text-muted-foreground">
               Page <strong>{validCurrentPage}</strong> of <strong>{totalPages}</strong> &bull; Showing lines{' '}
               <strong>{startIndex + 1}</strong> &ndash; <strong>{endIndex}</strong> of{' '}
@@ -1454,32 +1525,38 @@ export function PublicDirectoryView({
             </div>
 
             <div className="flex items-center gap-1 sm:gap-1.5">
-              {/* First Page Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(1)}
-                disabled={validCurrentPage === 1}
-                className="h-8 w-8 p-0"
-                aria-label="First page"
-              >
-                <ChevronsLeft className="h-4 w-4" />
-              </Button>
+              {/* First Page Link */}
+              {validCurrentPage === 1 ? (
+                <Button variant="outline" size="sm" disabled className="h-8 w-8 p-0" aria-label="First page">
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" asChild className="h-8 w-8 p-0" aria-label="First page">
+                  <Link href="/public-directory?page=1" onClick={(e) => { e.preventDefault(); handlePageChange(1); }}>
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
 
-              {/* Previous Page Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(validCurrentPage - 1)}
-                disabled={validCurrentPage === 1}
-                className="h-8 px-2.5 text-xs flex items-center gap-1"
-                aria-label="Previous page"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Previous</span>
-              </Button>
+              {/* Previous Page Link */}
+              {validCurrentPage === 1 ? (
+                <Button variant="outline" size="sm" disabled className="h-8 px-2.5 text-xs flex items-center gap-1" aria-label="Previous page">
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Previous</span>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" asChild className="h-8 px-2.5 text-xs flex items-center gap-1" aria-label="Previous page">
+                  <Link
+                    href={`/public-directory?page=${validCurrentPage - 1}`}
+                    onClick={(e) => { e.preventDefault(); handlePageChange(validCurrentPage - 1); }}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Previous</span>
+                  </Link>
+                </Button>
+              )}
 
-              {/* Numbered Page Buttons */}
+              {/* Numbered Page Links */}
               <div className="flex items-center gap-1">
                 {pageNumbers.map((item, idx) => {
                   if (item === 'ellipsis') {
@@ -1495,63 +1572,86 @@ export function PublicDirectoryView({
                       key={item}
                       size="sm"
                       variant={isCurrent ? 'default' : 'outline'}
-                      onClick={() => handlePageChange(item)}
+                      asChild
                       className={`h-8 min-w-[32px] px-2 text-xs font-semibold ${
                         isCurrent
                           ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
                           : 'hover:bg-muted text-foreground'
                       }`}
                     >
-                      {item}
+                      <Link
+                        href={`/public-directory?page=${item}`}
+                        onClick={(e) => { e.preventDefault(); handlePageChange(item); }}
+                      >
+                        {item}
+                      </Link>
                     </Button>
                   );
                 })}
               </div>
 
-              {/* Next Page Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(validCurrentPage + 1)}
-                disabled={validCurrentPage === totalPages}
-                className="h-8 px-2.5 text-xs flex items-center gap-1"
-                aria-label="Next page"
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
+              {/* Next Page Link */}
+              {validCurrentPage === totalPages ? (
+                <Button variant="outline" size="sm" disabled className="h-8 px-2.5 text-xs flex items-center gap-1" aria-label="Next page">
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" asChild className="h-8 px-2.5 text-xs flex items-center gap-1" aria-label="Next page">
+                  <Link
+                    href={`/public-directory?page=${validCurrentPage + 1}`}
+                    onClick={(e) => { e.preventDefault(); handlePageChange(validCurrentPage + 1); }}
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              )}
 
-              {/* Last Page Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(totalPages)}
-                disabled={validCurrentPage === totalPages}
-                className="h-8 w-8 p-0"
-                aria-label="Last page"
-              >
-                <ChevronsRight className="h-4 w-4" />
-              </Button>
+              {/* Last Page Link */}
+              {validCurrentPage === totalPages ? (
+                <Button variant="outline" size="sm" disabled className="h-8 w-8 p-0" aria-label="Last page">
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" asChild className="h-8 w-8 p-0" aria-label="Last page">
+                  <Link
+                    href={`/public-directory?page=${totalPages}`}
+                    onClick={(e) => { e.preventDefault(); handlePageChange(totalPages); }}
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
             </div>
-          </div>
+          </nav>
         )}
 
         {/* Resident & Business Conversion Hub Banner */}
         <section className="mt-16 p-6 sm:p-10 rounded-3xl bg-gradient-to-br from-card via-muted/50 to-card border shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          {canEditSeo && (
+            <div className="flex justify-end mb-2 relative z-10">
+              <SeoEditPencil
+                label="Banner"
+                tagHint={sections.conversionBanner.headingTag}
+                onClick={() =>
+                  setEditingSection({ key: 'conversionBanner', label: 'Community Conversion Banner' })
+                }
+              />
+            </div>
+          )}
           <div className="max-w-3xl space-y-4">
             <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
-              Community Hub Network
+              {sections.conversionBanner.badge}
             </Badge>
 
-            <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-headline">
-              Living in or visiting one of our communities?
-            </h3>
+            <SeoHeading tag={sections.conversionBanner.headingTag} className="text-2xl sm:text-3xl font-extrabold tracking-tight font-headline">
+              {sections.conversionBanner.heading}
+            </SeoHeading>
 
             <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-              While our public directory is open to anyone on the web without logging in, members of the
-              <strong> Community Hub app</strong> unlock resident loyalty discounts, doorstep courier delivery, local event
-              calendars, community resilience notices, and direct contact with local leaders.
+              {sections.conversionBanner.description}
             </p>
 
             <div className="pt-2 flex flex-wrap items-center gap-3">
@@ -2147,6 +2247,29 @@ export function PublicDirectoryView({
           </form>
         </DialogContent>
       </Dialog>
+
+      {isSeoManager && (
+        <>
+          <SeoMetaEditorDialog
+            pageId="public-directory"
+            open={metaDialogOpen}
+            onOpenChange={setMetaDialogOpen}
+            meta={meta}
+            onSaved={(updated) => setSeoData(updated)}
+          />
+          <SeoSectionEditorDialog
+            pageId="public-directory"
+            open={Boolean(editingSection)}
+            onOpenChange={(open) => {
+              if (!open) setEditingSection(null);
+            }}
+            sectionKey={editingSection?.key || null}
+            sectionLabel={editingSection?.label || ''}
+            sectionData={editingSection ? sections[editingSection.key] : null}
+            onSaved={(updated) => setSeoData(updated)}
+          />
+        </>
+      )}
     </div>
   );
 }

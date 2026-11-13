@@ -5,18 +5,37 @@ import { getAuth } from 'firebase-admin/auth';
 import { initializeAdminApp } from '@/firebase/admin-app';
 import {
   DEFAULT_ABOUT_SEO_DATA,
-  mergeAboutSeoData,
   type AboutSectionKey,
   type AboutSeoData,
   type SeoPageMeta,
   type SeoSectionData,
 } from '@/lib/seo/about-seo-defaults';
+import {
+  DEFAULT_PUBLIC_DIRECTORY_SEO_DATA,
+  DEFAULT_SHOWCASE_SEO_DATA,
+  mergePageSeoData,
+  type PageSeoData,
+  type SeoPageId,
+} from '@/lib/seo/page-seo-defaults';
 
-type SeoActionResult = {
+type SeoActionResult<T = PageSeoData<any>> = {
   success: boolean;
-  data?: AboutSeoData;
+  data?: T;
   error?: string;
 };
+
+function getDefaultsAndRoute(pageId: SeoPageId): {
+  defaults: PageSeoData<any>;
+  route: string;
+} {
+  if (pageId === 'showcase') {
+    return { defaults: DEFAULT_SHOWCASE_SEO_DATA, route: '/showcase' };
+  }
+  if (pageId === 'public-directory') {
+    return { defaults: DEFAULT_PUBLIC_DIRECTORY_SEO_DATA, route: '/public-directory' };
+  }
+  return { defaults: DEFAULT_ABOUT_SEO_DATA, route: '/about' };
+}
 
 async function verifySeoManager(idToken: string): Promise<{
   authorized: boolean;
@@ -62,78 +81,87 @@ async function verifySeoManager(idToken: string): Promise<{
   }
 }
 
-export async function getAboutSeoDataAction(): Promise<AboutSeoData> {
+export async function getPageSeoDataAction<T extends PageSeoData<any> = PageSeoData<any>>(
+  pageId: SeoPageId
+): Promise<T> {
+  const { defaults } = getDefaultsAndRoute(pageId);
   try {
     const { firestore } = initializeAdminApp();
-    const snap = await firestore.collection('seoPages').doc('about').get();
+    const snap = await firestore.collection('seoPages').doc(pageId).get();
     if (!snap.exists) {
-      return DEFAULT_ABOUT_SEO_DATA;
+      return defaults as T;
     }
-    const raw = snap.data() as Partial<AboutSeoData>;
-    return mergeAboutSeoData(raw);
+    const raw = snap.data() as Partial<T>;
+    return mergePageSeoData(defaults, raw) as T;
   } catch (err) {
-    console.warn('Error loading seoPages/about from Firestore, using defaults:', err);
-    return DEFAULT_ABOUT_SEO_DATA;
+    console.warn(`Error loading seoPages/${pageId} from Firestore, using defaults:`, err);
+    return defaults as T;
   }
 }
 
-export async function updateAboutSeoMetaAction(params: {
+export async function getAboutSeoDataAction(): Promise<AboutSeoData> {
+  return getPageSeoDataAction<AboutSeoData>('about');
+}
+
+export async function updatePageSeoMetaAction<T extends PageSeoData<any> = PageSeoData<any>>(params: {
   idToken: string;
+  pageId: SeoPageId;
   meta: SeoPageMeta;
-}): Promise<SeoActionResult> {
+}): Promise<SeoActionResult<T>> {
   const authCheck = await verifySeoManager(params.idToken);
   if (!authCheck.authorized) {
     return { success: false, error: authCheck.error };
   }
 
+  const { defaults, route } = getDefaultsAndRoute(params.pageId);
+
   try {
     const { firestore } = initializeAdminApp();
-    const docRef = firestore.collection('seoPages').doc('about');
+    const docRef = firestore.collection('seoPages').doc(params.pageId);
     const nowIso = new Date().toISOString();
 
     const cleanMeta: SeoPageMeta = {
-      title: (params.meta.title || '').trim() || DEFAULT_ABOUT_SEO_DATA.meta.title,
-      description: (params.meta.description || '').trim() || DEFAULT_ABOUT_SEO_DATA.meta.description,
+      title: (params.meta.title || '').trim() || defaults.meta.title,
+      description: (params.meta.description || '').trim() || defaults.meta.description,
       keywords: Array.isArray(params.meta.keywords)
         ? params.meta.keywords.map((k) => k.trim()).filter(Boolean)
-        : DEFAULT_ABOUT_SEO_DATA.meta.keywords,
-      canonicalUrl:
-        (params.meta.canonicalUrl || '').trim() || DEFAULT_ABOUT_SEO_DATA.meta.canonicalUrl,
+        : defaults.meta.keywords,
+      canonicalUrl: (params.meta.canonicalUrl || '').trim() || defaults.meta.canonicalUrl,
       robotsIndex: Boolean(params.meta.robotsIndex),
       robotsFollow: Boolean(params.meta.robotsFollow),
-      ogTitle: (params.meta.ogTitle || '').trim() || params.meta.title || DEFAULT_ABOUT_SEO_DATA.meta.ogTitle,
+      ogTitle: (params.meta.ogTitle || '').trim() || params.meta.title || defaults.meta.ogTitle,
       ogDescription:
         (params.meta.ogDescription || '').trim() ||
         params.meta.description ||
-        DEFAULT_ABOUT_SEO_DATA.meta.ogDescription,
-      ogImage: (params.meta.ogImage || '').trim() || DEFAULT_ABOUT_SEO_DATA.meta.ogImage,
-      ogImageAlt: (params.meta.ogImageAlt || '').trim() || DEFAULT_ABOUT_SEO_DATA.meta.ogImageAlt,
+        defaults.meta.ogDescription,
+      ogImage: (params.meta.ogImage || '').trim() || defaults.meta.ogImage,
+      ogImageAlt: (params.meta.ogImageAlt || '').trim() || defaults.meta.ogImageAlt,
       twitterTitle:
         (params.meta.twitterTitle || '').trim() ||
         params.meta.ogTitle ||
         params.meta.title ||
-        DEFAULT_ABOUT_SEO_DATA.meta.twitterTitle,
+        defaults.meta.twitterTitle,
       twitterDescription:
         (params.meta.twitterDescription || '').trim() ||
         params.meta.ogDescription ||
         params.meta.description ||
-        DEFAULT_ABOUT_SEO_DATA.meta.twitterDescription,
+        defaults.meta.twitterDescription,
       twitterImage:
         (params.meta.twitterImage || '').trim() ||
         params.meta.ogImage ||
-        DEFAULT_ABOUT_SEO_DATA.meta.twitterImage,
+        defaults.meta.twitterImage,
       schemaHeadline:
-        (params.meta.schemaHeadline || '').trim() || DEFAULT_ABOUT_SEO_DATA.meta.schemaHeadline,
+        (params.meta.schemaHeadline || '').trim() || defaults.meta.schemaHeadline,
       schemaDescription:
-        (params.meta.schemaDescription || '').trim() || DEFAULT_ABOUT_SEO_DATA.meta.schemaDescription,
+        (params.meta.schemaDescription || '').trim() || defaults.meta.schemaDescription,
       lastUpdatedLabel:
-        (params.meta.lastUpdatedLabel || '').trim() || DEFAULT_ABOUT_SEO_DATA.meta.lastUpdatedLabel,
+        (params.meta.lastUpdatedLabel || '').trim() || defaults.meta.lastUpdatedLabel,
     };
 
     await docRef.set(
       {
-        pageId: 'about',
-        route: '/about',
+        pageId: params.pageId,
+        route,
         meta: cleanMeta,
         updatedAt: nowIso,
         updatedBy: authCheck.email || authCheck.uid || 'seo-manager',
@@ -142,35 +170,38 @@ export async function updateAboutSeoMetaAction(params: {
     );
 
     const updatedSnap = await docRef.get();
-    const merged = mergeAboutSeoData(updatedSnap.data() as Partial<AboutSeoData>);
+    const merged = mergePageSeoData(defaults, updatedSnap.data() as Partial<T>) as T;
 
-    revalidatePath('/about');
+    revalidatePath(route);
     return { success: true, data: merged };
   } catch (err: any) {
-    console.error('Error updating About SEO meta:', err);
+    console.error(`Error updating ${params.pageId} SEO meta:`, err);
     return { success: false, error: err?.message || 'Failed to save SEO metadata.' };
   }
 }
 
-export async function updateAboutSeoSectionAction(params: {
+export async function updatePageSeoSectionAction<T extends PageSeoData<any> = PageSeoData<any>>(params: {
   idToken: string;
-  sectionKey: AboutSectionKey;
+  pageId: SeoPageId;
+  sectionKey: string;
   sectionData: SeoSectionData;
-}): Promise<SeoActionResult> {
+}): Promise<SeoActionResult<T>> {
   const authCheck = await verifySeoManager(params.idToken);
   if (!authCheck.authorized) {
     return { success: false, error: authCheck.error };
   }
 
-  if (!params.sectionKey || !(params.sectionKey in DEFAULT_ABOUT_SEO_DATA.sections)) {
+  const { defaults, route } = getDefaultsAndRoute(params.pageId);
+
+  if (!params.sectionKey || !(params.sectionKey in defaults.sections)) {
     return { success: false, error: 'Invalid section key.' };
   }
 
   try {
     const { firestore } = initializeAdminApp();
-    const docRef = firestore.collection('seoPages').doc('about');
+    const docRef = firestore.collection('seoPages').doc(params.pageId);
     const nowIso = new Date().toISOString();
-    const fallback = DEFAULT_ABOUT_SEO_DATA.sections[params.sectionKey];
+    const fallback = defaults.sections[params.sectionKey];
 
     const validTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const;
     const headingTag = validTags.includes(params.sectionData.headingTag)
@@ -210,8 +241,8 @@ export async function updateAboutSeoSectionAction(params: {
 
     await docRef.set(
       {
-        pageId: 'about',
-        route: '/about',
+        pageId: params.pageId,
+        route,
         sections: {
           [params.sectionKey]: cleanSection,
         },
@@ -222,12 +253,36 @@ export async function updateAboutSeoSectionAction(params: {
     );
 
     const updatedSnap = await docRef.get();
-    const merged = mergeAboutSeoData(updatedSnap.data() as Partial<AboutSeoData>);
+    const merged = mergePageSeoData(defaults, updatedSnap.data() as Partial<T>) as T;
 
-    revalidatePath('/about');
+    revalidatePath(route);
     return { success: true, data: merged };
   } catch (err: any) {
-    console.error(`Error updating About SEO section ${params.sectionKey}:`, err);
+    console.error(`Error updating ${params.pageId} SEO section ${params.sectionKey}:`, err);
     return { success: false, error: err?.message || 'Failed to save section SEO data.' };
   }
+}
+
+export async function updateAboutSeoMetaAction(params: {
+  idToken: string;
+  meta: SeoPageMeta;
+}): Promise<SeoActionResult<AboutSeoData>> {
+  return updatePageSeoMetaAction<AboutSeoData>({
+    idToken: params.idToken,
+    pageId: 'about',
+    meta: params.meta,
+  });
+}
+
+export async function updateAboutSeoSectionAction(params: {
+  idToken: string;
+  sectionKey: AboutSectionKey;
+  sectionData: SeoSectionData;
+}): Promise<SeoActionResult<AboutSeoData>> {
+  return updatePageSeoSectionAction<AboutSeoData>({
+    idToken: params.idToken,
+    pageId: 'about',
+    sectionKey: params.sectionKey,
+    sectionData: params.sectionData,
+  });
 }

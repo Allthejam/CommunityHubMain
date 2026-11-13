@@ -41,16 +41,15 @@ import {
 } from '@/components/ui/select';
 import { uploadImageAction } from '@/lib/actions/storageActions';
 import {
-  updateAboutSeoMetaAction,
-  updateAboutSeoSectionAction,
+  updatePageSeoMetaAction,
+  updatePageSeoSectionAction,
 } from '@/lib/actions/seoActions';
 import type {
-  AboutSectionKey,
-  AboutSeoData,
   HeadingLevel,
   SeoPageMeta,
   SeoSectionData,
 } from '@/lib/seo/about-seo-defaults';
+import type { PageSeoData, SeoPageId } from '@/lib/seo/page-seo-defaults';
 
 export function useIsSeoManager() {
   const { user, isUserLoading } = useUser();
@@ -122,7 +121,7 @@ export function SeoManagerBar({
   onTogglePencils,
   onOpenMetaEditor,
 }: {
-  seoData: AboutSeoData;
+  seoData: PageSeoData<any>;
   showPencils: boolean;
   onTogglePencils: () => void;
   onOpenMetaEditor: () => void;
@@ -170,16 +169,18 @@ export function SeoManagerBar({
   );
 }
 
-export function SeoMetaEditorDialog({
+export function SeoMetaEditorDialog<T extends PageSeoData<any> = PageSeoData<any>>({
   open,
   onOpenChange,
   meta,
   onSaved,
+  pageId = 'about',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   meta: SeoPageMeta;
-  onSaved: (updated: AboutSeoData) => void;
+  onSaved: (updated: T) => void;
+  pageId?: SeoPageId;
 }) {
   const { user } = useUser();
   const { toast } = useToast();
@@ -206,7 +207,7 @@ export function SeoMetaEditorDialog({
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const res = await uploadImageAction({
           base64Data,
-          path: `seo/about/og-${Date.now()}-${safeName}`,
+          path: `seo/${pageId}/og-${Date.now()}-${safeName}`,
         });
         if (res.success && res.url) {
           setForm((prev) => ({
@@ -241,8 +242,9 @@ export function SeoMetaEditorDialog({
         .map((k) => k.trim())
         .filter(Boolean);
 
-      const res = await updateAboutSeoMetaAction({
+      const res = await updatePageSeoMetaAction<T>({
         idToken,
+        pageId,
         meta: {
           ...form,
           keywords,
@@ -280,7 +282,7 @@ export function SeoMetaEditorDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-amber-500" />
-            Edit Page-Level SEO &amp; Metadata (`/about`)
+            Edit Page-Level SEO &amp; Metadata (`/${pageId}`)
           </DialogTitle>
           <DialogDescription>
             Controls what Google, Screaming Frog, and social media previews see in the page &lt;head&gt;.
@@ -481,20 +483,22 @@ export function SeoMetaEditorDialog({
   );
 }
 
-export function SeoSectionEditorDialog({
+export function SeoSectionEditorDialog<T extends PageSeoData<any> = PageSeoData<any>>({
   open,
   onOpenChange,
   sectionKey,
   sectionLabel,
   sectionData,
   onSaved,
+  pageId = 'about',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sectionKey: AboutSectionKey | null;
+  sectionKey: string | null;
   sectionLabel: string;
   sectionData: SeoSectionData | null;
-  onSaved: (updated: AboutSeoData) => void;
+  onSaved: (updated: T) => void;
+  pageId?: SeoPageId;
 }) {
   const { user } = useUser();
   const { toast } = useToast();
@@ -526,7 +530,7 @@ export function SeoSectionEditorDialog({
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const res = await uploadImageAction({
           base64Data,
-          path: `seo/about/${sectionKey}-${Date.now()}-${safeName}`,
+          path: `seo/${pageId}/${sectionKey}-${Date.now()}-${safeName}`,
         });
         if (res.success && res.url) {
           setForm((prev) => (prev ? { ...prev, imageUrl: res.url! } : prev));
@@ -555,8 +559,9 @@ export function SeoSectionEditorDialog({
     setSaving(true);
     try {
       const idToken = await user.getIdToken();
-      const res = await updateAboutSeoSectionAction({
+      const res = await updatePageSeoSectionAction<T>({
         idToken,
+        pageId,
         sectionKey,
         sectionData: form,
       });
@@ -566,7 +571,7 @@ export function SeoSectionEditorDialog({
         onOpenChange(false);
         toast({
           title: `${sectionLabel} Updated`,
-          description: 'Changes saved to Firestore and live on /about.',
+          description: `Changes saved to Firestore and live on /${pageId}.`,
         });
       } else {
         toast({

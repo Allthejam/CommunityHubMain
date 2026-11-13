@@ -1,50 +1,74 @@
 import type { Metadata } from 'next';
 import { getPublicBusinessesAction, getDirectoryCommunitiesAction } from '@/lib/actions/publicDirectoryActions';
-import { Suspense } from 'react';
+import { getPageSeoDataAction } from '@/lib/actions/seoActions';
+import type { PublicDirectorySeoData } from '@/lib/seo/page-seo-defaults';
 import { PublicDirectoryView } from '@/components/public-directory/public-directory-view';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 60; // Revalidate every minute
+export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: 'Local Business Directory | Community Hub (No Login Required)',
-  description:
-    'Browse independent shops, services, trades, dining, and stays across local communities. Discover opening hours, contact info, and directions with no login or account required.',
-  keywords: [
-    'local businesses',
-    'community directory',
-    'local shops',
-    'local services',
-    'independent businesses',
-    'community hub directory',
-    'find local business',
-    'uk business directory',
-  ],
-  alternates: {
-    canonical: 'https://my-community-hub.co.uk/public-directory',
-  },
-  openGraph: {
-    title: 'Local Business Directory | Community Hub',
-    description:
-      'Explore local shops, trades, and independent services in your area. Open to the public, no sign-in needed.',
-    type: 'website',
-    url: 'https://my-community-hub.co.uk/public-directory',
-    siteName: 'Community Hub',
-    locale: 'en_GB',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Local Business Directory | Community Hub',
-    description:
-      'Explore local shops, trades, and independent services in your area. Open to the public, no sign-in needed.',
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getPageSeoDataAction<PublicDirectorySeoData>('public-directory');
+  const { meta } = seo;
 
-export default async function PublicDirectoryPage() {
-  const [businesses, communitiesList] = await Promise.all([
+  return {
+    title: meta.title,
+    description: meta.description,
+    keywords: meta.keywords,
+    alternates: {
+      canonical: meta.canonicalUrl || 'https://my-community-hub.co.uk/public-directory',
+    },
+    robots: {
+      index: meta.robotsIndex,
+      follow: meta.robotsFollow,
+      googleBot: {
+        index: meta.robotsIndex,
+        follow: meta.robotsFollow,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
+    openGraph: {
+      title: meta.ogTitle || meta.title,
+      description: meta.ogDescription || meta.description,
+      type: 'website',
+      url: meta.canonicalUrl || 'https://my-community-hub.co.uk/public-directory',
+      siteName: 'Community Hub',
+      locale: 'en_GB',
+      images: [
+        {
+          url: meta.ogImage || '/images/about/highstreet.jpg',
+          width: 1200,
+          height: 630,
+          alt: meta.ogImageAlt || 'Community Hub Public Local Business Directory',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: meta.twitterTitle || meta.ogTitle || meta.title,
+      description: meta.twitterDescription || meta.ogDescription || meta.description,
+      images: [meta.twitterImage || meta.ogImage || '/images/about/highstreet.jpg'],
+    },
+  };
+}
+
+export default async function PublicDirectoryPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ page?: string; category?: string }>;
+}) {
+  const [businesses, communitiesList, seoData, resolvedParams] = await Promise.all([
     getPublicBusinessesAction(),
     getDirectoryCommunitiesAction(),
+    getPageSeoDataAction<PublicDirectorySeoData>('public-directory'),
+    searchParams ? searchParams : Promise.resolve({} as { page?: string; category?: string }),
   ]);
+
+  const parsedPage = Number.parseInt(resolvedParams?.page || '1', 10);
+  const initialPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const initialCategory = resolvedParams?.category || null;
+  const { meta } = seoData;
 
   const directorySchema = {
     '@context': 'https://schema.org',
@@ -52,10 +76,9 @@ export default async function PublicDirectoryPage() {
       {
         '@type': 'CollectionPage',
         '@id': 'https://my-community-hub.co.uk/public-directory#collection',
-        url: 'https://my-community-hub.co.uk/public-directory',
-        name: 'Local Business Directory | Community Hub',
-        description:
-          'Browse independent shops, services, trades, dining, and stays across UK communities with no login required.',
+        url: meta.canonicalUrl || 'https://my-community-hub.co.uk/public-directory',
+        name: meta.schemaHeadline || meta.title,
+        description: meta.schemaDescription || meta.description,
         inLanguage: 'en-GB',
         isPartOf: {
           '@type': 'WebSite',
@@ -82,7 +105,7 @@ export default async function PublicDirectoryPage() {
             '@type': 'ListItem',
             position: 2,
             name: 'Public Local Business Directory',
-            item: 'https://my-community-hub.co.uk/public-directory',
+            item: meta.canonicalUrl || 'https://my-community-hub.co.uk/public-directory',
           },
         ],
       },
@@ -96,7 +119,9 @@ export default async function PublicDirectoryPage() {
           position: index + 1,
           name: b.businessName,
           url: `https://my-community-hub.co.uk/public-directory/${b.id}`,
-          description: b.shortDescription || `${b.businessCategory} in ${b.primaryCommunityName || 'Local Community'}${b.postcode ? ', ' + b.postcode : ''}`,
+          description:
+            b.shortDescription ||
+            `${b.businessCategory} in ${b.primaryCommunityName || 'Local Community'}${b.postcode ? ', ' + b.postcode : ''}`,
         })),
       },
     ],
@@ -108,9 +133,13 @@ export default async function PublicDirectoryPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(directorySchema) }}
       />
-      <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div></div>}>
-        <PublicDirectoryView businesses={businesses} communitiesList={communitiesList} />
-      </Suspense>
+      <PublicDirectoryView
+        businesses={businesses}
+        communitiesList={communitiesList}
+        initialSeoData={seoData}
+        initialPage={initialPage}
+        initialCategory={initialCategory}
+      />
     </>
   );
 }
