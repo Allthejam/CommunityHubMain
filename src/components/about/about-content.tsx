@@ -37,6 +37,19 @@ import {
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import {
+    DEFAULT_ABOUT_SEO_DATA,
+    type AboutSectionKey,
+    type AboutSeoData,
+} from "@/lib/seo/about-seo-defaults";
+import {
+    SeoEditPencil,
+    SeoHeading,
+    SeoManagerBar,
+    SeoMetaEditorDialog,
+    SeoSectionEditorDialog,
+    useIsSeoManager,
+} from "@/components/about/seo-editor-controls";
 
 const mainFeatures = [
     {
@@ -107,23 +120,60 @@ const keyFeaturesList = [
     { icon: <Activity className="h-5 w-5 text-primary" />, title: "AI Moderation & Assistance", description: "Context-aware AI moderation keeps hub interactions safe and clean." },
 ];
 
-export function AboutContent() {
+export function AboutContent({ initialSeoData }: { initialSeoData?: AboutSeoData }) {
+    const [seoData, setSeoData] = React.useState<AboutSeoData>(
+        initialSeoData || DEFAULT_ABOUT_SEO_DATA
+    );
+    const { isSeoManager } = useIsSeoManager();
+    const [showPencils, setShowPencils] = React.useState(true);
+    const [metaDialogOpen, setMetaDialogOpen] = React.useState(false);
+    const [editingSection, setEditingSection] = React.useState<{
+        key: AboutSectionKey;
+        label: string;
+    } | null>(null);
+
+    const canEdit = isSeoManager && showPencils;
+    const { sections, meta } = seoData;
+    const sectionBoxClass = canEdit
+        ? "relative rounded-2xl p-3 sm:p-4 -m-3 sm:-m-4 border border-dashed border-amber-500/40 hover:border-amber-500/80 transition-colors"
+        : "relative";
+
     return (
         <div className="space-y-16 py-12 max-w-7xl mx-auto px-4">
+            {isSeoManager && (
+                <SeoManagerBar
+                    seoData={seoData}
+                    showPencils={showPencils}
+                    onTogglePencils={() => setShowPencils((prev) => !prev)}
+                    onOpenMetaEditor={() => setMetaDialogOpen(true)}
+                />
+            )}
             
             {/* Hero Section */}
-            <section className="text-center space-y-6">
+            <section className={`text-center space-y-6 ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="flex justify-end">
+                        <SeoEditPencil
+                            label="Hero"
+                            tagHint={sections.hero.headingTag}
+                            onClick={() => setEditingSection({ key: 'hero', label: 'Hero Section' })}
+                        />
+                    </div>
+                )}
                 <div className="flex justify-center">
                     <Badge variant="outline" className="px-4 py-1.5 bg-primary/5 text-primary border-primary/20 text-xs font-semibold rounded-full gap-2">
                         <Sparkles className="h-3.5 w-3.5 text-primary" />
-                        Next-Generation Community Platform
+                        {sections.hero.badge}
                     </Badge>
                 </div>
-                <h1 className="text-4xl md:text-6xl font-bold tracking-tight font-headline max-w-4xl mx-auto leading-tight">
-                    Rebuilding Local Communities, Regional Networks & High Streets
-                </h1>
+                <SeoHeading
+                    tag={sections.hero.headingTag}
+                    className="text-4xl md:text-6xl font-bold tracking-tight font-headline max-w-4xl mx-auto leading-tight"
+                >
+                    {sections.hero.heading}
+                </SeoHeading>
                 <p className="max-w-3xl mx-auto text-lg text-muted-foreground leading-relaxed">
-                    Community Hub is an all-in-one digital platform designed to reconnect residents, empower local businesses, enable regional council broadcasts, manage emergency resilience, and map out neighborhoods through interactive geofencing.
+                    {sections.hero.description}
                 </p>
                 <div className="flex flex-wrap justify-center gap-4 pt-2">
                     <Button asChild size="lg" className="font-semibold shadow-md">
@@ -136,28 +186,51 @@ export function AboutContent() {
             </section>
 
             {/* Main Hero Image */}
-            <div className="relative w-full h-80 sm:h-[420px] rounded-3xl overflow-hidden shadow-2xl border">
+            <div className={`relative w-full h-80 sm:h-[420px] rounded-3xl overflow-hidden shadow-2xl border ${canEdit ? 'ring-2 ring-amber-500/60 ring-offset-2' : ''}`}>
+                {canEdit && (
+                    <div className="absolute top-3 right-3 z-20">
+                        <SeoEditPencil
+                            label="Hero Image & Caption"
+                            tagHint={sections.heroBanner.headingTag}
+                            onClick={() => setEditingSection({ key: 'heroBanner', label: 'Hero Image & Banner Caption' })}
+                        />
+                    </div>
+                )}
                 <Image 
-                    src="/images/about/hero.jpg" 
-                    alt="Vibrant local community street festival with market stalls" 
+                    src={sections.heroBanner.imageUrl || "/images/about/hero.jpg"} 
+                    alt={sections.heroBanner.imageAlt || "Vibrant local community street festival with market stalls"} 
+                    title={sections.heroBanner.imageTitle}
                     fill 
                     className="object-cover" 
                     priority 
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-6 sm:p-10">
                     <div className="text-white space-y-1">
-                        <h3 className="text-xl sm:text-2xl font-bold">Hyper-Local Connection & Regional Reach</h3>
-                        <p className="text-xs sm:text-sm text-slate-200">Bringing residents, local councils, emergency teams, and high street traders into one unified digital square.</p>
+                        <SeoHeading tag={sections.heroBanner.headingTag} className="text-xl sm:text-2xl font-bold">
+                            {sections.heroBanner.heading}
+                        </SeoHeading>
+                        <p className="text-xs sm:text-sm text-slate-200">{sections.heroBanner.description}</p>
                     </div>
                 </div>
             </div>
 
             {/* Mission Section */}
-            <section className="text-center space-y-8">
+            <section className={`text-center space-y-8 ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="flex justify-end">
+                        <SeoEditPencil
+                            label="Capabilities"
+                            tagHint={sections.mission.headingTag}
+                            onClick={() => setEditingSection({ key: 'mission', label: 'Platform Capabilities' })}
+                        />
+                    </div>
+                )}
                 <div className="space-y-3">
-                    <h2 className="text-3xl font-bold font-headline">Our Platform Capabilities</h2>
+                    <SeoHeading tag={sections.mission.headingTag} className="text-3xl font-bold font-headline">
+                        {sections.mission.heading}
+                    </SeoHeading>
                     <p className="max-w-3xl mx-auto text-muted-foreground">
-                        From individual neighborhood noticeboards to regional network broadcasts, emergency resilience planning, and GPS geofence mapping, our platform provides the complete digital infrastructure for local life.
+                        {sections.mission.description}
                     </p>
                 </div>
 
@@ -181,17 +254,26 @@ export function AboutContent() {
             <Separator />
 
             {/* Section 1: Regional Networks & Broadcast System */}
-            <section className="grid lg:grid-cols-2 gap-12 items-center">
+            <section className={`grid lg:grid-cols-2 gap-12 items-center ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="lg:col-span-2 flex justify-end -mb-8">
+                        <SeoEditPencil
+                            label="Regional Networks"
+                            tagHint={sections.regionalNetworks.headingTag}
+                            onClick={() => setEditingSection({ key: 'regionalNetworks', label: 'Regional Networks Section' })}
+                        />
+                    </div>
+                )}
                 <div className="space-y-5">
                     <Badge variant="outline" className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-xs font-semibold gap-1.5">
                         <Radio className="h-3.5 w-3.5 text-indigo-600" />
-                        Regional Networks
+                        {sections.regionalNetworks.badge}
                     </Badge>
-                    <h2 className="text-3xl font-bold font-headline leading-tight">
-                        Regional Networks & Multi-Hub Broadcast System
-                    </h2>
+                    <SeoHeading tag={sections.regionalNetworks.headingTag} className="text-3xl font-bold font-headline leading-tight">
+                        {sections.regionalNetworks.heading}
+                    </SeoHeading>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                        We empower <strong>Regional Authorities, Local Councils, and District Organizations</strong> to claim oversight over entire geographic regions containing multiple local community hubs.
+                        {sections.regionalNetworks.description}
                     </p>
                     <div className="space-y-3 text-sm text-muted-foreground">
                         <div className="flex items-start gap-3">
@@ -215,8 +297,9 @@ export function AboutContent() {
                 </div>
                 <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border">
                     <Image 
-                        src="/images/about/regional.jpg" 
-                        alt="Regional Network map dashboard with broadcast alerts" 
+                        src={sections.regionalNetworks.imageUrl || "/images/about/regional.jpg"} 
+                        alt={sections.regionalNetworks.imageAlt || "Regional Network map dashboard with broadcast alerts"} 
+                        title={sections.regionalNetworks.imageTitle}
                         fill 
                         className="object-cover" 
                     />
@@ -226,11 +309,21 @@ export function AboutContent() {
             <Separator />
 
             {/* Section 2: Geofencing Maps & GPS Location */}
-            <section className="grid lg:grid-cols-2 gap-12 items-center">
+            <section className={`grid lg:grid-cols-2 gap-12 items-center ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="lg:col-span-2 flex justify-end -mb-8">
+                        <SeoEditPencil
+                            label="Geofencing & GPS"
+                            tagHint={sections.geofencing.headingTag}
+                            onClick={() => setEditingSection({ key: 'geofencing', label: 'Geofencing & GPS Section' })}
+                        />
+                    </div>
+                )}
                 <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border order-2 lg:order-1">
                     <Image 
-                        src="/images/about/geofencing.jpg" 
-                        alt="Interactive geofencing map with community boundaries and GPS pin" 
+                        src={sections.geofencing.imageUrl || "/images/about/geofencing.jpg"} 
+                        alt={sections.geofencing.imageAlt || "Interactive geofencing map with community boundaries and GPS pin"} 
+                        title={sections.geofencing.imageTitle}
                         fill 
                         className="object-cover" 
                     />
@@ -238,13 +331,13 @@ export function AboutContent() {
                 <div className="space-y-5 order-1 lg:order-2">
                     <Badge variant="outline" className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-xs font-semibold gap-1.5">
                         <Compass className="h-3.5 w-3.5 text-emerald-600" />
-                        Spatial Technology
+                        {sections.geofencing.badge}
                     </Badge>
-                    <h2 className="text-3xl font-bold font-headline leading-tight">
-                        Interactive Geofencing & Live GPS Detection
-                    </h2>
+                    <SeoHeading tag={sections.geofencing.headingTag} className="text-3xl font-bold font-headline leading-tight">
+                        {sections.geofencing.heading}
+                    </SeoHeading>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                        Every mapped community has custom GeoJSON boundary polygon coordinates drawn directly by local leaders. When residents travel across town borders, our geofencing engine works in real-time.
+                        {sections.geofencing.description}
                     </p>
                     <div className="space-y-3 text-sm text-muted-foreground">
                         <div className="flex items-start gap-3">
@@ -271,17 +364,26 @@ export function AboutContent() {
             <Separator />
 
             {/* Section 3: Virtual High Street */}
-            <section className="grid lg:grid-cols-2 gap-12 items-center">
+            <section className={`grid lg:grid-cols-2 gap-12 items-center ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="lg:col-span-2 flex justify-end -mb-8">
+                        <SeoEditPencil
+                            label="Virtual High Street"
+                            tagHint={sections.highStreet.headingTag}
+                            onClick={() => setEditingSection({ key: 'highStreet', label: 'Virtual High Street Section' })}
+                        />
+                    </div>
+                )}
                 <div className="space-y-5">
                     <Badge variant="outline" className="px-3 py-1 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-xs font-semibold gap-1.5">
                         <Store className="h-3.5 w-3.5 text-amber-600" />
-                        Local Commerce
+                        {sections.highStreet.badge}
                     </Badge>
-                    <h2 className="text-3xl font-bold font-headline leading-tight">
-                        The Digital High Street: Local Shopping & Delivery
-                    </h2>
+                    <SeoHeading tag={sections.highStreet.headingTag} className="text-3xl font-bold font-headline leading-tight">
+                        {sections.highStreet.heading}
+                    </SeoHeading>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                        Global online marketplaces often leave independent town shops behind. Our Virtual High Street brings local storefronts online, allowing residents to browse local products, order from town traders, and support independent businesses.
+                        {sections.highStreet.description}
                     </p>
                     <div className="space-y-3 text-sm text-muted-foreground">
                         <div className="flex items-start gap-3">
@@ -305,8 +407,9 @@ export function AboutContent() {
                 </div>
                 <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border">
                     <Image 
-                        src="/images/about/highstreet.jpg" 
-                        alt="Digital High Street with local shops and shopping app interface" 
+                        src={sections.highStreet.imageUrl || "/images/about/highstreet.jpg"} 
+                        alt={sections.highStreet.imageAlt || "Digital High Street with local shops and shopping app interface"} 
+                        title={sections.highStreet.imageTitle}
                         fill 
                         className="object-cover" 
                     />
@@ -316,11 +419,21 @@ export function AboutContent() {
             <Separator />
 
             {/* Section 4: Emergency & Civil Resilience Engine */}
-            <section className="grid lg:grid-cols-2 gap-12 items-center">
+            <section className={`grid lg:grid-cols-2 gap-12 items-center ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="lg:col-span-2 flex justify-end -mb-8">
+                        <SeoEditPencil
+                            label="Emergency Resilience"
+                            tagHint={sections.resilience.headingTag}
+                            onClick={() => setEditingSection({ key: 'resilience', label: 'Emergency Resilience Section' })}
+                        />
+                    </div>
+                )}
                 <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border order-2 lg:order-1">
                     <Image 
-                        src="/images/about/emergency.jpg" 
-                        alt="Community Emergency Resilience operations center with failover maps and volunteer coordination" 
+                        src={sections.resilience.imageUrl || "/images/about/emergency.jpg"} 
+                        alt={sections.resilience.imageAlt || "Community Emergency Resilience operations center with failover maps and volunteer coordination"} 
+                        title={sections.resilience.imageTitle}
                         fill 
                         className="object-cover" 
                     />
@@ -328,13 +441,13 @@ export function AboutContent() {
                 <div className="space-y-5 order-1 lg:order-2">
                     <Badge variant="outline" className="px-3 py-1 bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 text-xs font-semibold gap-1.5">
                         <ShieldAlert className="h-3.5 w-3.5 text-red-600" />
-                        Civil Contingencies & Resilience
+                        {sections.resilience.badge}
                     </Badge>
-                    <h2 className="text-3xl font-bold font-headline leading-tight">
-                        Statutory Emergency Planning & Real-Time Incident Response
-                    </h2>
+                    <SeoHeading tag={sections.resilience.headingTag} className="text-3xl font-bold font-headline leading-tight">
+                        {sections.resilience.heading}
+                    </SeoHeading>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                        When extreme weather, power cuts, wildfires, or flooding strike, rural and urban communities need clear, coordinated action. Community Hub equips local councils and community leaders with a living <strong>Statutory Emergency Action Plan</strong> and dynamic crisis command tools.
+                        {sections.resilience.description}
                     </p>
                     <div className="space-y-3 text-sm text-muted-foreground">
                         <div className="flex items-start gap-3">
@@ -364,17 +477,26 @@ export function AboutContent() {
             <Separator />
 
             {/* Section 5: Public Business Directory & Google Search Indexing */}
-            <section className="grid lg:grid-cols-2 gap-12 items-center">
+            <section className={`grid lg:grid-cols-2 gap-12 items-center ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="lg:col-span-2 flex justify-end -mb-8">
+                        <SeoEditPencil
+                            label="Public Directory"
+                            tagHint={sections.publicDirectory.headingTag}
+                            onClick={() => setEditingSection({ key: 'publicDirectory', label: 'Public Business Directory Section' })}
+                        />
+                    </div>
+                )}
                 <div className="space-y-5">
                     <Badge variant="outline" className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-xs font-semibold gap-1.5">
                         <Globe className="h-3.5 w-3.5 text-emerald-600" />
-                        Open Public Access &bull; Google SEO Indexed
+                        {sections.publicDirectory.badge}
                     </Badge>
-                    <h2 className="text-3xl font-bold font-headline leading-tight">
-                        Public Local Business Directory & Search Engine Indexing
-                    </h2>
+                    <SeoHeading tag={sections.publicDirectory.headingTag} className="text-3xl font-bold font-headline leading-tight">
+                        {sections.publicDirectory.heading}
+                    </SeoHeading>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                        While our community hubs provide secure, resident-only spaces for local news and discussion, our <strong>Public Directory</strong> sits outside the login gate. It gives independently owned local businesses, trades, and community partners maximum public visibility and automatic Google search indexing.
+                        {sections.publicDirectory.description}
                     </p>
                     <div className="space-y-3 text-sm text-muted-foreground">
                         <div className="flex items-start gap-3">
@@ -489,11 +611,22 @@ export function AboutContent() {
             <Separator />
 
             {/* Complete Key Features Grid */}
-            <section className="space-y-8">
+            <section className={`space-y-8 ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="flex justify-end -mb-4">
+                        <SeoEditPencil
+                            label="Feature Set"
+                            tagHint={sections.features.headingTag}
+                            onClick={() => setEditingSection({ key: 'features', label: 'Comprehensive Feature Set' })}
+                        />
+                    </div>
+                )}
                 <div className="text-center space-y-3">
-                    <h2 className="text-3xl font-bold font-headline">Comprehensive Platform Feature Set</h2>
+                    <SeoHeading tag={sections.features.headingTag} className="text-3xl font-bold font-headline">
+                        {sections.features.heading}
+                    </SeoHeading>
                     <p className="max-w-3xl mx-auto text-muted-foreground text-sm">
-                        Community Hub packs an unprecedented array of local tools into a single, intuitive application.
+                        {sections.features.description}
                     </p>
                 </div>
                 
@@ -519,17 +652,28 @@ export function AboutContent() {
             <Separator />
 
             {/* Security & Private Hubs Section */}
-            <section className="grid lg:grid-cols-2 gap-12 items-center">
+            <section className={`grid lg:grid-cols-2 gap-12 items-center ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="lg:col-span-2 flex justify-end -mb-8">
+                        <SeoEditPencil
+                            label="Security & Privacy"
+                            tagHint={sections.security.headingTag}
+                            onClick={() => setEditingSection({ key: 'security', label: 'Security & Private Hubs Section' })}
+                        />
+                    </div>
+                )}
                 <div className="space-y-5">
                     <div className="flex items-center gap-3">
                         <ShieldCheck className="h-8 w-8 text-primary" />
-                        <h2 className="text-3xl font-bold font-headline">Security, Privacy & Private Hubs</h2>
+                        <SeoHeading tag={sections.security.headingTag} className="text-3xl font-bold font-headline">
+                            {sections.security.heading}
+                        </SeoHeading>
                     </div>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                        Your safety and data privacy are foundational. Built on Google&apos;s enterprise infrastructure, Community Hub uses role-based access control, AI-driven content moderation, and encrypted database rules to protect every user.
+                        {sections.security.description}
                     </p>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                        Need an unlisted, confidential space? We offer <strong>Exclusive Private Hubs</strong> perfect for clubs, sports teams, associations, and professional groups. Private hubs do not appear in public searches.
+                        {sections.security.secondaryDescription}
                     </p>
                     <Button asChild size="lg">
                         <Link href="/report-issue?tab=platform&subject=Request%20a%20Private%20Hub">Request a Private Hub</Link>
@@ -537,8 +681,9 @@ export function AboutContent() {
                 </div>
                 <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border">
                     <Image 
-                        src="/images/about/security.jpg" 
-                        alt="Security and role-based encryption concept" 
+                        src={sections.security.imageUrl || "/images/about/security.jpg"} 
+                        alt={sections.security.imageAlt || "Security and role-based encryption concept"} 
+                        title={sections.security.imageTitle}
                         fill 
                         className="object-cover" 
                     />
@@ -546,15 +691,26 @@ export function AboutContent() {
             </section>
 
             {/* Progressive Web App Installation Guide */}
-            <section className="space-y-8 text-center pt-8 border-t">
+            <section className={`space-y-8 text-center pt-8 border-t ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="flex justify-end -mb-4">
+                        <SeoEditPencil
+                            label="Install App"
+                            tagHint={sections.installApp.headingTag}
+                            onClick={() => setEditingSection({ key: 'installApp', label: 'Install App Section' })}
+                        />
+                    </div>
+                )}
                 <div className="flex items-center justify-center gap-4">
                     <Separator className="w-1/4" />
                     <Smartphone className="h-8 w-8 text-primary" />
                     <Separator className="w-1/4" />
                 </div>
-                <h2 className="text-3xl font-bold font-headline">Install The App On Your Device</h2>
+                <SeoHeading tag={sections.installApp.headingTag} className="text-3xl font-bold font-headline">
+                    {sections.installApp.heading}
+                </SeoHeading>
                 <p className="text-muted-foreground max-w-3xl mx-auto text-sm">
-                    No app store downloads required! Community Hub is a Progressive Web App (PWA) that installs directly from your web browser for an instant app experience with push notifications.
+                    {sections.installApp.description}
                 </p>
                 <div className="grid md:grid-cols-2 gap-6 text-left max-w-4xl mx-auto">
                      <Card className="bg-card/80">
@@ -591,22 +747,60 @@ export function AboutContent() {
             </section>
                 
             {/* Direct Action Shortcuts Guide */}
-            <section className="space-y-6 text-center pt-8 border-t">
+            <section className={`space-y-6 text-center pt-8 border-t ${sectionBoxClass}`}>
+                {canEdit && (
+                    <div className="flex justify-end -mb-4">
+                        <SeoEditPencil
+                            label="Direct Shortcuts"
+                            tagHint={sections.shortcuts.headingTag}
+                            onClick={() => setEditingSection({ key: 'shortcuts', label: 'Direct Action Shortcuts' })}
+                        />
+                    </div>
+                )}
                 <div className="flex items-center justify-center gap-4">
                     <Separator className="w-1/4" />
                     <Zap className="h-8 w-8 text-primary" />
                     <Separator className="w-1/4" />
                 </div>
 
-                <h2 className="text-3xl font-bold font-headline">Direct Action Shortcuts</h2>
+                <SeoHeading tag={sections.shortcuts.headingTag} className="text-3xl font-bold font-headline">
+                    {sections.shortcuts.heading}
+                </SeoHeading>
                 <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-                    Touch and hold our App icon on your mobile home screen to instantly open key shortcuts like <strong>Community Feed</strong>, <strong>Virtual High Street</strong>, or <strong>Community Chat</strong> without navigating through menus.
+                    {sections.shortcuts.description}
                 </p>
             </section>
 
-            <div className="text-xs text-muted-foreground pt-8 text-left border-t">
-                Last major update: 22/08/2026
+            <div className="text-xs text-muted-foreground pt-8 text-left border-t flex items-center justify-between flex-wrap gap-2">
+                <span>Last major update: {meta.lastUpdatedLabel}</span>
+                {canEdit && (
+                    <SeoEditPencil
+                        label="Page Meta & Last Updated"
+                        onClick={() => setMetaDialogOpen(true)}
+                    />
+                )}
             </div>
+
+            {isSeoManager && (
+                <>
+                    <SeoMetaEditorDialog
+                        open={metaDialogOpen}
+                        onOpenChange={setMetaDialogOpen}
+                        meta={meta}
+                        onSaved={(updated) => setSeoData(updated)}
+                    />
+                    <SeoSectionEditorDialog
+                        open={Boolean(editingSection)}
+                        onOpenChange={(open) => {
+                            if (!open) setEditingSection(null);
+                        }}
+                        sectionKey={editingSection?.key || null}
+                        sectionLabel={editingSection?.label || ''}
+                        sectionData={editingSection ? sections[editingSection.key] : null}
+                        onSaved={(updated) => setSeoData(updated)}
+                    />
+                </>
+            )}
         </div>
     );
 }
