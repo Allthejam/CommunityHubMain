@@ -543,8 +543,16 @@ export async function createPlatformUnclaimedBusinessAction(params: {
   metaTitle?: string;
   metaDescription?: string;
   imageAlt?: string;
+  seoHeadings?: {
+    h1?: string;
+    h2?: string;
+    h3?: string;
+    h4?: string;
+    h5?: string;
+    h6?: string;
+  };
 }): Promise<{ success: boolean; businessId?: string; error?: string }> {
-  const { businessName, businessCategory, communityId, communityName, postcode, coverImage, shortDescription, metaTitle, metaDescription, imageAlt } = params;
+  const { businessName, businessCategory, communityId, communityName, postcode, coverImage, shortDescription, metaTitle, metaDescription, imageAlt, seoHeadings } = params;
 
   if (!businessName?.trim()) {
     return { success: false, error: 'Business name is required.' };
@@ -600,11 +608,11 @@ export async function createPlatformUnclaimedBusinessAction(params: {
       metaDescription: cleanMetaDesc,
       seoHeadings: {
         h1: seoHeadings?.h1?.trim() || cleanName,
-        h2: seoHeadings?.h2?.trim() || About  in ,
-        h3: seoHeadings?.h3?.trim() || ${businessCategory.trim()} Services & Local Details,
-        h4: seoHeadings?.h4?.trim() || Serving  (),
-        h5: seoHeadings?.h5?.trim() || Claim or Manage ,
-        h6: seoHeadings?.h6?.trim() || ${cleanCommName} Community Hub Public Directory,
+        h2: seoHeadings?.h2?.trim() || ('About ' + cleanName + ' in ' + cleanCommName),
+        h3: seoHeadings?.h3?.trim() || (businessCategory.trim() + ' Services & Local Details'),
+        h4: seoHeadings?.h4?.trim() || ('Serving ' + cleanCommName + ' (' + cleanPostcode + ')'),
+        h5: seoHeadings?.h5?.trim() || ('Claim or Manage ' + cleanName),
+        h6: seoHeadings?.h6?.trim() || (cleanCommName + ' Community Hub Public Directory'),
       },
       status: 'Approved',
       isPublicDirectoryEnabled: true,
