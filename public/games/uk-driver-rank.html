@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UK Driver Rank Calculator & Certificate</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Google Fonts: Inter & Cinzel/Playfair for Certificate styling -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for clean icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .cert-font {
+            font-family: 'Cinzel', serif;
+        }
+        /* Custom metallic/diploma styling for the generated certificate */
+        .certificate-card {
+            background: linear-gradient(135deg, #fffdf7 0%, #f5efe0 100%);
+            color: #1e293b;
+            border: 8px double #b45309;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), inset 0 0 30px rgba(180, 83, 9, 0.12);
+            position: relative;
+        }
+        .certificate-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-20deg);
+            font-size: 6rem;
+            font-weight: 900;
+            color: rgba(180, 83, 9, 0.05);
+            pointer-events: none;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .gold-seal {
+            background: radial-gradient(circle at 30% 30%, #fcd34d, #d97706, #92400e);
+            box-shadow: 0 4px 12px rgba(146, 64, 14, 0.4);
+        }
+        /* Smooth toggle transitions */
+        .category-card {
+            transition: all 0.2s ease;
+        }
+        .category-card:hover {
+            transform: translateY(-2px);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen py-6 px-3 sm:px-6 lg:px-8">
+
+    <!-- Top Community App Header Banner -->
+    <div class="max-w-5xl mx-auto mb-6">
+        <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+            <div class="flex items-center gap-4 text-center sm:text-left">
+                <div class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-2xl shrink-0">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full">Community Time Wasters</span>
+                    <h1 class="text-xl sm:text-2xl font-extrabold text-white mt-1">UK National Driver Rank & Certificate</h1>
+                    <p class="text-slate-400 text-xs sm:text-sm">Compare your licences, plant tickets, test sheets & era against 41 million UK drivers.</p>
+                </div>
+            </div>
+            <button onclick="loadDemoProfile()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-2 px-3.5 rounded-xl border border-slate-600 transition shrink-0 cursor-pointer">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1.5 text-amber-400"></i>Load Master Profile Example
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- LEFT COLUMN: Input Form (7 cols on large screens) -->
+        <div class="lg:col-span-7 space-y-6">
+            
+            <!-- Step 1: Driver Era & Personal Details -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg">
+                <div class="flex items-center gap-2.5 mb-4 border-b border-slate-700 pb-3">
+                    <span class="w-7 h-7 rounded-lg bg-blue-600 text-white font-bold text-sm flex items-center justify-center">1</span>
+                    <h2 class="text-lg font-bold text-white">Driver Profile, Age & Driving Record</h2>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Display Name / Callsign</label>
+                        <input type="text" id="driverName" placeholder="e.g. Dave 'The Stig' Smith" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Current Age (Years)</label>
+                        <input type="number" id="currentAge" min="17" max="105" value="35" oninput="evaluateAllEras()" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <!-- Gearbox, Lifetime Mileage & Service Background -->
+                <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-900/90 border border-slate-700 rounded-xl p-3.5">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Gearbox Entitlement</label>
+                        <select id="gearboxType" onchange="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                            <option value="manual" selected>⚙️ Full Manual (Cat B)</option>
+                            <option value="auto">🅰️ Automatic Only (Code 78)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Est. Lifetime Mileage</label>
+                        <select id="lifetimeMiles" onchange="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                            <option value="low">Under 50,000 miles</option>
+                            <option value="med" selected>50k – 250k miles</option>
+                            <option value="high">250k – 750k miles</option>
+                            <option value="pro">750k – 1.5M miles (Pro)</option>
+                            <option value="million">1.5M+ Million-Miler</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Official / Service Role</label>
+                        <select id="serviceRole" onchange="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                            <option value="none" selected>Civilian Driver</option>
+                            <option value="forces">🪖 HM Forces / Military (FMT600)</option>
+                            <option value="bluelight">🚨 Emergency Response (Police/Amb/Fire)</option>
+                            <option value="examiner">📋 Current / Ex-DVSA Examiner</option>
+                        </select>
+                    </div>
+                    <div class="sm:col-span-3 pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                        <label class="flex items-center gap-2 text-xs text-amber-300 font-semibold cursor-pointer">
+                            <input type="checkbox" id="grandfatherRights" onchange="calculateRank()" class="w-4 h-4 accent-amber-500 rounded">
+                            <span>📜 Pre-Jan 1997 "Grandfather Rights" (Auto C1 7.5t, D1 Minibus &amp; B+E Trailer)</span>
+                        </label>
+                        <span id="grandfatherStatus" class="text-[10px] text-slate-400">Auto-detected from Car pass year</span>
+                    </div>
+                </div>
+
+                <!-- Home Turf / UK Regional Road Toughness Selector -->
+                <div class="mt-4 bg-slate-900/90 border border-slate-700 rounded-xl p-3.5">
+                    <label class="block text-xs font-bold text-amber-300 uppercase mb-1.5 flex items-center gap-1.5">
+                        <i class="fa-solid fa-map-location-dot"></i>Home Turf / Toughest UK Roads Driven Regularly
+                    </label>
+                    <select id="homeTurf" onchange="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                        <option value="standard" selected>🛣️ Standard UK A-Roads &amp; Motorways (+0 pts)</option>
+                        <option value="highlands">🏔️ Scottish Highlands, A9 &amp; Winter Single-Track Passing Places (+55 pts)</option>
+                        <option value="london">🚕 Central London Gridlock, Width Restrictors &amp; Cycle Lanes (+45 pts)</option>
+                        <option value="cornwall">🚜 Devon / Cornwall / Welsh Valleys Hedgerow Lanes (+45 pts)</option>
+                        <option value="pennines">🌨️ Pennines / M62 Summit / Lake District Steep Passes (+40 pts)</option>
+                        <option value="magic_roundabout">🌀 Swindon Magic Roundabout &amp; Spaghetti Junction Veteran (+35 pts)</option>
+                        <option value="uk_wide">🇬🇧 All-Britain Nationwide Trunking (Lands End to John o' Groats) (+65 pts)</option>
+                    </select>
+                </div>
+
+                <!-- Penalty Points Section -->
+                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-900/90 border border-slate-700 rounded-xl p-3.5">
+                    <div>
+                        <label class="block text-xs font-semibold text-rose-300 uppercase mb-1">
+                            <i class="fa-solid fa-triangle-exclamation mr-1"></i>Current Active Penalty Points
+                        </label>
+                        <input type="number" id="activePoints" min="0" max="36" value="0" oninput="calculateRank()" onchange="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-rose-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-amber-300 uppercase mb-1">
+                            <i class="fa-solid fa-clock-rotate-left mr-1"></i>Historical / Expired Points (Ever)
+                        </label>
+                        <input type="number" id="expiredPoints" min="0" max="99" value="0" oninput="calculateRank()" onchange="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div id="penaltyLiveImpact" class="sm:col-span-2 text-xs font-semibold text-emerald-400 bg-slate-800/80 border border-slate-700/80 rounded-lg px-3 py-1.5">
+                        <i class="fa-solid fa-circle-check mr-1"></i>Clean Endorsement Record: +0 penalty deductions
+                    </div>
+                    <p class="sm:col-span-2 text-[11px] text-slate-400">
+                        <i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i>
+                        <strong>Smart Milestone Detection:</strong> Enter your Current Age above and the "Age Passed" on each licence below—the app checks the exact year you passed against official DVSA introduction dates (<strong>1996/97</strong> Theory, <strong>2002</strong> Hazard, <strong>2008/09</strong> CPC Mod 4) and unlocks only the tests that existed at the time!
+                    </p>
+                </div>
+
+                <!-- Disqualifications, Foreign Licences & Accident History -->
+                <div class="mt-4 space-y-3">
+                    <!-- 1. Disqualification & Retest History -->
+                    <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-3.5">
+                        <label class="flex items-center justify-between cursor-pointer">
+                            <span class="text-xs font-bold text-rose-300 uppercase flex items-center gap-1.5">
+                                <i class="fa-solid fa-gavel"></i>Ever Disqualified / Driving Ban?
+                            </span>
+                            <input type="checkbox" id="hasDisqualification" onchange="toggleExtraSection('disqPanel', this.checked)" class="w-4 h-4 accent-rose-500 rounded">
+                        </label>
+                        <div id="disqPanel" class="hidden mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Year Banned</label>
+                                <input type="number" id="disqYear" min="1960" max="2026" placeholder="e.g. 2012" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Reinstated / Resit Yr</label>
+                                <input type="number" id="reinstateYear" min="1960" max="2026" placeholder="e.g. 2014" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Resit Type</label>
+                                <select id="resitType" onchange="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-xs text-white">
+                                    <option value="none">Returned (No Resit)</option>
+                                    <option value="standard">Standard DVSA Resit</option>
+                                    <option value="extended">Extended 70-Min Resit</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Resit Minors</label>
+                                <input type="number" id="resitMinors" min="0" max="15" value="2" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. International / Foreign Licence History -->
+                    <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-3.5">
+                        <label class="flex items-center justify-between cursor-pointer">
+                            <span class="text-xs font-bold text-sky-300 uppercase flex items-center gap-1.5">
+                                <i class="fa-solid fa-earth-europe"></i>Foreign / EU Licence Held or Converted?
+                            </span>
+                            <input type="checkbox" id="hasForeignLic" onchange="toggleExtraSection('foreignPanel', this.checked)" class="w-4 h-4 accent-sky-500 rounded">
+                        </label>
+                        <div id="foreignPanel" class="hidden mt-3 pt-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            <div class="sm:col-span-2">
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Conversion / Overseas Pathway</label>
+                                <select id="foreignType" onchange="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    <option value="uk_eu_uk">UK Original &rarr; EU/Spain Exchange &rarr; UK Reclaimed</option>
+                                    <option value="eu_exchange">Passed in EU/EEA (e.g. Spain) &rarr; Direct UK Exchange</option>
+                                    <option value="designated">Designated Country Exchange (Aus/NZ/Can/Jap)</option>
+                                    <option value="non_eu_retest">Non-EU Licence (e.g. USA) + Passed Full UK Retest</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Years Driven Abroad</label>
+                                <input type="number" id="foreignYears" min="1" max="60" value="5" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Collision & Accident History -->
+                    <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-3.5">
+                        <span class="text-xs font-bold text-amber-300 uppercase flex items-center gap-1.5 mb-2.5">
+                            <i class="fa-solid fa-car-burst"></i>Lifetime Collision & Write-Off History (Fault / At-Risk)
+                        </span>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Minor Bumps / Car Park Scrapes</label>
+                                <input type="number" id="minorBumps" min="0" max="50" value="0" oninput="calculateRank()" onchange="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Major Collisions / Total Write-Offs</label>
+                                <input type="number" id="writeOffs" min="0" max="20" value="0" oninput="calculateRank()" onchange="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                        </div>
+                        <div id="incidentLiveImpact" class="mt-2.5 text-xs font-semibold text-emerald-400 bg-slate-800/80 border border-slate-700/80 rounded-lg px-3 py-1.5">
+                            <i class="fa-solid fa-shield-check mr-1"></i>Zero Bans &amp; Zero Collisions: No incident deductions
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Road & Vocational Licences -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-7 h-7 rounded-lg bg-emerald-600 text-white font-bold text-sm flex items-center justify-center">2</span>
+                        <h2 class="text-lg font-bold text-white">UK Road & Vocational Licences</h2>
+                    </div>
+                    <span class="text-xs text-slate-400">Tick all held & enter test results</span>
+                </div>
+
+                <!-- 1. CAR (Cat B) -->
+                <div class="category-card bg-slate-900/90 border border-slate-700 rounded-xl p-4">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="lic_car" checked onchange="toggleSubPanel('panel_car', this.checked)" class="w-5 h-5 accent-amber-500 rounded">
+                            <div>
+                                <span class="font-bold text-white text-sm sm:text-base block">🚗 Car (Category B)</span>
+                                <span class="text-[11px] text-slate-400 block">Theory intro: Jul 1996 • Hazard intro: Nov 2002</span>
+                                <span id="eraBadge_car" class="text-[11px] text-emerald-400">Passed ~2008 (18 yrs)</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div id="panel_car" class="mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 items-center">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Age Passed</label>
+                            <input type="number" id="car_agePassed" min="17" max="95" value="18" oninput="evaluateAllEras()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="car_first" checked onchange="syncAttemptSelect('car')" class="accent-emerald-500"> 1st Time
+                            </label>
+                            <select id="car_attempts" onchange="syncFirstCheckbox('car')" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-white">
+                                <option value="1" selected>1st Attempt</option>
+                                <option value="2">2nd Attempt</option>
+                                <option value="3">3rd Attempt</option>
+                                <option value="4">4th Attempt</option>
+                                <option value="5">5th Attempt</option>
+                                <option value="6">6th+ Attempt</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="car_clean" onchange="toggleMinorsInput('car')" class="accent-emerald-500"> 0 Minors
+                            </label>
+                            <div id="car_minorsWrap" class="flex items-center gap-1">
+                                <input type="number" id="car_minors" min="0" max="15" value="4" oninput="syncCleanCheckbox('car')" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-white">
+                                <span class="text-[10px] text-slate-400 shrink-0">minors</span>
+                            </div>
+                        </div>
+                        <div id="theoryBox_car">
+                            <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Theory %</label>
+                            <input type="number" id="car_theory" min="0" max="100" placeholder="Theory %" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. MOTORCYCLE (Cat A / A2) -->
+                <div class="category-card bg-slate-900/90 border border-slate-700 rounded-xl p-4">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="lic_bike" onchange="toggleSubPanel('panel_bike', this.checked)" class="w-5 h-5 accent-amber-500 rounded">
+                            <div>
+                                <span class="font-bold text-white text-sm sm:text-base block">🏍️ Motorcycle (Category A / A2)</span>
+                                <span class="text-[11px] text-slate-400 block">Theory intro: Jul 1996 • Hazard intro: Nov 2002</span>
+                                <span id="eraBadge_bike" class="text-[11px] text-slate-400">Top ~3.2% of UK drivers</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div id="panel_bike" class="hidden mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 items-center">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Age Passed</label>
+                            <input type="number" id="bike_agePassed" min="17" max="95" value="21" oninput="evaluateAllEras()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="bike_first" checked onchange="syncAttemptSelect('bike')" class="accent-emerald-500"> 1st Time
+                            </label>
+                            <select id="bike_attempts" onchange="syncFirstCheckbox('bike')" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-white">
+                                <option value="1" selected>1st Attempt</option>
+                                <option value="2">2nd Attempt</option>
+                                <option value="3">3rd Attempt</option>
+                                <option value="4">4th Attempt</option>
+                                <option value="5">5th Attempt</option>
+                                <option value="6">6th+ Attempt</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="bike_clean" onchange="toggleMinorsInput('bike')" class="accent-emerald-500"> 0 Minors
+                            </label>
+                            <div id="bike_minorsWrap" class="flex items-center gap-1">
+                                <input type="number" id="bike_minors" min="0" max="15" value="2" oninput="syncCleanCheckbox('bike')" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-white">
+                                <span class="text-[10px] text-slate-400 shrink-0">minors</span>
+                            </div>
+                        </div>
+                        <div id="theoryBox_bike">
+                            <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Theory %</label>
+                            <input type="number" id="bike_theory" min="0" max="100" placeholder="Theory %" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. HGV / LGV (Cat C / C+E) -->
+                <div class="category-card bg-slate-900/90 border border-slate-700 rounded-xl p-4">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="lic_hgv" onchange="toggleSubPanel('panel_hgv', this.checked)" class="w-5 h-5 accent-amber-500 rounded">
+                            <div>
+                                <span class="font-bold text-white text-sm sm:text-base block">🚛 HGV / LGV (Class 1 C+E / Class 2 C)</span>
+                                <span class="text-[11px] text-slate-400 block">Theory: Jan 1997 • Hazard: Nov 2002 • CPC Mod 4: Sep 2009</span>
+                                <span id="eraBadge_hgv" class="text-[11px] text-slate-400">Top ~1.3% of UK drivers</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div id="panel_hgv" class="hidden mt-3 pt-3 border-t border-slate-800 space-y-3">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 items-center">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Age Passed</label>
+                                <input type="number" id="hgv_agePassed" min="18" max="95" value="23" oninput="evaluateAllEras()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                    <input type="checkbox" id="hgv_first" checked onchange="syncAttemptSelect('hgv')" class="accent-emerald-500"> 1st Time
+                                </label>
+                                <select id="hgv_attempts" onchange="syncFirstCheckbox('hgv')" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-white">
+                                    <option value="1" selected>1st Attempt</option>
+                                    <option value="2">2nd Attempt</option>
+                                    <option value="3">3rd Attempt</option>
+                                    <option value="4">4th Attempt</option>
+                                    <option value="5">5th Attempt</option>
+                                    <option value="6">6th+ Attempt</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                    <input type="checkbox" id="hgv_clean" onchange="toggleMinorsInput('hgv')" class="accent-emerald-500"> 0 Minors
+                                </label>
+                                <div id="hgv_minorsWrap" class="flex items-center gap-1">
+                                    <input type="number" id="hgv_minors" min="0" max="15" value="2" oninput="syncCleanCheckbox('hgv')" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-white">
+                                    <span class="text-[10px] text-slate-400 shrink-0">minors</span>
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-1.5 text-xs text-amber-300 cursor-pointer">
+                                <input type="checkbox" id="hgv_ce" checked onchange="calculateRank()" class="accent-amber-500"> Class 1 (C+E)
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div id="wrap_hgv_theory">
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Theory %</label>
+                                <input type="number" id="hgv_theory" min="0" max="100" placeholder="Theory %" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                            <div id="wrap_hgv_hazard">
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Hazard %</label>
+                                <input type="number" id="hgv_hazard" min="0" max="100" placeholder="Hazard %" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                            <div id="wrap_hgv_mod4">
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">CPC Mod 4 %</label>
+                                <input type="number" id="hgv_mod4" min="0" max="100" placeholder="Mod 4 %" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. PSV / PCV (Cat D / D+E) -->
+                <div class="category-card bg-slate-900/90 border border-slate-700 rounded-xl p-4">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="lic_psv" onchange="toggleSubPanel('panel_psv', this.checked)" class="w-5 h-5 accent-amber-500 rounded">
+                            <div>
+                                <span class="font-bold text-white text-sm sm:text-base block">🚌 PSV / PCV Bus & Coach (Cat D / D+E)</span>
+                                <span class="text-[11px] text-slate-400 block">Theory: Jan 1997 • Hazard: Nov 2002 • CPC Mod 4: Sep 2008</span>
+                                <span id="eraBadge_psv" class="text-[11px] text-slate-400">Top ~0.3% of UK drivers</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div id="panel_psv" class="hidden mt-3 pt-3 border-t border-slate-800 space-y-3">
+                        <div class="grid grid-cols-3 gap-3 items-center">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Age Passed</label>
+                                <input type="number" id="psv_agePassed" min="18" max="95" value="26" oninput="evaluateAllEras()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                    <input type="checkbox" id="psv_first" checked onchange="syncAttemptSelect('psv')" class="accent-emerald-500"> 1st Time
+                                </label>
+                                <select id="psv_attempts" onchange="syncFirstCheckbox('psv')" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-white">
+                                    <option value="1" selected>1st Attempt</option>
+                                    <option value="2">2nd Attempt</option>
+                                    <option value="3">3rd Attempt</option>
+                                    <option value="4">4th Attempt</option>
+                                    <option value="5">5th Attempt</option>
+                                    <option value="6">6th+ Attempt</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                    <input type="checkbox" id="psv_clean" onchange="toggleMinorsInput('psv')" class="accent-emerald-500"> 0 Minors
+                                </label>
+                                <div id="psv_minorsWrap" class="flex items-center gap-1">
+                                    <input type="number" id="psv_minors" min="0" max="15" value="2" oninput="syncCleanCheckbox('psv')" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-white">
+                                    <span class="text-[10px] text-slate-400 shrink-0">minors</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div id="wrap_psv_theory">
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Theory %</label>
+                                <input type="number" id="psv_theory" min="0" max="100" placeholder="Theory %" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                            <div id="wrap_psv_hazard">
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Hazard %</label>
+                                <input type="number" id="psv_hazard" min="0" max="100" placeholder="Hazard %" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                            <div id="wrap_psv_mod4">
+                                <label class="block text-[10px] text-slate-400 uppercase mb-0.5">CPC Mod 4 %</label>
+                                <input type="number" id="psv_mod4" min="0" max="100" placeholder="Mod 4 %" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. ADI DRIVING INSTRUCTOR -->
+                <div class="category-card bg-slate-900/90 border border-slate-700 rounded-xl p-4">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="lic_adi" onchange="toggleSubPanel('panel_adi', this.checked)" class="w-5 h-5 accent-amber-500 rounded">
+                            <div>
+                                <span class="font-bold text-white text-sm sm:text-base block">🎓 DVSA Approved Driving Instructor (ADI)</span>
+                                <span class="text-[11px] text-slate-400 block">Register: 1970 • Modern Pt 1 Theory & Hazard: Jul 1996 / Nov 2002</span>
+                                <span id="eraBadge_adi" class="text-[11px] text-slate-400">Top ~0.09% of UK drivers</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div id="panel_adi" class="hidden mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 items-center">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Age Qualified</label>
+                            <input type="number" id="adi_agePassed" min="21" max="95" value="30" oninput="evaluateAllEras()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="adi_first" checked onchange="syncAttemptSelect('adi')" class="accent-emerald-500"> 1st Time
+                            </label>
+                            <select id="adi_attempts" onchange="syncFirstCheckbox('adi')" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-white">
+                                <option value="1" selected>1st Attempt</option>
+                                <option value="2">2nd Attempt</option>
+                                <option value="3">3rd Attempt</option>
+                                <option value="4">4th Attempt</option>
+                                <option value="5">5th Attempt</option>
+                                <option value="6">6th+ Attempt</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="adi_clean" onchange="toggleMinorsInput('adi')" class="accent-emerald-500"> Pt 2 Clean
+                            </label>
+                            <div id="adi_minorsWrap" class="flex items-center gap-1">
+                                <input type="number" id="adi_minors" min="0" max="6" value="2" oninput="syncCleanCheckbox('adi')" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-white">
+                                <span class="text-[10px] text-slate-400 shrink-0">minors</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Part 1 %</label>
+                            <input type="number" id="adi_theory" min="0" max="100" placeholder="Part 1 %" oninput="calculateRank()" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Specialist Plant, Diggers, Agricultural & Tracked Vehicles -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-7 h-7 rounded-lg bg-amber-600 text-white font-bold text-sm flex items-center justify-center">3</span>
+                        <h2 class="text-lg font-bold text-white">Plant, Diggers, Agricultural & Specialist Tickets</h2>
+                    </div>
+                    <span class="text-xs text-slate-400">CPCS / NPORS / Lantra / DVLA</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label class="flex items-center gap-3 bg-slate-900/80 border border-slate-700 p-3 rounded-xl cursor-pointer hover:border-amber-500/50">
+                        <input type="checkbox" id="spec_digger" class="w-4 h-4 accent-amber-500">
+                        <div>
+                            <span class="text-sm font-semibold text-white block">🚜 Diggers & Excavators (360° / 180°)</span>
+                            <span class="text-xs text-slate-400">CPCS / NPORS Plant Operator</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 bg-slate-900/80 border border-slate-700 p-3 rounded-xl cursor-pointer hover:border-amber-500/50">
+                        <input type="checkbox" id="spec_tracked" class="w-4 h-4 accent-amber-500">
+                        <div>
+                            <span class="text-sm font-semibold text-white block">⛓️ Tracked Vehicles (Cat H)</span>
+                            <span class="text-xs text-slate-400">Crawlers, Dozers, Tracked Carriers</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 bg-slate-900/80 border border-slate-700 p-3 rounded-xl cursor-pointer hover:border-amber-500/50">
+                        <input type="checkbox" id="spec_agri" class="w-4 h-4 accent-amber-500">
+                        <div>
+                            <span class="text-sm font-semibold text-white block">🌾 Agricultural & Forestry (Cat F / K)</span>
+                            <span class="text-xs text-slate-400">Tractors, Combines, Telehandlers</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 bg-slate-900/80 border border-slate-700 p-3 rounded-xl cursor-pointer hover:border-amber-500/50">
+                        <input type="checkbox" id="spec_forklift" class="w-4 h-4 accent-amber-500">
+                        <div>
+                            <span class="text-sm font-semibold text-white block">🏗️ Forklift / Telehandler / Crane</span>
+                            <span class="text-xs text-slate-400">RTITB / ITSSAR / Slinger Signaller</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 bg-slate-900/80 border border-slate-700 p-3 rounded-xl cursor-pointer hover:border-amber-500/50">
+                        <input type="checkbox" id="spec_advanced" class="w-4 h-4 accent-amber-500">
+                        <div>
+                            <span class="text-sm font-semibold text-white block">🛡️ IAM / RoSPA Gold / Blue Light</span>
+                            <span class="text-xs text-slate-400">Advanced Motorist or Emergency Response</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 bg-slate-900/80 border border-slate-700 p-3 rounded-xl cursor-pointer hover:border-amber-500/50">
+                        <input type="checkbox" id="spec_adr" class="w-4 h-4 accent-amber-500">
+                        <div>
+                            <span class="text-sm font-semibold text-white block">☣️ ADR Dangerous Goods / Tanker</span>
+                            <span class="text-xs text-slate-400">Hazmat & Specialist Haulage</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Calculate Button -->
+            <button onclick="calculateRank()" class="w-full py-4 px-6 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-extrabold text-base sm:text-lg rounded-2xl shadow-lg shadow-amber-500/25 transition transform active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2">
+                <i class="fa-solid fa-certificate"></i>
+                Generate Official UK Rank Certificate
+            </button>
+        </div>
+
+        <!-- RIGHT COLUMN: Certificate Preview & Breakdown (5 cols on large screens) -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- Certificate Tone Mode Toggle (Official vs Pub Banter) -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-2 flex items-center justify-between gap-2 shadow-md">
+                <span class="text-xs font-bold text-slate-300 pl-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-masks-theater text-amber-400"></i>Certificate Style:
+                </span>
+                <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
+                    <button id="btnModeOfficial" onclick="setCertMode('official')" class="px-3 py-1 rounded-lg text-xs font-bold bg-amber-500 text-slate-950 transition cursor-pointer">
+                        🏛️ Official DVSA
+                    </button>
+                    <button id="btnModeBanter" onclick="setCertMode('banter')" class="px-3 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer">
+                        🍺 Pub Banter / Roast
+                    </button>
+                </div>
+            </div>
+
+            <!-- Official Certificate Display -->
+            <div id="certificateWrapper" class="certificate-card rounded-xl p-5 sm:p-7 text-center transition-all duration-300">
+                <div class="certificate-watermark">DVSA / UK RANK</div>
+                
+                <!-- Header Crest -->
+                <div class="flex justify-center mb-2">
+                    <div class="w-14 h-14 rounded-full gold-seal flex items-center justify-center text-white text-2xl border-2 border-amber-200">
+                        <i class="fa-solid fa-crown"></i>
+                    </div>
+                </div>
+                
+                <p class="text-[11px] font-bold tracking-[0.2em] uppercase text-amber-800">Community Motoring Registry</p>
+                <h2 class="cert-font text-xl sm:text-2xl font-extrabold text-slate-900 mt-1 border-b-2 border-amber-700/30 pb-2">
+                    Certificate of Driving Rank
+                </h2>
+
+                <p class="text-xs text-slate-600 mt-3 italic">This certifies that</p>
+                <div id="certName" class="cert-font text-lg sm:text-xl font-bold text-slate-900 mt-0.5 break-words">
+                    UK Licence Holder
+                </div>
+
+                <!-- Main Percentile Box -->
+                <div class="my-4 bg-amber-900/10 border border-amber-700/30 rounded-xl p-3.5">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-amber-900 block">National Standing (Out of 41M Drivers)</span>
+                    <div id="certPercentile" class="text-3xl sm:text-4xl font-black text-amber-800 tracking-tight my-1">
+                        Top 45.0%
+                    </div>
+                    <div id="certTierTitle" class="inline-block bg-slate-900 text-amber-400 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                        Competent Standard Motorist
+                    </div>
+                    <p id="certCommentary" class="text-[11px] text-slate-700 font-medium italic mt-2 px-2">
+                        "Demonstrates solid everyday roadcraft and safe compliance with the Highway Code."
+                    </p>
+                </div>
+
+                <!-- Era & Rarity Odds -->
+                <div class="grid grid-cols-2 gap-2 text-left bg-white/60 p-3 rounded-lg border border-amber-900/15 text-xs mb-4">
+                    <div>
+                        <span class="text-slate-500 block text-[10px] uppercase font-bold">Estimated UK Peers</span>
+                        <span id="certPeers" class="font-bold text-slate-900">~18,450,000 drivers</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px] uppercase font-bold">Challenge Seed Code</span>
+                        <span id="certSeedCode" class="font-mono font-extrabold text-amber-900">#UK-4500-STD</span>
+                    </div>
+                    <div class="col-span-2 pt-1 border-t border-amber-900/10 flex justify-between items-center">
+                        <span class="text-slate-500 text-[10px] uppercase font-bold">Assessment Era:</span>
+                        <span id="certEra" class="font-bold text-slate-900">Modern (Post-1996)</span>
+                    </div>
+                </div>
+
+                <!-- Endorsements Badges -->
+                <div class="text-left mb-4">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">Verified Entitlements & Honours:</span>
+                    <div id="certBadges" class="flex flex-wrap gap-1.5">
+                        <span class="text-[11px] bg-slate-800 text-white px-2 py-0.5 rounded font-medium">🚗 Full Car (Cat B)</span>
+                    </div>
+                </div>
+
+                <!-- Footer Signature & Date -->
+                <div class="border-t border-amber-900/20 pt-3 flex items-center justify-between text-[11px] text-slate-600">
+                    <span id="certDate">Issued: Today</span>
+                    <span id="certScoreBadge" class="font-bold text-amber-800">Rank Score: 185 pts</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons: Download PNG, Show Maths Proof & Copy Results -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button onclick="downloadCertificatePNG()" class="w-full py-3 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition cursor-pointer flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-download"></i>
+                    Save PNG Image
+                </button>
+                <button onclick="openMathsModal()" class="w-full py-3 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition cursor-pointer flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-square-root-variable"></i>
+                    Crazy Maths Proof
+                </button>
+                <button onclick="copyShareText()" class="w-full py-3 px-3 bg-slate-700 hover:bg-slate-600 text-amber-300 border border-slate-600 font-bold text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-copy"></i>
+                    Copy Chat Snippet
+                </button>
+            </div>
+
+            <!-- Share / Copy Results Card -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-lg">
+                <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-share-nodes text-amber-400"></i>
+                    Shareable Community Snippet
+                </h3>
+                <input type="text" id="shareTextOutput" readonly value="🏆 UK Driver Rank: Top 45.0% (Competent Standard Motorist) | 🚗 Full Car | Test your rank in Time Wasters!" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none">
+                <div id="copyFeedback" class="hidden text-xs text-emerald-400 font-semibold mt-2">
+                    <i class="fa-solid fa-check-circle mr-1"></i>Copied to clipboard! Ready to paste in the community.
+                </div>
+            </div>
+
+            <!-- HEAD-TO-HEAD "PUB DEBATE" BATTLE ARENA -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-rose-500/40 rounded-2xl p-4 shadow-xl space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-fire-flame-curved text-rose-400"></i>
+                        Head-to-Head "Pub Debate" Battle
+                    </h3>
+                    <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">1v1 Mate vs Mate</span>
+                </div>
+                <p class="text-[11px] text-slate-400">
+                    Copy your <strong>Battle Code</strong> below for your mate, or paste a mate's Battle Code here to settle who actually owns the road!
+                </p>
+
+                <!-- Your Copyable Battle Code -->
+                <div class="flex items-center gap-2">
+                    <input type="text" id="myBattleCodeOutput" readonly class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-amber-300 focus:outline-none">
+                    <button onclick="copyBattleCode()" class="shrink-0 bg-slate-700 hover:bg-slate-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-600 cursor-pointer">
+                        <i class="fa-solid fa-copy mr-1"></i>Copy Code
+                    </button>
+                </div>
+                <div id="battleCopyFeedback" class="hidden text-[11px] text-emerald-400 font-semibold">
+                    <i class="fa-solid fa-check mr-1"></i>Battle Code copied! Send it to your mate.
+                </div>
+
+                <!-- Paste Opponent's Code -->
+                <div class="pt-2 border-t border-slate-700/80 space-y-2">
+                    <label class="block text-[10px] font-bold uppercase text-slate-300">Paste Mate's Battle Code (or click Sample Rival):</label>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="rivalBattleInput" placeholder="e.g. BATTLE:eyJuIjoi..." class="w-full bg-slate-950 border border-slate-600 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-white focus:outline-none focus:border-rose-400">
+                        <button onclick="loadSampleRival()" title="Load a cheeky rival preset" class="shrink-0 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-600 cursor-pointer">
+                            Sample
+                        </button>
+                    </div>
+                    <button onclick="runPubBattle()" class="w-full py-2.5 px-4 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-extrabold text-xs rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-trophy"></i> Settle The Pub Debate!
+                    </button>
+                </div>
+
+                <!-- Battle Result Card -->
+                <div id="battleResultBox" class="hidden bg-slate-950/90 border border-amber-500/40 rounded-xl p-3.5 space-y-2.5">
+                    <div id="battleWinnerBanner" class="text-center font-extrabold text-sm text-amber-400"></div>
+                    <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                        <div class="bg-slate-900 border border-slate-800 rounded-lg p-2">
+                            <div id="p1BattleName" class="font-bold text-white truncate">You</div>
+                            <div id="p1BattleScore" class="text-amber-400 font-black text-base mt-0.5">0 pts</div>
+                            <div id="p1BattleRank" class="text-[10px] text-slate-400">Top 45%</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-lg p-2">
+                            <div id="p2BattleName" class="font-bold text-white truncate">Mate</div>
+                            <div id="p2BattleScore" class="text-rose-400 font-black text-base mt-0.5">0 pts</div>
+                            <div id="p2BattleRank" class="text-[10px] text-slate-400">Top 45%</div>
+                        </div>
+                    </div>
+                    <p id="battleRoastVerdict" class="text-[11px] text-slate-300 italic bg-slate-900/80 p-2.5 rounded-lg border border-slate-800"></p>
+                </div>
+            </div>
+
+            <!-- How the Math Works Info Box -->
+            <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-4 text-xs text-slate-400 space-y-2">
+                <h4 class="font-bold text-slate-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-scale-balanced text-blue-400"></i>
+                    Official DVSA Test Introduction Timeline
+                </h4>
+                <ul class="space-y-1 text-[11px] text-slate-300">
+                    <li>• <strong>Jul 1996:</strong> Written Theory introduced for Car & Bike</li>
+                    <li>• <strong>Jan 1997:</strong> Written Theory introduced for HGV (LGV) & PSV (PCV)</li>
+                    <li>• <strong>Nov 2002:</strong> Video Hazard Perception introduced across categories</li>
+                    <li>• <strong>Sep 2008 / Sep 2009:</strong> Driver CPC Mod 4 introduced (2008 PSV, 2009 HGV)</li>
+                </ul>
+                <p class="pt-1 border-t border-slate-700/60">
+                    <strong>Smart Era Lock:</strong> Each sub-test (Theory, Hazard, Mod 4) automatically unlocks or exempts based on the exact year you passed!
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- CRAZY MATHS & SCORE EXPLANATION POPUP MODAL -->
+    <div id="mathsModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                        <i class="fa-solid fa-calculator"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-extrabold text-white">Statistical Proof & Crazy Maths</h3>
+                        <p class="text-xs text-slate-400">How we calculated your exact standing out of 41,000,000 UK drivers</p>
+                    </div>
+                </div>
+                <button onclick="closeMathsModal()" class="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Plain English Explanation -->
+            <div class="bg-slate-800/70 border border-slate-700 rounded-xl p-4 space-y-2 text-xs sm:text-sm text-slate-300">
+                <h4 class="font-bold text-amber-400 uppercase text-xs tracking-wider">1. Plain English Breakdown</h4>
+                <p id="plainEnglishSummary">
+                    Your rank is calculated by combining three statistical pillars: <strong>Licence Scarcity</strong> (how few people in Britain hold your exact combination of categories), <strong>Examination Precision</strong> (compounding DVSA pass rates with clean-sheet zero-minor probabilities), and <strong>Era-Adjusted Road Longevity</strong> (years held minus penalty point risk).
+                </p>
+            </div>
+
+            <!-- The Crazy Maths Formula Box -->
+            <div class="bg-slate-950 border border-indigo-500/30 rounded-xl p-4 font-mono text-xs text-indigo-200 space-y-3 overflow-x-auto">
+                <div class="flex items-center justify-between">
+                    <span class="text-indigo-400 font-bold uppercase tracking-wider">2. Compound Probability & Scoring Engine</span>
+                    <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded">DVSA / DVLA Model</span>
+                </div>
+                
+                <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 text-amber-300 leading-relaxed">
+                    R<sub>total</sub> = &Sigma;(W<sub>cat</sub> &middot; &Psi;<sub>era</sub>) + &lambda;<sub>streak</sub> &middot; &Pi;(P<sub>pass</sub><sup>-1</sup>) + &int;<sub>0</sub><sup>T</sup> &alpha;(t)dt &minus; &Omega;<sub>pts</sub>
+                </div>
+
+                <div id="liveMathSteps" class="space-y-2 text-slate-300 text-[11px] sm:text-xs">
+                    <!-- Populated dynamically by JS -->
+                </div>
+            </div>
+
+            <!-- Itemized Ledger -->
+            <div class="space-y-2">
+                <h4 class="font-bold text-slate-200 uppercase text-xs tracking-wider">3. Your Itemized Points Ledger</h4>
+                <div id="ledgerContainer" class="bg-slate-800/50 border border-slate-700 rounded-xl p-3 space-y-1.5 text-xs">
+                    <!-- Populated dynamically by JS -->
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button onclick="closeMathsModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl cursor-pointer">
+                    Close Proof
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CURRENT_YEAR = new Date().getFullYear();
+        let certStyleMode = 'official';
+        let latestCertState = {};
+
+        // Set today's date on certificate
+        document.getElementById('certDate').textContent = 'Issued: ' + new Date().toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        });
+
+        function setCertMode(mode) {
+            certStyleMode = mode;
+            const btnOff = document.getElementById('btnModeOfficial');
+            const btnBan = document.getElementById('btnModeBanter');
+            if (mode === 'official') {
+                btnOff.className = "px-3 py-1 rounded-lg text-xs font-bold bg-amber-500 text-slate-950 transition cursor-pointer";
+                btnBan.className = "px-3 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer";
+            } else {
+                btnBan.className = "px-3 py-1 rounded-lg text-xs font-bold bg-rose-500 text-white transition cursor-pointer";
+                btnOff.className = "px-3 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer";
+            }
+            calculateRank();
+        }
+
+        // Keep "1st Time" checkbox and Attempt dropdown synchronized
+        function syncAttemptSelect(cat) {
+            const isFirst = document.getElementById(`${cat}_first`).checked;
+            const select = document.getElementById(`${cat}_attempts`);
+            if (isFirst) {
+                select.value = "1";
+            } else if (select.value === "1") {
+                select.value = "2";
+            }
+            calculateRank();
+        }
+
+        function syncFirstCheckbox(cat) {
+            const select = document.getElementById(`${cat}_attempts`);
+            const checkbox = document.getElementById(`${cat}_first`);
+            checkbox.checked = (select.value === "1");
+            calculateRank();
+        }
+
+        // Calculate score and binomial probability based on attempt count (1st to 6th+)
+        function evaluateAttempts(cat, labelPrefix, firstBonus, basePassRate) {
+            const attempts = parseInt(document.getElementById(`${cat}_attempts`).value) || 1;
+            const isFirst = attempts === 1;
+            // Geometric/binomial probability of passing on the k-th attempt: (1 - p)^(k - 1) * p
+            const probFactor = Math.pow(1 - basePassRate, attempts - 1) * basePassRate;
+
+            if (attempts === 1) {
+                return {
+                    isFirst: true,
+                    attempts: 1,
+                    pts: firstBonus,
+                    label: `${labelPrefix} 1st-Time Pass`,
+                    probFactor
+                };
+            } else if (attempts === 2) {
+                return {
+                    isFirst: false,
+                    attempts: 2,
+                    pts: Math.round(firstBonus * 0.25),
+                    label: `${labelPrefix} Passed on 2nd Attempt`,
+                    probFactor
+                };
+            } else if (attempts === 3) {
+                return {
+                    isFirst: false,
+                    attempts: 3,
+                    pts: 0,
+                    label: `${labelPrefix} Passed on 3rd Attempt`,
+                    probFactor
+                };
+            } else {
+                const suffix = attempts >= 6 ? '6th+' : `${attempts}th`;
+                return {
+                    isFirst: false,
+                    attempts,
+                    pts: -((attempts - 3) * 10),
+                    label: `${labelPrefix} Passed on ${suffix} Attempt`,
+                    probFactor
+                };
+            }
+        }
+
+        // Toggle minors input box visibility/value when "0 Minors" checkbox changes
+        function toggleMinorsInput(cat) {
+            const isClean = document.getElementById(`${cat}_clean`).checked;
+            const wrap = document.getElementById(`${cat}_minorsWrap`);
+            const input = document.getElementById(`${cat}_minors`);
+            if (isClean) {
+                input.value = 0;
+                wrap.classList.add('hidden');
+            } else {
+                if (parseInt(input.value) === 0 || input.value === "") {
+                    input.value = (cat === 'adi') ? 2 : 3;
+                }
+                wrap.classList.remove('hidden');
+            }
+            calculateRank();
+        }
+
+        function syncCleanCheckbox(cat) {
+            const input = document.getElementById(`${cat}_minors`);
+            const checkbox = document.getElementById(`${cat}_clean`);
+            const wrap = document.getElementById(`${cat}_minorsWrap`);
+            const val = parseInt(input.value);
+            if (!isNaN(val) && val === 0) {
+                checkbox.checked = true;
+                wrap.classList.add('hidden');
+            } else {
+                checkbox.checked = false;
+                wrap.classList.remove('hidden');
+            }
+            calculateRank();
+        }
+
+        // Score and probability curve for minor driving faults (0 up to max allowed)
+        function evaluateMinors(cat, labelPrefix, cleanPts, cleanProb, maxAllowed) {
+            const isClean = document.getElementById(`${cat}_clean`).checked;
+            const rawMinors = parseInt(document.getElementById(`${cat}_minors`).value);
+            const minors = isClean ? 0 : (isNaN(rawMinors) ? 3 : Math.max(0, Math.min(maxAllowed, rawMinors)));
+
+            if (minors === 0) {
+                return {
+                    isClean: true,
+                    minors: 0,
+                    pts: cleanPts,
+                    label: `${labelPrefix} 0-Minor Clean Sheet`,
+                    probFactor: cleanProb
+                };
+            } else {
+                // Smooth scaled bonus/deduction based on minor count (1-3 minors still earns partial precision points)
+                const ratio = Math.max(0, (maxAllowed - minors) / maxAllowed);
+                const pts = minors <= 3
+                    ? Math.round(cleanPts * 0.45 * ratio)
+                    : minors <= 7
+                        ? Math.round(cleanPts * 0.15 * ratio)
+                        : -((minors - 7) * 4);
+                // Probability scales smoothly from clean sheet up to average pass (~0.25)
+                const probFactor = cleanProb + (0.25 - cleanProb) * Math.pow(minors / maxAllowed, 1.4);
+                return {
+                    isClean: false,
+                    minors,
+                    pts,
+                    label: `${labelPrefix} Practical (${minors} minor${minors === 1 ? '' : 's'})`,
+                    probFactor
+                };
+            }
+        }
+
+        // Toggle visibility of sub-panels when a licence checkbox is clicked
+        function toggleSubPanel(panelId, isChecked) {
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+            if (isChecked) {
+                panel.classList.remove('hidden');
+            } else {
+                panel.classList.add('hidden');
+            }
+            evaluateAllEras();
+            calculateRank();
+        }
+
+        function toggleExtraSection(panelId, isChecked) {
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+            if (isChecked) {
+                panel.classList.remove('hidden');
+            } else {
+                panel.classList.add('hidden');
+            }
+            calculateRank();
+        }
+
+        // Automatically detect which exams existed when each specific licence was passed
+        function evaluateLicenceEra(cat) {
+            const currentAge = parseInt(document.getElementById('currentAge').value) || 35;
+            const agePassedInput = document.getElementById(`${cat}_agePassed`);
+            const agePassed = parseInt(agePassedInput.value) || 17;
+            const yearsHeld = Math.max(0, currentAge - agePassed);
+            const yearPassed = CURRENT_YEAR - yearsHeld;
+
+            const badge = document.getElementById(`eraBadge_${cat}`);
+            
+            // Exact UK DVSA introduction years per category
+            const theoryIntroYear = (cat === 'hgv' || cat === 'psv') ? 1997 : 1996;
+            const hazardIntroYear = 2002;
+            const mod4IntroYear = (cat === 'psv') ? 2008 : 2009;
+
+            const hasTheory = (cat === 'adi') ? true : (yearPassed >= theoryIntroYear);
+            const hasHazard = (yearPassed >= hazardIntroYear);
+            const hasMod4 = (yearPassed >= mod4IntroYear);
+            const isPreTheoryExempt = !hasTheory;
+
+            if (badge) {
+                if (currentAge < agePassed) {
+                    badge.innerHTML = `<span class="text-rose-400 font-semibold">⚠️ Age passed (${agePassed}) exceeds current age (${currentAge})</span>`;
+                } else if (isPreTheoryExempt) {
+                    badge.innerHTML = `<span class="text-amber-400 font-semibold">Passed ~${yearPassed} (${yearsHeld} yrs) • Pre-${theoryIntroYear} Theory Exempt</span>`;
+                } else if ((cat === 'hgv' || cat === 'psv') && !hasMod4) {
+                    badge.innerHTML = `<span class="text-sky-400 font-semibold">Passed ~${yearPassed} (${yearsHeld} yrs) • Theory Era (Pre-${mod4IntroYear} CPC Exempt)</span>`;
+                } else {
+                    badge.innerHTML = `<span class="text-emerald-400 font-semibold">Passed ~${yearPassed} (${yearsHeld} yrs) • Full Modern Test Era</span>`;
+                }
+            }
+
+            // Toggle individual fields cleanly based on exact year passed
+            function setFieldState(wrapperId, inputId, enabled, activePlaceholder, exemptLabel) {
+                const wrap = document.getElementById(wrapperId);
+                const inp = document.getElementById(inputId);
+                if (!inp) return;
+                if (enabled) {
+                    if (wrap) wrap.classList.remove('opacity-40');
+                    inp.disabled = false;
+                    inp.placeholder = activePlaceholder;
+                } else {
+                    if (wrap) wrap.classList.add('opacity-40');
+                    inp.disabled = true;
+                    inp.placeholder = exemptLabel;
+                }
+            }
+
+            if (cat === 'car' || cat === 'bike') {
+                setFieldState(`theoryBox_${cat}`, `${cat}_theory`, hasTheory, "Theory %", `Pre-${theoryIntroYear} N/A`);
+            } else if (cat === 'hgv' || cat === 'psv') {
+                setFieldState(`wrap_${cat}_theory`, `${cat}_theory`, hasTheory, "Theory %", `Pre-1997 N/A`);
+                setFieldState(`wrap_${cat}_hazard`, `${cat}_hazard`, hasHazard, "Hazard %", `Pre-2002 N/A`);
+                setFieldState(`wrap_${cat}_mod4`, `${cat}_mod4`, hasMod4, "Mod 4 %", `Pre-${mod4IntroYear} N/A`);
+            }
+
+            // Auto-check Grandfather Rights if Car was passed before 1997
+            if (cat === 'car') {
+                const carChecked = document.getElementById('lic_car').checked;
+                const gfCheckbox = document.getElementById('grandfatherRights');
+                const gfStatus = document.getElementById('grandfatherStatus');
+                if (carChecked && yearPassed < 1997 && currentAge >= agePassed) {
+                    gfCheckbox.checked = true;
+                    gfStatus.innerHTML = `<span class="text-emerald-400 font-semibold">Eligible (Passed Car in ${yearPassed})</span>`;
+                } else {
+                    gfCheckbox.checked = false;
+                    gfStatus.textContent = "Requires pre-1997 Car pass";
+                }
+            }
+
+            return { yearsHeld, yearPassed, isPre1996Exempt: isPreTheoryExempt, hasTheory, hasHazard, hasMod4 };
+        }
+
+        function evaluateAllEras() {
+            ['car', 'bike', 'hgv', 'psv', 'adi'].forEach(cat => evaluateLicenceEra(cat));
+            calculateRank();
+        }
+
+        // Load Master Profile Example matching the user's real-life benchmark!
+        function loadDemoProfile() {
+            document.getElementById('driverName').value = "Master Fleet & ADI Legend";
+            document.getElementById('currentAge').value = 52;
+            document.getElementById('gearboxType').value = "manual";
+            document.getElementById('lifetimeMiles').value = "million";
+            document.getElementById('serviceRole').value = "none";
+            document.getElementById('activePoints').value = 0;
+            document.getElementById('expiredPoints').value = 0;
+
+            // Check main licences
+            const licences = ['lic_car', 'lic_bike', 'lic_hgv', 'lic_psv', 'lic_adi'];
+            const panels = ['panel_car', 'panel_bike', 'panel_hgv', 'panel_psv', 'panel_adi'];
+            licences.forEach((id, idx) => {
+                document.getElementById(id).checked = true;
+                toggleSubPanel(panels[idx], true);
+            });
+
+            // Car details (Passed at 17 -> 1991, Pre-1996!)
+            document.getElementById('car_agePassed').value = 17;
+            document.getElementById('car_first').checked = true;
+            syncAttemptSelect('car');
+            document.getElementById('car_clean').checked = false;
+            document.getElementById('car_minors').value = 3;
+            toggleMinorsInput('car');
+            document.getElementById('car_theory').value = "";
+
+            // Bike details (Passed at 20 -> 1994, Pre-1996!)
+            document.getElementById('bike_agePassed').value = 20;
+            document.getElementById('bike_first').checked = true;
+            syncAttemptSelect('bike');
+            document.getElementById('bike_clean').checked = true;
+            toggleMinorsInput('bike');
+            document.getElementById('bike_theory').value = "";
+
+            // HGV details (Passed at 21 -> 1995, Pre-1996!)
+            document.getElementById('hgv_agePassed').value = 21;
+            document.getElementById('hgv_first').checked = true;
+            syncAttemptSelect('hgv');
+            document.getElementById('hgv_clean').checked = true;
+            toggleMinorsInput('hgv');
+            document.getElementById('hgv_ce').checked = true;
+            document.getElementById('hgv_theory').value = 100;
+            document.getElementById('hgv_hazard').value = 96;
+            document.getElementById('hgv_mod4').value = 100;
+
+            // PSV details (Passed at 51 -> 2025, Modern Era!)
+            document.getElementById('psv_agePassed').value = 51;
+            document.getElementById('psv_first').checked = true;
+            syncAttemptSelect('psv');
+            document.getElementById('psv_clean').checked = true;
+            toggleMinorsInput('psv');
+            document.getElementById('psv_theory').value = 97;
+            document.getElementById('psv_hazard').value = 94;
+            document.getElementById('psv_mod4').value = 100;
+
+            // ADI details (Passed at 44 -> 2018, Modern Era!)
+            document.getElementById('adi_agePassed').value = 44;
+            document.getElementById('adi_first').checked = true;
+            syncAttemptSelect('adi');
+            document.getElementById('adi_clean').checked = true;
+            toggleMinorsInput('adi');
+            document.getElementById('adi_theory').value = 100;
+
+            // Specialist
+            document.getElementById('spec_digger').checked = false;
+            document.getElementById('spec_tracked').checked = false;
+            document.getElementById('spec_agri').checked = false;
+            document.getElementById('spec_forklift').checked = false;
+            document.getElementById('spec_advanced').checked = true;
+            document.getElementById('spec_adr').checked = false;
+
+            // Extra History defaults for Master Profile
+            document.getElementById('hasDisqualification').checked = false;
+            toggleExtraSection('disqPanel', false);
+            document.getElementById('hasForeignLic').checked = false;
+            toggleExtraSection('foreignPanel', false);
+            document.getElementById('minorBumps').value = 0;
+            document.getElementById('writeOffs').value = 0;
+            document.getElementById('homeTurf').value = "uk_wide";
+
+            evaluateAllEras();
+            calculateRank();
+        }
+
+        // Main Scoring & UK Percentile Calculation Engine
+        function calculateRank() {
+            const name = document.getElementById('driverName').value.trim() || "UK Licence Holder";
+            const currentAge = parseInt(document.getElementById('currentAge').value) || 35;
+            const gearboxType = document.getElementById('gearboxType').value;
+            const lifetimeMiles = document.getElementById('lifetimeMiles').value;
+            const serviceRole = document.getElementById('serviceRole').value;
+            const hasGrandfather = document.getElementById('grandfatherRights').checked;
+            const activePoints = parseInt(document.getElementById('activePoints').value) || 0;
+            const expiredPoints = parseInt(document.getElementById('expiredPoints').value) || 0;
+            const hasDisq = document.getElementById('hasDisqualification').checked;
+            const hasForeign = document.getElementById('hasForeignLic').checked;
+            const minorBumps = parseInt(document.getElementById('minorBumps').value) || 0;
+            const writeOffs = parseInt(document.getElementById('writeOffs').value) || 0;
+            const homeTurf = document.getElementById('homeTurf').value;
+
+            let points = 0;
+            let badges = [];
+            let ledger = [];
+            let cleanSheetCount = 0;
+            let firstTimeCount = 0;
+            let majorLicencesCount = 0;
+            let maxYearsHeld = 0;
+            let hasPre1996 = false;
+            let hasModern = false;
+            let compoundProbability = 1.0;
+
+            function addScore(label, pts) {
+                points += pts;
+                ledger.push({ label, pts: Math.round(pts) });
+            }
+
+            // Gearbox, Mileage, Grandfather Rights & Service Background
+            if (gearboxType === 'manual') {
+                addScore("⚙️ Full Manual Gearbox Entitlement (Unrestricted Cat B)", 25);
+            } else {
+                addScore("🅰️ Automatic-Only Restriction (Code 78)", -20);
+                badges.push({ text: "🅰️ Auto Only", color: "bg-slate-700 text-slate-200" });
+            }
+
+            if (hasGrandfather) {
+                addScore("📜 Pre-1997 Grandfather Rights (C1 7.5t, D1 Minibus & B+E Trailer)", 65);
+                badges.push({ text: "📜 Pre-97 C1/D1/B+E", color: "bg-amber-800 text-amber-100" });
+            }
+
+            const mileageMap = {
+                low: { pts: 0, label: null, badge: null },
+                med: { pts: 20, label: "🛣️ Road Experience (50k–250k miles)", badge: null },
+                high: { pts: 55, label: "🛣️ High-Mileage Veteran (250k–750k miles)", badge: "🛣️ 250k+ Miles" },
+                pro: { pts: 95, label: "🚛 Commercial Distance Pro (750k–1.5M miles)", badge: "🛣️ 750k+ Miles" },
+                million: { pts: 140, label: "🏆 Million-Miler Road Legend (1.5M+ miles)", badge: "🏆 1.5M+ Miles" }
+            };
+            const mInfo = mileageMap[lifetimeMiles];
+            if (mInfo && mInfo.pts > 0) {
+                addScore(mInfo.label, mInfo.pts);
+                if (mInfo.badge) badges.push({ text: mInfo.badge, color: "bg-slate-800 text-amber-300" });
+            }
+
+            if (serviceRole === 'forces') {
+                addScore("🪖 HM Forces / Military FMT600 Multi-Vehicle Operator", 125);
+                badges.push({ text: "🪖 HM Forces FMT600", color: "bg-emerald-900 text-emerald-100" });
+                compoundProbability *= 0.04;
+            } else if (serviceRole === 'bluelight') {
+                addScore("🚨 Emergency Services Blue-Light Response Driver", 155);
+                badges.push({ text: "🚨 Blue-Light Response", color: "bg-blue-900 text-blue-100" });
+                compoundProbability *= 0.02;
+            } else if (serviceRole === 'examiner') {
+                addScore("📋 Current / Former DVSA Driving Examiner", 240);
+                badges.push({ text: "📋 DVSA Examiner", color: "bg-purple-900 text-purple-100" });
+                compoundProbability *= 0.005;
+            }
+
+            // Home Turf / UK Regional Road Toughness Bonus
+            const turfMap = {
+                standard: { pts: 0, label: null, badge: null },
+                highlands: { pts: 55, label: "🏔️ Scottish Highlands, A9 & Single-Track Mastery", badge: "🏔️ Highlands & A9" },
+                london: { pts: 45, label: "🚕 Central London Gridlock & Width-Restrictor Survivor", badge: "🚕 London Veteran" },
+                cornwall: { pts: 45, label: "🚜 Devon / Cornwall / Welsh Hedgerow Lane Specialist", badge: "🚜 Narrow-Lane Pro" },
+                pennines: { pts: 40, label: "🌨️ Pennines / M62 Summit & Steep Pass Veteran", badge: "🌨️ Pennines / M62" },
+                magic_roundabout: { pts: 35, label: "🌀 Swindon Magic Roundabout & Spaghetti Junction Navigator", badge: "🌀 Magic Roundabout" },
+                uk_wide: { pts: 65, label: "🇬🇧 Nationwide Trunking (Lands End to John o' Groats)", badge: "🇬🇧 All-Britain Pro" }
+            };
+            const tInfo = turfMap[homeTurf];
+            if (tInfo && tInfo.pts > 0) {
+                addScore(tInfo.label, tInfo.pts);
+                if (tInfo.badge) badges.push({ text: tInfo.badge, color: "bg-slate-800 text-sky-300" });
+            }
+
+            // 1. Car (Cat B)
+            if (document.getElementById('lic_car').checked) {
+                majorLicencesCount++;
+                const era = evaluateLicenceEra('car');
+                maxYearsHeld = Math.max(maxYearsHeld, era.yearsHeld);
+                if (era.isPre1996Exempt) hasPre1996 = true; else hasModern = true;
+
+                addScore(`🚗 Car (Cat B) — Held ${era.yearsHeld} yrs (~${era.yearPassed})`, 50 + Math.min(era.yearsHeld * 2.5, 90));
+                badges.push({ text: `🚗 Car (${era.yearsHeld}y)`, color: "bg-slate-800 text-white" });
+
+                const att = evaluateAttempts('car', 'Car', 55, 0.49);
+                compoundProbability *= att.probFactor;
+                if (att.pts !== 0) addScore(att.label, att.pts);
+                if (att.isFirst) firstTimeCount++;
+
+                const minEval = evaluateMinors('car', 'Car', 120, 0.02, 15);
+                if (minEval.pts !== 0) addScore(minEval.label, minEval.pts);
+                if (minEval.isClean) cleanSheetCount++;
+                compoundProbability *= minEval.probFactor;
+
+                if (era.isPre1996Exempt) {
+                    addScore("Car Pre-1996 Era Theory Equivalence", 30);
+                } else {
+                    const t = parseInt(document.getElementById('car_theory').value);
+                    if (!isNaN(t) && t >= 86) addScore(`Car Theory Precision (${t}%)`, (t - 85) * 2.5);
+                }
+            }
+
+            // 2. Motorcycle (Cat A / A2)
+            if (document.getElementById('lic_bike').checked) {
+                majorLicencesCount++;
+                const era = evaluateLicenceEra('bike');
+                maxYearsHeld = Math.max(maxYearsHeld, era.yearsHeld);
+                if (era.isPre1996Exempt) hasPre1996 = true; else hasModern = true;
+
+                addScore(`🏍️ Motorcycle (Cat A) — Held ${era.yearsHeld} yrs (~${era.yearPassed})`, 140 + Math.min(era.yearsHeld * 2, 60));
+                badges.push({ text: `🏍️ Bike (${era.yearsHeld}y)`, color: "bg-slate-800 text-white" });
+
+                const att = evaluateAttempts('bike', 'Motorcycle', 45, 0.60);
+                compoundProbability *= 0.032 * att.probFactor;
+                if (att.pts !== 0) addScore(att.label, att.pts);
+                if (att.isFirst) firstTimeCount++;
+
+                const minEval = evaluateMinors('bike', 'Motorcycle', 110, 0.03, 15);
+                if (minEval.pts !== 0) addScore(minEval.label, minEval.pts);
+                if (minEval.isClean) cleanSheetCount++;
+                compoundProbability *= minEval.probFactor;
+
+                if (era.isPre1996Exempt) {
+                    addScore("Motorcycle Pre-1996 Era Equivalence", 30);
+                } else {
+                    const t = parseInt(document.getElementById('bike_theory').value);
+                    if (!isNaN(t) && t >= 86) addScore(`Motorcycle Theory Precision (${t}%)`, (t - 85) * 2.5);
+                }
+            }
+
+            // 3. HGV / LGV (Cat C / C+E)
+            if (document.getElementById('lic_hgv').checked) {
+                majorLicencesCount++;
+                const era = evaluateLicenceEra('hgv');
+                maxYearsHeld = Math.max(maxYearsHeld, era.yearsHeld);
+                if (era.isPre1996Exempt) hasPre1996 = true; else hasModern = true;
+
+                const isCE = document.getElementById('hgv_ce').checked;
+                const baseHgv = isCE ? 230 : 185;
+                addScore(`🚛 ${isCE ? 'HGV Class 1 (C+E)' : 'HGV Class 2 (C)'} — Held ${era.yearsHeld} yrs (~${era.yearPassed})`, baseHgv + Math.min(era.yearsHeld * 2.5, 75));
+                badges.push({ text: `${isCE ? '🚛 HGV C+E' : '🚛 HGV C'} (${era.yearsHeld}y)`, color: "bg-blue-900 text-blue-100" });
+
+                const att = evaluateAttempts('hgv', 'HGV Practical', 55, 0.58);
+                compoundProbability *= 0.013 * att.probFactor;
+                if (att.pts !== 0) addScore(att.label, att.pts);
+                if (att.isFirst) firstTimeCount++;
+
+                const minEval = evaluateMinors('hgv', 'HGV', 130, 0.02, 15);
+                if (minEval.pts !== 0) addScore(minEval.label, minEval.pts);
+                if (minEval.isClean) cleanSheetCount++;
+                compoundProbability *= minEval.probFactor;
+
+                if (era.isPre1996Exempt) {
+                    addScore("HGV Pre-1996 Veteran Vocational Credit", 45);
+                } else {
+                    const t = parseInt(document.getElementById('hgv_theory').value);
+                    const h = parseInt(document.getElementById('hgv_hazard').value);
+                    const m4 = parseInt(document.getElementById('hgv_mod4').value);
+                    if (!isNaN(t) && t >= 85) addScore(`HGV Theory (${t}%)`, (t - 84) * 3);
+                    if (t === 100) { addScore("HGV 100% Theory Perfection Bonus", 40); compoundProbability *= 0.002; }
+                    if (era.hasHazard && !isNaN(h) && h >= 67) addScore(`HGV Hazard Perception (${h}%)`, (h - 66) * 1.5);
+                    if (era.hasMod4 && !isNaN(m4) && m4 >= 80) addScore(`HGV CPC Mod 4 (${m4}%)`, (m4 - 79) * 2);
+                }
+            }
+
+            // 4. PSV / PCV (Cat D / D+E)
+            if (document.getElementById('lic_psv').checked) {
+                majorLicencesCount++;
+                const era = evaluateLicenceEra('psv');
+                maxYearsHeld = Math.max(maxYearsHeld, era.yearsHeld);
+                if (era.isPre1996Exempt) hasPre1996 = true; else hasModern = true;
+
+                addScore(`🚌 PSV Bus/Coach (Cat D) — Held ${era.yearsHeld} yrs (~${era.yearPassed})`, 240 + Math.min(era.yearsHeld * 2.5, 70));
+                badges.push({ text: `🚌 PSV (${era.yearsHeld}y)`, color: "bg-blue-900 text-blue-100" });
+
+                const att = evaluateAttempts('psv', 'PSV Practical', 55, 0.61);
+                compoundProbability *= 0.0032 * att.probFactor;
+                if (att.pts !== 0) addScore(att.label, att.pts);
+                if (att.isFirst) firstTimeCount++;
+
+                const minEval = evaluateMinors('psv', 'PSV', 130, 0.02, 15);
+                if (minEval.pts !== 0) addScore(minEval.label, minEval.pts);
+                if (minEval.isClean) cleanSheetCount++;
+                compoundProbability *= minEval.probFactor;
+
+                if (era.isPre1996Exempt) {
+                    addScore("PSV Pre-1996 Veteran Vocational Credit", 45);
+                } else {
+                    const t = parseInt(document.getElementById('psv_theory').value);
+                    const h = parseInt(document.getElementById('psv_hazard').value);
+                    const m4 = parseInt(document.getElementById('psv_mod4').value);
+                    if (!isNaN(t) && t >= 85) addScore(`PSV Theory (${t}%)`, (t - 84) * 3);
+                    if (t === 100) addScore("PSV 100% Theory Perfection Bonus", 40);
+                    if (era.hasHazard && !isNaN(h) && h >= 67) addScore(`PSV Hazard Perception (${h}%)`, (h - 66) * 1.5);
+                    if (era.hasMod4 && !isNaN(m4) && m4 >= 80) addScore(`PSV CPC Mod 4 (${m4}%)`, (m4 - 79) * 2);
+                }
+            }
+
+            // 5. ADI Driving Instructor
+            if (document.getElementById('lic_adi').checked) {
+                majorLicencesCount++;
+                const era = evaluateLicenceEra('adi');
+                maxYearsHeld = Math.max(maxYearsHeld, era.yearsHeld);
+                hasModern = true;
+
+                addScore(`🎓 DVSA ADI Instructor — Held ${era.yearsHeld} yrs (~${era.yearPassed})`, 310 + Math.min(era.yearsHeld * 3, 90));
+                badges.push({ text: `🎓 ADI (${era.yearsHeld}y)`, color: "bg-purple-900 text-purple-100" });
+
+                const att = evaluateAttempts('adi', 'ADI (Parts 1-3)', 85, 0.57);
+                compoundProbability *= 0.00095 * att.probFactor;
+                if (att.pts !== 0) addScore(att.label, att.pts);
+                if (att.isFirst) firstTimeCount++;
+
+                const minEval = evaluateMinors('adi', 'ADI Part 2', 160, 0.01, 6);
+                if (minEval.pts !== 0) addScore(minEval.label, minEval.pts);
+                if (minEval.isClean) cleanSheetCount++;
+                compoundProbability *= minEval.probFactor;
+
+                const t = parseInt(document.getElementById('adi_theory').value);
+                if (!isNaN(t) && t >= 85) addScore(`ADI Part 1 Theory (${t}%)`, (t - 84) * 4);
+                if (t === 100) { addScore("ADI Part 1 100% Sweep Bonus", 50); compoundProbability *= 0.001; }
+            }
+
+            // 6. Specialist Plant, Diggers, Agricultural & Tracked
+            const specialists = [
+                { id: 'spec_digger', pts: 85, label: "🚜 Plant / Digger Ticket" },
+                { id: 'spec_tracked', pts: 95, label: "⛓️ Tracked (Cat H)" },
+                { id: 'spec_agri', pts: 65, label: "🌾 Agricultural (Cat F/K)" },
+                { id: 'spec_forklift', pts: 55, label: "🏗️ Forklift / Telehandler" },
+                { id: 'spec_advanced', pts: 110, label: "🛡️ IAM/RoSPA/Blue Light" },
+                { id: 'spec_adr', pts: 95, label: "☣️ ADR Hazmat" }
+            ];
+
+            specialists.forEach(item => {
+                if (document.getElementById(item.id).checked) {
+                    addScore(item.label, item.pts);
+                    badges.push({ text: item.label, color: "bg-amber-900 text-amber-100" });
+                }
+            });
+
+            // 7. Compounding Streak Multipliers
+            if (majorLicencesCount >= 4) addScore("Universal Multi-Category Synergy (4+ Road Classes)", 180);
+            if (cleanSheetCount >= 2) addScore(`Multi Clean-Sheet Streak (${cleanSheetCount}x Zero Minors)`, cleanSheetCount * 75);
+            if (cleanSheetCount >= 4) addScore("Statistical Unicorn Bonus (4+ Faultless Tests)", 250);
+            if (firstTimeCount >= 4) addScore("Unbroken 1st-Time Pass Streak", 100);
+
+            if (cleanSheetCount > 0) {
+                badges.push({ text: `✨ ${cleanSheetCount}x 0-Minor Clean Sheet`, color: "bg-emerald-800 text-emerald-100" });
+            }
+
+            // 8. International / Foreign Licence Conversion & Experience
+            if (hasForeign) {
+                const fType = document.getElementById('foreignType').value;
+                const fYears = parseInt(document.getElementById('foreignYears').value) || 1;
+                const expCredit = Math.min(fYears * 4, 60);
+
+                if (fType === 'uk_eu_uk') {
+                    addScore(`🇪🇸🇬🇧 UK &rarr; EU Exchange &amp; Reclaimed (${fYears} yrs abroad)`, 45 + expCredit);
+                    badges.push({ text: `🇪🇸🇬🇧 UK/EU Dual History (${fYears}y)`, color: "bg-sky-900 text-sky-100" });
+                } else if (fType === 'eu_exchange') {
+                    addScore(`🇪🇺 EU/EEA Licence Exchange (${fYears} yrs abroad)`, 30 + expCredit);
+                    badges.push({ text: `🇪🇺 EU Exchange (${fYears}y)`, color: "bg-sky-900 text-sky-100" });
+                } else if (fType === 'designated') {
+                    addScore(`🌏 Designated Country Exchange (${fYears} yrs abroad)`, 30 + expCredit);
+                    badges.push({ text: `🌏 Int'l Exchange (${fYears}y)`, color: "bg-sky-900 text-sky-100" });
+                } else {
+                    // Non-EU (e.g., USA) who passed both home test and full UK test gets a dual-jurisdiction testing bonus
+                    addScore(`🇺🇸🇬🇧 Non-EU + Full UK Retest Qualified (${fYears} yrs abroad)`, 75 + expCredit);
+                    badges.push({ text: `🇺🇸🇬🇧 Dual-Tested Int'l (${fYears}y)`, color: "bg-indigo-900 text-indigo-100" });
+                    compoundProbability *= 0.45;
+                }
+            }
+
+            // 9. Disqualifications & Reinstatement / Extended Retest
+            let totalIncidentPenalty = 0;
+            if (hasDisq) {
+                const dYear = parseInt(document.getElementById('disqYear').value) || (CURRENT_YEAR - 5);
+                const rYear = parseInt(document.getElementById('reinstateYear').value) || (dYear + 1);
+                const resitType = document.getElementById('resitType').value;
+                const resitMinors = parseInt(document.getElementById('resitMinors').value) || 0;
+                const yearsSinceReinstate = Math.max(0, CURRENT_YEAR - rYear);
+
+                // Heavy flat + proportional risk deduction for a driving disqualification
+                const riskPct = yearsSinceReinstate >= 10 ? 0.22 : 0.35;
+                const baseBanDeduction = (yearsSinceReinstate >= 10 ? 280 : 420) + Math.round(points * riskPct);
+                totalIncidentPenalty += baseBanDeduction;
+                addScore(`⚖️ Disqualification Record (${dYear} &rarr; Reinstated ${rYear} — flat + ${Math.round(riskPct * 100)}% risk factor)`, -baseBanDeduction);
+                badges.push({ text: `⚖️ Reinstated (${rYear})`, color: "bg-rose-950 text-rose-200" });
+
+                if (resitType === 'extended') {
+                    // Passing the stricter 70-min extended retest mitigates a small portion of the ban, scaled by minors
+                    const resitCredit = resitMinors === 0 ? 55 : Math.max(10, 40 - (resitMinors * 4));
+                    totalIncidentPenalty -= resitCredit;
+                    addScore(`🔄 Extended 70-Min DVSA Retest Passed (${resitMinors} minors)`, resitCredit);
+                    compoundProbability *= 0.35;
+                } else if (resitType === 'standard') {
+                    const resitCredit = resitMinors === 0 ? 35 : Math.max(5, 25 - (resitMinors * 3));
+                    totalIncidentPenalty -= resitCredit;
+                    addScore(`🔄 Standard DVSA Retest Passed (${resitMinors} minors)`, resitCredit);
+                }
+
+                if (yearsSinceReinstate >= 5 && activePoints === 0) {
+                    const rehabPts = Math.min(yearsSinceReinstate * 3, 35);
+                    totalIncidentPenalty -= rehabPts;
+                    addScore(`🌱 Post-Ban Rehabilitation (${yearsSinceReinstate} yrs clean since ${rYear})`, rehabPts);
+                }
+            }
+
+            // 10. Collision & Write-Off History
+            if (minorBumps > 0) {
+                const bumpPct = Math.min(0.30, minorBumps * 0.03);
+                const bumpDeduction = (minorBumps * 40) + Math.round(points * bumpPct);
+                totalIncidentPenalty += bumpDeduction;
+                addScore(`💥 Minor Bumps / Scrapes (${minorBumps}x — flat + ${Math.round(bumpPct * 100)}% risk)`, -bumpDeduction);
+                badges.push({ text: `💥 ${minorBumps}x Minor Bump${minorBumps > 1 ? 's' : ''}`, color: "bg-amber-950 text-amber-300" });
+            }
+            if (writeOffs > 0) {
+                const woPct = Math.min(0.65, writeOffs * 0.14);
+                const writeOffDeduction = (writeOffs * 180) + Math.round(points * woPct);
+                totalIncidentPenalty += writeOffDeduction;
+                addScore(`🚨 Major Collisions / Write-Offs (${writeOffs}x — flat + ${Math.round(woPct * 100)}% risk)`, -writeOffDeduction);
+                badges.push({ text: `🚨 ${writeOffs}x Write-Off${writeOffs > 1 ? 's' : ''}`, color: "bg-rose-900 text-rose-100" });
+            }
+
+            const incidentImpactEl = document.getElementById('incidentLiveImpact');
+            if (incidentImpactEl) {
+                if (hasDisq || minorBumps > 0 || writeOffs > 0) {
+                    incidentImpactEl.className = "mt-2.5 text-xs font-semibold text-rose-400 bg-rose-950/40 border border-rose-800/60 rounded-lg px-3 py-1.5";
+                    incidentImpactEl.innerHTML = `<i class="fa-solid fa-car-burst mr-1"></i>Ban &amp; Collision Impact: -${Math.round(totalIncidentPenalty)} pts deducted from rank score`;
+                } else {
+                    incidentImpactEl.className = "mt-2.5 text-xs font-semibold text-emerald-400 bg-slate-800/80 border border-slate-700/80 rounded-lg px-3 py-1.5";
+                    incidentImpactEl.innerHTML = `<i class="fa-solid fa-shield-check mr-1"></i>Zero Bans &amp; Zero Collisions: No incident deductions`;
+                }
+            }
+
+            // 11. Penalty Points Impact & Clean Longevity Bonus
+            const penaltyImpactEl = document.getElementById('penaltyLiveImpact');
+            const isCompletelyClean = activePoints === 0 && expiredPoints === 0 && !hasDisq && minorBumps === 0 && writeOffs === 0;
+            if (isCompletelyClean && maxYearsHeld >= 5) {
+                const cleanBonus = Math.min(maxYearsHeld * 3, 105);
+                addScore(`🛡️ Unblemished Lifetime Record (${maxYearsHeld} yrs, 0 Pts, 0 Claims)`, cleanBonus);
+                badges.push({ text: `🛡️ 0 Pts & 0 Claims (${maxYearsHeld}y)`, color: "bg-emerald-900 text-emerald-100" });
+                if (penaltyImpactEl) {
+                    penaltyImpactEl.className = "sm:col-span-2 text-xs font-semibold text-emerald-400 bg-slate-800/80 border border-slate-700/80 rounded-lg px-3 py-1.5";
+                    penaltyImpactEl.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i>Unblemished Record Bonus: +${Math.round(cleanBonus)} pts`;
+                }
+            } else {
+                let totalPenaltyLost = 0;
+                if (activePoints > 0) {
+                    // Combine flat deduction + 4% per active point so high-tier profiles visibly drop when carrying active points
+                    const activePenalty = (activePoints * 45) + Math.round(points * Math.min(0.60, activePoints * 0.04));
+                    totalPenaltyLost += activePenalty;
+                    addScore(`⚠️ Active Penalty Points (${activePoints} pts — flat + ${Math.min(60, activePoints * 4)}% risk factor)`, -activePenalty);
+                    badges.push({ text: `⚠️ ${activePoints} Active Pts`, color: "bg-rose-900 text-rose-100" });
+                }
+                if (expiredPoints > 0) {
+                    const histPenalty = (expiredPoints * 18) + Math.round(points * Math.min(0.35, expiredPoints * 0.015));
+                    totalPenaltyLost += histPenalty;
+                    addScore(`📜 Historical/Expired Points (${expiredPoints} pts)`, -histPenalty);
+                    badges.push({ text: `📜 ${expiredPoints} Past Pts`, color: "bg-amber-950 text-amber-300" });
+                }
+                if (activePoints + expiredPoints >= 12) {
+                    totalPenaltyLost += 180;
+                    addScore(`🚨 Totting-Up / High Lifetime Endorsements (${activePoints + expiredPoints} total pts)`, -180);
+                }
+                if (penaltyImpactEl) {
+                    if (totalPenaltyLost > 0) {
+                        penaltyImpactEl.className = "sm:col-span-2 text-xs font-semibold text-rose-400 bg-rose-950/40 border border-rose-800/60 rounded-lg px-3 py-1.5";
+                        penaltyImpactEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i>Penalty Points Impact: -${Math.round(totalPenaltyLost)} pts deducted from rank score`;
+                    } else {
+                        penaltyImpactEl.className = "sm:col-span-2 text-xs font-semibold text-slate-300 bg-slate-800/80 border border-slate-700/80 rounded-lg px-3 py-1.5";
+                        penaltyImpactEl.innerHTML = `<i class="fa-solid fa-circle-info mr-1 text-sky-400"></i>0 Penalty Points (Lifetime bonus inactive due to claim/ban history)`;
+                    }
+                }
+            }
+
+            points = Math.max(10, points);
+
+            // Era Label Determination
+            let eraSummaryText = "Modern (Post-1996 Era)";
+            if (hasPre1996 && hasModern) eraSummaryText = "Hybrid (Pre-1996 & Modern)";
+            else if (hasPre1996) eraSummaryText = "Veteran (Pre-1996 Era)";
+
+            // Convert Total Score into Realistic UK Percentile (Out of 41,000,000 drivers)
+            // Cap maximum tier if driver has a disqualification or multiple write-offs on record
+            let effectiveTierPoints = points;
+            if (hasDisq || writeOffs >= 2) {
+                effectiveTierPoints = Math.min(effectiveTierPoints, 1649);
+            } else if (writeOffs === 1) {
+                effectiveTierPoints = Math.min(effectiveTierPoints, 2099);
+            }
+
+            let percentileText = "";
+            let tierTitle = "";
+            let commentaryText = "";
+            let peersText = "";
+            let tierCode = "STD";
+
+            if (effectiveTierPoints >= 2100) {
+                percentileText = "Top 0.001%";
+                tierTitle = certStyleMode === 'banter' ? "Basically Owns The DVSA" : "Apex National Master & Examiner Standard";
+                commentaryText = certStyleMode === 'banter'
+                    ? "Probably inspects the examiner's mirrors before setting off and reverses a 44-tonne artic into a phone box blindfolded."
+                    : "Represents the absolute pinnacle of UK civilian, vocational, and instructional road mastery.";
+                peersText = "< 410 drivers in the UK";
+                tierCode = "APEX";
+            } else if (effectiveTierPoints >= 1650) {
+                percentileText = "Top 0.005%";
+                tierTitle = certStyleMode === 'banter' ? "Certified Steering Wheel Wizard" : "Grandmaster Multi-Class Specialist";
+                commentaryText = certStyleMode === 'banter'
+                    ? "Can drive anything with wheels, tracks, or air brakes—and still indicates on empty roundabouts at 3am."
+                    : "Extraordinary multi-category competence far exceeding standard commercial benchmarks.";
+                peersText = "~2,050 drivers in the UK";
+                tierCode = "GMST";
+            } else if (effectiveTierPoints >= 1300) {
+                percentileText = "Top 0.02%";
+                tierTitle = certStyleMode === 'banter' ? "Final Boss of the M6" : "Elite Fleet & Vocational Virtuoso";
+                commentaryText = certStyleMode === 'banter'
+                    ? "Knows every service station pasty rating in Britain and hasn't curbed an alloy since the Thatcher administration."
+                    : "Distinguished multi-vehicle operator demonstrating elite testing precision and road longevity.";
+                peersText = "~8,200 drivers in the UK";
+                tierCode = "ELIT";
+            } else if (effectiveTierPoints >= 950) {
+                percentileText = "Top 0.1%";
+                tierTitle = certStyleMode === 'banter' ? "Heavy Metal Road Commander" : "Master Commercial & Specialist Operator";
+                commentaryText = certStyleMode === 'banter'
+                    ? "Parallel parks a double-decker bus while lecturing Audi drivers on lane discipline."
+                    : "Top-tier commercial and specialist vehicle operator with rare national credentials.";
+                peersText = "~41,000 drivers in the UK";
+                tierCode = "MSTR";
+            } else if (effectiveTierPoints >= 285) {
+                percentileText = "Top 10.0%";
+                tierTitle = certStyleMode === 'banter' ? "Smooth Operator, Zero Kerb-Rash" : "Accomplished & Precision Motorist";
+                commentaryText = certStyleMode === 'banter'
+                    ? "Passed cleanly without sweating and actually uses indicators before braking."
+                    : "Seasoned UK motorist with standout test execution and clean roadcraft.";
+                peersText = "~4,100,000 drivers in the UK";
+                tierCode = "EXP";
+            } else if (effectiveTierPoints >= 215) {
+                percentileText = "Top 22.0%";
+                tierTitle = certStyleMode === 'banter' ? "Decent Pilot, Occasional Kerb-Tapper" : "Experienced & Reliable Driver";
+                commentaryText = certStyleMode === 'banter'
+                    ? "Solid daily commuter—only swears at middle-lane hoggers twice per journey."
+                    : "Reliable, seasoned UK motorist with a strong everyday driving foundation.";
+                peersText = "~9,020,000 drivers in the UK";
+                tierCode = "REL";
+            } else if (effectiveTierPoints >= 165) {
+                percentileText = "Top 42.0%";
+                tierTitle = certStyleMode === 'banter' ? "Gets From A To B (Mostly Intact)" : "Competent UK Licence Holder";
+                commentaryText = certStyleMode === 'banter'
+                    ? "Passes the pub test, though reverse bay parking still requires turning the radio down to see better."
+                    : "Competent everyday road user meeting standard UK licensing expectations.";
+                peersText = "~17,220,000 drivers in the UK";
+                tierCode = "COMP";
+            } else if (effectiveTierPoints >= 115) {
+                percentileText = "Top 62.0%";
+                tierTitle = certStyleMode === 'banter' ? "Took The Scenic Route To Passing" : "Everyday Standard Motorist";
+                commentaryText = certStyleMode === 'banter'
+                    ? "Got the pink card in the end—examiners definitely earned their tea break that afternoon."
+                    : "Standard UK licence holder with room to build cleaner test and roadcraft metrics.";
+                peersText = "~25,420,000 drivers in the UK";
+                tierCode = "STD";
+            } else {
+                percentileText = "Top 82.0%";
+                tierTitle = certStyleMode === 'banter' ? "Roundabout Roulette Champion" : "Developing / High-Risk Road User";
+                commentaryText = certStyleMode === 'banter'
+                    ? "Local bodyshops have you on their Christmas card list and speed cameras flash just to say hello."
+                    : "Entry-level, multi-attempt, or high-endorsement profile with room for progression.";
+                peersText = "~33,620,000 drivers in the UK";
+                tierCode = "ROOK";
+            }
+
+            // Generate deterministic 4-digit seed code from score + name
+            const hashNum = Math.abs(name.split('').reduce((acc, c) => acc + c.charCodeAt(0) * 17, Math.round(points) * 13)) % 9000 + 1000;
+            const seedCode = `#UK-${hashNum}-${tierCode}`;
+
+            latestCertState = {
+                name: `${name} (Age ${currentAge})`,
+                percentileText,
+                tierTitle,
+                commentaryText,
+                peersText,
+                eraSummaryText,
+                seedCode,
+                points: Math.round(points),
+                badges,
+                dateText: document.getElementById('certDate').textContent
+            };
+
+            // Update Certificate UI
+            document.getElementById('certName').textContent = latestCertState.name;
+            document.getElementById('certPercentile').textContent = percentileText;
+            document.getElementById('certTierTitle').textContent = tierTitle;
+            document.getElementById('certCommentary').textContent = `"${commentaryText}"`;
+            document.getElementById('certPeers').textContent = peersText;
+            document.getElementById('certSeedCode').textContent = seedCode;
+            document.getElementById('certEra').textContent = eraSummaryText;
+            document.getElementById('certScoreBadge').textContent = `Rank Score: ${Math.round(points)} pts`;
+
+            // Render Badges
+            const badgesContainer = document.getElementById('certBadges');
+            badgesContainer.innerHTML = "";
+            if (badges.length === 0) {
+                badgesContainer.innerHTML = `<span class="text-xs text-slate-500 italic">No categories selected</span>`;
+            } else {
+                badges.forEach(b => {
+                    const span = document.createElement('span');
+                    span.className = `text-[11px] ${b.color} px-2 py-0.5 rounded font-medium shadow-sm`;
+                    span.textContent = b.text;
+                    badgesContainer.appendChild(span);
+                });
+            }
+
+            // Populate Crazy Maths Modal Data
+            updateMathsModal(points, percentileText, peersText, compoundProbability, maxYearsHeld, activePoints, expiredPoints, ledger);
+
+            // Update Share Text
+            const badgeSummary = badges.slice(0, 4).map(b => b.text).join(" • ");
+            document.getElementById('shareTextOutput').value = 
+                `🏆 UK Driver Rank [${seedCode}]: ${percentileText} (${tierTitle}) | ${badgeSummary} | Score: ${Math.round(points)} pts — Check yours in Time Wasters!`;
+
+            // Build compact encoded Battle Code for 1v1 Head-to-Head comparison
+            const battlePayload = {
+                n: name,
+                p: Math.round(points),
+                r: percentileText,
+                t: tierTitle,
+                l: majorLicencesCount,
+                c: cleanSheetCount,
+                pts: activePoints + expiredPoints,
+                wo: writeOffs,
+                b: hasDisq ? 1 : 0,
+                turf: homeTurf
+            };
+            const encodedBattle = "BATTLE:" + btoa(unescape(encodeURIComponent(JSON.stringify(battlePayload))));
+            const battleOut = document.getElementById('myBattleCodeOutput');
+            if (battleOut) battleOut.value = encodedBattle;
+        }
+
+        function copyBattleCode() {
+            const inp = document.getElementById('myBattleCodeOutput');
+            inp.select();
+            inp.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+            const fb = document.getElementById('battleCopyFeedback');
+            fb.classList.remove('hidden');
+            setTimeout(() => fb.classList.add('hidden'), 3000);
+        }
+
+        function loadSampleRival() {
+            const sampleRival = {
+                n: "White Van Gaz (M25 Warrior)",
+                p: 310,
+                r: "Top 10.0%",
+                t: "Smooth Operator, Zero Kerb-Rash",
+                l: 1,
+                c: 0,
+                pts: 6,
+                wo: 1,
+                b: 0,
+                turf: "london"
+            };
+            document.getElementById('rivalBattleInput').value = "BATTLE:" + btoa(unescape(encodeURIComponent(JSON.stringify(sampleRival))));
+            runPubBattle();
+        }
+
+        function runPubBattle() {
+            calculateRank();
+            const raw = document.getElementById('rivalBattleInput').value.trim();
+            const resultBox = document.getElementById('battleResultBox');
+            const banner = document.getElementById('battleWinnerBanner');
+            const verdict = document.getElementById('battleRoastVerdict');
+
+            if (!raw) {
+                resultBox.classList.remove('hidden');
+                banner.textContent = "⚠️ Paste a Battle Code first!";
+                verdict.textContent = "Ask your mate to click 'Copy Code' on their certificate and paste it into the box above (or hit 'Sample' to test against White Van Gaz).";
+                return;
+            }
+
+            try {
+                const cleanB64 = raw.replace(/^BATTLE:/i, '').trim();
+                const rival = JSON.parse(decodeURIComponent(escape(atob(cleanB64))));
+                const myName = document.getElementById('driverName').value.trim() || "You";
+                const myPts = latestCertState.points || 0;
+                const myRank = latestCertState.percentileText || "Top 42.0%";
+                const rivalPts = Number(rival.p) || 0;
+                const rivalName = rival.n || "Your Mate";
+                const rivalRank = rival.r || "Top 42.0%";
+
+                document.getElementById('p1BattleName').textContent = myName;
+                document.getElementById('p1BattleScore').textContent = `${myPts} pts`;
+                document.getElementById('p1BattleRank').textContent = myRank;
+
+                document.getElementById('p2BattleName').textContent = rivalName;
+                document.getElementById('p2BattleScore').textContent = `${rivalPts} pts`;
+                document.getElementById('p2BattleRank').textContent = rivalRank;
+
+                const diff = Math.abs(myPts - rivalPts);
+                resultBox.classList.remove('hidden');
+
+                if (myPts > rivalPts) {
+                    banner.innerHTML = `🏆 WINNER: ${myName.toUpperCase()} (+${diff} pts ahead!)`;
+                    if (rival.b) {
+                        verdict.textContent = `🍻 Pub Verdict: ${myName} wins comfortably—mostly because ${rivalName} has a driving ban on their record and isn't allowed near the keys anyway!`;
+                    } else if (rival.wo > 0 || rival.pts >= 6) {
+                        verdict.textContent = `🍻 Pub Verdict: ${myName} takes the crown! ${rivalName} tried to brag, but ${rival.pts} penalty points and ${rival.wo} write-off(s) sank their claim.`;
+                    } else if (diff >= 800) {
+                        verdict.textContent = `🍻 Pub Verdict: Total mismatch! ${myName} is practically a DVSA Examiner while ${rivalName} is still looking for the bite point. ${rivalName} buys the first round!`;
+                    } else {
+                        verdict.textContent = `🍻 Pub Verdict: Close battle, but ${myName} edges out ${rivalName} by ${diff} points on cleaner test credentials and roadcraft. ${rivalName} owes a pint!`;
+                    }
+                } else if (rivalPts > myPts) {
+                    banner.innerHTML = `💀 DEFEATED BY: ${rivalName.toUpperCase()} (+${diff} pts)`;
+                    verdict.textContent = `🍻 Pub Verdict: Ouch! ${rivalName} (${rivalRank}) takes the bragging rights by ${diff} points. Hand over the keys and get yourself to the bar!`;
+                } else {
+                    banner.innerHTML = `🤝 DEAD HEAT: ${myPts} PTS EACH!`;
+                    verdict.textContent = `🍻 Pub Verdict: Identical score down to the single point! Only a reverse parallel park outside the pub can settle this now.`;
+                }
+            } catch (err) {
+                resultBox.classList.remove('hidden');
+                banner.textContent = "❌ Invalid Battle Code";
+                verdict.textContent = "That code looks incomplete—make sure your mate copied the entire 'BATTLE:...' string without cutting off the end.";
+            }
+        }
+
+        // Render and Download High-Resolution PNG Certificate via HTML5 Canvas
+        function downloadCertificatePNG() {
+            calculateRank();
+            const s = latestCertState;
+            const canvas = document.createElement('canvas');
+            canvas.width = 1200;
+            canvas.height = 820;
+            const ctx = canvas.getContext('2d');
+
+            // Parchment background gradient
+            const bgGrad = ctx.createLinearGradient(0, 0, 1200, 820);
+            bgGrad.addColorStop(0, '#fffdf7');
+            bgGrad.addColorStop(1, '#f3ebd6');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, 1200, 820);
+
+            // Outer & inner double gold border
+            ctx.strokeStyle = '#b45309';
+            ctx.lineWidth = 14;
+            ctx.strokeRect(24, 24, 1152, 772);
+            ctx.lineWidth = 4;
+            ctx.strokeRect(44, 44, 1112, 732);
+
+            // Watermark
+            ctx.save();
+            ctx.translate(600, 420);
+            ctx.rotate(-0.28);
+            ctx.font = '900 110px Inter, sans-serif';
+            ctx.fillStyle = 'rgba(180, 83, 9, 0.05)';
+            ctx.textAlign = 'center';
+            ctx.fillText('DVSA / UK RANK', 0, 0);
+            ctx.restore();
+
+            // Gold Seal Circle
+            const sealGrad = ctx.createRadialGradient(585, 105, 10, 600, 120, 48);
+            sealGrad.addColorStop(0, '#fcd34d');
+            sealGrad.addColorStop(0.6, '#d97706');
+            sealGrad.addColorStop(1, '#92400e');
+            ctx.fillStyle = sealGrad;
+            ctx.beginPath();
+            ctx.arc(600, 115, 44, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 34px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('★', 600, 127);
+
+            // Headers
+            ctx.fillStyle = '#92400e';
+            ctx.font = 'bold 18px Inter, sans-serif';
+            ctx.fillText('COMMUNITY MOTORING REGISTRY • TIME WASTERS ARCADE', 600, 192);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 42px Georgia, serif';
+            ctx.fillText('CERTIFICATE OF DRIVING RANK', 600, 242);
+
+            ctx.strokeStyle = 'rgba(180, 83, 9, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(220, 262);
+            ctx.lineTo(980, 262);
+            ctx.stroke();
+
+            // Recipient
+            ctx.fillStyle = '#475569';
+            ctx.font = 'italic 20px Georgia, serif';
+            ctx.fillText('This officially certifies that', 600, 298);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 34px Georgia, serif';
+            ctx.fillText(s.name, 600, 342);
+
+            // Main Percentile Box
+            ctx.fillStyle = 'rgba(180, 83, 9, 0.09)';
+            ctx.strokeStyle = 'rgba(180, 83, 9, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(140, 368, 920, 185, 18);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#78350f';
+            ctx.font = 'bold 17px Inter, sans-serif';
+            ctx.fillText('NATIONAL STANDING (OUT OF 41,000,000 UK DRIVERS)', 600, 400);
+
+            ctx.fillStyle = '#92400e';
+            ctx.font = '900 64px Inter, sans-serif';
+            ctx.fillText(s.percentileText, 600, 466);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 22px Inter, sans-serif';
+            ctx.fillText(s.tierTitle.toUpperCase(), 600, 504);
+
+            ctx.fillStyle = '#334155';
+            ctx.font = 'italic 16px Inter, sans-serif';
+            const quote = `"${s.commentaryText}"`;
+            ctx.fillText(quote.length > 98 ? quote.slice(0, 95) + '..."' : quote, 600, 534);
+
+            // Stats Row
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 19px Inter, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`UK Peers: ${s.peersText}`, 140, 595);
+            ctx.textAlign = 'center';
+            ctx.fillText(`Era: ${s.eraSummaryText}`, 620, 595);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#92400e';
+            ctx.fillText(`Code: ${s.seedCode}`, 1060, 595);
+
+            // Entitlements Line
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#334155';
+            ctx.font = '600 17px Inter, sans-serif';
+            const cleanBadges = s.badges.map(b => b.text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim()).slice(0, 7).join('  •  ');
+            ctx.fillText(cleanBadges || 'Full UK Licence Holder', 600, 645);
+
+            // Footer
+            ctx.strokeStyle = 'rgba(180, 83, 9, 0.25)';
+            ctx.beginPath();
+            ctx.moveTo(140, 682);
+            ctx.lineTo(1060, 682);
+            ctx.stroke();
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#475569';
+            ctx.font = 'bold 17px Inter, sans-serif';
+            ctx.fillText(s.dateText, 140, 725);
+
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#92400e';
+            ctx.fillText(`VERIFIED SCORE: ${s.points} PTS`, 1060, 725);
+
+            // Trigger Download
+            const link = document.createElement('a');
+            link.download = `UK-Driver-Rank-${s.seedCode.replace('#', '')}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Populate the Crazy Maths & Score Explanation Modal
+        function updateMathsModal(totalPoints, percentileText, peersText, prob, maxYears, activePts, expiredPts, ledger) {
+            const oneInX = prob < 1 ? Math.round(1 / prob).toLocaleString('en-GB') : "1";
+            
+            document.getElementById('liveMathSteps').innerHTML = `
+                <div>• <strong>Step 1 (DVLA Population Base):</strong> N = 41,000,000 active UK licence holders.</div>
+                <div>• <strong>Step 2 (Joint Occurrence Probability):</strong> P(Categories &cap; Clean Sheets &cap; Theory) = <span class="text-emerald-400">${prob.toExponential(3)}</span> (1 in ${oneInX} statistical occurrence).</div>
+                <div>• <strong>Step 3 (Temporal Experience Integral):</strong> &int;<sub>0</sub><sup>${maxYears}</sup> &alpha;(t)dt &rarr; ${maxYears} years active road exposure with ${activePts} active & ${expiredPts} historical endorsement points.</div>
+                <div>• <strong>Step 4 (Final Weighted Index):</strong> R<sub>total</sub> = <span class="text-amber-400 font-bold">${Math.round(totalPoints)} pts</span> &rArr; Places you in <span class="text-amber-400 font-bold">${percentileText}</span> (${peersText}).</div>
+            `;
+
+            const ledgerDiv = document.getElementById('ledgerContainer');
+            ledgerDiv.innerHTML = "";
+            ledger.forEach(item => {
+                const row = document.createElement('div');
+                row.className = "flex items-center justify-between border-b border-slate-700/60 pb-1 last:border-b-0 last:pb-0";
+                const ptsClass = item.pts >= 0 ? "text-emerald-400 font-bold" : "text-rose-400 font-bold";
+                const sign = item.pts >= 0 ? "+" : "";
+                row.innerHTML = `<span class="text-slate-300">${item.label}</span><span class="${ptsClass}">${sign}${item.pts} pts</span>`;
+                ledgerDiv.appendChild(row);
+            });
+        }
+
+        function openMathsModal() {
+            calculateRank();
+            document.getElementById('mathsModal').classList.remove('hidden');
+        }
+
+        function closeMathsModal() {
+            document.getElementById('mathsModal').classList.add('hidden');
+        }
+
+        // Copy text to clipboard safely inside iFrames
+        function copyShareText() {
+            const copyInput = document.getElementById('shareTextOutput');
+            copyInput.select();
+            copyInput.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+
+            const feedback = document.getElementById('copyFeedback');
+            feedback.classList.remove('hidden');
+            setTimeout(() => feedback.classList.add('hidden'), 3000);
+        }
+
+        // Initialize default view on load
+        window.onload = function() {
+            ['car', 'bike', 'hgv', 'psv', 'adi'].forEach(cat => toggleMinorsInput(cat));
+            evaluateAllEras();
+            calculateRank();
+        };
+    </script>
+</body>
+</html>

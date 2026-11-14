@@ -30,6 +30,7 @@ import {
   Crown,
   Anchor,
   Coins,
+  Car,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +68,7 @@ import { FreeCellGame } from '@/components/timewaisters/freecell-game';
 import { FifteenPuzzleGame } from '@/components/timewaisters/fifteen-puzzle-game';
 import { BlackjackGame } from '@/components/timewaisters/blackjack-game';
 import { ReversiGame } from '@/components/timewaisters/reversi-game';
+import { UkDriverRankGame } from '@/components/timewaisters/uk-driver-rank-game';
 
 type GameId =
   | 'sudoku'
@@ -89,7 +91,8 @@ type GameId =
   | 'freecell'
   | '15puzzle'
   | 'blackjack'
-  | 'reversi';
+  | 'reversi'
+  | 'ukdriverrank';
 
 interface GameInstructions {
   objective: string;
@@ -548,6 +551,27 @@ const GAMES: GameMeta[] = [
         'Switch between "vs AI" and "Pass & Play" at the top.',
       ],
       proTip: 'Corners are the most powerful squares on the board because they can NEVER be flipped back—seize corners whenever possible and avoid giving them away!',
+    },
+  },
+  {
+    id: 'ukdriverrank',
+    title: 'UK Driver Rank & Certificate',
+    tagline: 'Test your UK driving knowledge, roadcraft, and vehicle skills to earn a printable Driver Rank Certificate.',
+    category: 'brain',
+    badge: 'UK Fun Quiz',
+    icon: Car,
+    color: 'from-amber-500 to-slate-800 text-amber-500',
+    timeEstimate: '2-5 mins',
+    component: UkDriverRankGame,
+    instructions: {
+      objective: 'Rate your UK driving experience, roadcraft, manoeuvres, and vehicle familiarity to calculate your official-style UK Driver Rank and generate a custom diploma certificate.',
+      howToPlay: [
+        'Enter your name or driver alias, or click "Load Demo Profile" to try it out straight away.',
+        'Toggle the driving skills, licence categories, and UK roadcraft badges that apply to you.',
+        'Watch your live rank tier and score update as you complete each section.',
+        'Generate and print or save your personalised UK Driver Rank Certificate (use "Open Full Screen" for the best print view).',
+      ],
+      proTip: 'Try loading the Demo Profile first to see how different advanced driving skills and Highway Code badges affect your final rank!',
     },
   },
 ];
