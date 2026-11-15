@@ -91,6 +91,24 @@ type BusinessListing = Omit<ServerBusinessListing, 'subscriptionExpiresAt'> & {
 };
 
 
+function safeToDate(value: any): Date | null {
+    if (!value) return null;
+    if (typeof value?.toDate === 'function') {
+        const d = value.toDate();
+        return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+    }
+    if (value instanceof Date) return !Number.isNaN(value.getTime()) ? value : null;
+    if (typeof value === 'string' || typeof value === 'number') {
+        const d = new Date(value);
+        return !Number.isNaN(d.getTime()) ? d : null;
+    }
+    if (typeof value?.seconds === 'number') {
+        const d = new Date(value.seconds * 1000);
+        return !Number.isNaN(d.getTime()) ? d : null;
+    }
+    return null;
+}
+
 function LeaderBusinessesContent() {
     const { user, isUserLoading } = useUser();
     const db = useFirestore();
@@ -131,7 +149,7 @@ function LeaderBusinessesContent() {
     
     const isFreeListingAvailable = React.useMemo(() => {
         if (!communityData) return false;
-        const lastGranted = communityData.freeListingGrantedAt?.toDate();
+        const lastGranted = safeToDate(communityData.freeListingGrantedAt);
         if (!lastGranted) return true; // Never granted before
 
         const oneYearAgo = new Date();
@@ -282,8 +300,8 @@ function LeaderBusinessesContent() {
             let valB = b[key] as any;
             
             if (key === 'createdAt') {
-                valA = valA?.toDate ? valA.toDate().getTime() : 0;
-                valB = valB?.toDate ? valB.toDate().getTime() : 0;
+                valA = safeToDate(valA)?.getTime() ?? 0;
+                valB = safeToDate(valB)?.getTime() ?? 0;
                 return (valA - valB) * order;
             }
 
@@ -402,7 +420,10 @@ function LeaderBusinessesContent() {
                                             <TableCell className="font-medium">{business.businessName}</TableCell>
                                             <TableCell className="capitalize">{business.accountType || 'Business'}</TableCell>
                                             <TableCell className="capitalize">{business.businessCategory?.replace('-', ' & ')}</TableCell>
-                                            <TableCell>{business.createdAt ? format(business.createdAt.toDate(), 'PPP') : 'N/A'}</TableCell>
+                                            <TableCell>{(() => {
+                                                const createdDate = safeToDate(business.createdAt);
+                                                return createdDate ? format(createdDate, 'PPP') : 'N/A';
+                                            })()}</TableCell>
                                             <TableCell>
                                                 <BusinessStatusBadge 
                                                     status={business.status} 
