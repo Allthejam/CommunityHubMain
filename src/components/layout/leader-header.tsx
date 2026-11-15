@@ -43,7 +43,9 @@ import {
   FileDown,
   Printer,
   Landmark,
-  Coins
+  Coins,
+  QrCode,
+  Receipt
 } from 'lucide-react';
 
 import { signOut } from 'firebase/auth';
@@ -107,6 +109,8 @@ const adminSubItems = [
     { href: '/leader/announcements', label: 'Announcements', icon: Megaphone, permission: 'viewAnnouncements' },
     { href: '/leader/marketing', label: 'Marketing', icon: Sparkles, permission: 'viewMarketing' },
     { href: '/leader/financials', label: 'Financials', icon: DollarSign, permission: 'viewFinancials' },
+    { href: '/leader/event-till', label: 'Event Till & QR Pots', icon: QrCode, permission: 'operateEventTill' },
+    { href: '/leader/pos-audit', label: 'POS Audit & Tracking', icon: Receipt, permission: 'overseePosTracking' },
     { href: '/leader/community-value', label: 'Council Value & Proposal', icon: Landmark, permission: 'viewDashboard' },
     { href: '/leader/polls', label: 'Polls', icon: ListTodo, permission: 'viewPolls' },
     { href: '/leader/campaigns', label: 'Petitions', icon: Target, permission: 'viewPolls' },

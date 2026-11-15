@@ -113,6 +113,8 @@ const initialPermissions = {
     emergencyCanSendMessages: false,
     emergencyCanViewAudit: false,
     emergencyCanUpdateCertification: false,
+    operateEventTill: false,
+    overseePosTracking: false,
 };
 
 type TeamMember = {
@@ -223,6 +225,13 @@ const permissionGroups = [
             { key: 'emergencyCanSendMessages', label: 'Action: Publish & Retract Live Public Bulletins' },
             { key: 'emergencyCanViewAudit', label: 'View: Emergency & Compliance Audit Log' },
             { key: 'emergencyCanUpdateCertification', label: 'Action: Sign Off 6-Monthly Statutory Certification' },
+        ]
+    },
+    {
+        title: "Event Till & Fundraising POS",
+        permissions: [
+            { key: 'operateEventTill', label: 'Till Operator: Operate Mobile Event Till & Fundraising QR Pots' },
+            { key: 'overseePosTracking', label: 'Auditor / Treasurer: Oversee POS Tracking, Cash Reconciliation & Audit Ledger' },
         ]
     }
 ];

@@ -99,6 +99,8 @@ export default function LeaderLayout({
       
       if (pathname === '/leader/dashboard' && !hasAccess(permissions, activeRole, 'viewDashboard')) {
           const fallbackRoutes = [
+              { path: '/leader/event-till', permission: 'operateEventTill' },
+              { path: '/leader/pos-audit', permission: 'overseePosTracking' },
               { path: '/leader/reports', permission: 'viewReports' },
               { path: '/leader/members', permission: 'viewUsers' },
               { path: '/leader/news', permission: 'viewNewsManagement' },

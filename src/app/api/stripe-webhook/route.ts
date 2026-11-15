@@ -385,6 +385,136 @@ async function handleInvoicePaymentSucceeded(firestore: any, invoice: Stripe.Inv
     }
 }
 
+/**
+ * COMMUNITY MOBILE TILL & FUNDRAISING QR HANDLER
+ * Transfers net funds to the community's Stripe Connect account and logs an immutable audit record.
+ */
+async function handleCommunityPosOrDonation(session: Stripe.Checkout.Session, purchaseType: string) {
+    const { firestore } = initializeAdminApp();
+    const meta = session.metadata || {};
+    const communityId = meta.cid || meta.communityId;
+    if (!communityId) {
+        console.error("❌ [WEBHOOK POS] Missing communityId in metadata");
+        return;
+    }
+
+    const ledgerRef = firestore.doc(`communities/${communityId}/posAuditLedger/${session.id}`);
+    const existing = await ledgerRef.get();
+    if (existing.exists) {
+        return; // Idempotent guard
+    }
+
+    const totalAmount = session.amount_total || 0;
+    const estimatedFee = Math.round(totalAmount * 0.015 + 20);
+    const netTransfer = Math.max(0, totalAmount - estimatedFee);
+    const transferGroup = meta.tg || session.id;
+
+    let chargeId: string | null = null;
+    const piId = typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id || null;
+
+    if (piId) {
+        try {
+            const pi = await stripe.paymentIntents.retrieve(piId);
+            if (pi.latest_charge) {
+                chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge.id;
+            }
+        } catch (err: any) {
+            console.error("❌ [WEBHOOK POS] Error retrieving charge:", err.message);
+        }
+    }
+
+    const commDoc = await firestore.doc(`communities/${communityId}`).get();
+    const commStripeAccountId = commDoc.data()?.stripeAccountId;
+
+    let stripeTransferId: string | null = null;
+    let transferStatus: 'transferred' | 'pending_connect' | 'failed' = 'pending_connect';
+
+    if (commStripeAccountId && netTransfer > 0) {
+        try {
+            const transferData: any = {
+                amount: netTransfer,
+                currency: 'gbp',
+                destination: commStripeAccountId,
+                transfer_group: transferGroup,
+            };
+            if (chargeId) {
+                transferData.source_transaction = chargeId;
+            }
+            const transfer = await stripe.transfers.create(transferData);
+            stripeTransferId = transfer.id;
+            transferStatus = 'transferred';
+        } catch (err: any) {
+            console.error(`❌ [WEBHOOK POS] Transfer failed for ${communityId}:`, err.message);
+            transferStatus = 'failed';
+        }
+    }
+
+    let parsedItems: any[] = [];
+    if (meta.itemsJson) {
+        try {
+            parsedItems = JSON.parse(meta.itemsJson);
+        } catch {
+            parsedItems = [];
+        }
+    }
+
+    const now = new Date().toISOString();
+    const d = new Date();
+    const ymd = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+    const receiptNumber = `CH-${purchaseType === 'community_pos' ? 'POS' : 'DON'}-${ymd}-${session.id.slice(-4).toUpperCase()}`;
+
+    await ledgerRef.set({
+        receiptNumber,
+        source: purchaseType === 'community_pos' ? 'mobile_till' : 'qr_donation_pot',
+        paymentMethod: 'stripe_qr_card',
+        grossAmountPence: totalAmount,
+        estimatedFeePence: estimatedFee,
+        netTransferPence: netTransfer,
+        currency: session.currency || 'gbp',
+        potId: meta.potId || null,
+        potTitle: meta.potTitle || null,
+        eventName: meta.ev || null,
+        items: parsedItems,
+        operatorUid: meta.opUid || null,
+        operatorName: meta.opName || null,
+        donorName: meta.dn || session.customer_details?.name || null,
+        donorEmail: session.customer_details?.email || null,
+        donorNote: meta.dNote || null,
+        stripeSessionId: session.id,
+        stripePaymentIntentId: piId,
+        stripeTransferId,
+        transferStatus,
+        createdAt: now,
+    });
+
+    if (meta.potId) {
+        try {
+            await firestore.doc(`communities/${communityId}/fundraisingPots/${meta.potId}`).update({
+                totalRaisedPence: FieldValue.increment(totalAmount),
+                totalCardPence: FieldValue.increment(totalAmount),
+                txCount: FieldValue.increment(1),
+                updatedAt: now,
+            });
+        } catch (err) {
+            console.error("❌ [WEBHOOK POS] Failed to increment pot totals:", err);
+        }
+    }
+
+    if (meta.reqId) {
+        try {
+            await firestore.doc(`communities/${communityId}/posPaymentRequests/${meta.reqId}`).update({
+                status: 'paid',
+                paidAt: now,
+                receiptNumber,
+            });
+        } catch (err) {
+            console.error("❌ [WEBHOOK POS] Failed to update posPaymentRequests:", err);
+        }
+    }
+}
+
 export async function POST(req: Request) {
     if (!stripeSecret) return new NextResponse("Missing secret", { status: 500 });
     const body = await req.text();
@@ -411,6 +541,8 @@ export async function POST(req: Request) {
         if (purchaseType === 'cart_checkout') {
             // Background processing
             handleCartCheckout(session).catch(e => console.error("Async Order Error:", e));
+        } else if (purchaseType === 'community_pos' || purchaseType === 'community_donation') {
+            handleCommunityPosOrDonation(session, purchaseType).catch(e => console.error("Async Community POS Error:", e));
         } else if (businessId) {
             syncBusinessStatus(firestore, businessId, session.subscription as string, subscriptionType || 'listing');
         }
