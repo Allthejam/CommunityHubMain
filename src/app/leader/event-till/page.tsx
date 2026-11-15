@@ -18,6 +18,8 @@ import {
   RefreshCw,
   ExternalLink,
   AlertTriangle,
+  HelpCircle,
+  ShieldCheck,
 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -123,6 +125,7 @@ export default function LeaderEventTillPage() {
   const [newPotEvent, setNewPotEvent] = useState('');
   const [newPotPresets, setNewPotPresets] = useState('2, 5, 10, 20');
   const [posterPot, setPosterPot] = useState<FundraisingPot | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   const loadData = async () => {
     if (!user?.uid || !communityId || !canOperateTill) {
@@ -370,7 +373,11 @@ export default function LeaderEventTillPage() {
             {communityName} &bull; Mobile popup-tent POS &amp; printable donation QR codes
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowGuide(true)}>
+            <HelpCircle className="mr-1.5 h-4 w-4 text-primary" />
+            Till Guide &amp; Setup
+          </Button>
           <Button variant="outline" size="sm" onClick={loadData}>
             <RefreshCw className="mr-1.5 h-4 w-4" />
             Refresh
@@ -941,6 +948,98 @@ export default function LeaderEventTillPage() {
               />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* TILL INSTRUCTIONS & SETUP GUIDE MODAL */}
+      <Dialog open={showGuide} onOpenChange={setShowGuide}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <HelpCircle className="h-5 w-5 text-primary" />
+              How to Use the Event Till &amp; Fundraising QR Pots
+            </DialogTitle>
+            <DialogDescription>
+              Step-by-step guide for popup tents, bake sales, stalls, and auditable community fundraising.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm">
+            <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3.5 space-y-1.5">
+              <h3 className="font-semibold text-amber-950 flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                1. Before You Start: Verified Community &amp; Stripe Bank Setup
+              </h3>
+              <p className="text-amber-900">
+                <strong>QR / Card payments &amp; Donation QR Pots</strong> require your community&apos;s Stripe Connect account and bank details to be completed and verified in{' '}
+                <Link href="/leader/financials" className="underline font-semibold" onClick={() => setShowGuide(false)}>
+                  Leader &gt; Financials
+                </Link>
+                .
+              </p>
+              <p className="text-amber-900 text-xs">
+                Note: <strong>Record Cash Sale</strong> still works even before Stripe is connected, so you can log cash-in-tin sales into the audit ledger anytime.
+              </p>
+            </div>
+
+            <div className="rounded-lg border p-3.5 space-y-2">
+              <h3 className="font-semibold flex items-center gap-1.5">
+                <CreditCard className="h-4 w-4 text-primary shrink-0" />
+                2. Option A: Mobile Event Till (At a Stall or Popup Tent)
+              </h3>
+              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                <li>
+                  <strong>Set up quick buttons (once):</strong> Open the <strong>Stall Items</strong> tab to add items like <em>Cupcake £1.50</em>, <em>Tea/Coffee £2.00</em>, or <em>Raffle Strip £5.00</em>.
+                </li>
+                <li>
+                  <strong>Build a basket:</strong> Tap stall items and/or enter a <strong>Custom Amount</strong>. Optionally tag the sale to a Fundraising Pot or Event Name.
+                </li>
+                <li>
+                  <strong>Take QR / Card Payment (No card reader needed):</strong> Tap <strong>Take QR / Card Payment</strong>. A live QR code appears on your phone/tablet—your customer scans it with their phone camera and pays in seconds via <strong>Apple Pay, Google Pay, or Card</strong>. Your till screen automatically updates to <strong>PAID ✓</strong>.
+                </li>
+                <li>
+                  <strong>Record Cash Sale (Optional):</strong> Taking cash in a tin? Tap <strong>Record Cash Sale</strong> (with an optional note) to log it under your name for end-of-day cash reconciliation.
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg border p-3.5 space-y-2">
+              <h3 className="font-semibold flex items-center gap-1.5">
+                <QrCode className="h-4 w-4 text-primary shrink-0" />
+                3. Option B: Fundraising QR Pots (Buckets, Gazebos &amp; Flyers)
+              </h3>
+              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                <li>
+                  Open the <strong>Fundraising QR Pots</strong> tab and create a pot (e.g. <em>Village Hall Roof Appeal</em>) with preset buttons like <code>£2, £5, £10, £20</code>.
+                </li>
+                <li>
+                  Click <strong>QR Poster</strong> to download a crisp PNG or print a ready-to-laminate poster.
+                </li>
+                <li>
+                  Locals scan the poster anytime—even without a Community Hub account—pick an amount, leave an optional message, and pay via Apple Pay, Google Pay, or Card.
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg border p-3.5 space-y-2">
+              <h3 className="font-semibold flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                4. Permissions &amp; 100% Auditability
+              </h3>
+              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                <li>
+                  <strong>Till Operator permission:</strong> Grants volunteers access to this Mobile Event Till &amp; QR Pots only—without exposing the full financial ledger.
+                </li>
+                <li>
+                  <strong>Oversee POS Tracking permission:</strong> Grants Treasurers / Auditors access to the immutable{' '}
+                  <strong>POS Audit Ledger</strong> (showing receipt numbers, operator cash-tin totals, Stripe transfer IDs, and one-click CSV export).
+                </li>
+                <li>
+                  Both permissions can be toggled per team member in <strong>Leader &gt; Community Settings</strong>.
+                </li>
+              </ul>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
