@@ -212,7 +212,7 @@ export async function createCustomerPortalLink(params: { userId: string, returnP
     }
 }
 
-export async function createStripeConnectAccountLinkForCommunity(params: { communityId: string, userId: string }): Promise<ActionResponse> {
+export async function createStripeConnectAccountLinkForCommunity(params: { communityId: string, userId: string, origin?: string }): Promise<ActionResponse> {
     const stripeSecret = process.env.STRIPE_SECRET_KEY;
     if (!stripeSecret) return { success: false, error: "Stripe configuration missing." };
     const stripe = new Stripe(stripeSecret, { apiVersion: '2025-07-30.basil' as any });
@@ -221,7 +221,8 @@ export async function createStripeConnectAccountLinkForCommunity(params: { commu
     try {
         const communityRef = firestore.collection('communities').doc(params.communityId);
         const docSnap = await communityRef.get();
-        let stripeId = docSnap.data()?.stripeAccountId;
+        const commData = docSnap.data();
+        let stripeId = commData?.stripeAccountId;
 
         if (!stripeId) {
             const account = await stripe.accounts.create({ 
@@ -231,17 +232,63 @@ export async function createStripeConnectAccountLinkForCommunity(params: { commu
             });
             stripeId = account.id;
             await communityRef.update({ stripeAccountId: stripeId, stripeAccountOwnerId: params.userId });
+        } else if (commData?.stripeAccountOwnerId !== params.userId) {
+            // Ensure the current leader/admin completing Connect onboarding is recorded as the account owner
+            await communityRef.update({ stripeAccountOwnerId: params.userId });
         }
+
+        const safeOrigin = params.origin && /^https?:\/\//i.test(params.origin)
+            ? params.origin.replace(/\/+$/, '')
+            : (process.env.NEXT_PUBLIC_BASE_URL || 'https://my-community-hub.co.uk');
 
         const link = await stripe.accountLinks.create({
             account: stripeId,
-            refresh_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://my-community-hub.co.uk'}/leader/financials?reauth=true`,
-            return_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://my-community-hub.co.uk'}/leader/financials?stripe_return=true`,
+            refresh_url: `${safeOrigin}/leader/financials?reauth=true`,
+            return_url: `${safeOrigin}/leader/financials?stripe_return=true`,
             type: 'account_onboarding',
         });
         return { success: true, url: link.url };
     } catch (e: any) {
         return { success: false, error: e.message };
+    }
+}
+
+export async function getCommunityStripeStatusAction(communityId: string): Promise<{
+    hasAccount: boolean;
+    connected: boolean;
+    detailsSubmitted: boolean;
+    payoutsEnabled: boolean;
+    transfersActive: boolean;
+}> {
+    const stripeSecret = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecret || !communityId) {
+        return { hasAccount: false, connected: false, detailsSubmitted: false, payoutsEnabled: false, transfersActive: false };
+    }
+
+    try {
+        const { firestore } = initializeAdminApp();
+        const docSnap = await firestore.collection('communities').doc(communityId).get();
+        const stripeId = docSnap.data()?.stripeAccountId;
+        if (!stripeId) {
+            return { hasAccount: false, connected: false, detailsSubmitted: false, payoutsEnabled: false, transfersActive: false };
+        }
+
+        const stripe = new Stripe(stripeSecret, { apiVersion: '2025-07-30.basil' as any });
+        const account = await stripe.accounts.retrieve(stripeId);
+        const detailsSubmitted = Boolean(account.details_submitted);
+        const payoutsEnabled = Boolean(account.payouts_enabled);
+        const transfersActive = account.capabilities?.transfers === 'active';
+
+        return {
+            hasAccount: true,
+            connected: detailsSubmitted && payoutsEnabled && transfersActive,
+            detailsSubmitted,
+            payoutsEnabled,
+            transfersActive,
+        };
+    } catch (e: any) {
+        console.error('[STRIPE STATUS ERROR]', e?.message || e);
+        return { hasAccount: false, connected: false, detailsSubmitted: false, payoutsEnabled: false, transfersActive: false };
     }
 }
 

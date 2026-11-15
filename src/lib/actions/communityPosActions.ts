@@ -71,6 +71,53 @@ function makeReceiptNumber(prefix = 'POS') {
   return `CH-${prefix}-${ymd}-${rand}`;
 }
 
+/**
+ * Verifies that a community has a Stripe Connect account that has completed
+ * onboarding and is enabled for payouts and transfers so funds never remain
+ * in the platform account.
+ */
+async function verifyCommunityStripeConnected(
+  stripeAccountId: string | undefined | null
+): Promise<{ connected: boolean; reason?: string }> {
+  if (!stripeAccountId) {
+    return {
+      connected: false,
+      reason: 'This community has not connected its Stripe account yet (see Leader > Financials).',
+    };
+  }
+
+  const stripeSecret = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecret) {
+    return {
+      connected: false,
+      reason: 'Stripe configuration missing on server.',
+    };
+  }
+
+  try {
+    const stripe = new Stripe(stripeSecret, { apiVersion: '2025-07-30.basil' as any });
+    const account = await stripe.accounts.retrieve(stripeAccountId);
+    const transfersActive = account.capabilities?.transfers === 'active';
+    const isReady = Boolean(account.details_submitted && account.payouts_enabled && transfersActive);
+
+    if (!isReady) {
+      return {
+        connected: false,
+        reason:
+          'This community has not completed its Stripe Connect verification and payout setup yet (see Leader > Financials).',
+      };
+    }
+
+    return { connected: true };
+  } catch (err: any) {
+    console.error('Error verifying community Stripe Connect account:', err?.message || err);
+    return {
+      connected: false,
+      reason: 'Could not verify the community Stripe payout account. Please reconnect in Leader > Financials.',
+    };
+  }
+}
+
 async function verifyCommunityPosPermission(
   firestore: FirebaseFirestore.Firestore,
   uid: string,
@@ -164,10 +211,12 @@ export async function getCommunityPosOverviewAction(params: {
       ...(d.data() as any),
     }));
 
+    const stripeStatus = await verifyCommunityStripeConnected(commData.stripeAccountId);
+
     return {
       success: true,
       communityName: commData.name || 'Community Hub',
-      stripeConnected: Boolean(commData.stripeAccountId),
+      stripeConnected: stripeStatus.connected,
       pots,
       catalog,
     };
@@ -330,10 +379,11 @@ export async function createPosQrCheckoutAction(params: {
 
     const commDoc = await firestore.collection('communities').doc(params.communityId).get();
     const commData = commDoc.data() || {};
-    if (!commData.stripeAccountId) {
+    const stripeStatus = await verifyCommunityStripeConnected(commData.stripeAccountId);
+    if (!stripeStatus.connected) {
       return {
         success: false,
-        error: 'This community has not linked its Stripe bank account yet (see Leader > Financials).',
+        error: stripeStatus.reason || 'This community has not linked its Stripe bank account yet (see Leader > Financials).',
       };
     }
 
@@ -381,8 +431,8 @@ export async function createPosQrCheckoutAction(params: {
     const transferGroup = `tg_pos_${Date.now()}_${requestRef.id.substring(0, 6)}`;
     const stripe = new Stripe(stripeSecret, { apiVersion: '2025-07-30.basil' as any });
 
+    // Omit payment_method_types so Stripe Dynamic Payment Methods offer Apple Pay, Google Pay, Card, Link, Pay by Bank, etc.
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
       mode: 'payment',
       line_items: cleanItems.map((item) => ({
         price_data: {
@@ -635,10 +685,13 @@ export async function getPublicDonatePageDataAction(params: {
       }
     }
 
+    const stripeStatus = await verifyCommunityStripeConnected(commData.stripeAccountId);
+
     return {
       success: true,
       communityName: commData.name || 'Community Hub',
-      stripeConnected: Boolean(commData.stripeAccountId),
+      stripeConnected: stripeStatus.connected,
+      stripeStatusReason: stripeStatus.reason || null,
       pot,
       requestData,
     };
@@ -666,8 +719,12 @@ export async function createPublicDonationCheckoutAction(params: {
     const { firestore } = initializeAdminApp();
     const commDoc = await firestore.collection('communities').doc(params.communityId).get();
     const commData = commDoc.data() || {};
-    if (!commData.stripeAccountId) {
-      return { success: false, error: 'This community has not enabled online Stripe donations yet.' };
+    const stripeStatus = await verifyCommunityStripeConnected(commData.stripeAccountId);
+    if (!stripeStatus.connected) {
+      return {
+        success: false,
+        error: stripeStatus.reason || 'This community has not enabled online Stripe donations yet.',
+      };
     }
 
     let potTitle = `${commData.name || 'Community'} Fundraiser`;
@@ -693,8 +750,8 @@ export async function createPublicDonationCheckoutAction(params: {
     const transferGroup = `tg_don_${Date.now()}_${params.communityId.substring(0, 6)}`;
     const stripe = new Stripe(stripeSecret, { apiVersion: '2025-07-30.basil' as any });
 
+    // Omit payment_method_types so Stripe Dynamic Payment Methods offer Apple Pay, Google Pay, Card, Link, Pay by Bank, etc.
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
       mode: 'payment',
       line_items: [
         {
@@ -773,10 +830,12 @@ export async function getPosAuditLedgerAction(params: {
       ...(d.data() as any),
     }));
 
+    const stripeStatus = await verifyCommunityStripeConnected(commData.stripeAccountId);
+
     return {
       success: true,
       communityName: commData.name || 'Community Hub',
-      stripeConnected: Boolean(commData.stripeAccountId),
+      stripeConnected: stripeStatus.connected,
       entries,
       pots,
     };

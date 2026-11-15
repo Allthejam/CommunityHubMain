@@ -28,6 +28,29 @@ function formatGbp(pence: number) {
   return `£${(pence / 100).toFixed(2)}`;
 }
 
+const SUPPORTED_PAYMENT_METHODS = [
+  'Apple Pay',
+  'Google Pay',
+  'Card',
+  'Link',
+  'Pay by Bank',
+];
+
+function PaymentMethodBadges() {
+  return (
+    <div className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5">
+      {SUPPORTED_PAYMENT_METHODS.map((method) => (
+        <span
+          key={method}
+          className="inline-flex items-center rounded-md border bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+        >
+          {method}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function PublicCommunityDonatePage() {
   const params = useParams<{ communityId: string }>();
   const searchParams = useSearchParams();
@@ -187,6 +210,10 @@ export default function PublicCommunityDonatePage() {
                     </p>
                   )}
                 </div>
+              ) : !stripeConnected ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 text-center">
+                  This community has not finished connecting its Stripe payout account yet. Online payments are disabled until setup is complete—please pay in cash at the stall.
+                </div>
               ) : (
                 <>
                   <div className="rounded-lg border bg-slate-50 p-3 space-y-2 text-sm">
@@ -207,15 +234,18 @@ export default function PublicCommunityDonatePage() {
                   </div>
 
                   {requestData.stripeUrl ? (
-                    <Button
-                      className="w-full h-12 text-base font-semibold"
-                      onClick={() => {
-                        window.location.href = requestData.stripeUrl!;
-                      }}
-                    >
-                      <CreditCard className="mr-2 h-5 w-5" />
-                      Pay {formatGbp(requestData.amountPence)} (Apple Pay / Card)
-                    </Button>
+                    <div>
+                      <Button
+                        className="w-full h-12 text-base font-semibold"
+                        onClick={() => {
+                          window.location.href = requestData.stripeUrl!;
+                        }}
+                      >
+                        <CreditCard className="mr-2 h-5 w-5" />
+                        Pay {formatGbp(requestData.amountPence)}
+                      </Button>
+                      <PaymentMethodBadges />
+                    </div>
                   ) : (
                     <p className="text-sm text-destructive text-center">
                       Checkout link unavailable. Please ask the till volunteer to refresh the QR code.
@@ -325,23 +355,26 @@ export default function PublicCommunityDonatePage() {
                     />
                   </div>
 
-                  <Button
-                    type="submit"
-                    className="w-full h-12 text-base font-semibold"
-                    disabled={submitting || !Number.isFinite(effectivePence) || effectivePence < 100}
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Opening Secure Checkout...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="mr-2 h-5 w-5" />
-                        Pay {Number.isFinite(effectivePence) ? formatGbp(effectivePence) : '£0.00'} (Apple Pay / Card)
-                      </>
-                    )}
-                  </Button>
+                  <div>
+                    <Button
+                      type="submit"
+                      className="w-full h-12 text-base font-semibold"
+                      disabled={submitting || !Number.isFinite(effectivePence) || effectivePence < 100}
+                    >
+                      {submitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Opening Secure Checkout...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="mr-2 h-5 w-5" />
+                          Pay {Number.isFinite(effectivePence) ? formatGbp(effectivePence) : '£0.00'}
+                        </>
+                      )}
+                    </Button>
+                    <PaymentMethodBadges />
+                  </div>
                 </form>
               )}
 

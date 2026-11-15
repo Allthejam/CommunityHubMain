@@ -53,7 +53,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import { createStripeConnectAccountLinkForCommunity, createStripeDashboardLinkForCommunity } from "@/lib/actions/stripeActions";
+import { createStripeConnectAccountLinkForCommunity, createStripeDashboardLinkForCommunity, getCommunityStripeStatusAction } from "@/lib/actions/stripeActions";
 import { getPricingPlans, type Plan, type StorefrontPlan } from "@/lib/actions/pricingActions";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { PaginationControls } from "@/components/ui/pagination";
@@ -182,8 +182,32 @@ export default function FinancialsPage() {
   const [agreed, setAgreed] = React.useState(false);
   const [isAccepting, setIsAccepting] = React.useState(false);
   
-  const isStripeConnected = communityData?.stripeAccountId && communityData?.stripeAccountOwnerId === user?.uid;
-  const isHandoverScenario = communityData?.stripeAccountId && communityData?.stripeAccountOwnerId !== user?.uid;
+  const [stripeLiveStatus, setStripeLiveStatus] = React.useState<{
+    hasAccount: boolean;
+    connected: boolean;
+    detailsSubmitted: boolean;
+    payoutsEnabled: boolean;
+    transfersActive: boolean;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (!communityId || !communityData?.stripeAccountId) {
+      setStripeLiveStatus(null);
+      return;
+    }
+    let cancelled = false;
+    getCommunityStripeStatusAction(communityId).then((res) => {
+      if (!cancelled) setStripeLiveStatus(res);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [communityId, communityData?.stripeAccountId]);
+
+  const isStripeAccountVerified = stripeLiveStatus ? stripeLiveStatus.connected : Boolean(communityData?.stripeAccountId);
+  const isStripeOnboardingIncomplete = Boolean(communityData?.stripeAccountId) && stripeLiveStatus !== null && !stripeLiveStatus.connected;
+  const isHandoverScenario = Boolean(communityData?.stripeAccountId) && Boolean(communityData?.stripeAccountOwnerId) && communityData?.stripeAccountOwnerId !== user?.uid;
+  const isStripeConnected = Boolean(communityData?.stripeAccountId) && isStripeAccountVerified && !isHandoverScenario;
 
 
   React.useEffect(() => {
@@ -358,9 +382,13 @@ export default function FinancialsPage() {
         return;
     }
     setIsRedirecting(true);
-    const result = await createStripeConnectAccountLinkForCommunity({ communityId, userId: user.uid });
+    const result = await createStripeConnectAccountLinkForCommunity({
+      communityId,
+      userId: user.uid,
+      origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+    });
     if (result.url) {
-      router.push(result.url);
+      window.location.href = result.url;
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
       setIsRedirecting(false);
@@ -641,6 +669,16 @@ export default function FinancialsPage() {
                             <h3 className="font-semibold text-green-800 dark:text-green-300">Account Connected &amp; Verified</h3>
                             <p className="text-sm text-green-700 dark:text-green-400">Ready to receive payouts.</p>
                         </div>
+                    ) : isStripeOnboardingIncomplete ? (
+                        <div className="p-6 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex items-center gap-4">
+                            <Clock className="h-10 w-10 text-amber-600 shrink-0" />
+                            <div>
+                                <h3 className="font-semibold text-amber-800 dark:text-amber-300">Stripe Setup Incomplete</h3>
+                                <p className="text-sm text-amber-700 dark:text-amber-400">
+                                    Your Stripe details were saved, but verification or payout activation is still pending. Click below to finish or check your Stripe account.
+                                </p>
+                            </div>
+                        </div>
                     ) : (
                         <div className={cn(
                             "p-6 rounded-lg flex items-center justify-between transition-colors",
@@ -684,7 +722,7 @@ export default function FinancialsPage() {
                                     <div className="w-full">
                                         <Button onClick={handleConnectStripe} disabled={isRedirecting || !canConnectStripe} className="w-full">
                                             {isRedirecting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                            Connect with Stripe
+                                            {isStripeOnboardingIncomplete ? "Continue Stripe Setup" : "Connect with Stripe"}
                                         </Button>
                                     </div>
                                 </TooltipTrigger>
