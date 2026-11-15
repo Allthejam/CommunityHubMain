@@ -151,7 +151,7 @@ export async function claimCommunityLeadershipAction(params: { userId: string, c
             transaction.update(communityRef, {
                 leaderCount: FieldValue.increment(1),
                 status: finalStatus,
-                revenueShare: 40
+                revenueShare: 70
             });
         });
         return { success: true };

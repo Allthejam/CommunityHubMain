@@ -184,7 +184,7 @@ export default function FinancialsPage() {
     let complete = false;
     if (communityData) {
         setIsStripeConnected(!!communityData.stripeAccountId);
-        setCurrentRevenueShare(communityData.revenueShare ?? 40);
+        setCurrentRevenueShare(communityData.revenueShare ?? 70);
         setRevenueShareReason(communityData.revenueShareReason);
         setRevenueShareHistory(communityData.revenueShareHistory?.sort((a: any, b: any) => b.effectiveDate.toDate() - a.effectiveDate.toDate()) || []);
         complete = communityData.status === 'active';
@@ -259,7 +259,7 @@ export default function FinancialsPage() {
             }
         });
 
-        const revenueSharePercentage = (communityData?.revenueShare ?? 40) / 100;
+        const revenueSharePercentage = (communityData?.revenueShare ?? 70) / 100;
         const totalCommunityShare = currentTotalNetIncome * revenueSharePercentage;
         
         setBusinessSubscriptionCount(paidBizCount);
@@ -406,7 +406,7 @@ export default function FinancialsPage() {
             <ShieldAlert className="h-4 w-4" />
             <AlertTitle>Important: Revenue Share Activation</AlertTitle>
             <AlertDescription>
-                Your {currentRevenueShare ?? 40}% community revenue share is only activated once your Stripe account is successfully connected and verified. Until this step is complete, 100% of the revenue generated from your community will be retained by the platform. This is to prevent communities from being held indefinitely without an active leader to receive funds.
+                Your {currentRevenueShare ?? 70}% community revenue share is only activated once your Stripe account is successfully connected and verified. Until this step is complete, 100% of the revenue generated from your community will be retained by the platform. This is to prevent communities from being held indefinitely without an active leader to receive funds.
             </AlertDescription>
         </Alert>
         

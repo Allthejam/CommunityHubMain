@@ -215,7 +215,7 @@ export default function FinancialsPage() {
     
     let complete = false;
     if (communityData) {
-        setCurrentRevenueShare(communityData.revenueShare ?? 40);
+        setCurrentRevenueShare(communityData.revenueShare ?? 70);
         setRevenueShareReason(communityData.revenueShareReason);
         setRevenueShareHistory(communityData.revenueShareHistory?.sort((a: any, b: any) => b.effectiveDate.toDate() - a.effectiveDate.toDate()) || []);
         complete = communityData.status === 'active';
@@ -297,7 +297,7 @@ export default function FinancialsPage() {
         const netStorefrontIncome = totalStorefrontRevenue * (1 - stripeFeePercentage);
         const currentTotalNetIncome = netListingIncome + netStorefrontIncome;
 
-        const revenueSharePercentage = (communityData?.revenueShare ?? 40) / 100;
+        const revenueSharePercentage = (communityData?.revenueShare ?? 70) / 100;
         const currentListingShare = netListingIncome * revenueSharePercentage;
         const currentStorefrontShare = netStorefrontIncome * 0.10; // 10% for storefronts
         const totalCommunityShare = currentListingShare + currentStorefrontShare;
@@ -480,7 +480,7 @@ export default function FinancialsPage() {
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
                         <AlertDescription className="pl-[2.1rem]">
-                            Your {currentRevenueShare ?? 40}% community revenue share is only activated once your Stripe account is successfully connected and verified. Until this step is complete, 100% of the revenue generated from your community will be retained by the platform. This is to prevent communities from being held indefinitely without an active leader to receive funds.
+                            Your {currentRevenueShare ?? 70}% community revenue share is only activated once your Stripe account is successfully connected and verified. Until this step is complete, 100% of the revenue generated from your community will be retained by the platform. This is to prevent communities from being held indefinitely without an active leader to receive funds.
                         </AlertDescription>
                     </AccordionContent>
                 </Alert>
@@ -524,7 +524,7 @@ export default function FinancialsPage() {
                             <Percent className="h-4 w-4 text-muted-foreground" />
                             Community Revenue Share
                         </span>
-                        <span className="text-2xl font-bold text-primary">{currentRevenueShare ?? '40'}%</span>
+                        <span className="text-2xl font-bold text-primary">{currentRevenueShare ?? '70'}%</span>
                     </CardTitle>
                     {revenueShareReason && (
                         <CardDescription className="pt-2">{revenueShareReason}</CardDescription>
@@ -535,7 +535,7 @@ export default function FinancialsPage() {
                     <p className="text-xs text-muted-foreground">This is an estimate for the current month after Stripe processing fees (approx 2.5%).</p>
                      <Separator className="my-2" />
                     <div className="text-xs text-muted-foreground space-y-1">
-                        <div className="flex justify-between"><span>From Listings ({currentRevenueShare ?? '40'}%):</span> <span>{new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(listingShare)}</span></div>
+                        <div className="flex justify-between"><span>From Listings ({currentRevenueShare ?? '70'}%):</span> <span>{new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(listingShare)}</span></div>
                         <div className="flex justify-between"><span>From Storefronts (10%):</span> <span>{new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(storefrontShare)}</span></div>
                     </div>
                 </CardContent>
