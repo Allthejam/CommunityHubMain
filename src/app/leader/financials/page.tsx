@@ -599,38 +599,26 @@ export default function FinancialsPage() {
                 )}
             </Card>
 
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Event Till &amp; QR POS Revenue</CardTitle>
-                    <QrCode className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">
-                        {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(posSummary.totalGrossPence / 100)}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                        {posSummary.txCount} audited POS &amp; QR fundraising transaction{posSummary.txCount === 1 ? '' : 's'}
-                    </p>
-                    <Separator className="my-2" />
-                    <div className="text-xs text-muted-foreground space-y-1">
-                        <div className="flex justify-between">
-                            <span>QR / Card (Net to Stripe):</span>
-                            <span>{new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(posSummary.cardNetPence / 100)}</span>
+             <Card className="flex flex-col justify-between">
+                <div>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Event Till &amp; QR POS Revenue</CardTitle>
+                        <QrCode className="h-4 w-4 text-primary" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(posSummary.totalGrossPence / 100)}
                         </div>
-                        <div className="flex justify-between">
-                            <span>Cash Recorded (In Tin):</span>
-                            <span>{new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(posSummary.cashGrossPence / 100)}</span>
-                        </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" asChild className="h-7 text-xs">
-                            <Link href="/leader/event-till">Open Till</Link>
-                        </Button>
-                        <Button size="sm" variant="ghost" asChild className="h-7 text-xs">
-                            <Link href="/leader/pos-audit">View Audit Ledger</Link>
-                        </Button>
-                    </div>
-                </CardContent>
+                        <p className="text-xs text-muted-foreground">
+                            Total gross raised across {posSummary.txCount} audited POS &amp; QR transaction{posSummary.txCount === 1 ? '' : 's'}
+                        </p>
+                    </CardContent>
+                </div>
+                <CardFooter className="pt-0">
+                    <Button size="sm" variant="outline" asChild className="w-full">
+                        <Link href="/leader/pos-audit">See More Details</Link>
+                    </Button>
+                </CardFooter>
             </Card>
         </div>
         
