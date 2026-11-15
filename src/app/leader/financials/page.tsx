@@ -238,19 +238,6 @@ export default function FinancialsPage() {
         setRevenueShareHistory(communityData.revenueShareHistory?.sort((a: any, b: any) => b.effectiveDate.toDate() - a.effectiveDate.toDate()) || []);
         complete = communityData.status === 'active';
     }
-    if (communityId) {
-      getCommunityPosFinancialSummaryAction({ communityId }).then((res) => {
-        if (res.success) {
-          setPosSummary({
-            totalGrossPence: res.totalGrossPence,
-            cardGrossPence: res.cardGrossPence,
-            cardNetPence: res.cardNetPence,
-            cashGrossPence: res.cashGrossPence,
-            txCount: res.txCount,
-          });
-        }
-      });
-    }
 
     const accepted = !!userProfile?.financialTermsAcceptedAt;
 
@@ -261,6 +248,28 @@ export default function FinancialsPage() {
     setLoadingEligibility(false);
 
   }, [isUserLoading, profileLoading, communityLoading, userProfile, communityData]);
+
+  React.useEffect(() => {
+    if (!communityId) return;
+    let active = true;
+    fetch(`/api/leader/pos-summary?communityId=${encodeURIComponent(communityId)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((res) => {
+        if (active && res?.success) {
+          setPosSummary({
+            totalGrossPence: res.totalGrossPence || 0,
+            cardGrossPence: res.cardGrossPence || 0,
+            cardNetPence: res.cardNetPence || 0,
+            cashGrossPence: res.cashGrossPence || 0,
+            txCount: res.txCount || 0,
+          });
+        }
+      })
+      .catch((err) => console.error('Failed to fetch POS summary:', err));
+    return () => {
+      active = false;
+    };
+  }, [communityId]);
 
   React.useEffect(() => {
     if (userProfile?.role !== 'owner') {
@@ -436,11 +445,14 @@ export default function FinancialsPage() {
     }
     setIsRedirecting(true);
     try {
-      const result = await createStripeDashboardLinkForCommunity(communityId);
-      if (result.url) {
+      const response = await fetch(`/api/stripe/community-dashboard-link?communityId=${encodeURIComponent(communityId)}`, {
+        cache: 'no-store',
+      });
+      const result = await response.json();
+      if (result?.url) {
           window.location.href = result.url;
       } else {
-          toast({ title: "Error", description: result.error || "Could not open Stripe dashboard.", variant: "destructive" });
+          toast({ title: "Error", description: result?.error || "Could not open Stripe dashboard.", variant: "destructive" });
           setIsRedirecting(false);
       }
     } catch (e: any) {
