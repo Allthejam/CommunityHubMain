@@ -379,7 +379,7 @@ function BusinessListingsContent() {
                 <p className="text-sm text-muted-foreground">Base fee per listing.</p>
             </div>
             <div className="p-4 bg-background/80 rounded-lg border">
-              <CardTitle className="text-base flex items-center gap-2 mb-2"><Percent className="h-5 w-5 text-green-500" /> 40% Give-Back</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2 mb-2"><Percent className="h-5 w-5 text-green-500" /> 70% Community Give-Back</CardTitle>
               <p className="text-sm text-muted-foreground">Goes directly to your local area.</p>
             </div>
              <div className="p-4 bg-background/80 rounded-lg border">

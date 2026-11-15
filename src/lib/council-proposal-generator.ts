@@ -312,7 +312,7 @@ export function generateCouncilProposalHtml(data: CouncilProposalData): string {
           EXECUTIVE SUMMARY: WHY COMMUNITY HUB?
         </div>
         <p style="font-size: 7.8pt; color: #0f172a; line-height: 1.35;">
-          This proposal requests Council approval to adopt <strong>Community Hub</strong> as the official digital platform for <strong>${town}</strong>. Community Hub provides a dedicated, algorithm-free mobile app and web portal combining <strong>Virtual High Street shopping, statutory ISO 22301 Civil Emergency readiness, democratic citizen polling, and local courier logistics</strong>. The platform carries <strong>£0 setup, hosting, or maintenance fees</strong> to the Council, and returns <strong>40% to 75%+ of all local business subscription revenue directly to the Council Treasury</strong>.
+          This proposal requests Council approval to adopt <strong>Community Hub</strong> as the official digital platform for <strong>${town}</strong>. Community Hub provides a dedicated, algorithm-free mobile app and web portal combining <strong>Virtual High Street shopping, statutory ISO 22301 Civil Emergency readiness, democratic citizen polling, and local courier logistics</strong>. The platform carries <strong>£0 setup, hosting, or maintenance fees</strong> to the Council, and returns <strong>70% to 80%+ of all local business subscription revenue directly to the Council Treasury</strong>.
         </p>
       </div>
 
@@ -455,9 +455,9 @@ export function generateCouncilProposalHtml(data: CouncilProposalData): string {
             <td><strong>Small Rural Village</strong></td>
             <td>15 businesses</td>
             <td>5 storefronts</td>
-            <td>40% (£8/mo)</td>
-            <td>£125.00 / mo</td>
-            <td><strong>£1,500.00 / yr</strong></td>
+            <td>70% (£14/mo)</td>
+            <td>£215.00 / mo</td>
+            <td><strong>£2,580.00 / yr</strong></td>
           </tr>
           <tr>
             <td><strong>Market Town (Target for ${town})</strong></td>

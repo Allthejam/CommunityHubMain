@@ -58,7 +58,7 @@ export function BusinessesCard({ communityId: propCommunityId }: { communityId?:
                         </Badge>
                     ) : (
                         <Badge variant="outline" className="bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-[10px] font-semibold">
-                            40% Rev Share
+                            70% Rev Share
                         </Badge>
                     )}
                 </div>

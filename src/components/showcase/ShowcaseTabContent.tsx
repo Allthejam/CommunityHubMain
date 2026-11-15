@@ -511,7 +511,7 @@ export function ShowcaseTabContent({ personaKey }: { personaKey: ShowcasePersona
                   <span className="text-xs font-bold text-slate-400 font-mono">Starter Tier</span>
                 </div>
                 <div>
-                  <h4 className="text-xl font-black text-white">40% Community Share</h4>
+                  <h4 className="text-xl font-black text-white">70% Community Share</h4>
                   <p className="text-2xl font-black text-amber-400 pt-1 font-mono">£8.00 <span className="text-xs text-slate-400 font-normal">/ month per active business</span></p>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">

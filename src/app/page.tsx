@@ -457,7 +457,7 @@ export default function SignInPage() {
                 <span>Community Councils & Leaders</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Lead your town hub, coordinate ISO 22301-aligned civil resilience playbooks, and earn a 40% revenue share.
+                Lead your town hub, coordinate ISO 22301-aligned civil resilience playbooks, and earn a 70% revenue share.
               </p>
             </div>
             <div className="mt-3 flex items-center text-xs font-medium text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform">

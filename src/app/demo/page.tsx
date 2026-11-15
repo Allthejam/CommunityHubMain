@@ -160,7 +160,7 @@ function DemoGatewayContent() {
               )}
               <div className="flex items-center justify-between">
                 <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px]">
-                  Leadership Tier (40% Rev Share)
+                  Leadership Tier (70% Rev Share)
                 </Badge>
                 <Crown className="h-5 w-5 text-emerald-400" />
               </div>

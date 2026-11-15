@@ -640,7 +640,7 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
                 </DialogHeader>
                 <div className="py-4">
                     <p className="text-sm text-muted-foreground">
-                        As a Community Leader, you can manage content, approve businesses, and earn a 40% share of the revenue generated from your community hub. Would you like to be considered for this role?
+                        As a Community Leader, you can manage content, approve businesses, and earn a 70% share of the revenue generated from your community hub. Would you like to be considered for this role?
                     </p>
                 </div>
                 <DialogFooter className="justify-between">

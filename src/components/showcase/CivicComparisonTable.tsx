@@ -24,7 +24,7 @@ const COMPARISON_POINTS = [
   {
     category: 'Public Purse & Council Budget',
     legacy: 'Council budgets drained by web developer maintenance fees, software subscription licenses, and expensive printed newsletter distribution.',
-    communityHub: '£0 Upfront Cost to the Council. Self-funds through local commercial participation and returns 40% to 75%+ (£1,500–£20,000+/yr) to your treasury.',
+    communityHub: '£0 Upfront Cost to the Council. Self-funds through local commercial participation and returns 70% to 80%+ (£2,500–£20,000+/yr) to your treasury.',
   },
   {
     category: 'Democratic Consensus & Polling',

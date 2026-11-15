@@ -62,7 +62,7 @@ const accountTypes = [
     title: 'Community Leader',
     description: 'Manage a community hub, moderate content, and earn revenue.',
     href: '/demo/signup/leader',
-    details: "Select this option if you have been invited to or want to apply to run a community hub that does not yet have representation on the platform. Or, you may wish to create your very own community from scratch. As a Community Leader, you will be responsible for managing content, approving businesses, Adverts and Events and fostering a positive online environment. Leaders can earn 40% of the revenue generated from their community.",
+    details: "Select this option if you have been invited to or want to apply to run a community hub that does not yet have representation on the platform. Or, you may wish to create your very own community from scratch. As a Community Leader, you will be responsible for managing content, approving businesses, Adverts and Events and fostering a positive online environment. Leaders can earn 70% of the revenue generated from their community.",
     audioTourId: "61e42e62-4271-4c56-99e5-6cc135a3cfe2"
   },
   {

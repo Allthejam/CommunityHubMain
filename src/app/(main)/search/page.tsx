@@ -512,7 +512,7 @@ function SearchContent() {
                                   <div className="mt-3.5 p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
                                     <Crown className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                                     <div className="text-xs text-foreground leading-relaxed">
-                                      <strong className="text-amber-700 dark:text-amber-300 font-bold">Leadership Opportunity:</strong> This community currently has no registered leader. Community Leaders earn a <strong className="font-bold">40% revenue share</strong> from all local business and premium subscriptions.
+                                      <strong className="text-amber-700 dark:text-amber-300 font-bold">Leadership Opportunity:</strong> This community currently has no registered leader. Community Leaders earn a <strong className="font-bold">70% revenue share</strong> from all local business and premium subscriptions.
                                     </div>
                                   </div>
                                 )}

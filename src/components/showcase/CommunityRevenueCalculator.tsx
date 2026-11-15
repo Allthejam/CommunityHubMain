@@ -59,7 +59,7 @@ export function CommunityRevenueCalculator({
     if (isDiscretionaryMode) {
       return discretionaryRate;
     }
-    return directoryCount > 50 ? 60 : 40;
+    return directoryCount > 50 ? 75 : 70;
   }, [isDiscretionaryMode, discretionaryRate, directoryCount]);
 
   const directoryCommunityAmountPerSub = (DIRECTORY_PRICE * directorySplitPercent) / 100;
@@ -154,7 +154,7 @@ export function CommunityRevenueCalculator({
               ) : (
                 <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-xs font-semibold gap-1">
                   <TrendingUp className="h-3 w-3" />
-                  {directoryCount > 50 ? 'Tier 2: 60% Community Share' : 'Tier 1: 40% Community Share'}
+                  {directoryCount > 50 ? 'Tier 2: 75% Community Share' : 'Tier 1: 70% Community Share'}
                 </Badge>
               )}
             </div>
@@ -344,7 +344,7 @@ export function CommunityRevenueCalculator({
                 Community Tier & Discretionary Rural Support Model:
               </span>
               <p className="text-xs text-slate-950 dark:text-white font-medium">
-                Standard automatic tiers are 40% (1–50) and 60% (51+). The Platform Owner can manually award small rural villages or model towns a 75%–90% grant.
+                Standard automatic tiers are 70% (1–50) and 75% (51+). The Platform Owner can manually award small rural villages or model towns a 80%–90% grant.
               </p>
             </div>
 
@@ -356,7 +356,7 @@ export function CommunityRevenueCalculator({
                 className="text-xs font-bold h-8"
                 onClick={() => setIsDiscretionaryMode(false)}
               >
-                Standard Tiers (40% / 60%)
+                Standard Tiers (70% / 75%)
               </Button>
               <Button
                 type="button"
@@ -365,7 +365,7 @@ export function CommunityRevenueCalculator({
                 className="text-xs font-bold h-8 border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10"
                 onClick={() => setIsDiscretionaryMode(true)}
               >
-                Simulate Owner Grant (75%–90%)
+                Simulate Owner Grant (80%–90%)
               </Button>
             </div>
           </div>
@@ -376,7 +376,7 @@ export function CommunityRevenueCalculator({
                 Select Discretionary Grant Stake Rate:
               </span>
               <div className="flex items-center gap-1.5">
-                {[75, 85, 90].map((rate) => (
+                {[80, 85, 90].map((rate) => (
                   <button
                     key={rate}
                     type="button"

@@ -512,7 +512,7 @@ export default function ShoppingHeader() {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Confirm Leadership of {visitedCommunityData?.name}</DialogTitle></DialogHeader>
-                  <div className="py-4"><p className="text-sm text-muted-foreground">As a leader, you will earn a <strong>40% revenue share</strong> from subscriptions in this community.</p></div>
+                  <div className="py-4"><p className="text-sm text-muted-foreground">As a leader, you will earn a <strong>70% revenue share</strong> from subscriptions in this community.</p></div>
                   <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button onClick={handleClaimLeadership} disabled={isSwitching}>{isSwitching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirm & Become Leader</Button></DialogFooter>
                 </DialogContent>
               </Dialog>

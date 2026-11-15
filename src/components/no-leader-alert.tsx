@@ -88,7 +88,7 @@ export function NoLeaderAlert({ communityId, userProfile }: NoLeaderAlertProps) 
                             </div>
                             <div>
                                 <h4 className="font-semibold">Earn Real Revenue</h4>
-                                <p className="text-sm text-muted-foreground">Receive a <strong>40% share</strong> of all business subscription revenue generated in your community hub. Turn your community passion into a source of income.</p>
+                                <p className="text-sm text-muted-foreground">Receive a <strong>70% share</strong> of all business subscription revenue generated in your community hub. Turn your community passion into a source of income.</p>
                             </div>
                         </div>
                          <div className="flex items-start gap-4">
@@ -136,7 +136,7 @@ export function NoLeaderAlert({ communityId, userProfile }: NoLeaderAlertProps) 
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
-                        <p className="text-sm text-muted-foreground">As a leader, you will be responsible for managing content, approving businesses, and fostering a positive environment. You will also earn a <strong>40% revenue share</strong> from subscriptions in this community.</p>
+                        <p className="text-sm text-muted-foreground">As a leader, you will be responsible for managing content, approving businesses, and fostering a positive environment. You will also earn a <strong>70% revenue share</strong> from subscriptions in this community.</p>
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>

@@ -367,7 +367,7 @@ export function ShowcaseContent({
                 Community Council &amp; Leader Value Guide
               </Badge>
               <span className="text-xs text-emerald-400 font-semibold">
-                £0 Public Cost • 40% to 75%+ Revenue Share
+                £0 Public Cost • 70% to 80%+ Revenue Share
               </span>
             </div>
             <h3 className="text-xl sm:text-2xl font-black text-white font-headline">

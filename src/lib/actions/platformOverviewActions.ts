@@ -60,7 +60,7 @@ const initialContent: OverviewContent = {
         {
             icon: "DollarSign",
             title: "Sustainable Revenue Share Model",
-            description: "Community Leaders earn a 40% share of local business subscription revenue, creating a self-sustaining model that funds community projects or leader income."
+            description: "Community Leaders earn a 70% share of local business subscription revenue, creating a self-sustaining model that funds community projects or leader income."
         }
     ],
     accountTypes: [

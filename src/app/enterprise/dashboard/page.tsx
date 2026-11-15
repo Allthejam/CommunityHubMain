@@ -422,7 +422,7 @@ function EnterpriseDashboardPageContent() {
                         <p className="flex items-center gap-2 font-medium"><ShoppingBag className="h-4 w-4 text-primary"/> Up to {enterprisePlan?.adverts ?? '20'} free adverts</p>
                         <p className="flex items-center gap-2 font-medium"><Calendar className="h-4 w-4 text-primary"/> Up to {enterprisePlan?.events ?? '12'} events/year</p>
                         <p className="flex items-center gap-2"><GalleryHorizontal className="h-4 w-4 text-primary"/> {enterprisePlan?.galleryImages ?? '50'} gallery images</p>
-                        <p className="flex items-center gap-2 text-green-600 font-semibold"><Percent className="h-4 w-4"/> 40% Community Give-Back</p>
+                        <p className="flex items-center gap-2 text-green-600 font-semibold"><Percent className="h-4 w-4"/> 70% Community Give-Back</p>
                       </>
                     )}
                 </CardContent>
