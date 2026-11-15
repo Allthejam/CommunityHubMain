@@ -293,19 +293,25 @@ export async function getCommunityStripeStatusAction(communityId: string): Promi
 }
 
 export async function createStripeDashboardLinkForCommunity(communityId: string): Promise<ActionResponse> {
-    const stripeSecret = process.env.STRIPE_SECRET_KEY;
-    if (!stripeSecret) return { success: false, error: "Stripe configuration missing." };
-    const stripe = new Stripe(stripeSecret, { apiVersion: '2025-07-30.basil' as any });
-
-    const { firestore } = initializeAdminApp();
     try {
+        const stripeSecret = process.env.STRIPE_SECRET_KEY;
+        if (!stripeSecret) return { success: false, error: "Stripe configuration missing." };
+        if (!communityId) return { success: false, error: "Community ID is missing." };
+
+        const stripe = new Stripe(stripeSecret, { apiVersion: '2025-07-30.basil' as any });
+        const { firestore } = initializeAdminApp();
+
         const docSnap = await firestore.collection('communities').doc(communityId).get();
         const stripeId = docSnap.data()?.stripeAccountId;
-        if (!stripeId) throw new Error("Stripe account not found.");
+        if (!stripeId) {
+            return { success: false, error: "Stripe account not found for this community." };
+        }
+
         const link = await stripe.accounts.createLoginLink(stripeId);
         return { success: true, url: link.url };
     } catch (e: any) {
-        return { success: false, error: e.message };
+        console.error('[STRIPE DASHBOARD LINK ERROR]', e?.message || e);
+        return { success: false, error: e?.message || "Failed to open Stripe dashboard." };
     }
 }
 
