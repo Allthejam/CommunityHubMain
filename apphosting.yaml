@@ -33,3 +33,8 @@ scheduledTasks:
     timeZone: "Etc/UTC"
     uri: /api/cron/cleanup-expired-reports
     httpMethod: get
+  - id: brevo-heartbeat
+    schedule: "0 8 1,15 * *"
+    timeZone: "Etc/UTC"
+    uri: /api/cron/brevo-heartbeat
+    httpMethod: get
