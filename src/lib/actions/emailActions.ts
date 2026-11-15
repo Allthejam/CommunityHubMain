@@ -1,5 +1,6 @@
-
 'use server';
+
+import { initializeAdminApp } from '@/firebase/admin-app';
 
 type ActionResponse = {
   success: boolean;
@@ -13,26 +14,55 @@ interface EmailRecipient {
 
 interface EmailParams {
   to: EmailRecipient[];
+  bcc?: EmailRecipient[];
   subject: string;
   htmlContent: string;
 }
 
-export async function sendEmail(params: EmailParams): Promise<ActionResponse> {
-  const { to, subject, htmlContent } = params;
+let cachedBrevoConfig: { apiKey: string; senderEmail: string } | null = null;
 
-  if (!process.env.BREVO_API_KEY) {
+async function getBrevoConfig(): Promise<{ apiKey: string; senderEmail: string } | null> {
+  const envKey = process.env.BREVO_API_KEY;
+  const envSender = process.env.BREVO_SENDER_EMAIL || 'info@my-community-hub.co.uk';
+  if (envKey) {
+    return { apiKey: envKey, senderEmail: envSender };
+  }
+
+  if (cachedBrevoConfig) {
+    return cachedBrevoConfig;
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const doc = await firestore.collection('platform_settings').doc('brevo').get();
+    if (doc.exists) {
+      const data = doc.data();
+      if (data?.apiKey) {
+        cachedBrevoConfig = {
+          apiKey: data.apiKey,
+          senderEmail: data.senderEmail || envSender,
+        };
+        return cachedBrevoConfig;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load Brevo config from platform_settings/brevo:', err);
+  }
+
+  return null;
+}
+
+export async function sendEmail(params: EmailParams): Promise<ActionResponse> {
+  const { to, bcc, subject, htmlContent } = params;
+
+  const config = await getBrevoConfig();
+  if (!config?.apiKey) {
     console.error('Brevo API key is not configured.');
     return { success: false, error: 'Email service is not configured on the server.' };
   }
 
-  const senderEmail = process.env.BREVO_SENDER_EMAIL;
-  if (!senderEmail) {
-    console.error('Brevo sender email is not configured.');
-    return { success: false, error: 'Email service sender is not configured.' };
-  }
-
   const sender = {
-    email: senderEmail,
+    email: config.senderEmail,
     name: 'Community Hub',
   };
 
@@ -42,12 +72,12 @@ export async function sendEmail(params: EmailParams): Promise<ActionResponse> {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'api-key': process.env.BREVO_API_KEY,
+        'api-key': config.apiKey,
       },
       body: JSON.stringify({
         sender,
-        to: [{ email: sender.email, name: sender.name }], // Send to self to satisfy 'to' field requirement
-        bcc: to, // Use bcc for actual recipients to ensure privacy
+        to: to && to.length > 0 ? to : [{ email: sender.email, name: sender.name }],
+        ...(bcc && bcc.length > 0 ? { bcc } : {}),
         subject,
         htmlContent,
       }),

@@ -9,7 +9,8 @@ runConfig:
 env:
   - variable: NEXT_PUBLIC_VAPID_PUBLIC_KEY
     value: BGl1ZM5bQwHkzV_0gXhyTCSjJDn-Hz_0PqQAeP1EQk2_A1kjc7yWCZOgjKZScUTUcUB2G1BaNW3bmaV6SZqEFA4
-
+  - variable: BREVO_SENDER_EMAIL
+    value: info@my-community-hub.co.uk
 
 scheduledTasks:
   - id: check-free-listings
