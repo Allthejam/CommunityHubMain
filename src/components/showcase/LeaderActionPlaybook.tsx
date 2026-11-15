@@ -39,7 +39,7 @@ export function LeaderActionPlaybook() {
           We Provide the Engine — You Drive the High Street
         </CardTitle>
         <CardDescription className="text-sm sm:text-base text-slate-950 dark:text-white font-medium mt-2 leading-relaxed max-w-4xl">
-          Community Hub provides the entire cloud infrastructure, mobile apps, payment rails, emergency broadcast sirens, and marketing assets at <strong>£0 upfront cost to the Council</strong>. But software alone cannot knock on shop doors — a thriving digital town square requires <strong>active local leadership to invite and onboard high street businesses</strong>.
+          Community Hub provides the entire cloud infrastructure, mobile apps, Event Till &amp; QR donation terminals, 70% treasury revenue share, emergency broadcast sirens, and marketing assets at <strong>£0 upfront cost to the Council</strong>. But software alone cannot knock on shop doors — a thriving digital town square requires <strong>active local leadership to invite and onboard high street businesses</strong>.
         </CardDescription>
       </CardHeader>
 
@@ -73,7 +73,7 @@ export function LeaderActionPlaybook() {
                   Walk the High Street with Ready Packs
                 </h4>
                 <p className="text-xs text-slate-950 dark:text-white font-medium leading-relaxed">
-                  Print our ready-made 1-Page Merchant Pitch Flyers. Show your butchers, bakers, cafés, and trades how £20/mo gives them an interactive mobile presence while funding community projects.
+                  Print our ready-made 1-Page Merchant Pitch Flyers. Show your butchers, bakers, cafés, and trades how £20/mo gives them an interactive mobile presence while <strong>70% (£14/mo)</strong> directly funds town projects.
                 </p>
               </div>
               <div className="pt-2 border-t text-[11px] text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1">
