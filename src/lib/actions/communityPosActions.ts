@@ -897,3 +897,73 @@ export async function getPosAuditLedgerAction(params: {
     return { success: false, error: error.message || 'Failed to load POS audit ledger.' };
   }
 }
+
+export async function getCommunityPosFinancialSummaryAction(params: {
+  communityId: string;
+}): Promise<{
+  success: boolean;
+  totalGrossPence: number;
+  cardGrossPence: number;
+  cardNetPence: number;
+  cashGrossPence: number;
+  txCount: number;
+  error?: string;
+}> {
+  try {
+    if (!params.communityId) {
+      return {
+        success: false,
+        totalGrossPence: 0,
+        cardGrossPence: 0,
+        cardNetPence: 0,
+        cashGrossPence: 0,
+        txCount: 0,
+        error: 'Missing communityId.',
+      };
+    }
+
+    const { firestore } = initializeAdminApp();
+    const snap = await firestore
+      .collection('communities')
+      .doc(params.communityId)
+      .collection('posAuditLedger')
+      .get();
+
+    let totalGrossPence = 0;
+    let cardGrossPence = 0;
+    let cardNetPence = 0;
+    let cashGrossPence = 0;
+
+    for (const d of snap.docs) {
+      const data = d.data() || {};
+      const gross = Number(data.grossAmountPence || 0);
+      const net = Number(data.netTransferPence || gross);
+      totalGrossPence += gross;
+      if (data.paymentMethod === 'cash') {
+        cashGrossPence += gross;
+      } else {
+        cardGrossPence += gross;
+        cardNetPence += net;
+      }
+    }
+
+    return {
+      success: true,
+      totalGrossPence,
+      cardGrossPence,
+      cardNetPence,
+      cashGrossPence,
+      txCount: snap.size,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      totalGrossPence: 0,
+      cardGrossPence: 0,
+      cardNetPence: 0,
+      cashGrossPence: 0,
+      txCount: 0,
+      error: error.message,
+    };
+  }
+}

@@ -25,6 +25,7 @@ import {
     Info,
     ShieldAlert,
     AlertTriangle,
+    QrCode,
 } from "lucide-react";
 import { collection, query, where, onSnapshot, getDoc, doc } from "firebase/firestore";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
@@ -54,6 +55,7 @@ import { cn } from "@/lib/utils"
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { createStripeConnectAccountLinkForCommunity, createStripeDashboardLinkForCommunity, getCommunityStripeStatusAction } from "@/lib/actions/stripeActions";
+import { getCommunityPosFinancialSummaryAction } from "@/lib/actions/communityPosActions";
 import { getPricingPlans, type Plan, type StorefrontPlan } from "@/lib/actions/pricingActions";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { PaginationControls } from "@/components/ui/pagination";
@@ -172,6 +174,19 @@ export default function FinancialsPage() {
   const [currentRevenueShare, setCurrentRevenueShare] = React.useState<number | null>(null);
   const [revenueShareReason, setRevenueShareReason] = React.useState<string | null>(null);
   const [revenueShareHistory, setRevenueShareHistory] = React.useState<any[]>([]);
+  const [posSummary, setPosSummary] = React.useState<{
+    totalGrossPence: number;
+    cardGrossPence: number;
+    cardNetPence: number;
+    cashGrossPence: number;
+    txCount: number;
+  }>({
+    totalGrossPence: 0,
+    cardGrossPence: 0,
+    cardNetPence: 0,
+    cashGrossPence: 0,
+    txCount: 0,
+  });
 
   const impersonating = (userProfile as any)?.impersonating;
   const communityId = impersonating?.communityId || userProfile?.communityId;
@@ -215,10 +230,26 @@ export default function FinancialsPage() {
     
     let complete = false;
     if (communityData) {
-        setCurrentRevenueShare(communityData.revenueShare ?? 70);
+        const effectiveShare = (!communityData.revenueShare || (communityData.revenueShare === 40 && !communityData.revenueShareReason && !(communityData.revenueShareHistory?.length > 0)))
+          ? 70
+          : communityData.revenueShare;
+        setCurrentRevenueShare(effectiveShare);
         setRevenueShareReason(communityData.revenueShareReason);
         setRevenueShareHistory(communityData.revenueShareHistory?.sort((a: any, b: any) => b.effectiveDate.toDate() - a.effectiveDate.toDate()) || []);
         complete = communityData.status === 'active';
+    }
+    if (communityId) {
+      getCommunityPosFinancialSummaryAction({ communityId }).then((res) => {
+        if (res.success) {
+          setPosSummary({
+            totalGrossPence: res.totalGrossPence,
+            cardGrossPence: res.cardGrossPence,
+            cardNetPence: res.cardNetPence,
+            cashGrossPence: res.cashGrossPence,
+            txCount: res.txCount,
+          });
+        }
+      });
     }
 
     const accepted = !!userProfile?.financialTermsAcceptedAt;
@@ -297,7 +328,10 @@ export default function FinancialsPage() {
         const netStorefrontIncome = totalStorefrontRevenue * (1 - stripeFeePercentage);
         const currentTotalNetIncome = netListingIncome + netStorefrontIncome;
 
-        const revenueSharePercentage = (communityData?.revenueShare ?? 70) / 100;
+        const effectiveShare = (!communityData?.revenueShare || (communityData?.revenueShare === 40 && !communityData?.revenueShareReason && !(communityData?.revenueShareHistory?.length > 0)))
+          ? 70
+          : communityData.revenueShare;
+        const revenueSharePercentage = effectiveShare / 100;
         const currentListingShare = netListingIncome * revenueSharePercentage;
         const currentStorefrontShare = netStorefrontIncome * 0.10; // 10% for storefronts
         const totalCommunityShare = currentListingShare + currentStorefrontShare;
@@ -401,12 +435,17 @@ export default function FinancialsPage() {
         return;
     }
     setIsRedirecting(true);
-    const result = await createStripeDashboardLinkForCommunity(communityId);
-    if (result.url) {
-        router.push(result.url);
-    } else {
-        toast({ title: "Error", description: result.error, variant: "destructive" });
-        setIsRedirecting(false);
+    try {
+      const result = await createStripeDashboardLinkForCommunity(communityId);
+      if (result.url) {
+          window.location.href = result.url;
+      } else {
+          toast({ title: "Error", description: result.error || "Could not open Stripe dashboard.", variant: "destructive" });
+          setIsRedirecting(false);
+      }
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message || "Could not open Stripe dashboard.", variant: "destructive" });
+      setIsRedirecting(false);
     }
   }
   
@@ -503,7 +542,7 @@ export default function FinancialsPage() {
             </AccordionItem>
         </Accordion>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Monthly Net Income (from your community)</CardTitle>
@@ -558,6 +597,40 @@ export default function FinancialsPage() {
                         </Accordion>
                     </CardFooter>
                 )}
+            </Card>
+
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Event Till &amp; QR POS Revenue</CardTitle>
+                    <QrCode className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">
+                        {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(posSummary.totalGrossPence / 100)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        {posSummary.txCount} audited POS &amp; QR fundraising transaction{posSummary.txCount === 1 ? '' : 's'}
+                    </p>
+                    <Separator className="my-2" />
+                    <div className="text-xs text-muted-foreground space-y-1">
+                        <div className="flex justify-between">
+                            <span>QR / Card (Net to Stripe):</span>
+                            <span>{new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(posSummary.cardNetPence / 100)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span>Cash Recorded (In Tin):</span>
+                            <span>{new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(posSummary.cashGrossPence / 100)}</span>
+                        </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" asChild className="h-7 text-xs">
+                            <Link href="/leader/event-till">Open Till</Link>
+                        </Button>
+                        <Button size="sm" variant="ghost" asChild className="h-7 text-xs">
+                            <Link href="/leader/pos-audit">View Audit Ledger</Link>
+                        </Button>
+                    </div>
+                </CardContent>
             </Card>
         </div>
         
