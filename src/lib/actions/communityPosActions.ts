@@ -122,6 +122,40 @@ async function verifyCommunityStripeConnected(
   }
 }
 
+export type PosUnlockStatus = {
+  unlocked: boolean;
+  activePaidSubscriptions: number;
+  requiredSubscriptions: number;
+  isAdminOverride: boolean;
+};
+
+async function getCommunityPosUnlockStatus(
+  firestore: FirebaseFirestore.Firestore,
+  communityId: string,
+  commData?: Record<string, any>
+): Promise<PosUnlockStatus> {
+  const requiredSubscriptions = 3;
+  const isAdminOverride = commData?.posCardUnlockedOverride === true;
+
+  const snap = await firestore
+    .collection('businesses')
+    .where('primaryCommunityId', '==', communityId)
+    .where('status', '==', 'Subscribed')
+    .get();
+
+  const activePaidSubscriptions = snap.docs.filter((d) => {
+    const data = d.data() || {};
+    return data.isFreeListing !== true;
+  }).length;
+
+  return {
+    unlocked: isAdminOverride || activePaidSubscriptions >= requiredSubscriptions,
+    activePaidSubscriptions,
+    requiredSubscriptions,
+    isAdminOverride,
+  };
+}
+
 async function verifyCommunityPosPermission(
   firestore: FirebaseFirestore.Firestore,
   uid: string,
@@ -215,12 +249,16 @@ export async function getCommunityPosOverviewAction(params: {
       ...(d.data() as any),
     }));
 
-    const stripeStatus = await verifyCommunityStripeConnected(commData.stripeAccountId);
+    const [stripeStatus, unlockStatus] = await Promise.all([
+      verifyCommunityStripeConnected(commData.stripeAccountId),
+      getCommunityPosUnlockStatus(firestore, params.communityId, commData),
+    ]);
 
     return {
       success: true,
       communityName: commData.name || 'Community Hub',
       stripeConnected: stripeStatus.connected,
+      unlockStatus,
       pots,
       catalog,
     };
@@ -383,6 +421,14 @@ export async function createPosQrCheckoutAction(params: {
 
     const commDoc = await firestore.collection('communities').doc(params.communityId).get();
     const commData = commDoc.data() || {};
+    const unlockStatus = await getCommunityPosUnlockStatus(firestore, params.communityId, commData);
+    if (!unlockStatus.unlocked) {
+      return {
+        success: false,
+        error: `QR / Card payments unlock once your community reaches ${unlockStatus.requiredSubscriptions} active paid business subscriptions (${unlockStatus.activePaidSubscriptions}/${unlockStatus.requiredSubscriptions} active).`,
+      };
+    }
+
     const stripeStatus = await verifyCommunityStripeConnected(commData.stripeAccountId);
     if (!stripeStatus.connected) {
       return {
@@ -734,13 +780,17 @@ export async function getPublicDonatePageDataAction(params: {
       }
     }
 
-    const stripeStatus = await verifyCommunityStripeConnected(commData.stripeAccountId);
+    const [stripeStatus, unlockStatus] = await Promise.all([
+      verifyCommunityStripeConnected(commData.stripeAccountId),
+      getCommunityPosUnlockStatus(firestore, params.communityId, commData),
+    ]);
 
     return {
       success: true,
       communityName: commData.name || 'Community Hub',
       stripeConnected: stripeStatus.connected,
       stripeStatusReason: stripeStatus.reason || null,
+      unlockStatus,
       pot,
       requestData,
     };
@@ -768,6 +818,14 @@ export async function createPublicDonationCheckoutAction(params: {
     const { firestore } = initializeAdminApp();
     const commDoc = await firestore.collection('communities').doc(params.communityId).get();
     const commData = commDoc.data() || {};
+    const unlockStatus = await getCommunityPosUnlockStatus(firestore, params.communityId, commData);
+    if (!unlockStatus.unlocked) {
+      return {
+        success: false,
+        error: `QR / Card payments unlock once your community reaches ${unlockStatus.requiredSubscriptions} active paid business subscriptions (${unlockStatus.activePaidSubscriptions}/${unlockStatus.requiredSubscriptions} active).`,
+      };
+    }
+
     const stripeStatus = await verifyCommunityStripeConnected(commData.stripeAccountId);
     if (!stripeStatus.connected) {
       return {

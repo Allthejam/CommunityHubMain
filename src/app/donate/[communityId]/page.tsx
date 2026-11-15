@@ -67,6 +67,7 @@ export default function PublicCommunityDonatePage() {
   const [error, setError] = useState<string | null>(null);
   const [communityName, setCommunityName] = useState('Community Hub');
   const [stripeConnected, setStripeConnected] = useState(false);
+  const [isPosUnlocked, setIsPosUnlocked] = useState(true);
   const [pot, setPot] = useState<FundraisingPot | null>(null);
   const [requestData, setRequestData] = useState<{
     id: string;
@@ -106,6 +107,7 @@ export default function PublicCommunityDonatePage() {
         } else {
           setCommunityName(res.communityName || 'Community Hub');
           setStripeConnected(Boolean(res.stripeConnected));
+          setIsPosUnlocked(res.unlockStatus ? res.unlockStatus.unlocked : true);
           setPot(res.pot || null);
           setRequestData(res.requestData || null);
           if (res.pot?.presetAmounts?.length) {
@@ -287,7 +289,11 @@ export default function PublicCommunityDonatePage() {
             </CardHeader>
 
             <CardContent>
-              {!stripeConnected ? (
+              {!isPosUnlocked ? (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 text-center">
+                  Online QR &amp; Card donations for <strong>{communityName}</strong> will unlock once the community reaches 3 active local business partners. Thank you for your support!
+                </div>
+              ) : !stripeConnected ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 text-center">
                   This community is still finishing its Stripe bank setup. Please check back soon or donate in person at the stall.
                 </div>

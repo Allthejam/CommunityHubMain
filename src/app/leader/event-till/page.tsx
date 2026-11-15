@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   HelpCircle,
   ShieldCheck,
+  Lock,
 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -59,6 +60,7 @@ import {
   type FundraisingPot,
   type PosCatalogItem,
   type PosLineItem,
+  type PosUnlockStatus,
 } from '@/lib/actions/communityPosActions';
 
 function formatGbp(pence: number) {
@@ -93,6 +95,12 @@ export default function LeaderEventTillPage() {
   const [loading, setLoading] = useState(true);
   const [communityName, setCommunityName] = useState('Community Hub');
   const [stripeConnected, setStripeConnected] = useState(false);
+  const [unlockStatus, setUnlockStatus] = useState<PosUnlockStatus>({
+    unlocked: true,
+    activePaidSubscriptions: 0,
+    requiredSubscriptions: 3,
+    isAdminOverride: false,
+  });
   const [pots, setPots] = useState<FundraisingPot[]>([]);
   const [catalog, setCatalog] = useState<PosCatalogItem[]>([]);
 
@@ -137,6 +145,7 @@ export default function LeaderEventTillPage() {
     if (res.success) {
       setCommunityName(res.communityName || 'Community Hub');
       setStripeConnected(Boolean(res.stripeConnected));
+      if (res.unlockStatus) setUnlockStatus(res.unlockStatus);
       setPots(res.pots || []);
       setCatalog(res.catalog || []);
     } else {
@@ -411,6 +420,49 @@ export default function LeaderEventTillPage() {
         </Card>
       )}
 
+      {!unlockStatus.unlocked ? (
+        <Card className="border-blue-300 bg-blue-50/70">
+          <CardContent className="py-4 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-start gap-2.5 text-blue-950 text-sm">
+                <Lock className="h-5 w-5 shrink-0 text-blue-600 mt-0.5" />
+                <div>
+                  <p className="font-semibold">
+                    QR &amp; Card Payments Locked ({unlockStatus.activePaidSubscriptions} / {unlockStatus.requiredSubscriptions} Active Business Subscriptions)
+                  </p>
+                  <p className="text-xs text-blue-900/90 mt-0.5">
+                    Live QR, Apple Pay, Google Pay &amp; Card payments will automatically unlock once your community reaches{' '}
+                    <strong>{unlockStatus.requiredSubscriptions} active paid business subscriptions</strong>{' '}
+                    (this covers Stripe Connect running costs so your community keeps 100% net of every fundraising pound).
+                    You can still set up Stall Items, Fundraising Pots, and use <strong>Record Cash Sale</strong> right now!
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" asChild className="shrink-0">
+                <Link href="/leader/businesses">View Businesses</Link>
+              </Button>
+            </div>
+            <div className="w-full h-2 rounded-full bg-blue-200 overflow-hidden">
+              <div
+                className="h-full bg-blue-600 transition-all"
+                style={{
+                  width: `${Math.min(100, Math.round((unlockStatus.activePaidSubscriptions / unlockStatus.requiredSubscriptions) * 100))}%`,
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      ) : unlockStatus.isAdminOverride && unlockStatus.activePaidSubscriptions < unlockStatus.requiredSubscriptions ? (
+        <Card className="border-emerald-300 bg-emerald-50/70">
+          <CardContent className="py-3 flex items-center justify-between gap-3 text-sm text-emerald-900">
+            <span className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+              <strong>Sample / Pilot Access Enabled:</strong> QR &amp; Card payments are temporarily unlocked by Platform Admin ({unlockStatus.activePaidSubscriptions}/{unlockStatus.requiredSubscriptions} business subscriptions).
+            </span>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Tabs defaultValue="till" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3 max-w-xl">
           <TabsTrigger value="till">Mobile Event Till</TabsTrigger>
@@ -610,15 +662,24 @@ export default function LeaderEventTillPage() {
                     <Button
                       type="button"
                       className="w-full h-12 text-base font-semibold"
-                      disabled={processingAction || basketTotalPence < 50 || !stripeConnected}
+                      disabled={processingAction || basketTotalPence < 50 || !stripeConnected || !unlockStatus.unlocked}
                       onClick={handleStartQrPayment}
                     >
-                      {processingAction ? (
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      {!unlockStatus.unlocked ? (
+                        <>
+                          <Lock className="mr-2 h-5 w-5" />
+                          QR / Card Locked ({unlockStatus.activePaidSubscriptions}/{unlockStatus.requiredSubscriptions} Business Subs)
+                        </>
                       ) : (
-                        <CreditCard className="mr-2 h-5 w-5" />
+                        <>
+                          {processingAction ? (
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          ) : (
+                            <CreditCard className="mr-2 h-5 w-5" />
+                          )}
+                          Take QR / Card Payment
+                        </>
                       )}
-                      Take QR / Card Payment
                     </Button>
 
                     <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
