@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   getPublicDonatePageDataAction,
   createPublicDonationCheckoutAction,
+  confirmCommunityPosCheckoutSessionAction,
   type FundraisingPot,
   type PosLineItem,
 } from '@/lib/actions/communityPosActions';
@@ -59,6 +60,8 @@ export default function PublicCommunityDonatePage() {
   const potId = searchParams.get('pot');
   const requestId = searchParams.get('req');
   const status = searchParams.get('status');
+  const sessionId = searchParams.get('session_id');
+  const [confirmedReceipt, setConfirmedReceipt] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +84,17 @@ export default function PublicCommunityDonatePage() {
   const [donorName, setDonorName] = useState('');
   const [donorNote, setDonorNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!communityId || status !== 'success' || !sessionId) return;
+    confirmCommunityPosCheckoutSessionAction({ communityId, sessionId })
+      .then((res) => {
+        if (res.success && res.receiptNumber) {
+          setConfirmedReceipt(res.receiptNumber);
+        }
+      })
+      .catch(() => {});
+  }, [communityId, status, sessionId]);
 
   useEffect(() => {
     if (!communityId) return;
@@ -159,9 +173,9 @@ export default function PublicCommunityDonatePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
-              {requestData?.receiptNumber && (
+              {(confirmedReceipt || requestData?.receiptNumber) && (
                 <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-emerald-900 font-mono text-xs">
-                  Receipt Ref: {requestData.receiptNumber}
+                  Receipt Ref: {confirmedReceipt || requestData?.receiptNumber}
                 </div>
               )}
               <p>

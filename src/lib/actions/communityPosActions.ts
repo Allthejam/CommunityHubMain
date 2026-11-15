@@ -3,6 +3,10 @@
 import Stripe from 'stripe';
 import { FieldValue } from 'firebase-admin/firestore';
 import { initializeAdminApp } from '@/firebase/admin-app';
+import {
+  calculateEstimatedStripeFeePence,
+  syncCommunityCheckoutSession,
+} from '@/lib/stripe/communityPosSync';
 
 export type PosLineItem = {
   id?: string;
@@ -445,9 +449,13 @@ export async function createPosQrCheckoutAction(params: {
         quantity: item.qty,
       })),
       payment_intent_data: {
+        application_fee_amount: calculateEstimatedStripeFeePence(totalPence),
+        transfer_data: {
+          destination: commData.stripeAccountId,
+        },
         transfer_group: transferGroup,
       },
-      success_url: `${baseUrl}/donate/${params.communityId}?status=success&req=${requestRef.id}`,
+      success_url: `${baseUrl}/donate/${params.communityId}?status=success&req=${requestRef.id}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/donate/${params.communityId}?status=cancelled&req=${requestRef.id}`,
       metadata: {
         pt: 'community_pos',
@@ -510,6 +518,26 @@ export async function getPosPaymentRequestStatusAction(params: {
     }
 
     const data = docSnap.data() || {};
+
+    if (data.status === 'pending' && data.stripeSessionId && process.env.STRIPE_SECRET_KEY) {
+      try {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+          apiVersion: '2025-07-30.basil' as any,
+        });
+        const syncRes = await syncCommunityCheckoutSession(stripe, data.stripeSessionId);
+        if (syncRes.synced) {
+          return {
+            success: true,
+            status: 'paid' as const,
+            paidAt: new Date().toISOString(),
+            receiptNumber: syncRes.receiptNumber || null,
+          };
+        }
+      } catch (err) {
+        console.error('Error syncing pending POS request with Stripe:', err);
+      }
+    }
+
     return {
       success: true,
       status: data.status as 'pending' | 'paid' | 'cancelled',
@@ -517,6 +545,27 @@ export async function getPosPaymentRequestStatusAction(params: {
       receiptNumber: data.receiptNumber || null,
     };
   } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function confirmCommunityPosCheckoutSessionAction(params: {
+  communityId: string;
+  sessionId: string;
+}) {
+  try {
+    const stripeSecret = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecret || !params.sessionId || !params.communityId) {
+      return { success: false };
+    }
+    const stripe = new Stripe(stripeSecret, { apiVersion: '2025-07-30.basil' as any });
+    const syncRes = await syncCommunityCheckoutSession(stripe, params.sessionId);
+    return {
+      success: syncRes.synced,
+      receiptNumber: syncRes.receiptNumber || null,
+    };
+  } catch (error: any) {
+    console.error('Error confirming POS checkout session:', error);
     return { success: false, error: error.message };
   }
 }
@@ -767,9 +816,13 @@ export async function createPublicDonationCheckoutAction(params: {
         },
       ],
       payment_intent_data: {
+        application_fee_amount: calculateEstimatedStripeFeePence(amountPence),
+        transfer_data: {
+          destination: commData.stripeAccountId,
+        },
         transfer_group: transferGroup,
       },
-      success_url: `${baseUrl}/donate/${params.communityId}?status=success${params.potId ? `&pot=${params.potId}` : ''}`,
+      success_url: `${baseUrl}/donate/${params.communityId}?status=success&session_id={CHECKOUT_SESSION_ID}${params.potId ? `&pot=${params.potId}` : ''}`,
       cancel_url: `${baseUrl}/donate/${params.communityId}?status=cancelled${params.potId ? `&pot=${params.potId}` : ''}`,
       metadata: {
         pt: 'community_donation',

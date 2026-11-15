@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { initializeAdminApp } from '@/firebase/admin-app';
 import { Timestamp, FieldValue, FieldPath } from 'firebase-admin/firestore';
+import { syncCommunityCheckoutSession } from '@/lib/stripe/communityPosSync';
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const stripe = new Stripe(stripeSecret!, { apiVersion: '2025-07-30.basil' as any });
@@ -542,7 +543,11 @@ export async function POST(req: Request) {
             // Background processing
             handleCartCheckout(session).catch(e => console.error("Async Order Error:", e));
         } else if (purchaseType === 'community_pos' || purchaseType === 'community_donation') {
-            handleCommunityPosOrDonation(session, purchaseType).catch(e => console.error("Async Community POS Error:", e));
+            try {
+                await syncCommunityCheckoutSession(stripe, session);
+            } catch (e) {
+                console.error("Community POS Webhook Error:", e);
+            }
         } else if (businessId) {
             syncBusinessStatus(firestore, businessId, session.subscription as string, subscriptionType || 'listing');
         }
