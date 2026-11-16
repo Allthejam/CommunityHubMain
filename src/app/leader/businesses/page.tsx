@@ -71,7 +71,8 @@ const TABS: { value: string; label: string }[] = [
     { value: "all", label: "All" },
     { value: "Pending Approval", label: "Pending" },
     { value: "Approved", label: "Trial" },
-    { value: "Subscribed", label: "Subscribed" },
+    { value: "Unclaimed", label: "Unclaimed" },
+    { value: "Subscribed", label: "Live / Subscribed" },
     { value: "Requires Amendment", label: "Amendment Req." },
     { value: "Hidden", label: "Hidden" },
     { value: "Declined", label: "Declined" },
@@ -289,7 +290,13 @@ function LeaderBusinessesContent() {
     const sortedAndFilteredBusinesses = React.useMemo(() => {
         let filtered = businesses;
         if (activeTab !== "all") {
-            filtered = businesses.filter(b => b.status === activeTab);
+            if (activeTab === "Unclaimed") {
+                filtered = businesses.filter(b => Boolean((b as any).isUnclaimed) || (b.status as any) === "Unclaimed");
+            } else if (activeTab === "Approved") {
+                filtered = businesses.filter(b => b.status === "Approved" && !(b as any).isUnclaimed);
+            } else {
+                filtered = businesses.filter(b => b.status === activeTab);
+            }
         }
 
         return [...filtered].sort((a, b) => {
@@ -430,6 +437,10 @@ function LeaderBusinessesContent() {
                                                     createdAt={business.createdAt}
                                                     isFreeListing={business.isFreeListing}
                                                     freeListingExpiresAt={business.freeListingExpiresAt}
+                                                    listingSubscriptionStatus={business.listingSubscriptionStatus}
+                                                    listingSubscriptionExpiresAt={business.listingSubscriptionExpiresAt}
+                                                    isUnclaimed={Boolean((business as any).isUnclaimed)}
+                                                    now={new Date()}
                                                 />
                                             </TableCell>
                                             <TableCell className="text-right">

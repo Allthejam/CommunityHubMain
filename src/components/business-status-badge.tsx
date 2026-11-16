@@ -81,11 +81,11 @@ export const BusinessStatusBadge = ({
       );
   }
 
-  if (!nowProp) {
+  if (false && !nowProp) {
       return null;
   }
   
-  const now = nowProp;
+  const now = nowProp || new Date();
   let configKey = status as string;
   let displayText = status as string;
   let secondaryText = "";
@@ -121,6 +121,7 @@ export const BusinessStatusBadge = ({
         displayText = `Cancels ${safeFormat(expiryDate, 'dd MMM')}`;
     }
   } else if (status === 'Subscribed') {
+    displayText = 'Live';
     const expiryDate = toDate(listingSubscriptionExpiresAt);
     if (expiryDate && now > expiryDate) {
         configKey = "Subscription Expired";
