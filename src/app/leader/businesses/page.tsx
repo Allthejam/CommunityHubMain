@@ -73,6 +73,8 @@ const TABS: { value: string; label: string }[] = [
     { value: "Approved", label: "Trial" },
     { value: "Unclaimed", label: "Unclaimed" },
     { value: "Subscribed", label: "Live / Subscribed" },
+    { value: "Subscription Expired", label: "Expired" },
+    { value: "Pending Cancellation", label: "Cancelled" },
     { value: "Requires Amendment", label: "Amendment Req." },
     { value: "Hidden", label: "Hidden" },
     { value: "Declined", label: "Declined" },
@@ -190,6 +192,11 @@ function LeaderBusinessesContent() {
     }, [communityId, isUserLoading, profileLoading, db, toast]);
     
     const handleUpdateStatus = async (businessId: string, status: BusinessListing['status'], reason?: string) => {
+        const targetBiz = businesses.find((b) => b.id === businessId);
+        if (targetBiz && (Boolean((targetBiz as any).isUnclaimed) || (targetBiz.status as any) === 'Unclaimed') && status === 'Approved') {
+            toast({ title: 'Claim Required', description: 'Unclaimed listings must be claimed by a business account before they can be approved.', variant: 'destructive' });
+            return;
+        }
         const result = await updateBusinessStatusAction({ businessId, status, amendmentReason: reason });
         if (result.success) {
             toast({ title: 'Status Updated', description: `Business status changed to ${status}.` });
@@ -294,6 +301,10 @@ function LeaderBusinessesContent() {
                 filtered = businesses.filter(b => Boolean((b as any).isUnclaimed) || (b.status as any) === "Unclaimed");
             } else if (activeTab === "Approved") {
                 filtered = businesses.filter(b => b.status === "Approved" && !(b as any).isUnclaimed);
+            } else if (activeTab === "Subscription Expired") {
+                filtered = businesses.filter(b => b.status === "Subscription Expired" || b.status === "Trial Expired");
+            } else if (activeTab === "Pending Cancellation") {
+                filtered = businesses.filter(b => b.status === "Pending Cancellation" || (b.status as any) === "Cancelled" || b.listingSubscriptionStatus === "pending_cancellation");
             } else {
                 filtered = businesses.filter(b => b.status === activeTab);
             }
@@ -452,7 +463,7 @@ function LeaderBusinessesContent() {
                                                         <DropdownMenuItem onClick={() => router.push(`/businesses/${business.id}`)}><Eye className="mr-2 h-4 w-4" />View Listing</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => router.push(`/business/businesses/edit/${business.id}`)}><FileEdit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        {(business.status === 'Pending Approval' || business.status === 'Approved') && (
+                                                        {!(business as any).isUnclaimed && (business.status as any) !== 'Unclaimed' && (business.status === 'Pending Approval' || business.status === 'Approved') && (
                                                             <>
                                                                 <DropdownMenuItem disabled={!isStripeConnected} onSelect={(e) => { e.preventDefault(); handleUpdateStatus(business.id, 'Approved'); }}><CheckCircle className="mr-2 h-4 w-4" /> Approve</DropdownMenuItem>
                                                                 <DropdownMenuItem disabled={!isFreeListingAvailable} onSelect={(e) => { e.preventDefault(); setBusinessToChampion(business); setIsFreeListingDialogOpen(true); }}><Gift className="mr-2 h-4 w-4 text-green-500" />Approve as Free Listing</DropdownMenuItem>

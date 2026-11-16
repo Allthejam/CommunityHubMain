@@ -17,6 +17,7 @@ export type BusinessStatus =
   | "Hidden"
   | "Subscription Expired"
   | "Pending Cancellation"
+  | "Cancelled"
   | "Payment Failed"
   | "Trial Expired"
   | "Orphaned"
@@ -33,6 +34,7 @@ const statusConfig: Record<string, { className: string; text: string; icon: Reac
     "Hidden": { icon: EyeOff, text: "Hidden", className: "bg-gray-100 text-gray-800" },
     "Subscription Expired": { icon: XCircle, text: "Subscription Expired", className: "bg-red-100 text-red-800" },
     "Pending Cancellation": { icon: Clock, text: "Cancels on", className: "bg-amber-100 text-amber-800" },
+    "Cancelled": { icon: XCircle, text: "Cancelled", className: "bg-slate-100 text-slate-700" },
     "Payment Failed": { icon: AlertTriangle, text: "Payment Failed", className: "bg-red-100 text-red-800" },
     "Orphaned": { icon: AlertTriangle, text: "Orphaned", className: "bg-destructive text-destructive-foreground animate-pulse" },
     "None": { icon: XCircle, text: "None", className: "bg-muted text-muted-foreground opacity-50" },
@@ -90,7 +92,7 @@ export const BusinessStatusBadge = ({
   let displayText = status as string;
   let secondaryText = "";
 
-  if (status === 'Payment Failed') {
+  if (status === 'Payment Failed' || listingSubscriptionStatus === 'payment_failed') {
       configKey = 'Payment Failed';
       displayText = 'Payment Failed';
   } else if (status === 'Orphaned') {
@@ -114,7 +116,14 @@ export const BusinessStatusBadge = ({
             </Badge>
         </div>
     );
-  } else if (status === 'Pending Cancellation') {
+  } else if (status === ('Cancelled' as any)) {
+      configKey = 'Cancelled';
+      displayText = 'Cancelled';
+  } else if (status === 'Pending Cancellation' || listingSubscriptionStatus === 'pending_cancellation') {
+    const expiryDate = toDate(listingSubscriptionExpiresAt);
+    configKey = 'Pending Cancellation';
+    displayText = expiryDate ? `Cancels ${safeFormat(expiryDate, 'dd MMM')}` : 'Cancelled';
+  } else if (false && status === 'Pending Cancellation') {
     const expiryDate = toDate(listingSubscriptionExpiresAt);
     if (expiryDate) {
         configKey = 'Pending Cancellation';
