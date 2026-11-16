@@ -362,58 +362,68 @@ export default function CommunityAboutPage() {
                 )}
 
                 {/* Local EV Charge Points */}
-                {((aboutData.evChargers && aboutData.evChargers.length > 0) || isDemo) && (
-                    <div className="pt-8 border-t">
-                        <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+                <div className="pt-8 border-t">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
                             <h2 className="text-2xl font-bold font-headline flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
                                 <Zap className="h-6 w-6" /> Local EV Charge Points
                             </h2>
-                            <Button asChild variant="outline" size="sm" className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50">
-                                <Link href={`${demoPrefix}/defibrillators-and-ev`}>
-                                    <MapPin className="h-4 w-4" /> View on Interactive Map
-                                </Link>
-                            </Button>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Find electric vehicle charging bays, connector speeds, and exact street locations in {communityName || 'the community'}.
+                            </p>
                         </div>
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 shrink-0 shadow-sm">
+                            <Link href={`${demoPrefix}/defibrillators-and-ev`}>
+                                <Navigation className="h-4 w-4" /> Open Full AED &amp; EV Map
+                            </Link>
+                        </Button>
+                    </div>
+                    {((aboutData.evChargers && aboutData.evChargers.length > 0) || isDemo) ? (
+                        <div className="grid gap-4 sm:grid-cols-2">
                             {(aboutData.evChargers && aboutData.evChargers.length > 0 ? aboutData.evChargers : defaultDemoEvChargers).map((charger, index) => {
                                 const dest = charger.lat && charger.lng ? `${charger.lat},${charger.lng}` : encodeURIComponent(charger.address);
                                 const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
                                 return (
                                     <Card key={charger.id || index} className="border-2 border-emerald-100 dark:border-emerald-950/60 bg-emerald-50/20 dark:bg-emerald-950/10 shadow-xs flex flex-col justify-between">
                                         <CardHeader className="p-4 pb-2">
-                                            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${charger.accessType === '24_7' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                                                    {charger.accessType === '24_7' ? '● 24/7 Access' : '● Restricted Hours'}
+                                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${charger.accessType === '24_7' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'}`}>
+                                                    {charger.accessType === '24_7' ? '● 24/7 Public Access' : '● Restricted Hours'}
                                                 </span>
                                                 {charger.powerKw && (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
                                                         {charger.powerKw}
                                                     </span>
                                                 )}
                                                 {charger.connectorType && (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-800">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
                                                         {charger.connectorType}
                                                     </span>
                                                 )}
                                             </div>
                                             <CardTitle className="text-base font-bold text-foreground leading-snug">{charger.name}</CardTitle>
-                                            <CardDescription className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                                <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                                                <span className="line-clamp-1">{charger.address}</span>
+                                            <CardDescription className="text-xs text-muted-foreground flex items-start gap-1 mt-1">
+                                                <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-600 mt-0.5" />
+                                                <span>{charger.address}</span>
                                             </CardDescription>
                                         </CardHeader>
-                                        <CardContent className="p-4 pt-0 pb-3 text-xs text-muted-foreground space-y-1">
+                                        <CardContent className="p-4 pt-0 pb-3 text-xs text-muted-foreground space-y-1.5">
+                                            {typeof charger.lat === 'number' && typeof charger.lng === 'number' && (
+                                                <p className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400">
+                                                    Location: {charger.lat.toFixed(5)}, {charger.lng.toFixed(5)}
+                                                </p>
+                                            )}
                                             {charger.operatorName && (
                                                 <p>Network: <strong className="text-foreground">{charger.operatorName}</strong>{charger.baysCount ? ` • ${charger.baysCount} bays` : ''}</p>
                                             )}
                                             {charger.locationNotes && (
-                                                <p className="italic bg-muted/40 p-2 rounded-md">{charger.locationNotes}</p>
+                                                <p className="italic bg-muted/40 p-2 rounded-md">&ldquo;{charger.locationNotes}&rdquo;</p>
                                             )}
                                         </CardContent>
-                                        <CardFooter className="p-4 pt-0">
+                                        <CardFooter className="p-4 pt-0 flex gap-2">
                                             <Button asChild size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1.5 shadow-xs">
                                                 <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-                                                    <Navigation className="h-3.5 w-3.5" /> Directions
+                                                    <Navigation className="h-3.5 w-3.5" /> Get Directions
                                                 </a>
                                             </Button>
                                         </CardFooter>
@@ -421,8 +431,14 @@ export default function CommunityAboutPage() {
                                 );
                             })}
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        <Card className="border-dashed bg-muted/20">
+                            <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                                No EV charge points listed for this community yet. Community leaders can add charging locations in <strong>Leader &gt; About Page</strong>.
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
 
                 {/* Useful Contacts */}
                 {aboutData.usefulInformation && aboutData.usefulInformation.length > 0 && (
