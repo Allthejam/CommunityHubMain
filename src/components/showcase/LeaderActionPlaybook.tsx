@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -130,24 +131,30 @@ export function LeaderActionPlaybook() {
               Ready-Made Advertising Artwork, Posters & Outreach Scripts
             </h4>
             <p className="text-xs text-slate-950 dark:text-white font-medium max-w-2xl leading-relaxed">
-              We provide downloadable shop window window-stickers, QR code posters, merchant onboarding email templates, and high-impact social media graphics ready for immediate use.
+              We provide downloadable shop window stickers, QR code posters, merchant onboarding email templates, and high-impact social media graphics ready for immediate use.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-2.5 shrink-0 w-full sm:w-auto">
-            <Button asChild size="default" className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs gap-1.5 shadow-md w-full sm:w-auto h-10 px-5">
-              <Link href="/demo/login?role=leader&redirect=/demo/leader/marketing">
-                <Crown className="h-4 w-4" />
-                <span>Launch Leader Toolkit (Demo)</span>
-              </Link>
-            </Button>
-            <Button asChild size="default" variant="outline" className="font-bold text-xs gap-1.5 border-2 w-full sm:w-auto h-10 px-4 bg-card hover:bg-muted text-foreground">
-              <Link href="/showcase?persona=leader#roles">
-                <Compass className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Explore Leader Features</span>
-              </Link>
-            </Button>
-          </div>
+          {(() => {
+            const pathname = usePathname();
+            const isLiveLeader = pathname?.startsWith('/leader');
+            return (
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 shrink-0 w-full sm:w-auto">
+                <Button asChild size="default" className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs gap-1.5 shadow-md w-full sm:w-auto h-10 px-5">
+                  <Link href={isLiveLeader ? '/leader/marketing' : '/demo/login?role=leader&redirect=/demo/leader/marketing'}>
+                    <Crown className="h-4 w-4" />
+                    <span>{isLiveLeader ? 'Open Marketing Materials' : 'Launch Leader Toolkit (Demo)'}</span>
+                  </Link>
+                </Button>
+                <Button asChild size="default" variant="outline" className="font-bold text-xs gap-1.5 border-2 w-full sm:w-auto h-10 px-4 bg-card hover:bg-muted text-foreground">
+                  <Link href={isLiveLeader ? '/leader/dashboard' : '/showcase?persona=leader#roles'}>
+                    <Compass className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>{isLiveLeader ? 'Back to Leader Console' : 'Explore Leader Features'}</span>
+                  </Link>
+                </Button>
+              </div>
+            );
+          })()}
         </div>
       </CardContent>
     </Card>
