@@ -46,11 +46,13 @@ import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogClose,
 } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { uploadImageAction } from '@/lib/actions/storageActions';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -978,7 +980,7 @@ export default function LeaderAboutPage() {
                           setIsEvDialogOpen(true);
                         }}
                       >
-                        <Edit className="h-3.5 w-3.5" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         type="button"
