@@ -58,12 +58,14 @@ export default function LeaderCommunityValuePage() {
   const { data: businesses } = useCollection(businessesQuery);
 
   const activeBusinessCount = businesses?.length || 24;
+  const [sliderDirectoryCount, setSliderDirectoryCount] = React.useState<number>(Math.max(activeBusinessCount, 15));
+  const [sliderStorefrontCount, setSliderStorefrontCount] = React.useState<number>(Math.round(Math.max(activeBusinessCount, 15) * 0.35));
 
   const handle1ClickCouncilPack = () => {
     triggerCouncilProposalPdf({
       townshipName: communityName,
-      directoryCount: activeBusinessCount,
-      storefrontCount: Math.round(activeBusinessCount * 0.4),
+      directoryCount: sliderDirectoryCount,
+      storefrontCount: sliderStorefrontCount,
       meetingDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
     });
   };
@@ -116,6 +118,10 @@ export default function LeaderCommunityValuePage() {
           communityName={communityName}
           initialDirectoryCount={Math.max(activeBusinessCount, 15)}
           initialStorefrontCount={Math.round(Math.max(activeBusinessCount, 15) * 0.35)}
+          onValuesChange={({ directoryCount, storefrontCount }) => {
+            setSliderDirectoryCount(directoryCount);
+            setSliderStorefrontCount(storefrontCount);
+          }}
         />
       </section>
 
@@ -128,8 +134,8 @@ export default function LeaderCommunityValuePage() {
       <section className="space-y-4">
         <CouncilProposalDownload
           defaultTownName={communityName}
-          defaultDirectoryCount={Math.max(activeBusinessCount, 25)}
-          defaultStorefrontCount={Math.round(Math.max(activeBusinessCount, 25) * 0.4)}
+          defaultDirectoryCount={sliderDirectoryCount}
+          defaultStorefrontCount={sliderStorefrontCount}
         />
       </section>
 

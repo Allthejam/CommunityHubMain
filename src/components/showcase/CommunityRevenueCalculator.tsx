@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,7 @@ export interface CommunityRevenueCalculatorProps {
   initialStorefrontCount?: number;
   communityName?: string;
   className?: string;
+  onValuesChange?: (values: { directoryCount: number; storefrontCount: number }) => void;
 }
 
 export function CommunityRevenueCalculator({
@@ -40,27 +41,25 @@ export function CommunityRevenueCalculator({
   initialStorefrontCount = 8,
   communityName,
   className = '',
+  onValuesChange,
 }: CommunityRevenueCalculatorProps) {
   const [directoryCount, setDirectoryCount] = useState<number>(initialDirectoryCount);
   const [storefrontCount, setStorefrontCount] = useState<number>(initialStorefrontCount);
   const [isAnnual, setIsAnnual] = useState<boolean>(true);
-  const [isDiscretionaryMode, setIsDiscretionaryMode] = useState<boolean>(false);
-  const [discretionaryRate, setDiscretionaryRate] = useState<number>(85); // 75, 85, or 90
 
   // Constrain storefronts if directory count drops below storefront count
   const effectiveStorefrontCount = Math.min(storefrontCount, directoryCount);
+
+  useEffect(() => {
+    onValuesChange?.({ directoryCount, storefrontCount: effectiveStorefrontCount });
+  }, [directoryCount, effectiveStorefrontCount, onValuesChange]);
 
   // Pricing constants
   const DIRECTORY_PRICE = 20; // £20 / month
   const STOREFRONT_PRICE = 10; // £10 / month
 
-  // Directory split calculations
-  const directorySplitPercent = useMemo(() => {
-    if (isDiscretionaryMode) {
-      return discretionaryRate;
-    }
-    return directoryCount > 50 ? 75 : 70;
-  }, [isDiscretionaryMode, discretionaryRate, directoryCount]);
+  // Flat 70% Community / 30% Admin split for business & enterprise listings
+  const directorySplitPercent = 70;
 
   const directoryCommunityAmountPerSub = (DIRECTORY_PRICE * directorySplitPercent) / 100;
   const directoryPlatformAmountPerSub = DIRECTORY_PRICE - directoryCommunityAmountPerSub;
@@ -74,12 +73,14 @@ export function CommunityRevenueCalculator({
   const monthlyStorefrontToPlatform = effectiveStorefrontCount * 5.0; // 50%
 
   // Totals
+  const monthlyTotalGross = (directoryCount * DIRECTORY_PRICE) + (effectiveStorefrontCount * STOREFRONT_PRICE);
   const monthlyTotalCommunity = monthlyDirectoryToCommunity + monthlyStorefrontToCommunity;
   const monthlyTotalCourier = monthlyStorefrontToCourier;
   const monthlyTotalPlatform = monthlyDirectoryToPlatform + monthlyStorefrontToPlatform;
   const monthlyTotalLocalEconomyRetained = monthlyTotalCommunity + monthlyTotalCourier;
 
   const multiplier = isAnnual ? 12 : 1;
+  const displayGrossGenerated = monthlyTotalGross * multiplier;
   const displayCommunityFund = monthlyTotalCommunity * multiplier;
   const displayCourierFund = monthlyTotalCourier * multiplier;
   const displayLocalRetained = monthlyTotalLocalEconomyRetained * multiplier;
@@ -146,17 +147,10 @@ export function CommunityRevenueCalculator({
                 <Coins className="h-3.5 w-3.5" />
                 Community Revenue Engine
               </Badge>
-              {isDiscretionaryMode ? (
-                <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 text-xs font-semibold gap-1">
-                  <Award className="h-3 w-3" />
-                  Owner Discretionary Tier ({discretionaryRate}%)
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-xs font-semibold gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  {directoryCount > 50 ? 'Tier 2: 75% Community Share' : 'Tier 1: 70% Community Share'}
-                </Badge>
-              )}
+              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-xs font-semibold gap-1">
+                <TrendingUp className="h-3 w-3" />
+                70% Community Share / 30% Admin
+              </Badge>
             </div>
             <CardTitle className="text-2xl sm:text-3xl font-extrabold font-headline">
               {communityName ? `${communityName} Income Calculator` : 'Community Treasury & Revenue Calculator'}
@@ -276,7 +270,7 @@ export function CommunityRevenueCalculator({
 
             <div className="flex items-center justify-between text-[11px] text-slate-950 dark:text-white font-bold">
               <span>1 Business</span>
-              <span>50 (Tier 2 Jump)</span>
+              <span>75 Businesses</span>
               <span>150+ Businesses</span>
             </div>
 
@@ -335,124 +329,107 @@ export function CommunityRevenueCalculator({
           </div>
         </div>
 
-        {/* Tier Mode Selector & Discretionary Grant Option */}
-        <div className="p-4 rounded-xl border bg-amber-500/5 border-amber-500/20 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <span className="text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                <Award className="h-4 w-4 text-amber-600" />
-                Community Tier & Discretionary Rural Support Model:
-              </span>
-              <p className="text-xs text-slate-950 dark:text-white font-medium">
-                Standard automatic tiers are 70% (1–50) and 75% (51+). The Platform Owner can manually award small rural villages or model towns a 80%–90% grant.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                type="button"
-                variant={!isDiscretionaryMode ? 'default' : 'outline'}
-                size="sm"
-                className="text-xs font-bold h-8"
-                onClick={() => setIsDiscretionaryMode(false)}
-              >
-                Standard Tiers (70% / 75%)
-              </Button>
-              <Button
-                type="button"
-                variant={isDiscretionaryMode ? 'default' : 'outline'}
-                size="sm"
-                className="text-xs font-bold h-8 border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10"
-                onClick={() => setIsDiscretionaryMode(true)}
-              >
-                Simulate Owner Grant (80%–90%)
-              </Button>
-            </div>
+        {/* Flat 70% Community Share Notice */}
+        <div className="p-4 rounded-xl border bg-emerald-500/5 border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="space-y-0.5">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+              <Award className="h-4 w-4 text-emerald-600" />
+              Community Revenue Share Model: Flat 70%
+            </span>
+            <p className="text-xs text-slate-950 dark:text-white font-medium">
+              Every community receives a flat <strong>70% share</strong> of all Business &amp; Enterprise listing subscriptions (plus 10% of Storefront subscriptions), while <strong>30% is retained by Platform Admin</strong> to cover servers, wages, email client, Gemini AI API, Firebase Hosting, and outgoing operational costs.
+            </p>
           </div>
-
-          {isDiscretionaryMode && (
-            <div className="pt-2 border-t border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <span className="text-slate-950 dark:text-white font-bold">
-                Select Discretionary Grant Stake Rate:
-              </span>
-              <div className="flex items-center gap-1.5">
-                {[80, 85, 90].map((rate) => (
-                  <button
-                    key={rate}
-                    type="button"
-                    onClick={() => setDiscretionaryRate(rate)}
-                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
-                      discretionaryRate === rate
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'bg-background border text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {rate}% Stake (£{((20 * rate) / 100).toFixed(2)}/mo)
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Live Calculation Output Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Output 1: Community Treasury */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Output 1: Total Township Generated (Gross) */}
+          <div className="rounded-2xl border border-slate-300 dark:border-slate-700 bg-gradient-to-b from-slate-500/10 via-slate-500/5 to-card p-5 space-y-2 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                <Coins className="h-4 w-4" />
+                Total Generated
+              </span>
+              <Badge variant="outline" className="font-bold text-[10px]">
+                {isAnnual ? 'Per Year' : 'Per Month'}
+              </Badge>
+            </div>
+            <div className="text-2xl sm:text-3xl font-black font-headline text-foreground tracking-tight">
+              £{displayGrossGenerated.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-slate-950 dark:text-white font-medium leading-relaxed">
+              Total gross subscription income generated by the township ({directoryCount} listings &amp; {effectiveStorefrontCount} storefronts).
+            </p>
+          </div>
+
+          {/* Output 2: Community Treasury (70%) */}
           <div className="rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-card p-5 space-y-2 shadow-sm relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Building2 className="h-4 w-4" />
-                Town Treasury Yield
+                70% Retained (Community)
               </span>
               <Badge className="bg-emerald-600 text-white font-bold text-[10px]">
                 {isAnnual ? 'Per Year' : 'Per Month'}
               </Badge>
             </div>
-            <div className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight">
+            <div className="text-2xl sm:text-3xl font-black font-headline text-foreground tracking-tight">
               £{displayCommunityFund.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-slate-950 dark:text-white font-medium leading-relaxed">
-              Direct discretionary civic funds to spend on town projects, lights, defibs, and local grants.
+              70% of listings + 10% of storefronts retained directly for town projects, defibs, lights, and local grants.
             </p>
           </div>
 
-          {/* Output 2: Local Courier Logistics & Fuel Pool */}
+          {/* Output 3: Local Courier Logistics & Fuel Pool */}
           <div className="rounded-2xl border border-blue-500/30 bg-gradient-to-b from-blue-500/10 via-blue-500/5 to-card p-5 space-y-2 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-blue-800 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Truck className="h-4 w-4" />
-                Courier Logistics & Fuel Fund
+                Courier Pool (40% Storefront)
               </span>
               <Badge variant="outline" className="border-blue-500/40 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
                 {isAnnual ? 'Per Year' : 'Per Month'}
               </Badge>
             </div>
-            <div className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight">
+            <div className="text-2xl sm:text-3xl font-black font-headline text-foreground tracking-tight">
               £{displayCourierFund.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-slate-950 dark:text-white font-medium leading-relaxed">
-              Guaranteed subsidy from Community Hub to help local couriers cover fuel, vehicle maintenance, and equipment costs. <strong>Couriers earn their primary income directly from delivery fees on every order.</strong>
+              Dedicated local courier subsidy for fuel, vehicle maintenance &amp; equipment (plus delivery fees per order).
             </p>
           </div>
 
-          {/* Output 3: Total Town Economic Impact */}
-          <div className="rounded-2xl border border-primary/20 bg-gradient-to-b from-primary/10 via-primary/5 to-card p-5 space-y-2 shadow-sm">
+          {/* Output 4: 30% Admin Platform Share */}
+          <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-card p-5 space-y-2 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-primary uppercase tracking-wider flex items-center gap-1.5">
-                <Coins className="h-4 w-4" />
-                Total Retained in Town
+              <span className="text-xs font-black text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Info className="h-4 w-4" />
+                30% Admin Share
               </span>
-              <Badge variant="outline" className="border-primary/40 text-primary font-bold text-[10px]">
-                Council + Courier
+              <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 font-bold text-[10px]">
+                {isAnnual ? 'Per Year' : 'Per Month'}
               </Badge>
             </div>
-            <div className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight">
-              £{displayLocalRetained.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="text-2xl sm:text-3xl font-black font-headline text-foreground tracking-tight">
+              £{displayPlatformShare.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-slate-950 dark:text-white font-medium leading-relaxed">
-              Circulating directly within the local economy rather than siphoned away to Silicon Valley tech monopolies.
+              Covers servers, wages, email client, Gemini AI API, Firebase Hosting, Stripe fees, and other outgoing costs.
             </p>
           </div>
+        </div>
+
+        {/* Combined Local Economy Retained Callout */}
+        <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <span className="font-bold text-foreground flex items-center gap-2">
+            <Coins className="h-4 w-4 text-primary shrink-0" />
+            Total Retained Locally (Community 70% Share + Courier Fund):
+          </span>
+          <span className="text-lg font-black text-primary">
+            £{displayLocalRetained.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {isAnnual ? '/ yr' : '/ mo'}
+          </span>
         </div>
 
         {/* Discretionary Civic Reinvestment Examples */}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,18 @@ export function CouncilProposalDownload({
   const [townName, setTownName] = useState<string>(defaultTownName);
   const [directoryCount, setDirectoryCount] = useState<number>(defaultDirectoryCount);
   const [storefrontCount, setStorefrontCount] = useState<number>(defaultStorefrontCount);
+
+  useEffect(() => {
+    setTownName(defaultTownName);
+  }, [defaultTownName]);
+
+  useEffect(() => {
+    setDirectoryCount(defaultDirectoryCount);
+  }, [defaultDirectoryCount]);
+
+  useEffect(() => {
+    setStorefrontCount(defaultStorefrontCount);
+  }, [defaultStorefrontCount]);
 
   const handleDownload = () => {
     const data: CouncilProposalData = {

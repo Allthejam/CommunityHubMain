@@ -17,11 +17,13 @@ export interface CouncilProposalData {
 export function generateCouncilProposalHtml(data: CouncilProposalData): string {
   const town = data.townshipName || 'Your Community';
   const directoryCount = data.directoryCount || 35;
-  const storefrontCount = data.storefrontCount || 12;
-  const directorySplit = directoryCount > 50 ? 60 : 40;
-  const directoryRate = (20 * directorySplit) / 100;
-  const annualTreasury = data.annualTreasuryYield || (directoryCount * directoryRate + storefrontCount * 1.0) * 12;
-  const annualCourier = data.courierPoolYield || (storefrontCount * 4.0) * 12;
+  const storefrontCount = Math.min(data.storefrontCount ?? 12, directoryCount);
+  const directorySplit = 70; // Flat 70% Community / 30% Admin
+  const directoryRate = (20 * directorySplit) / 100; // £14.00/mo
+  const annualGross = (directoryCount * 20 + storefrontCount * 10) * 12;
+  const annualTreasury = data.annualTreasuryYield ?? (directoryCount * directoryRate + storefrontCount * 1.0) * 12;
+  const annualCourier = data.courierPoolYield ?? (storefrontCount * 4.0) * 12;
+  const annualAdminShare = annualGross - annualTreasury - annualCourier;
   const todayStr = data.meetingDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return `<!DOCTYPE html>
@@ -312,7 +314,7 @@ export function generateCouncilProposalHtml(data: CouncilProposalData): string {
           EXECUTIVE SUMMARY: WHY COMMUNITY HUB?
         </div>
         <p style="font-size: 7.8pt; color: #0f172a; line-height: 1.35;">
-          This proposal requests Council approval to adopt <strong>Community Hub</strong> as the official digital platform for <strong>${town}</strong>. Community Hub provides a dedicated, algorithm-free mobile app and web portal combining <strong>Virtual High Street shopping, statutory ISO 22301 Civil Emergency readiness, democratic citizen polling, and local courier logistics</strong>. The platform carries <strong>£0 setup, hosting, or maintenance fees</strong> to the Council, and returns <strong>70% to 80%+ of all local business subscription revenue directly to the Council Treasury</strong>.
+          This proposal requests Council approval to adopt <strong>Community Hub</strong> as the official digital platform for <strong>${town}</strong>. Community Hub provides a dedicated, algorithm-free mobile app and web portal combining <strong>Virtual High Street shopping, statutory ISO 22301 Civil Emergency readiness, democratic citizen polling, and local courier logistics</strong>. The platform carries <strong>£0 setup, hosting, or maintenance fees</strong> to the Council, and returns a flat <strong>70% of all local business listing subscription revenue directly to the Council Treasury</strong> (with 30% retained by Platform Admin to cover servers, wages, email client, Gemini AI API, Firebase Hosting, and operational costs).
         </p>
       </div>
 
@@ -455,36 +457,46 @@ export function generateCouncilProposalHtml(data: CouncilProposalData): string {
             <td><strong>Small Rural Village</strong></td>
             <td>15 businesses</td>
             <td>5 storefronts</td>
-            <td>70% (£14/mo)</td>
+            <td>70% (£14.00/mo)</td>
             <td>£215.00 / mo</td>
             <td><strong>£2,580.00 / yr</strong></td>
           </tr>
           <tr>
-            <td><strong>Market Town (Target for ${town})</strong></td>
+            <td><strong>Selected Forecast (${town})</strong></td>
             <td><strong>${directoryCount} businesses</strong></td>
             <td><strong>${storefrontCount} storefronts</strong></td>
-            <td><strong>${directorySplit}% (£${directoryRate.toFixed(2)}/mo)</strong></td>
+            <td><strong>70% (£14.00/mo)</strong></td>
             <td><strong>£${(annualTreasury / 12).toFixed(2)} / mo</strong></td>
             <td><strong style="color: #047857;">£${annualTreasury.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / yr</strong></td>
           </tr>
           <tr>
-            <td><strong>Bustling Town (Tier 2 Jump)</strong></td>
+            <td><strong>Larger Town Example</strong></td>
             <td>75 businesses</td>
             <td>25 storefronts</td>
-            <td>60% (£12/mo)</td>
-            <td>£925.00 / mo</td>
-            <td><strong>£11,100.00 / yr</strong></td>
+            <td>70% (£14.00/mo)</td>
+            <td>£1,075.00 / mo</td>
+            <td><strong>£12,900.00 / yr</strong></td>
           </tr>
           <tr>
-            <td><strong>Premier / Model Town (Discretionary)</strong></td>
+            <td><strong>Regional Hub Example</strong></td>
             <td>100 businesses</td>
             <td>35 storefronts</td>
-            <td>75% (£15/mo)</td>
-            <td>£1,535.00 / mo</td>
-            <td><strong>£18,420.00 / yr</strong></td>
+            <td>70% (£14.00/mo)</td>
+            <td>£1,435.00 / mo</td>
+            <td><strong>£17,220.00 / yr</strong></td>
           </tr>
         </tbody>
       </table>
+
+      <div class="card" style="background: #f8fafc; border-color: #cbd5e1; padding: 6px 10px; margin-bottom: 6px;">
+        <div class="card-title" style="font-size: 8.5pt;">📊 Full Township Breakdown (${town} — ${directoryCount} Listings, ${storefrontCount} Storefronts)</div>
+        <p style="font-size: 7.6pt; color: #0f172a; line-height: 1.4;">
+          <strong>Total Township Generated (Gross):</strong> £${annualGross.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/yr (£${(annualGross / 12).toFixed(2)}/mo) &nbsp;|&nbsp;
+          <strong>Community Retained (70% Listings + 10% Storefronts):</strong> £${annualTreasury.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/yr &nbsp;|&nbsp;
+          <strong>Courier Logistics Fund (40% Storefronts):</strong> £${annualCourier.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/yr &nbsp;|&nbsp;
+          <strong>Admin Operational Share (30% Listings + 50% Storefronts):</strong> £${annualAdminShare.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/yr (covers servers, wages, email client, Gemini AI API, Firebase Hosting &amp; outgoing costs).
+        </p>
+      </div>
 
       <!-- What This Funds Box -->
       <div class="card" style="background: #f0fdf4; border-color: #059669; border-width: 1.5px; padding: 6px 10px;">
