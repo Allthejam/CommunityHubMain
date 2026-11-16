@@ -20,6 +20,7 @@ import {
   MapPin,
   Shield,
   Phone,
+  Zap,
 } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -40,6 +41,7 @@ import { Separator } from '@/components/ui/separator';
 import { doc } from 'firebase/firestore';
 import { updateCommunityProfileAction, getCommunityProfileAction } from '@/lib/actions/communityProfileActions';
 import { type DefibrillatorItem, DEFAULT_DEMO_DEFIBRILLATORS as defaultDemoDefibrillators } from '@/lib/types/defibrillators';
+import { type EvChargerItem, DEFAULT_DEMO_EV_CHARGERS as defaultDemoEvChargers } from '@/lib/types/ev-chargers';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -152,6 +154,9 @@ export default function LeaderAboutPage() {
   const [defibrillators, setDefibrillators] = React.useState<DefibrillatorItem[]>([]);
   const [isDefibDialogOpen, setIsDefibDialogOpen] = React.useState(false);
   const [currentDefib, setCurrentDefib] = React.useState<DefibrillatorItem | null>(null);
+  const [evChargers, setEvChargers] = React.useState<EvChargerItem[]>([]);
+  const [isEvDialogOpen, setIsEvDialogOpen] = React.useState(false);
+  const [currentEvCharger, setCurrentEvCharger] = React.useState<EvChargerItem | null>(null);
   const [isUsefulInfoDialogOpen, setIsUsefulInfoDialogOpen] = React.useState(false);
   const [currentUsefulItem, setCurrentUsefulItem] = React.useState<UsefulInfoItem | null>(null);
 
@@ -215,6 +220,12 @@ export default function LeaderAboutPage() {
       setDefibrillators(data.defibrillators);
     } else if (isDemo) {
       setDefibrillators(defaultDemoDefibrillators);
+    }
+
+    if (data.evChargers && Array.isArray(data.evChargers)) {
+      setEvChargers(data.evChargers);
+    } else if (isDemo) {
+      setEvChargers(defaultDemoEvChargers);
     }
 
     if (data.usefulInformation && Array.isArray(data.usefulInformation)) {
@@ -353,6 +364,7 @@ export default function LeaderAboutPage() {
       communityInformation: leadershipTeam.map(({ id, ...rest }) => rest),
       usefulInformation: usefulInfo.map(({ id, ...rest }) => rest),
       defibrillators,
+      evChargers,
       policeContact,
       showLeadershipOnAboutPage: showLeadership,
     };
@@ -393,6 +405,7 @@ export default function LeaderAboutPage() {
       communityInformation: leadershipTeam.map(({ id, ...rest }) => rest),
       showLeadershipOnAboutPage: showLeadership,
       defibrillators,
+      evChargers,
     };
     sessionStorage.setItem('aboutPagePreview', JSON.stringify(dataToPreview));
     window.open(`${demoPrefix}/community/${communityId}/about`, '_blank');
@@ -884,6 +897,121 @@ export default function LeaderAboutPage() {
         </CardContent>
       </Card>
 
+      {/* EV Charge Points Management */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                <Zap className="h-5 w-5" /> Local EV Charge Points
+              </CardTitle>
+              <CardDescription>
+                Add electric vehicle charging bays shown on your About Page and Public Community Map.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => {
+                setCurrentEvCharger({
+                  id: `ev-${Date.now()}`,
+                  name: '',
+                  address: '',
+                  locationNotes: '',
+                  accessType: '24_7',
+                  accessHours: '',
+                  connectorType: 'Type 2',
+                  powerKw: '22kW',
+                  operatorName: '',
+                  baysCount: 2,
+                  lat: 57.3308,
+                  lng: -3.6120,
+                });
+                setIsEvDialogOpen(true);
+              }}
+            >
+              <PlusCircle className="mr-1.5 h-4 w-4" />
+              Add EV Charge Point
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {evChargers.length === 0 ? (
+            <div className="p-6 text-center border border-dashed rounded-lg text-sm text-muted-foreground">
+              No EV charge points registered yet. Click &ldquo;Add EV Charge Point&rdquo; to pin one on the map.
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {evChargers.map((charger) => (
+                <div
+                  key={charger.id}
+                  className="p-3.5 border rounded-lg bg-emerald-50/30 dark:bg-emerald-950/10 flex flex-col justify-between gap-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                        <Badge variant={charger.accessType === '24_7' ? 'default' : 'secondary'} className={charger.accessType === '24_7' ? 'bg-emerald-600 text-[10px]' : 'text-[10px]'}>
+                          {charger.accessType === '24_7' ? '24/7' : 'Restricted'}
+                        </Badge>
+                        {charger.powerKw && (
+                          <Badge variant="outline" className="text-[10px]">{charger.powerKw}</Badge>
+                        )}
+                        {charger.connectorType && (
+                          <Badge variant="outline" className="text-[10px]">{charger.connectorType}</Badge>
+                        )}
+                      </div>
+                      <p className="font-bold text-sm truncate">{charger.name}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-emerald-600 shrink-0" />
+                        <span className="truncate">{charger.address}</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          setCurrentEvCharger(charger);
+                          setIsEvDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={async () => {
+                          const updatedList = evChargers.filter((c) => c.id !== charger.id);
+                          setEvChargers(updatedList);
+                          if (typeof window !== 'undefined') {
+                            sessionStorage.setItem('community_ev_chargers', JSON.stringify(updatedList));
+                            localStorage.setItem('community_ev_chargers', JSON.stringify(updatedList));
+                          }
+                          if (communityId) {
+                            await updateCommunityProfileAction({
+                              communityId,
+                              data: { evChargers: updatedList },
+                            });
+                            toast({ title: 'Removed', description: `${charger.name} was removed.` });
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -1320,6 +1448,177 @@ export default function LeaderAboutPage() {
               }}
             >
               <HeartPulse className="h-4 w-4" /> Save Defibrillator
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add / Edit EV Charge Point Dialog */}
+      <Dialog open={isEvDialogOpen} onOpenChange={setIsEvDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+              <Zap className="h-5 w-5" /> {currentEvCharger?.name ? 'Edit EV Charge Point' : 'Add EV Charge Point'}
+            </DialogTitle>
+            <DialogDescription>
+              Provide details and pin the exact charging bay location on the map.
+            </DialogDescription>
+          </DialogHeader>
+
+          {currentEvCharger && (
+            <div className="space-y-4 py-2">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label>Site / Car Park Name *</Label>
+                  <Input
+                    placeholder="e.g. Burnside Car Park EV Hub"
+                    value={currentEvCharger.name}
+                    onChange={(e) => setCurrentEvCharger({ ...currentEvCharger, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Operator / Network</Label>
+                  <Input
+                    placeholder="e.g. ChargePlace Scotland, Pod Point"
+                    value={currentEvCharger.operatorName || ''}
+                    onChange={(e) => setCurrentEvCharger({ ...currentEvCharger, operatorName: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Street Address / Postcode *</Label>
+                <Input
+                  placeholder="e.g. Burnside Avenue, Grantown-on-Spey PH26 3EG"
+                  value={currentEvCharger.address}
+                  onChange={(e) => setCurrentEvCharger({ ...currentEvCharger, address: e.target.value })}
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <Label>Connector Type</Label>
+                  <Input
+                    placeholder="e.g. Type 2, CCS Rapid"
+                    value={currentEvCharger.connectorType || ''}
+                    onChange={(e) => setCurrentEvCharger({ ...currentEvCharger, connectorType: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Power Speed</Label>
+                  <Input
+                    placeholder="e.g. 22kW, 50kW"
+                    value={currentEvCharger.powerKw || ''}
+                    onChange={(e) => setCurrentEvCharger({ ...currentEvCharger, powerKw: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Number of Bays</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={currentEvCharger.baysCount ?? 2}
+                    onChange={(e) => setCurrentEvCharger({ ...currentEvCharger, baysCount: parseInt(e.target.value || '1', 10) })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label>Access Hours</Label>
+                  <select
+                    className="w-full h-10 rounded-md border bg-background px-3 text-sm"
+                    value={currentEvCharger.accessType}
+                    onChange={(e) =>
+                      setCurrentEvCharger({
+                        ...currentEvCharger,
+                        accessType: e.target.value as '24_7' | 'restricted',
+                      })
+                    }
+                  >
+                    <option value="24_7">24/7 Public Access</option>
+                    <option value="restricted">Restricted / Opening Hours</option>
+                  </select>
+                </div>
+                {currentEvCharger.accessType === 'restricted' && (
+                  <div>
+                    <Label>Opening Hours Note</Label>
+                    <Input
+                      placeholder="e.g. Mon-Sat 08:00 - 20:00"
+                      value={currentEvCharger.accessHours || ''}
+                      onChange={(e) => setCurrentEvCharger({ ...currentEvCharger, accessHours: e.target.value })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label>Location Notes</Label>
+                <Input
+                  placeholder="e.g. North corner of car park near entrance"
+                  value={currentEvCharger.locationNotes || ''}
+                  onChange={(e) => setCurrentEvCharger({ ...currentEvCharger, locationNotes: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Pin Exact Location on Map</Label>
+                <DefibrillatorMap
+                  mode="picker"
+                  pickerPinType="ev"
+                  initialLat={currentEvCharger.lat || 57.3308}
+                  initialLng={currentEvCharger.lng || -3.6120}
+                  onLocationSelect={(lat, lng) =>
+                    setCurrentEvCharger((prev) => (prev ? { ...prev, lat, lng } : prev))
+                  }
+                  height="260px"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsEvDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+              onClick={async () => {
+                if (!currentEvCharger?.name?.trim() || !currentEvCharger?.address?.trim()) {
+                  toast({ variant: 'destructive', title: 'Missing info', description: 'Please enter a site name and address.' });
+                  return;
+                }
+                const idx = evChargers.findIndex((c) => c.id === currentEvCharger.id);
+                const updatedList =
+                  idx >= 0
+                    ? evChargers.map((c, i) => (i === idx ? currentEvCharger : c))
+                    : [currentEvCharger, ...evChargers];
+                setEvChargers(updatedList);
+                setIsEvDialogOpen(false);
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem('community_ev_chargers', JSON.stringify(updatedList));
+                  localStorage.setItem('community_ev_chargers', JSON.stringify(updatedList));
+                  window.dispatchEvent(new CustomEvent('demo_about_updated', { detail: { evChargers: updatedList } }));
+                }
+                if (communityId) {
+                  try {
+                    const res = await updateCommunityProfileAction({
+                      communityId,
+                      data: { evChargers: updatedList },
+                    });
+                    if (res.success) {
+                      toast({ title: 'EV Charge Point Saved', description: `${currentEvCharger.name} saved to database.` });
+                    } else {
+                      toast({ title: 'Saved Locally', description: `Click 'Save All Changes' to sync.` });
+                    }
+                  } catch {
+                    toast({ title: 'Saved Locally', description: `Saved for this session.` });
+                  }
+                }
+              }}
+            >
+              <Zap className="h-4 w-4" /> Save EV Charge Point
             </Button>
           </DialogFooter>
         </DialogContent>

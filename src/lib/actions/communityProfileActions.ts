@@ -3,8 +3,9 @@
 import { initializeAdminApp } from "@/firebase/admin-app";
 import { getStorage } from 'firebase-admin/storage';
 import { type DefibrillatorItem, DEFAULT_DEMO_DEFIBRILLATORS } from '@/lib/types/defibrillators';
+import { type EvChargerItem, DEFAULT_DEMO_EV_CHARGERS } from '@/lib/types/ev-chargers';
 
-export type { DefibrillatorItem };
+export type { DefibrillatorItem, EvChargerItem };
 
 type ActionResponse = {
   success: boolean;
@@ -29,6 +30,7 @@ export type CommunityProfile = {
   metaDescription?: string;
   usefulInformation?: { name: string; number: string; address: string }[];
   defibrillators?: DefibrillatorItem[];
+  evChargers?: EvChargerItem[];
   communityInformation?: {
     name: string;
     title: string;
@@ -132,6 +134,9 @@ export async function getCommunityProfileAction(communityId: string): Promise<{
       if (isDemo && (!data.defibrillators || data.defibrillators.length === 0)) {
         data.defibrillators = DEFAULT_DEMO_DEFIBRILLATORS;
       }
+      if (isDemo && (!data.evChargers || data.evChargers.length === 0)) {
+        data.evChargers = DEFAULT_DEMO_EV_CHARGERS;
+      }
       return {
         success: true,
         data,
@@ -141,7 +146,7 @@ export async function getCommunityProfileAction(communityId: string): Promise<{
 
     return {
       success: true,
-      data: isDemo ? { defibrillators: DEFAULT_DEMO_DEFIBRILLATORS } : undefined,
+      data: isDemo ? { defibrillators: DEFAULT_DEMO_DEFIBRILLATORS, evChargers: DEFAULT_DEMO_EV_CHARGERS } : undefined,
       communityName: commData?.name || (isDemo ? "Oakridge & DemoVille" : undefined),
     };
   } catch (error: any) {

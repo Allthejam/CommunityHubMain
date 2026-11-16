@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { type DefibrillatorItem } from '@/lib/types/defibrillators';
+import { type EvChargerItem } from '@/lib/types/ev-chargers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +12,10 @@ import type { Map as LeafletMap, Marker as LeafletMarker, LayerGroup } from 'lea
 
 interface DefibrillatorMapProps {
   mode?: 'view' | 'picker';
+  pickerPinType?: 'defib' | 'ev';
   defibrillators?: DefibrillatorItem[];
+  evChargers?: EvChargerItem[];
+  mapFilter?: 'all' | 'defibs' | 'ev';
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   userLocation?: { lat: number; lng: number } | null;
@@ -24,7 +28,10 @@ interface DefibrillatorMapProps {
 
 export default function DefibrillatorMap({
   mode = 'view',
+  pickerPinType = 'defib',
   defibrillators = [],
+  evChargers = [],
+  mapFilter = 'all',
   selectedId,
   onSelect,
   userLocation,
@@ -113,13 +120,15 @@ export default function DefibrillatorMap({
       }
 
       if (currentPickerCoords) {
+        const isEvPicker = pickerPinType === 'ev';
+        const pinColor = isEvPicker ? '#059669' : '#dc2626';
+        const pinSvg = isEvPicker
+          ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`
+          : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><polyline points="12 6 12 11 14 13"/></svg>`;
         const pinIcon = L.divIcon({
           className: 'custom-aed-picker-pin',
-          html: `<div style="background-color: #dc2626; color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.5); border: 2.5px solid white; cursor: grab;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-              <polyline points="12 6 12 11 14 13"/>
-            </svg>
+          html: `<div style="background-color: ${pinColor}; color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35); border: 2.5px solid white; cursor: grab;">
+            ${pinSvg}
           </div>`,
           iconSize: [36, 36],
           iconAnchor: [18, 18],
@@ -155,9 +164,16 @@ export default function DefibrillatorMap({
 
       layer.clearLayers();
 
-      const validItems = defibrillators.filter((d) => typeof d.lat === 'number' && typeof d.lng === 'number');
+      const validDefibs =
+        mapFilter === 'all' || mapFilter === 'defibs'
+          ? defibrillators.filter((d) => typeof d.lat === 'number' && typeof d.lng === 'number')
+          : [];
+      const validEvs =
+        mapFilter === 'all' || mapFilter === 'ev'
+          ? evChargers.filter((c) => typeof c.lat === 'number' && typeof c.lng === 'number')
+          : [];
 
-      validItems.forEach((defib) => {
+      validDefibs.forEach((defib) => {
         const isSelected = selectedId === defib.id;
         const is247 = defib.accessType === '24_7';
 
@@ -211,9 +227,66 @@ export default function DefibrillatorMap({
         }
       });
 
+      validEvs.forEach((charger) => {
+        const isSelected = selectedId === charger.id;
+        const is247 = charger.accessType === '24_7';
+
+        const evIcon = L.divIcon({
+          className: 'custom-ev-pin',
+          html: `<div style="background-color: ${isSelected ? '#047857' : '#059669'}; color: white; border-radius: 50%; width: ${isSelected ? '40px' : '34px'}; height: ${isSelected ? '40px' : '34px'}; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.45); border: ${isSelected ? '3.5px solid #fef08a' : '2.5px solid white'}; transform: translate(-50%, -50%); transition: transform 0.2s ease;">
+            <svg width="${isSelected ? '22' : '18'}" height="${isSelected ? '22' : '18'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>`,
+          iconSize: [34, 34],
+          iconAnchor: [0, 0],
+          popupAnchor: [0, -20],
+        });
+
+        const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${charger.lat},${charger.lng}`;
+        const specLine = [charger.powerKw, charger.connectorType, charger.baysCount ? `${charger.baysCount} bays` : null]
+          .filter(Boolean)
+          .join(' • ');
+
+        const popupContent = `
+          <div style="font-family: inherit; min-width: 210px; padding: 2px;">
+            <div style="font-size: 11px; font-weight: 700; color: ${is247 ? '#059669' : '#d97706'}; text-transform: uppercase; margin-bottom: 3px;">
+              ⚡ EV Charge Point &bull; ${is247 ? '24/7 Access' : 'Restricted Hours'}
+            </div>
+            <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 4px; line-height: 1.3;">
+              ${charger.name}
+            </div>
+            <div style="font-size: 12px; color: #475569; margin-bottom: 6px; line-height: 1.3;">
+              ${charger.address}
+            </div>
+            ${specLine ? `
+              <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; color: #065f46; margin-bottom: 8px;">
+                🔌 ${specLine}
+              </div>
+            ` : ''}
+            <a href="${navUrl}" target="_blank" rel="noopener noreferrer" style="display: block; text-align: center; background-color: #059669; color: white; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 6px; text-decoration: none; margin-top: 4px;">
+              Get Google Maps Directions ➔
+            </a>
+          </div>
+        `;
+
+        const marker = L.marker([charger.lat!, charger.lng!], { icon: evIcon }).addTo(layer);
+        marker.bindPopup(popupContent);
+
+        marker.on('click', () => {
+          if (onSelect) onSelect(charger.id);
+        });
+
+        if (isSelected) {
+          marker.openPopup();
+          map.panTo([charger.lat!, charger.lng!], { animate: true });
+        }
+      });
+
+      const allVisible = [...validDefibs, ...validEvs];
       // Fit bounds if multiple pins exist and none is specifically selected
-      if (validItems.length > 1 && !selectedId) {
-        const bounds = L.latLngBounds(validItems.map((d) => [d.lat!, d.lng!]));
+      if (allVisible.length > 1 && !selectedId) {
+        const bounds = L.latLngBounds(allVisible.map((d) => [d.lat!, d.lng!]));
         if (userLocation) {
           bounds.extend([userLocation.lat, userLocation.lng]);
         }
@@ -222,7 +295,7 @@ export default function DefibrillatorMap({
     };
 
     renderPins();
-  }, [mode, isMapReady, defibrillators, selectedId, userLocation, onSelect]);
+  }, [mode, isMapReady, defibrillators, evChargers, mapFilter, selectedId, userLocation, onSelect]);
 
   // Handle User Location Marker in View Mode
   React.useEffect(() => {

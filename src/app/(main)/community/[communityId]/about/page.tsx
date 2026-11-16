@@ -8,6 +8,7 @@ import { doc, getDoc, collection, query, orderBy } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { getCommunityProfileAction } from '@/lib/actions/communityProfileActions';
 import { type DefibrillatorItem, DEFAULT_DEMO_DEFIBRILLATORS as defaultDemoDefibrillators } from '@/lib/types/defibrillators';
+import { type EvChargerItem, DEFAULT_DEMO_EV_CHARGERS as defaultDemoEvChargers } from '@/lib/types/ev-chargers';
 import {
     ArrowLeft,
     Loader2,
@@ -21,6 +22,7 @@ import {
     Shield,
     ShieldAlert,
     ExternalLink,
+    Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -45,6 +47,7 @@ type CommunityProfileData = {
     imageTwo?: string;
     usefulInformation?: { name: string; number: string; address: string; }[];
     defibrillators?: DefibrillatorItem[];
+    evChargers?: EvChargerItem[];
     communityInformation?: {
         name: string;
         title: string;
@@ -348,6 +351,69 @@ export default function CommunityAboutPage() {
                                             <Button asChild size="sm" className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold text-xs gap-1.5 shadow-xs">
                                                 <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
                                                     <Navigation className="h-3.5 w-3.5" /> Walking Directions
+                                                </a>
+                                            </Button>
+                                        </CardFooter>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Local EV Charge Points */}
+                {((aboutData.evChargers && aboutData.evChargers.length > 0) || isDemo) && (
+                    <div className="pt-8 border-t">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+                            <h2 className="text-2xl font-bold font-headline flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                                <Zap className="h-6 w-6" /> Local EV Charge Points
+                            </h2>
+                            <Button asChild variant="outline" size="sm" className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50">
+                                <Link href={`${demoPrefix}/defibrillators`}>
+                                    <MapPin className="h-4 w-4" /> View on Interactive Map
+                                </Link>
+                            </Button>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {(aboutData.evChargers && aboutData.evChargers.length > 0 ? aboutData.evChargers : defaultDemoEvChargers).map((charger, index) => {
+                                const dest = charger.lat && charger.lng ? `${charger.lat},${charger.lng}` : encodeURIComponent(charger.address);
+                                const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
+                                return (
+                                    <Card key={charger.id || index} className="border-2 border-emerald-100 dark:border-emerald-950/60 bg-emerald-50/20 dark:bg-emerald-950/10 shadow-xs flex flex-col justify-between">
+                                        <CardHeader className="p-4 pb-2">
+                                            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${charger.accessType === '24_7' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                                    {charger.accessType === '24_7' ? '● 24/7 Access' : '● Restricted Hours'}
+                                                </span>
+                                                {charger.powerKw && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800">
+                                                        {charger.powerKw}
+                                                    </span>
+                                                )}
+                                                {charger.connectorType && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-800">
+                                                        {charger.connectorType}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <CardTitle className="text-base font-bold text-foreground leading-snug">{charger.name}</CardTitle>
+                                            <CardDescription className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                                                <span className="line-clamp-1">{charger.address}</span>
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="p-4 pt-0 pb-3 text-xs text-muted-foreground space-y-1">
+                                            {charger.operatorName && (
+                                                <p>Network: <strong className="text-foreground">{charger.operatorName}</strong>{charger.baysCount ? ` • ${charger.baysCount} bays` : ''}</p>
+                                            )}
+                                            {charger.locationNotes && (
+                                                <p className="italic bg-muted/40 p-2 rounded-md">{charger.locationNotes}</p>
+                                            )}
+                                        </CardContent>
+                                        <CardFooter className="p-4 pt-0">
+                                            <Button asChild size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1.5 shadow-xs">
+                                                <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                                                    <Navigation className="h-3.5 w-3.5" /> Directions
                                                 </a>
                                             </Button>
                                         </CardFooter>

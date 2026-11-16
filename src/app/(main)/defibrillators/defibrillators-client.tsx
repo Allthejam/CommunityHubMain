@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Locate,
   ArrowLeft,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,10 @@ import {
   type DefibrillatorItem,
   DEFAULT_DEMO_DEFIBRILLATORS,
 } from "@/lib/types/defibrillators";
+import {
+  type EvChargerItem,
+  DEFAULT_DEMO_EV_CHARGERS,
+} from "@/lib/types/ev-chargers";
 import { getCommunityProfileAction } from "@/lib/actions/communityProfileActions";
 
 const DefibrillatorMap = dynamicMap(() => import("@/components/defibrillator-map"), {
@@ -109,14 +114,21 @@ export function DefibrillatorsClient() {
 
   // Filter: 'all' | '24_7'
   const [accessFilter, setAccessFilter] = React.useState<"all" | "24_7">("all");
+  // Map layer toggle: 'all' (default) | 'defibs' | 'ev'
+  const [mapFilter, setMapFilter] = React.useState<"all" | "defibs" | "ev">("all");
 
   // Real-time listener for same-session updates
   const [liveDefibs, setLiveDefibs] = React.useState<DefibrillatorItem[] | null>(null);
+  const [liveEvChargers, setLiveEvChargers] = React.useState<EvChargerItem[] | null>(null);
   React.useEffect(() => {
     const handleUpdated = (e: any) => {
       const list = e?.detail?.defibrillators;
       if (Array.isArray(list) && list.length > 0) {
         setLiveDefibs(list);
+      }
+      const evList = e?.detail?.evChargers;
+      if (Array.isArray(evList) && evList.length > 0) {
+        setLiveEvChargers(evList);
       }
     };
     window.addEventListener("demo_about_updated", handleUpdated);
@@ -125,6 +137,7 @@ export function DefibrillatorsClient() {
 
   // Server action fetch for seamless fallback across default & comfeed databases
   const [serverDefibs, setServerDefibs] = React.useState<DefibrillatorItem[] | null>(null);
+  const [serverEvChargers, setServerEvChargers] = React.useState<EvChargerItem[] | null>(null);
   React.useEffect(() => {
     if (!activeCommunityId) return;
     let isMounted = true;
@@ -132,6 +145,9 @@ export function DefibrillatorsClient() {
       .then((res) => {
         if (isMounted && res.success && res.data?.defibrillators && Array.isArray(res.data.defibrillators) && res.data.defibrillators.length > 0) {
           setServerDefibs(res.data.defibrillators);
+        }
+        if (isMounted && res.success && res.data?.evChargers && Array.isArray(res.data.evChargers) && res.data.evChargers.length > 0) {
+          setServerEvChargers(res.data.evChargers);
         }
       })
       .catch(console.error);
@@ -178,6 +194,35 @@ export function DefibrillatorsClient() {
     // 4. Fallback to default demo defibrillators
     return Array.isArray(DEFAULT_DEMO_DEFIBRILLATORS) ? DEFAULT_DEMO_DEFIBRILLATORS : [];
   }, [activeCommunityId, profileData, liveDefibs, serverDefibs]);
+
+  const evChargers: EvChargerItem[] = React.useMemo(() => {
+    if (liveEvChargers && liveEvChargers.length > 0) {
+      return liveEvChargers;
+    }
+    if (typeof window !== "undefined") {
+      try {
+        const cached =
+          sessionStorage.getItem(`demo_about_${activeCommunityId}`) ||
+          localStorage.getItem(`demo_about_${activeCommunityId}`) ||
+          sessionStorage.getItem("community_ev_chargers") ||
+          localStorage.getItem("community_ev_chargers");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const list = Array.isArray(parsed) ? parsed : parsed.evChargers;
+          if (Array.isArray(list) && list.length > 0) {
+            return list;
+          }
+        }
+      } catch (e) {}
+    }
+    if (profileData && Array.isArray(profileData.evChargers) && profileData.evChargers.length > 0) {
+      return profileData.evChargers;
+    }
+    if (serverEvChargers && Array.isArray(serverEvChargers) && serverEvChargers.length > 0) {
+      return serverEvChargers;
+    }
+    return isDemo ? DEFAULT_DEMO_EV_CHARGERS : [];
+  }, [activeCommunityId, profileData, liveEvChargers, serverEvChargers, isDemo]);
 
   // Request browser geolocation
   const handleFindNearest = () => {
@@ -236,6 +281,28 @@ export function DefibrillatorsClient() {
       return a.distanceMetres - b.distanceMetres;
     });
   }, [defibrillators, userLocation, accessFilter]);
+
+  const sortedEvChargers = React.useMemo(() => {
+    let items = Array.isArray(evChargers) ? [...evChargers] : [];
+    if (accessFilter === "24_7") {
+      items = items.filter((c) => c.accessType === "24_7");
+    }
+    if (!userLocation) {
+      return items.map((c) => ({ ...c, distanceMetres: null }));
+    }
+    return items
+      .map((c) => {
+        if (typeof c.lat === "number" && typeof c.lng === "number") {
+          return { ...c, distanceMetres: calculateDistanceMetres(userLocation.lat, userLocation.lng, c.lat, c.lng) };
+        }
+        return { ...c, distanceMetres: null };
+      })
+      .sort((a, b) => {
+        if (a.distanceMetres === null) return 1;
+        if (b.distanceMetres === null) return -1;
+        return a.distanceMetres - b.distanceMetres;
+      });
+  }, [evChargers, userLocation, accessFilter]);
 
   const count247 = React.useMemo(() => {
     const list = Array.isArray(defibrillators) ? defibrillators : [];
@@ -369,18 +436,49 @@ export function DefibrillatorsClient() {
       {/* Main Grid: Interactive Map + Defibrillator Cards */}
       <div className="space-y-6">
         {/* Interactive Town Map */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-bold flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-red-600" /> Interactive Defibrillator Map
+              <MapPin className="h-5 w-5 text-primary" /> Interactive Community Map
             </h3>
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              Tap any pin on the map to view access instructions &amp; get directions
-            </span>
+            <div className="flex items-center gap-1 p-1 bg-muted rounded-lg text-xs">
+              <Button
+                size="sm"
+                variant={mapFilter === "all" ? "default" : "ghost"}
+                onClick={() => setMapFilter("all")}
+                className="h-7 px-2.5 text-xs font-semibold"
+              >
+                Show All ({sortedDefibrillators.length + sortedEvChargers.length})
+              </Button>
+              <Button
+                size="sm"
+                variant={mapFilter === "defibs" ? "default" : "ghost"}
+                onClick={() => setMapFilter("defibs")}
+                className={`h-7 px-2.5 text-xs font-semibold gap-1 ${
+                  mapFilter === "defibs" ? "bg-red-600 hover:bg-red-700 text-white" : ""
+                }`}
+              >
+                <HeartPulse className="h-3.5 w-3.5" />
+                Defibs ({sortedDefibrillators.length})
+              </Button>
+              <Button
+                size="sm"
+                variant={mapFilter === "ev" ? "default" : "ghost"}
+                onClick={() => setMapFilter("ev")}
+                className={`h-7 px-2.5 text-xs font-semibold gap-1 ${
+                  mapFilter === "ev" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
+                }`}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                EV Chargers ({sortedEvChargers.length})
+              </Button>
+            </div>
           </div>
           <DefibrillatorMap
             mode="view"
             defibrillators={sortedDefibrillators}
+            evChargers={sortedEvChargers}
+            mapFilter={mapFilter}
             selectedId={selectedId}
             onSelect={(id) => setSelectedId(id)}
             userLocation={userLocation}
@@ -389,6 +487,7 @@ export function DefibrillatorsClient() {
         </div>
 
         {/* Defibrillator Cards List */}
+        {(mapFilter === "all" || mapFilter === "defibs") && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold flex items-center gap-2">
@@ -536,6 +635,96 @@ export function DefibrillatorsClient() {
             </div>
           )}
         </div>
+        )}
+
+        {(mapFilter === "all" || mapFilter === "ev") && (
+          <div className="space-y-3 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <Zap className="h-5 w-5 text-emerald-600" /> Local EV Charge Points
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                Showing {sortedEvChargers.length} locations
+              </span>
+            </div>
+
+            {sortedEvChargers.length === 0 ? (
+              <Card className="p-8 text-center text-sm text-muted-foreground border-dashed">
+                No EV charge points listed for this community yet.
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {sortedEvChargers.map((charger) => {
+                  const destination =
+                    typeof charger.lat === "number" && typeof charger.lng === "number"
+                      ? `${charger.lat},${charger.lng}`
+                      : encodeURIComponent(charger.address);
+                  const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+                  return (
+                    <Card
+                      key={charger.id}
+                      onClick={() => setSelectedId(charger.id)}
+                      className={`cursor-pointer transition-all hover:shadow-md flex flex-col justify-between ${
+                        selectedId === charger.id
+                          ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                          : "border-emerald-200/70"
+                      }`}
+                    >
+                      <CardHeader className="p-4 pb-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant={charger.accessType === "24_7" ? "default" : "secondary"} className={charger.accessType === "24_7" ? "bg-emerald-600" : ""}>
+                              {charger.accessType === "24_7" ? "24/7 Access" : "Restricted Hours"}
+                            </Badge>
+                            {charger.powerKw && (
+                              <Badge variant="outline" className="text-emerald-700 border-emerald-300">
+                                {charger.powerKw}
+                              </Badge>
+                            )}
+                            {charger.connectorType && (
+                              <Badge variant="outline">{charger.connectorType}</Badge>
+                            )}
+                          </div>
+                          {charger.distanceMetres !== null && (
+                            <span className="text-xs font-semibold text-emerald-700">
+                              {formatDistance(charger.distanceMetres)}
+                            </span>
+                          )}
+                        </div>
+                        <CardTitle className="text-base">{charger.name}</CardTitle>
+                        <CardDescription className="text-xs flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          <span>{charger.address}</span>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0 pb-3 text-xs text-muted-foreground space-y-1">
+                        {charger.operatorName && (
+                          <p>Operator: <strong className="text-foreground">{charger.operatorName}</strong>{charger.baysCount ? ` (${charger.baysCount} bays)` : ""}</p>
+                        )}
+                        {charger.accessType === "restricted" && charger.accessHours && (
+                          <p>Hours: {charger.accessHours}</p>
+                        )}
+                        {charger.locationNotes && <p className="italic">{charger.locationNotes}</p>}
+                      </CardContent>
+                      <CardFooter className="p-4 pt-0">
+                        <Button
+                          asChild
+                          size="sm"
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
+                            <Navigation className="h-4 w-4" /> Get Directions
+                          </a>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
