@@ -377,6 +377,8 @@ export default function LeaderAboutPage() {
       localStorage.setItem(`demo_about_${communityId}`, JSON.stringify(aboutData));
       sessionStorage.setItem('community_defibrillators', JSON.stringify(defibrillators));
       localStorage.setItem('community_defibrillators', JSON.stringify(defibrillators));
+      sessionStorage.setItem('community_ev_chargers', JSON.stringify(evChargers));
+      localStorage.setItem('community_ev_chargers', JSON.stringify(evChargers));
       window.dispatchEvent(new CustomEvent('demo_about_updated', { detail: aboutData }));
     }
 
@@ -1601,6 +1603,15 @@ export default function LeaderAboutPage() {
                 if (typeof window !== 'undefined') {
                   sessionStorage.setItem('community_ev_chargers', JSON.stringify(updatedList));
                   localStorage.setItem('community_ev_chargers', JSON.stringify(updatedList));
+                  try {
+                    const existing = sessionStorage.getItem(`demo_about_${communityId}`) || localStorage.getItem(`demo_about_${communityId}`);
+                    if (existing) {
+                      const parsed = JSON.parse(existing);
+                      parsed.evChargers = updatedList;
+                      sessionStorage.setItem(`demo_about_${communityId}`, JSON.stringify(parsed));
+                      localStorage.setItem(`demo_about_${communityId}`, JSON.stringify(parsed));
+                    }
+                  } catch {}
                   window.dispatchEvent(new CustomEvent('demo_about_updated', { detail: { evChargers: updatedList } }));
                 }
                 if (communityId) {
@@ -1612,10 +1623,10 @@ export default function LeaderAboutPage() {
                     if (res.success) {
                       toast({ title: 'EV Charge Point Saved', description: `${currentEvCharger.name} saved to database.` });
                     } else {
-                      toast({ title: 'Saved Locally', description: `Click 'Save All Changes' to sync.` });
+                      toast({ variant: 'destructive', title: 'Database Save Failed', description: res.error || "Click 'Save All Changes' to retry." });
                     }
-                  } catch {
-                    toast({ title: 'Saved Locally', description: `Saved for this session.` });
+                  } catch (e: any) {
+                    toast({ variant: 'destructive', title: 'Database Save Failed', description: e?.message || 'Could not save to database.' });
                   }
                 }
               }}
