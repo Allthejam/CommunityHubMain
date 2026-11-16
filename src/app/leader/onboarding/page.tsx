@@ -158,8 +158,11 @@ export default function LeaderOnboardingPage() {
             });
 
             if (result.success) {
+                if (typeof window !== 'undefined') {
+                    sessionStorage.setItem('hasSkippedOnboarding', 'true');
+                }
                 toast({ title: 'Application Submitted', description: 'Your application has been submitted for verification. Welcome!'});
-                router.push('/leader/dashboard');
+                router.replace('/leader/dashboard');
             } else {
                 toast({ title: 'Save Failed', description: result.error, variant: 'destructive'});
             }

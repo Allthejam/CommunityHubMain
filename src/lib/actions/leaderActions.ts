@@ -185,8 +185,8 @@ export async function saveLeaderProfile(params: {
       const actionUrl = `/admin/applications/${userId}`;
       const notifSubject = `New Leadership Application: ${applicantDisplayName} (${applicationCommunityName})`;
 
-      // 1. Always create the broadcast notification for platform administrators (Admin header bell listener)
-      const platformNotifRef = firestore.collection('notifications').doc();
+      // 1. Always create a single deterministic broadcast notification for platform administrators (prevents duplicates)
+      const platformNotifRef = firestore.collection('notifications').doc(`leadership_app_${userId}`);
       batch.set(platformNotifRef, {
         recipientId: 'platform_admin',
         type: 'Leadership Application',
@@ -201,7 +201,7 @@ export async function saveLeaderProfile(params: {
         targetApp: 'admin'
       });
 
-      // 2. Discover all platform administrators across role, permissions, and accountType
+      // 2. Discover unique platform administrators for email alert (deduplicated by UID/email)
       const adminMap = new Map<string, { id: string; email?: string; name?: string }>();
       try {
         const adminRoles = ['administrator', 'admin', 'owner', 'Administrator', 'Admin', 'Owner', 'superadmin'];
@@ -214,7 +214,6 @@ export async function saveLeaderProfile(params: {
         [...roleSnap.docs, ...permSnap.docs, ...ownerSnap.docs].forEach(doc => {
           const d = doc.data();
           const isOwnerAccount = d.accountType === 'owner' || d.role === 'owner' || d.email === 'allan_jamieson@outlook.com';
-          // Always notify platform owners; for other admins, do not notify if they are the applicant
           if (doc.id !== userId || isOwnerAccount) {
             adminMap.set(doc.id, {
               id: doc.id,
@@ -224,32 +223,23 @@ export async function saveLeaderProfile(params: {
           }
         });
 
-        // Ensure Primary Platform Owner is always registered for notifications and Brevo email
-        adminMap.set('owner_primary', {
-          id: 'gx82VTPZkPTCHA4A7QV1WBpJ2802',
-          email: 'allan_jamieson@outlook.com',
-          name: 'Allan Jamieson (Owner)'
-        });
-
-        // 3. Create personalized notification record for each admin user
-        adminMap.forEach((admin) => {
-          const notificationRef = firestore.collection('notifications').doc();
-          batch.set(notificationRef, {
-            recipientId: admin.id,
-            type: 'Leadership Application',
-            subject: notifSubject,
-            from: applicantDisplayName,
-            date: Timestamp.now(),
-            status: 'new',
-            relatedId: userId,
-            communityId: communityId,
-            communityName: applicationCommunityName,
-            actionUrl: actionUrl,
-            targetApp: 'admin'
+        // Ensure Primary Platform Owner is registered once for Brevo email
+        const ownerUid = 'gx82VTPZkPTCHA4A7QV1WBpJ2802';
+        if (!adminMap.has(ownerUid)) {
+          adminMap.set(ownerUid, {
+            id: ownerUid,
+            email: 'allan_jamieson@outlook.com',
+            name: 'Allan Jamieson (Owner)'
           });
-        });
+        }
 
-        adminRecipients = Array.from(adminMap.values());
+        const seenEmails = new Set<string>();
+        adminRecipients = Array.from(adminMap.values()).filter((a) => {
+          const e = (a.email || '').trim().toLowerCase();
+          if (!e || seenEmails.has(e)) return false;
+          seenEmails.add(e);
+          return true;
+        });
       } catch (adminErr) {
         console.error('Error fetching admin users for notification:', adminErr);
       }
