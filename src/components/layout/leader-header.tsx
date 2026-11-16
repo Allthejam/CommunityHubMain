@@ -83,6 +83,7 @@ const mainLeaderNavItems = [
 
 
 const reviewSubItems = [
+    { href: '/leader/notifications', label: 'Notifications', icon: Bell, permission: 'viewNotifications' },
     { href: '/leader/reports', label: 'Reports', icon: FileText, permission: 'viewReports' },
     { href: '/leader/applications', label: 'Applications', icon: Shield, permission: 'viewApplications' },
     { href: '/leader/reviews', label: 'Guest Book Reviews', icon: Star, permission: 'actionApproveGuestBook' },
