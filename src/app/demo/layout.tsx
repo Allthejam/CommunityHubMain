@@ -172,7 +172,7 @@ const leaderAdminSubItems = [
 
 // ─── PUBLIC HUB SUBMENUS (Exact Match to live header.tsx) ─────────────────────────
 const discoverSubItems = [
-  { href: '/demo/defibrillators', label: 'Nearest Defibrillators (AED)', icon: HeartPulse, isEmergency: true },
+  { href: '/demo/defibrillators-and-ev', label: 'Defibrillators & EV Chargers', icon: HeartPulse, isEmergency: true },
   { href: '/demo/travel', label: 'Local Travel & Transit', icon: Navigation },
   { href: '/demo/events', label: 'Events', icon: CalendarIcon },
   { href: '/demo/whatson', label: "What's On", icon: Tv },

@@ -309,6 +309,11 @@ export function DefibrillatorsClient() {
     return list.filter((d) => d.accessType === "24_7").length;
   }, [defibrillators]);
 
+  const countEv247 = React.useMemo(() => {
+    const list = Array.isArray(evChargers) ? evChargers : [];
+    return list.filter((c) => c.accessType === "24_7").length;
+  }, [evChargers]);
+
   const loading = communityLoading && profileLoading;
 
   return (
@@ -365,18 +370,17 @@ export function DefibrillatorsClient() {
       <div className="space-y-2">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge className="bg-red-600 hover:bg-red-700 text-white font-bold gap-1.5 py-1 px-3">
-            <HeartPulse className="h-4 w-4" /> Public Access Defibrillators (AED)
+            <HeartPulse className="h-4 w-4" /> Defibrillators (AED): {defibrillators.length}
           </Badge>
-          <span className="text-xs text-muted-foreground font-medium">
-            {defibrillators.length} registered in {communityName}
-          </span>
+          <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 py-1 px-3">
+            <Zap className="h-4 w-4" /> EV Charge Points: {evChargers.length}
+          </Badge>
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight font-headline">
-          Nearest Defibrillators in {communityName}
+          Defibrillators &amp; EV Charge Points in {communityName}
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground max-w-3xl">
-          Locate life-saving Automated External Defibrillators with exact map coordinates, cabinet keypad instructions,
-          and 1-tap walking directions.
+          Locate life-saving Automated External Defibrillators (AEDs) and local electric vehicle (EV) charging points with exact map coordinates, connector specs, access hours, and 1-tap Google Maps directions.
         </p>
       </div>
 
@@ -411,7 +415,7 @@ export function DefibrillatorsClient() {
             onClick={() => setAccessFilter("all")}
             className="h-8 text-xs font-semibold"
           >
-            All Defibs ({defibrillators.length})
+            All Hours ({defibrillators.length + evChargers.length})
           </Button>
           <Button
             size="sm"
@@ -421,7 +425,7 @@ export function DefibrillatorsClient() {
               accessFilter === "24_7" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
             }`}
           >
-            24/7 Access Only ({count247})
+            24/7 Access Only ({count247 + countEv247})
           </Button>
         </div>
       </div>
@@ -638,7 +642,7 @@ export function DefibrillatorsClient() {
         )}
 
         {(mapFilter === "all" || mapFilter === "ev") && (
-          <div className="space-y-3 pt-4 border-t">
+          <div className="space-y-4 pt-4 border-t">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <Zap className="h-5 w-5 text-emerald-600" /> Local EV Charge Points
@@ -646,6 +650,21 @@ export function DefibrillatorsClient() {
               <span className="text-xs text-muted-foreground">
                 Showing {sortedEvChargers.length} locations
               </span>
+            </div>
+
+            <div className="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20 p-3.5 text-xs text-emerald-950 dark:text-emerald-100 grid gap-2 sm:grid-cols-3">
+              <div>
+                <span className="font-bold block text-emerald-700 dark:text-emerald-400">Type 2 Fast (7kW – 22kW)</span>
+                <span className="text-muted-foreground">Ideal for top-ups while shopping, dining, or visiting community venues.</span>
+              </div>
+              <div>
+                <span className="font-bold block text-emerald-700 dark:text-emerald-400">CCS / CHAdeMO Rapid (50kW+)</span>
+                <span className="text-muted-foreground">High-speed DC charging for longer journeys (20–45 min typical stop).</span>
+              </div>
+              <div>
+                <span className="font-bold block text-emerald-700 dark:text-emerald-400">Charging Etiquette</span>
+                <span className="text-muted-foreground">Check operator signage for bay time limits, parking tariffs, and RFID/app activation.</span>
+              </div>
             </div>
 
             {sortedEvChargers.length === 0 ? (

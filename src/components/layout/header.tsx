@@ -113,7 +113,7 @@ const mainNavItems = [
 ];
 
 const discoverSubItems = [
-    { href: '/defibrillators', label: 'Nearest Defibrillators (AED)', icon: HeartPulse, isEmergency: true },
+    { href: '/defibrillators-and-ev', label: 'Defibrillators & EV Chargers', icon: HeartPulse, isEmergency: true },
     { href: '/travel', label: 'Local Travel & Transit', icon: Navigation },
     { href: '/events', label: 'Events', icon: CalendarIcon },
     { href: '/whatson', label: "What's On", icon: Tv },

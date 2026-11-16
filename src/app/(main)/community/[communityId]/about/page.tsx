@@ -307,7 +307,7 @@ export default function CommunityAboutPage() {
                                 </p>
                             </div>
                             <Button asChild className="bg-red-600 hover:bg-red-700 text-white font-bold gap-2 shrink-0 shadow-sm">
-                                <Link href={`${demoPrefix}/defibrillators`}>
+                                <Link href={`${demoPrefix}/defibrillators-and-ev`}>
                                     <Navigation className="h-4 w-4" /> Open Full AED Map &amp; Locator
                                 </Link>
                             </Button>
@@ -369,7 +369,7 @@ export default function CommunityAboutPage() {
                                 <Zap className="h-6 w-6" /> Local EV Charge Points
                             </h2>
                             <Button asChild variant="outline" size="sm" className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50">
-                                <Link href={`${demoPrefix}/defibrillators`}>
+                                <Link href={`${demoPrefix}/defibrillators-and-ev`}>
                                     <MapPin className="h-4 w-4" /> View on Interactive Map
                                 </Link>
                             </Button>

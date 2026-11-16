@@ -95,7 +95,7 @@ const mainNavItems = [
 ];
 
 const discoverSubItems = [
-    { href: '/defibrillators', label: 'Nearest Defibrillators (AED)', icon: HeartPulse, isEmergency: true },
+    { href: '/defibrillators-and-ev', label: 'Defibrillators & EV Chargers', icon: HeartPulse, isEmergency: true },
     { href: '/events', label: 'Events', icon: Calendar, permission: 'viewEvents' },
     { href: '/whatson', label: "What's On", icon: Tv, permission: 'viewWhatson' },
     { href: '/news', label: 'News', icon: Newspaper, permission: 'viewNews' },
