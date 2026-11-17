@@ -423,8 +423,12 @@ export async function resignAsPresidentAction(params: {
 
   try {
     await firestore.runTransaction(async (transaction) => {
-      const userDoc = await transaction.get(userRef);
-      const communityDoc = await transaction.get(communityRef);
+      const userAppRef = firestore.collection('leadership_applications').doc(userId);
+      const [userDoc, communityDoc, userAppDoc] = await Promise.all([
+        transaction.get(userRef),
+        transaction.get(communityRef),
+        transaction.get(userAppRef),
+      ]);
 
       if (!userDoc.exists) throw new Error("User not found.");
       if (!communityDoc.exists) throw new Error("Community not found.");
@@ -510,8 +514,6 @@ export async function resignAsPresidentAction(params: {
       transaction.update(communityRef, communityUpdateData);
 
       // Archive user's leadership application so it does not linger as "Approved"
-      const userAppRef = firestore.collection('leadership_applications').doc(userId);
-      const userAppDoc = await transaction.get(userAppRef);
       if (userAppDoc.exists && userAppDoc.data()?.status === 'Approved') {
         transaction.update(userAppRef, {
           status: 'Archived',
