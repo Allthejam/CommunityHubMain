@@ -279,7 +279,7 @@ export default function AppHeader() {
 
     const isAnyLeader = (userProfile.role && ['president', 'leader', 'vice-president'].includes(userProfile.role)) ||
                         (userProfile.communityRoles && Object.values(userProfile.communityRoles).some((r: any) => ['president', 'leader', 'vice-president'].includes(r.role))) ||
-                        userProfile.permissions?.hasBackOfficeAccess;
+                        (userProfile.permissions?.hasBackOfficeAccess === true && (userProfile.role !== 'personal' || (userProfile.communityRoles && Object.keys(userProfile.communityRoles).length > 0)));
     if (isAnyLeader) {
       availableDashboards.push({ href: '/leader/dashboard', label: 'Leader', icon: Crown });
     }

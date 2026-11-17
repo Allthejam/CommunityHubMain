@@ -462,6 +462,11 @@ export async function resignAsPresidentAction(params: {
         updateData.role = 'personal';
         updateData.title = 'Personal';
         updateData['permissions.isLeader'] = false;
+        updateData['permissions.hasBackOfficeAccess'] = false;
+        updateData.onboardingCompleted = false;
+        if (['president', 'leader'].includes(String(userData.accountType || '').toLowerCase())) {
+          updateData.accountType = 'personal';
+        }
       }
 
       if (userData.homeCommunityId === communityId && hasOtherLeadershipRoles) {
