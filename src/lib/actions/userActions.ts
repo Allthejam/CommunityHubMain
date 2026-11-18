@@ -803,3 +803,47 @@ export async function migrateBusinessAndChangeCommunityAction(params: {
     return { success: false, error: error.message };
   }
 }
+
+const PLATFORM_OWNER_UID = 'gx82VTPZkPTCHA4A7QV1WBpJ2802';
+
+export async function updateOwnerPublicDisplayAction(params: {
+  userId: string;
+  mode: 'default' | 'custom' | 'hidden';
+  customLabel?: string;
+}): Promise<ActionResponse> {
+  const { userId, mode, customLabel } = params;
+  if (!userId) return { success: false, error: 'User ID is required.' };
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const userRef = firestore.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return { success: false, error: 'User not found.' };
+
+    const userData = userDoc.data()!;
+    const isPlatformOwner =
+      userData.role === 'owner' ||
+      userData.accountType === 'owner' ||
+      userId === PLATFORM_OWNER_UID;
+
+    if (!isPlatformOwner) {
+      return { success: false, error: 'Unauthorized: Owner account required.' };
+    }
+
+    const trimmedLabel = (customLabel || '').trim();
+    if (mode === 'custom' && !trimmedLabel) {
+      return { success: false, error: 'Please enter a display label or choose Hide / Default.' };
+    }
+
+    await userRef.update({
+      publicAccountTypeMode: mode,
+      publicAccountTypeLabel: mode === 'custom' ? trimmedLabel : '',
+    });
+
+    revalidatePath(`/profile/${userId}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error updating owner public display:', error);
+    return { success: false, error: error.message || 'Failed to update display preference.' };
+  }
+}

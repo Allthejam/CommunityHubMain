@@ -149,11 +149,21 @@ const UserRow = React.memo(({ user, currentCourierId, onAppointCourier, onUnappo
     
     const leaderRoleCount = user.communityRoles ? Object.keys(user.communityRoles).length : (user.role === 'president' || user.role === 'leader' ? 1 : 0);
 
-    const baseRole = user.accountType === 'personal' ? 'Member' 
-                     : user.accountType ? user.accountType.charAt(0).toUpperCase() + user.accountType.slice(1)
+    const rawAccountType = (user as any).publicAccountTypeMode === 'hidden'
+                     ? 'personal'
+                     : (user as any).publicAccountTypeMode === 'custom' && (user as any).publicAccountTypeLabel
+                     ? (user as any).publicAccountTypeLabel
+                     : user.accountType;
+
+    const baseRole = rawAccountType === 'personal' ? 'Member'
+                     : rawAccountType ? String(rawAccountType).charAt(0).toUpperCase() + String(rawAccountType).slice(1)
                      : 'Member';
-                     
-    const specificRole = user.title || (user.role ? user.role.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '');
+
+    const isStealthOwner = String(user.accountType) === 'owner' && ((user as any).publicAccountTypeMode === 'hidden' || (user as any).publicAccountTypeMode === 'custom');
+    const rawSpecificRole = isStealthOwner && (user.title?.toLowerCase() === 'owner' || user.role === 'owner')
+      ? ''
+      : (user.title || (user.role ? user.role.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : ''));
+    const specificRole = rawSpecificRole;
     
     const allRoles = new Set<string>();
     

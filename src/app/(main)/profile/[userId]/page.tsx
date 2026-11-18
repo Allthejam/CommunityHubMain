@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { changeAccountTypeAction, resignAsPresidentAction, deleteUserAccountAction, updateUserCommunityAction, updateUserFavouriteCommunitiesAction, downgradeAccountAction, changeHomeCommunityAction, migrateBusinessAndChangeCommunityAction } from "@/lib/actions/userActions";
+import { changeAccountTypeAction, resignAsPresidentAction, deleteUserAccountAction, updateUserCommunityAction, updateUserFavouriteCommunitiesAction, downgradeAccountAction, changeHomeCommunityAction, migrateBusinessAndChangeCommunityAction, updateOwnerPublicDisplayAction } from "@/lib/actions/userActions";
 import { saveLeaderProfile } from "@/lib/actions/leaderActions";
 import { performGlobalLogout } from "@/lib/auth-logout";
 import { Label } from "@/components/ui/label";
@@ -70,7 +70,9 @@ type UserProfile = {
     email: string;
     role: string;
     title?: string;
-    accountType?: 'personal' | 'business' | 'enterprise' | 'national' | 'advertiser';
+    accountType?: 'personal' | 'business' | 'enterprise' | 'national' | 'advertiser' | 'owner';
+    publicAccountTypeMode?: 'default' | 'custom' | 'hidden';
+    publicAccountTypeLabel?: string;
     communityName?: string;
     communityId?: string;
     homeCommunityId?: string;
@@ -188,10 +190,64 @@ export default function UserProfilePage() {
 
     // Personal info editing state
     const [canEditPersonalInfo, setCanEditPersonalInfo] = React.useState(true);
+
+    // Owner-only public account type display state
+    const [ownerDisplayMode, setOwnerDisplayMode] = React.useState<'default' | 'custom' | 'hidden'>('default');
+    const [ownerDisplayLabel, setOwnerDisplayLabel] = React.useState('Member');
+    const [isSavingOwnerDisplay, setIsSavingOwnerDisplay] = React.useState(false);
     const [nextEditDate, setNextEditDate] = React.useState<Date | null>(null);
     
     const [migrationPlan, setMigrationPlan] = React.useState<Record<string, 'move' | 'keep' | 'vacate'>>({});
     const isOwner = user?.uid === userId;
+    const isPlatformOwner =
+        userProfile?.role === 'owner' ||
+        userProfile?.accountType === 'owner' ||
+        userId === 'gx82VTPZkPTCHA4A7QV1WBpJ2802';
+
+    React.useEffect(() => {
+        if (userProfile) {
+            setOwnerDisplayMode(userProfile.publicAccountTypeMode || 'default');
+            setOwnerDisplayLabel(userProfile.publicAccountTypeLabel || 'Member');
+        }
+    }, [userProfile]);
+
+    const handleSaveOwnerDisplay = async (nextMode?: 'default' | 'custom' | 'hidden', nextLabel?: string) => {
+        if (!isOwner || !isPlatformOwner || !userId) return;
+        const modeToSave = nextMode || ownerDisplayMode;
+        const labelToSave = nextLabel !== undefined ? nextLabel : ownerDisplayLabel;
+        setIsSavingOwnerDisplay(true);
+        const res = await updateOwnerPublicDisplayAction({
+            userId: userId as string,
+            mode: modeToSave,
+            customLabel: labelToSave,
+        });
+        setIsSavingOwnerDisplay(false);
+        if (res.success) {
+            setOwnerDisplayMode(modeToSave);
+            if (nextLabel !== undefined) setOwnerDisplayLabel(nextLabel);
+            toast({
+                title: "Public Display Updated",
+                description:
+                    modeToSave === 'hidden'
+                        ? "Your account type is now hidden from public view."
+                        : modeToSave === 'custom'
+                        ? `Your public account type now displays as "${labelToSave}".`
+                        : "Your public account type is back to default.",
+            });
+        } else {
+            toast({ title: "Error", description: res.error || "Failed to update display.", variant: "destructive" });
+        }
+    };
+
+    const publicAccountTypeDisplay = React.useMemo(() => {
+        if (!userProfile) return "N/A";
+        const mode = userProfile.publicAccountTypeMode || 'default';
+        if (mode === 'hidden') return null;
+        if (mode === 'custom' && userProfile.publicAccountTypeLabel) {
+            return userProfile.publicAccountTypeLabel;
+        }
+        return userProfile.title || userProfile.role || "N/A";
+    }, [userProfile]);
 
     const businessesQuery = useMemoFirebase(() => {
         if (!userId || !db) return null;
@@ -670,7 +726,9 @@ export default function UserProfilePage() {
                             <div className="flex flex-col sm:flex-row justify-between items-center">
                                 <div className="text-center sm:text-left">
                                     <h1 className="text-3xl sm:text-4xl font-bold font-headline">{userProfile.name}</h1>
-                                    <p className="text-lg text-muted-foreground capitalize">{userProfile.title || userProfile.role}</p>
+                                    {publicAccountTypeDisplay && (
+                                        <p className="text-lg text-muted-foreground capitalize">{publicAccountTypeDisplay}</p>
+                                    )}
                                 </div>
                                 <div className="mt-4 sm:mt-0">
                                     <Badge variant={userProfile.status === 'active' ? 'default' : 'destructive'} className="capitalize bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
@@ -752,10 +810,20 @@ export default function UserProfilePage() {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Account Type</Label>
-                                        <Input value={userProfile.title || userProfile.role || "N/A"} disabled className="capitalize"/>
-                                    </div>
+                                    {(publicAccountTypeDisplay !== null || isOwner) && (
+                                        <div className="space-y-2">
+                                            <Label>Account Type</Label>
+                                            <Input
+                                                value={
+                                                    publicAccountTypeDisplay === null
+                                                        ? "Hidden from public (Owner)"
+                                                        : publicAccountTypeDisplay
+                                                }
+                                                disabled
+                                                className="capitalize"
+                                            />
+                                        </div>
+                                    )}
                                     <div className="space-y-2">
                                         <Label>Account Created</Label>
                                         <Input value={userProfile.joined ? format(userProfile.joined.toDate(), 'PPP') : "N/A"} disabled />
@@ -768,6 +836,76 @@ export default function UserProfilePage() {
                                         <Label>Home Community</Label>
                                         <Input value={userProfile.communityName || "N/A"} disabled />
                                     </div>
+                                    {isOwner && isPlatformOwner && (
+                                        <div className="sm:col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                <div>
+                                                    <p className="text-sm font-semibold">Owner Stealth Display (Only Visible to You)</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Choose how your account type appears to other community members. Your full Owner permissions remain unchanged.
+                                                    </p>
+                                                </div>
+                                                <Badge variant="outline" className="text-xs">Owner Only</Badge>
+                                            </div>
+                                            <div className="grid sm:grid-cols-2 gap-3">
+                                                <div className="space-y-1.5">
+                                                    <Label htmlFor="owner-display-mode">Public Visibility</Label>
+                                                    <Select
+                                                        value={ownerDisplayMode}
+                                                        onValueChange={(val: 'default' | 'custom' | 'hidden') => setOwnerDisplayMode(val)}
+                                                    >
+                                                        <SelectTrigger id="owner-display-mode">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="custom">Display Custom Label</SelectItem>
+                                                            <SelectItem value="hidden">Hide Account Type</SelectItem>
+                                                            <SelectItem value="default">Show Default (Owner)</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                {ownerDisplayMode === 'custom' && (
+                                                    <div className="space-y-1.5">
+                                                        <Label htmlFor="owner-display-label">Displayed Label</Label>
+                                                        <Input
+                                                            id="owner-display-label"
+                                                            value={ownerDisplayLabel}
+                                                            onChange={(e) => setOwnerDisplayLabel(e.target.value)}
+                                                            placeholder="e.g., Member, Resident, Neighbour"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {ownerDisplayMode === 'custom' && (
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    <span className="text-xs text-muted-foreground mr-1">Quick picks:</span>
+                                                    {['Member', 'Resident', 'Community Member', 'Personal'].map((preset) => (
+                                                        <Button
+                                                            key={preset}
+                                                            type="button"
+                                                            variant={ownerDisplayLabel === preset ? 'default' : 'outline'}
+                                                            size="sm"
+                                                            className="h-6 px-2 text-xs"
+                                                            onClick={() => setOwnerDisplayLabel(preset)}
+                                                        >
+                                                            {preset}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="flex justify-end">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    onClick={() => handleSaveOwnerDisplay()}
+                                                    disabled={isSavingOwnerDisplay}
+                                                >
+                                                    {isSavingOwnerDisplay && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                                                    Save Public Display
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </CardContent>
                                 {isOwner && (
                                     <CardFooter className="justify-between flex-wrap gap-2">
