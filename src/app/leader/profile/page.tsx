@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from "react";
@@ -8,9 +7,9 @@ import {
     ArrowLeft,
     Save,
     Loader2,
-    Send,
-    HelpCircle,
     Lock,
+    ShieldCheck,
+    ArrowRight,
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -33,8 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { LegalDocumentDisplay } from "@/components/legal-document-display";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
@@ -54,46 +52,32 @@ export default function LeaderProfilePage() {
     const communityId = userProfile?.communityId;
     const leaderProfileRef = useMemoFirebase(() => (user && communityId ? doc(db, `communities/${communityId}/leader_profiles`, user.uid) : null), [user, communityId, db]);
     const { data: leaderProfile, isLoading: leaderProfileLoading } = useDoc(leaderProfileRef);
-    
+
     const [isSaving, setIsSaving] = React.useState(false);
 
-    // Form fields
+    // Contact & terms fields
     const [contactPhone, setContactPhone] = React.useState('');
     const [preferredContactMethod, setPreferredContactMethod] = React.useState('');
-    const [intendedCommunityCount, setIntendedCommunityCount] = React.useState(1);
-    const [communityIntent, setCommunityIntent] = React.useState('');
-    const [communityIntentDescription, setCommunityIntentDescription] = React.useState('');
-    const [refName, setRefName] = React.useState('');
-    const [refEmail, setRefEmail] = React.useState('');
-    const [refPhone, setRefPhone] = React.useState('');
-    const [refRelationship, setRefRelationship] = React.useState('');
     const [agreedToTerms, setAgreedToTerms] = React.useState(false);
 
     React.useEffect(() => {
         if (leaderProfile) {
             setContactPhone(leaderProfile.contactPhone || '');
             setPreferredContactMethod(leaderProfile.preferredContactMethod || '');
-            setIntendedCommunityCount(leaderProfile.intendedCommunityCount || 1);
-            setCommunityIntent(leaderProfile.communityIntent || '');
-            setCommunityIntentDescription(leaderProfile.communityIntentDescription || '');
-            setRefName(leaderProfile.refName || '');
-            setRefEmail(leaderProfile.refEmail || '');
-            setRefPhone(leaderProfile.refPhone || '');
-            setRefRelationship(leaderProfile.refRelationship || '');
             setAgreedToTerms(leaderProfile.agreedToTerms || false);
         }
     }, [leaderProfile]);
 
     const isLocked = userProfile?.onboardingCompleted === true;
     const isLoading = isUserLoading || profileLoading || leaderProfileLoading;
-    
-    const handleSave = async (status: 'draft' | 'pending') => {
+
+    const handleSave = async (redirectToOnboarding: boolean) => {
         if (!user || !communityId) {
-            toast({ title: 'Error', description: 'User or community not found.', variant: 'destructive'});
+            toast({ title: 'Error', description: 'User or community not found.', variant: 'destructive' });
             return;
         }
-         if (status === 'pending' && !agreedToTerms) {
-            toast({ title: "Terms and Conditions", description: "You must agree to the terms to submit your profile.", variant: "destructive" });
+        if (redirectToOnboarding && !agreedToTerms) {
+            toast({ title: "Terms and Conditions", description: "Please agree to the Leadership Terms & Conditions to continue.", variant: "destructive" });
             return;
         }
 
@@ -103,36 +87,31 @@ export default function LeaderProfilePage() {
             profileData: {
                 communityId,
                 contactPhone,
-                preferredContactMethod,
-                intendedCommunityCount,
-                communityIntent,
-                communityIntentDescription,
-                refName,
-                refEmail,
-                refPhone,
-                refRelationship,
+                preferredContactMethod: preferredContactMethod as 'email' | 'phone' | 'chat',
+                intendedCommunityCount: 1,
                 agreedToTerms,
             },
-            status
+            status: 'draft',
         });
         setIsSaving(false);
+
         if (result.success) {
-            toast({ title: 'Profile Saved', description: `Your profile has been saved as a ${status}.`});
-            if (status === 'pending') {
-                router.push('/leader/dashboard');
+            toast({ title: 'Profile Saved', description: 'Your leader contact details have been updated.' });
+            if (redirectToOnboarding) {
+                router.push('/leader/onboarding');
             }
         } else {
-            toast({ title: 'Save Failed', description: result.error, variant: 'destructive'});
+            toast({ title: 'Save Failed', description: result.error, variant: 'destructive' });
         }
     };
-    
+
     if (isLoading) {
-        return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
+        return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
     return (
         <div className="space-y-8 max-w-4xl mx-auto">
-             <div>
+            <div>
                 <Button asChild variant="ghost" className="mb-4">
                     <Link href="/leader/settings">
                         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -142,41 +121,41 @@ export default function LeaderProfilePage() {
                 <h1 className="text-3xl font-bold tracking-tight font-headline">Leader Profile</h1>
                 <p className="text-muted-foreground">This information is used for administrative and verification purposes and is not displayed publicly.</p>
             </div>
-            
+
             {isLocked && (
                 <Alert className="border-blue-500 bg-blue-50/50 text-blue-900">
                     <Lock className="h-4 w-4" color="#3b82f6" />
-                    <AlertTitle>Profile Locked</AlertTitle>
+                    <AlertTitle>Profile Verified &amp; Locked</AlertTitle>
                     <AlertDescription>
-                        Your profile has been submitted and is now locked to guarantee platform integrity. It cannot be edited unless community leadership is officially vacated or transferred.
+                        Your profile has been verified and locked to guarantee platform integrity. It cannot be edited unless community leadership is officially vacated or transferred.
                     </AlertDescription>
                 </Alert>
             )}
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Your Information</CardTitle>
-                    <CardDescription>Keep your contact and reference details up to date.</CardDescription>
+                    <CardTitle>Your Contact Information</CardTitle>
+                    <CardDescription>Keep your primary contact details up to date.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div className="space-y-2">
+                        <div className="space-y-2">
                             <Label htmlFor="leader-name">Full Name</Label>
                             <Input id="leader-name" value={userProfile?.name || ''} disabled />
-                         </div>
-                         <div className="space-y-2">
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="leader-email">Account Email</Label>
                             <Input id="leader-email" value={userProfile?.email || ''} disabled />
-                         </div>
+                        </div>
                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
                             <Label htmlFor="contact-phone">Contact Phone Number</Label>
                             <Input id="contact-phone" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} disabled={isLocked} />
-                         </div>
-                         <div className="space-y-2">
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="contact-method">Preferred Contact Method</Label>
-                             <Select onValueChange={setPreferredContactMethod} value={preferredContactMethod} disabled={isLocked}>
+                            <Select onValueChange={setPreferredContactMethod} value={preferredContactMethod} disabled={isLocked}>
                                 <SelectTrigger id="contact-method">
                                     <SelectValue placeholder="Select a method..." />
                                 </SelectTrigger>
@@ -186,80 +165,63 @@ export default function LeaderProfilePage() {
                                     <SelectItem value="chat">Platform Chat</SelectItem>
                                 </SelectContent>
                             </Select>
-                         </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Community Intent</CardTitle>
-                    <CardDescription>Help us understand your goals for the community.</CardDescription>
+                    <CardTitle className="flex items-center gap-2">
+                        <ShieldCheck className="h-5 w-5 text-primary" />
+                        Leadership Agreement &amp; Responsibilities
+                    </CardTitle>
+                    <CardDescription>
+                        Important terms governing your role as a Community Leader.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label>How many communities do you intend to run?</Label>
-                            <Input type="number" min="1" max="10" value={intendedCommunityCount} onChange={e => setIntendedCommunityCount(Number(e.target.value))} disabled={isLocked} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Primary goal for your revenue share?</Label>
-                             <Select onValueChange={setCommunityIntent} value={communityIntent} disabled={isLocked}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a goal..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="project">Fund community projects</SelectItem>
-                                    <SelectItem value="revenue">Generate personal income</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                     <div className="space-y-2">
-                        <Label>Please briefly describe your plans for the community hub.</Label>
-                        <Textarea value={communityIntentDescription} onChange={e => setCommunityIntentDescription(e.target.value)} placeholder="e.g., I plan to use the funds to install new playground equipment at the park..." disabled={isLocked} />
-                    </div>
-                </CardContent>
-            </Card>
-            
-             <Card>
-                <CardHeader>
-                    <CardTitle>Professional Reference</CardTitle>
-                    <CardDescription>Please provide one professional reference we can contact if needed.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <div className="space-y-2">
-                        <Label htmlFor="ref-name">Reference's Full Name</Label>
-                        <Input id="ref-name" value={refName} onChange={e => setRefName(e.target.value)} disabled={isLocked} />
-                     </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="ref-relationship">Relationship to You</Label>
-                        <Input id="ref-relationship" placeholder="e.g., Former Manager, Colleague" value={refRelationship} onChange={e => setRefRelationship(e.target.value)} disabled={isLocked} />
-                     </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="ref-email">Reference's Email</Label>
-                        <Input id="ref-email" type="email" value={refEmail} onChange={e => setRefEmail(e.target.value)} disabled={isLocked} />
-                     </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="ref-phone">Reference's Phone Number</Label>
-                        <Input id="ref-phone" type="tel" value={refPhone} onChange={e => setRefPhone(e.target.value)} disabled={isLocked} />
-                     </div>
+                <CardContent className="space-y-4 text-sm text-muted-foreground leading-relaxed">
+                    <p>
+                        By agreeing to run this community, you confirm that you accept and will abide by all{' '}
+                        <strong className="text-foreground">Platform &amp; Leader Terms and Conditions</strong>,{' '}
+                        <strong className="text-foreground">Financial Terms</strong>, and{' '}
+                        <strong className="text-foreground">Community Guidelines</strong>.
+                    </p>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>
+                            <strong className="text-foreground">Single-Community Start:</strong> New leaders are limited to managing <strong>1 community</strong> initially. Eligibility to lead additional communities unlocks automatically after an established period of successful, compliant leadership.
+                        </li>
+                        <li>
+                            <strong className="text-foreground">14-Day Registration &amp; Stripe Verification:</strong> To maintain leadership access, you must complete the 3-step registration (including automated identity and bank verification via Stripe) within <strong>14 days</strong> and within the 3 allowed &ldquo;Do Later&rdquo; skips.
+                        </li>
+                        <li>
+                            <strong className="text-foreground">Account Reversion &amp; Work Handover:</strong> If registration is not completed in time or is cancelled, your account will automatically revert to a Personal account, Leader Dashboard access will be removed, and any community setup or content you created may be retained and handed over to a new leader.
+                        </li>
+                        <li>
+                            <strong className="text-foreground">Good-Faith Stewardship &amp; Audits:</strong> Verified accounts are approved automatically, but remain subject to platform audit and review if content, financial activity, or conduct is reported.
+                        </li>
+                    </ul>
                 </CardContent>
             </Card>
 
             {!isLocked && (
                 <CardFooter className="flex-col items-start gap-4 px-0">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="terms" checked={agreedToTerms} onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)} />
-                        <Label htmlFor="terms" className="text-sm font-normal">
+                    <div className="flex items-start space-x-2">
+                        <Checkbox
+                            id="terms"
+                            checked={agreedToTerms}
+                            onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+                            className="mt-0.5"
+                        />
+                        <Label htmlFor="terms" className="text-sm font-normal leading-relaxed">
                             I have read and agree to the{' '}
                             <Dialog>
                                 <DialogTrigger asChild>
-                                    <span className="underline text-primary cursor-pointer">Leader Terms & Conditions</span>
+                                    <span className="underline text-primary cursor-pointer">Leader Terms &amp; Conditions</span>
                                 </DialogTrigger>
-                                 <DialogContent className="max-w-2xl grid-rows-[auto,1fr,auto] p-0 max-h-[85vh]">
+                                <DialogContent className="max-w-2xl grid-rows-[auto,1fr,auto] p-0 max-h-[85vh]">
                                     <DialogHeader className="p-6 pb-2 border-b">
-                                        <DialogTitle>Leader Terms & Conditions</DialogTitle>
+                                        <DialogTitle>Leader Terms &amp; Conditions</DialogTitle>
                                     </DialogHeader>
                                     <ScrollArea className="h-full">
                                         <div className="p-6">
@@ -271,19 +233,19 @@ export default function LeaderProfilePage() {
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
-                            .
+                            {' '}and accept the responsibilities outlined above.
                         </Label>
                     </div>
-                     <div className="flex flex-wrap gap-2">
-                        <Button onClick={() => handleSave('pending')} disabled={isSaving || !agreedToTerms}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            <Send className="mr-2 h-4 w-4" />
-                            Save & Submit for Verification
+                    <div className="flex flex-wrap gap-2">
+                        <Button onClick={() => handleSave(true)} disabled={isSaving || !agreedToTerms}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            <ArrowRight className="mr-2 h-4 w-4" />
+                            Save &amp; Continue to Verification
                         </Button>
-                         <Button variant="outline" onClick={() => handleSave('draft')} disabled={isSaving}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        <Button variant="outline" onClick={() => handleSave(false)} disabled={isSaving}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             <Save className="mr-2 h-4 w-4" />
-                            Save as Draft
+                            Save Details
                         </Button>
                     </div>
                 </CardFooter>
@@ -291,4 +253,3 @@ export default function LeaderProfilePage() {
         </div>
     );
 }
-

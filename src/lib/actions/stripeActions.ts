@@ -212,7 +212,7 @@ export async function createCustomerPortalLink(params: { userId: string, returnP
     }
 }
 
-export async function createStripeConnectAccountLinkForCommunity(params: { communityId: string, userId: string, origin?: string }): Promise<ActionResponse> {
+export async function createStripeConnectAccountLinkForCommunity(params: { communityId: string, userId: string, origin?: string, returnPath?: string, refreshPath?: string }): Promise<ActionResponse> {
     const stripeSecret = process.env.STRIPE_SECRET_KEY;
     if (!stripeSecret) return { success: false, error: "Stripe configuration missing." };
     const stripe = new Stripe(stripeSecret, { apiVersion: '2025-07-30.basil' as any });
@@ -241,10 +241,13 @@ export async function createStripeConnectAccountLinkForCommunity(params: { commu
             ? params.origin.replace(/\/+$/, '')
             : (process.env.NEXT_PUBLIC_BASE_URL || 'https://my-community-hub.co.uk');
 
+        const returnPath = params.returnPath || '/leader/financials?stripe_return=true';
+        const refreshPath = params.refreshPath || '/leader/financials?reauth=true';
+
         const link = await stripe.accountLinks.create({
             account: stripeId,
-            refresh_url: `${safeOrigin}/leader/financials?reauth=true`,
-            return_url: `${safeOrigin}/leader/financials?stripe_return=true`,
+            refresh_url: `${safeOrigin}${refreshPath}`,
+            return_url: `${safeOrigin}${returnPath}`,
             type: 'account_onboarding',
         });
         return { success: true, url: link.url };

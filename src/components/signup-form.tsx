@@ -281,9 +281,16 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
         };
         
         if (accountType === 'leader') {
+            const trialExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
             userProfileData.communityRoles = {
                 [finalCommunityId!]: { role: 'president', title: 'President' }
             };
+            userProfileData.onboardingCompleted = false;
+            userProfileData.onboardingStep = 1;
+            userProfileData.onboardingSkipCount = 0;
+            userProfileData.leaderTrialStartedAt = serverTimestamp();
+            userProfileData.leaderTrialExpiresAt = trialExpiresAt;
+            userProfileData.canManageMultipleCommunities = false;
         }
 
         const userRef = doc(db, "users", user.uid);

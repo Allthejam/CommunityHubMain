@@ -24,7 +24,8 @@ import {
   AlertTriangle,
   BookOpen,
   Store,
-  MessageSquare
+  MessageSquare,
+  Clock
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -155,10 +156,49 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
   const isAmberAlert = isEmergencyPublic && threatStatus === 'advisory' && hasActiveNotice;
   const activeAlertHeadline = emergencyPlan?.officialNotice?.headline || (isRedAlert ? 'Active Incident Alert' : 'Resilience Advisory');
 
+  const isLeaderTrialPending =
+    !isDemo &&
+    (userProfile?.role === 'president' || userProfile?.role === 'leader') &&
+    userProfile?.onboardingCompleted !== true &&
+    Boolean(userProfile?.leaderTrialExpiresAt);
+
+  const leaderTrialDaysLeft = (() => {
+    if (!isLeaderTrialPending) return 0;
+    const rawExpiry = userProfile?.leaderTrialExpiresAt;
+    const expiresMs = typeof rawExpiry?.toDate === 'function'
+      ? rawExpiry.toDate().getTime()
+      : typeof rawExpiry?.seconds === 'number'
+        ? rawExpiry.seconds * 1000
+        : new Date(rawExpiry).getTime();
+    if (Number.isNaN(expiresMs)) return 0;
+    return Math.max(0, Math.ceil((expiresMs - Date.now()) / (1000 * 60 * 60 * 24)));
+  })();
+
+  const leaderSkipsLeft = Math.max(0, 3 - Number(userProfile?.onboardingSkipCount || 0));
+  const leaderStepsDone = Math.max(0, Math.min(3, Number(userProfile?.onboardingStep || 1) - 1));
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       {/* Left Card: Welcome / Profile Card */}
       <Card className="border-0 md:border rounded-none md:rounded-lg flex flex-col justify-between shadow-2xs">
+        {isLeaderTrialPending && (
+          <div className="mx-4 mt-4 md:mx-6 md:mt-5 p-3 rounded-lg border border-amber-500/60 bg-amber-50/80 dark:bg-amber-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-xs space-y-0.5 min-w-0">
+                <p className="font-bold text-amber-950 dark:text-amber-100">
+                  Complete Leader Registration ({leaderTrialDaysLeft} day{leaderTrialDaysLeft === 1 ? '' : 's'} left)
+                </p>
+                <p className="text-amber-800 dark:text-amber-300">
+                  {leaderStepsDone}/3 steps done • {leaderSkipsLeft} of 3 &ldquo;Do Later&rdquo; skips left before auto-revert to Personal.
+                </p>
+              </div>
+            </div>
+            <Button size="sm" asChild className="h-7 px-3 text-xs font-bold shrink-0 bg-amber-600 hover:bg-amber-700 text-white">
+              <Link href="/leader/onboarding">Finish Setup</Link>
+            </Button>
+          </div>
+        )}
         <CardHeader className="p-4 md:p-6 pb-3 flex flex-row items-center justify-between gap-3 space-y-0">
           <div className="flex items-center gap-3 min-w-0">
             <Avatar className="h-10 w-10 shrink-0">

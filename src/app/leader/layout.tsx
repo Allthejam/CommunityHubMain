@@ -9,6 +9,8 @@ import LeaderHeader from '@/components/layout/leader-header';
 import Footer from '@/components/layout/footer';
 import { Loader2 } from 'lucide-react';
 import { BackToTopButton } from '@/components/ui/back-to-top-button';
+import { revertExpiredOrCancelledLeaderAction } from '@/lib/actions/leaderActions';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LeaderLayout({
   children,
@@ -19,6 +21,8 @@ export default function LeaderLayout({
   const db = useFirestore();
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
+  const revertingRef = React.useRef(false);
 
   const userProfileRef = useMemoFirebase(() => (user ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile, isLoading: profileLoading } = useDoc(userProfileRef);
@@ -85,13 +89,33 @@ export default function LeaderLayout({
         return;
       }
 
-      // Enforce Onboarding for primary leaders
+      // Enforce Onboarding & 14-day trial window ONLY for new trial leaders (leaves existing/legacy accounts untouched)
       const isPrimaryLeader = userProfile.role === 'president' || userProfile.role === 'leader';
-      if (isPrimaryLeader) {
-          const isOnboardingComplete = userProfile.onboardingCompleted === true;
+      if (isPrimaryLeader && userProfile.onboardingCompleted !== true && userProfile.leaderTrialExpiresAt) {
+          const rawExpiry = userProfile.leaderTrialExpiresAt;
+          const expiresAtMs = typeof rawExpiry?.toDate === 'function'
+            ? rawExpiry.toDate().getTime()
+            : typeof rawExpiry?.seconds === 'number'
+              ? rawExpiry.seconds * 1000
+              : new Date(rawExpiry).getTime();
+
+          if (!Number.isNaN(expiresAtMs) && Date.now() > expiresAtMs) {
+              if (!revertingRef.current) {
+                  revertingRef.current = true;
+                  revertExpiredOrCancelledLeaderAction({ userId: user.uid, reason: 'expired' }).then(() => {
+                      toast({
+                          title: 'Leader Trial Expired',
+                          description: 'Your 14-day leader registration window ended. Your account has been reverted to a Personal account.',
+                          variant: 'destructive',
+                      });
+                      router.replace('/home');
+                  });
+              }
+              return;
+          }
+
           const hasSkipped = typeof window !== 'undefined' && sessionStorage.getItem('hasSkippedOnboarding') === 'true';
-          
-          if (!isOnboardingComplete && !hasSkipped && pathname !== '/leader/onboarding') {
+          if (!hasSkipped && pathname !== '/leader/onboarding') {
               router.replace('/leader/onboarding');
               return;
           }

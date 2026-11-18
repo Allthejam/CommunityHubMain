@@ -5,6 +5,7 @@ import { initializeAdminApp } from "@/firebase/admin-app";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { addMonths, isAfter, addYears } from 'date-fns';
 import { sendEmail } from './emailActions';
+import { getCommunityStripeStatusAction } from './stripeActions';
 
 type ActionResponse = {
   success: boolean;
@@ -308,5 +309,229 @@ export async function saveLeaderProfile(params: {
   } catch (error: any) {
     console.error("Error saving leader profile:", error);
     return { success: false, error: error.message || "Failed to save profile." };
+  }
+}
+
+export async function recordLeaderOnboardingSkipAction(params: {
+  userId: string;
+}): Promise<{ success: boolean; skipCount?: number; error?: string }> {
+  const { userId } = params;
+  if (!userId) return { success: false, error: 'User ID is required.' };
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const userRef = firestore.collection('users').doc(userId);
+    const nextCount = await firestore.runTransaction(async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists) throw new Error('User not found.');
+      const data = snap.data()!;
+      const current = Number(data.onboardingSkipCount || 0);
+      const updated = Math.min(3, current + 1);
+      tx.update(userRef, {
+        onboardingSkipCount: updated,
+        lastOnboardingSkipAt: Timestamp.now(),
+      });
+      return updated;
+    });
+    return { success: true, skipCount: nextCount };
+  } catch (error: any) {
+    console.error('Error recording onboarding skip:', error);
+    return { success: false, error: error.message || 'Failed to record skip.' };
+  }
+}
+
+export async function revertExpiredOrCancelledLeaderAction(params: {
+  userId: string;
+  reason: 'expired' | 'cancelled';
+}): Promise<ActionResponse> {
+  const { userId, reason } = params;
+  if (!userId) return { success: false, error: 'User ID is required.' };
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const userRef = firestore.collection('users').doc(userId);
+
+    const reverted = await firestore.runTransaction(async (tx) => {
+      const userDoc = await tx.get(userRef);
+      if (!userDoc.exists) throw new Error('User not found.');
+      const userData = userDoc.data()!;
+
+      // Safety guard: never touch already-verified leaders or legacy accounts without a trial expiry
+      if (userData.onboardingCompleted === true || !userData.leaderTrialExpiresAt) {
+        return false;
+      }
+
+      const communityId = userData.communityId || userData.homeCommunityId;
+      const communityRef = communityId ? firestore.collection('communities').doc(communityId) : null;
+      const communityDoc = communityRef ? await tx.get(communityRef) : null;
+
+      const userUpdate: Record<string, any> = {
+        role: 'personal',
+        title: 'Personal',
+        accountType: 'personal',
+        'permissions.isLeader': false,
+        'permissions.hasBackOfficeAccess': false,
+        'permissions.dashboards.leader': false,
+        onboardingCompleted: false,
+        leaderTrialExpiresAt: FieldValue.delete(),
+        leaderTrialStartedAt: FieldValue.delete(),
+        onboardingSkipCount: FieldValue.delete(),
+        onboardingStep: FieldValue.delete(),
+        leaderTrialRevertedAt: Timestamp.now(),
+        leaderTrialRevertReason: reason,
+      };
+
+      if (communityId) {
+        userUpdate[`communityRoles.${communityId}`] = FieldValue.delete();
+      }
+
+      tx.update(userRef, userUpdate);
+
+      if (communityRef && communityDoc?.exists) {
+        const commData = communityDoc.data()!;
+        const currentLeaderCount = Number(commData.leaderCount || 0);
+        const commUpdate: Record<string, any> = {
+          leaderCount: Math.max(0, currentLeaderCount - 1),
+        };
+        if (commData.stripeAccountOwnerId === userId) {
+          commUpdate.stripeAccountId = FieldValue.delete();
+          commUpdate.stripeAccountOwnerId = FieldValue.delete();
+        }
+        if (currentLeaderCount <= 1) {
+          commUpdate.status = 'pending';
+        }
+        tx.update(communityRef, commUpdate);
+      }
+
+      const notifRef = firestore.collection('notifications').doc();
+      tx.set(notifRef, {
+        recipientId: userId,
+        type: 'Account Update',
+        subject: reason === 'expired'
+          ? 'Leader Registration Window Expired'
+          : 'Leader Registration Cancelled',
+        body: reason === 'expired'
+          ? 'Your 14-day leader registration window expired before verification was completed. Your account has been reverted to a Personal account, and the community is now open for another leader.'
+          : 'You cancelled your leader registration. Your account has been reverted to a Personal account, and the community is now open for another leader.',
+        date: Timestamp.now(),
+        status: 'new',
+        actionUrl: '/home',
+      });
+
+      return true;
+    });
+
+    return { success: true, ...(reverted ? {} : { error: 'Account is not an active unverified trial.' }) };
+  } catch (error: any) {
+    console.error('Error reverting leader trial:', error);
+    return { success: false, error: error.message || 'Failed to revert leader account.' };
+  }
+}
+
+export async function saveLeaderOnboardingStepAction(params: {
+  userId: string;
+  communityId: string;
+  step: number;
+  profileData?: Partial<LeaderProfileData>;
+}): Promise<ActionResponse> {
+  const { userId, communityId, step, profileData } = params;
+  if (!userId || !communityId) {
+    return { success: false, error: 'User ID and Community ID are required.' };
+  }
+
+  try {
+    const { firestore } = initializeAdminApp();
+    const batch = firestore.batch();
+    const userRef = firestore.collection('users').doc(userId);
+    batch.update(userRef, {
+      onboardingStep: step,
+      lastOnboardingUpdatedAt: Timestamp.now(),
+    });
+
+    if (profileData && Object.keys(profileData).length > 0) {
+      const leaderProfileRef = firestore
+        .collection(`communities/${communityId}/leader_profiles`)
+        .doc(userId);
+      batch.set(
+        leaderProfileRef,
+        {
+          ...profileData,
+          intendedCommunityCount: 1,
+          communityId,
+          lastUpdated: Timestamp.now(),
+        },
+        { merge: true }
+      );
+    }
+
+    await batch.commit();
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error saving onboarding step:', error);
+    return { success: false, error: error.message || 'Failed to save progress.' };
+  }
+}
+
+export async function completeLeaderStripeVerificationAction(params: {
+  userId: string;
+  communityId: string;
+}): Promise<{ success: boolean; verified?: boolean; error?: string }> {
+  const { userId, communityId } = params;
+  if (!userId || !communityId) {
+    return { success: false, error: 'User ID and Community ID are required.' };
+  }
+
+  try {
+    const stripeStatus = await getCommunityStripeStatusAction(communityId);
+    if (!stripeStatus.hasAccount || !stripeStatus.detailsSubmitted) {
+      return {
+        success: true,
+        verified: false,
+        error: 'Stripe verification is not complete yet. Please finish submitting your details on Stripe.',
+      };
+    }
+
+    const { firestore } = initializeAdminApp();
+    const now = Timestamp.now();
+    const batch = firestore.batch();
+
+    const userRef = firestore.collection('users').doc(userId);
+    batch.update(userRef, {
+      onboardingCompleted: true,
+      onboardingStep: 3,
+      leaderVerifiedAt: now,
+      canManageMultipleCommunities: false,
+      financialTermsAcceptedAt: now,
+      leaderTrialExpiresAt: FieldValue.delete(),
+      onboardingSkipCount: FieldValue.delete(),
+    });
+
+    const communityRef = firestore.collection('communities').doc(communityId);
+    batch.update(communityRef, {
+      status: 'active',
+      verifiedAt: now,
+    });
+
+    const leaderProfileRef = firestore
+      .collection(`communities/${communityId}/leader_profiles`)
+      .doc(userId);
+    batch.set(
+      leaderProfileRef,
+      {
+        profileStatus: 'approved',
+        intendedCommunityCount: 1,
+        agreedToTerms: true,
+        verifiedViaStripe: true,
+        verifiedAt: now,
+        lastUpdated: now,
+      },
+      { merge: true }
+    );
+
+    await batch.commit();
+    return { success: true, verified: true };
+  } catch (error: any) {
+    console.error('Error completing Stripe verification:', error);
+    return { success: false, error: error.message || 'Failed to verify Stripe status.' };
   }
 }
