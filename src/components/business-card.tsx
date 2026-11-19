@@ -53,7 +53,11 @@ export default function BusinessCard({ business }: { business: Business }) {
   const isMockCourier = business.id === 'mock-courier-99';
   const communityHasNoLeader = isMockCourier && business.leaderCount === 0;
 
-  const href = isMockCourier ? '/courier/apply' : `/businesses/${business.id}`;
+  const href = isMockCourier
+    ? '/courier/apply'
+    : isUnclaimed
+      ? `/public-directory/${business.id}?openClaim=1`
+      : `/businesses/${business.id}`;
   
   const cardContent = (
       <Card className={cn(

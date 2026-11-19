@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useTransition, useCallback } from "react";
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from "firebase/auth";
 import { useFirestore, useAuth, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { checkCommunityLeaderAction } from "@/lib/actions/communityActions";
 import { CommunitySelector, type CommunitySelection } from "@/components/community-selector";
 import { checkAndCreateMailingListsAction } from "@/lib/actions/userActions";
+import { claimBusinessAction, getPublicBusinessByIdAction } from "@/lib/actions/publicDirectoryActions";
 import { LegalDocumentDisplay } from "@/components/legal-document-display";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from '@/components/ui/skeleton';
@@ -53,6 +54,34 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
   const [gender, setGender] = useState("");
   const [ageRange, setAgeRange] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  const searchParams = useSearchParams();
+  const claimBusinessId = searchParams?.get('claim') || null;
+  const [claimingBusiness, setClaimingBusiness] = useState<{
+    id: string;
+    businessName: string;
+    communityId: string;
+    communityName: string;
+  } | null>(null);
+  const [claimCommunityChoice, setClaimCommunityChoice] = useState<'move' | 'keep'>('move');
+  const [claimedOnSignup, setClaimedOnSignup] = useState(false);
+
+  useEffect(() => {
+    if (!claimBusinessId || accountType !== 'business') return;
+    getPublicBusinessByIdAction(claimBusinessId)
+      .then((biz) => {
+        if (biz && biz.isUnclaimed) {
+          setClaimingBusiness({
+            id: biz.id,
+            businessName: biz.businessName,
+            communityId: biz.primaryCommunityId || '',
+            communityName: biz.primaryCommunityName || biz.city || 'Original Community',
+          });
+          setBusinessName((prev) => prev || biz.businessName || '');
+        }
+      })
+      .catch(() => {});
+  }, [claimBusinessId, accountType]);
   const [showPassword, setShowPassword] = useState(false);
   
   const [businessName, setBusinessName] = useState("");
@@ -304,6 +333,30 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
             console.warn("Mailing list auto-creation failed, but continuing:", e);
         }
 
+        if (claimBusinessId && accountType === 'business') {
+            try {
+                const fullName = `${firstName} ${lastName}`.trim() || email;
+                const moveToSelected =
+                    claimCommunityChoice === 'move' &&
+                    Boolean(finalCommunityId) &&
+                    finalCommunityId !== claimingBusiness?.communityId;
+                const claimRes = await claimBusinessAction({
+                    businessId: claimBusinessId,
+                    claimantUserId: user.uid,
+                    claimantName: fullName,
+                    claimantEmail: email,
+                    claimantRole: 'Business Owner',
+                    targetCommunityId: moveToSelected ? finalCommunityId! : undefined,
+                    targetCommunityName: moveToSelected ? finalCommunityName! : undefined,
+                });
+                if (claimRes.success) {
+                    setClaimedOnSignup(true);
+                }
+            } catch (claimErr) {
+                console.warn("Auto-claim during signup failed:", claimErr);
+            }
+        }
+
         await signOut(auth);
         setShowSuccessDialog(true);
 
@@ -412,6 +465,45 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
   return (
     <>
       <form onSubmit={handleSignUp} className="space-y-6">
+        {claimingBusiness && (
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-2.5">
+            <div className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide">
+              Claiming Unclaimed Listing
+            </div>
+            <p className="text-sm font-semibold text-foreground">
+              {claimingBusiness.businessName}{' '}
+              <span className="font-normal text-muted-foreground">
+                (currently in {claimingBusiness.communityName})
+              </span>
+            </p>
+            <div className="space-y-1.5 pt-1 text-xs">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="signupClaimCommunityChoice"
+                  checked={claimCommunityChoice === 'move'}
+                  onChange={() => setClaimCommunityChoice('move')}
+                  className="mt-0.5"
+                />
+                <span>
+                  Move this listing to the community I select below (removes it from {claimingBusiness.communityName} if different).
+                </span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="signupClaimCommunityChoice"
+                  checked={claimCommunityChoice === 'keep'}
+                  onChange={() => setClaimCommunityChoice('keep')}
+                  className="mt-0.5"
+                />
+                <span>
+                  Keep this listing in <strong>{claimingBusiness.communityName}</strong>.
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
             <Label htmlFor="first-name">First name</Label>
@@ -701,6 +793,12 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
                     <DialogTitle className="text-2xl">Check Your Inbox!</DialogTitle>
                     <DialogDescription className="text-base text-muted-foreground !mt-4">
                         We've sent a verification link to <strong>{email}</strong>. Please click the link in the email to activate your account.
+                        {claimedOnSignup && claimingBusiness && (
+                          <>
+                            <br /><br />
+                            <strong>{claimingBusiness.businessName}</strong> has been claimed and linked to your new Free Business Account with a 14-day free live trial.
+                          </>
+                        )}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-2 text-center text-sm text-muted-foreground">
@@ -710,7 +808,17 @@ export default function SignUpForm({ accountType }: SignUpFormProps) {
                     <Button asChild className="w-full">
                         <a href="mailto:">Open Email</a>
                     </Button>
-                    <Button variant="outline" className="w-full" onClick={() => router.push('/')}>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        router.push(
+                          claimedOnSignup && claimBusinessId
+                            ? `/?redirect=/business/businesses/edit/${claimBusinessId}`
+                            : '/'
+                        )
+                      }
+                    >
                         Return to Login
                     </Button>
                 </DialogFooter>

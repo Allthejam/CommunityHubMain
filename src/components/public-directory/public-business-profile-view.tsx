@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Building2,
@@ -182,7 +182,15 @@ export function PublicBusinessProfileView({ business: initialBusiness }: { busin
   const [claimEmail, setClaimEmail] = React.useState('');
   const [claimPhone, setClaimPhone] = React.useState('');
   const [claimRole, setClaimRole] = React.useState('Owner');
+  const [claimCommunityMode, setClaimCommunityMode] = React.useState<'keep' | 'move'>('keep');
   const [isClaiming, setIsClaiming] = React.useState(false);
+
+  const searchParams = useSearchParams();
+  React.useEffect(() => {
+    if (searchParams?.get('openClaim') === '1' && business.isUnclaimed) {
+      setIsClaimModalOpen(true);
+    }
+  }, [searchParams, business.isUnclaimed]);
 
   // Check viewer authentication and community
   const { user } = useUser();
@@ -247,6 +255,11 @@ export function PublicBusinessProfileView({ business: initialBusiness }: { busin
     }
 
     setIsClaiming(true);
+    const shouldMoveCommunity =
+      claimCommunityMode === 'move' &&
+      Boolean(loggedInCommunityId) &&
+      loggedInCommunityId !== business.primaryCommunityId;
+
     const result = await claimBusinessAction({
       businessId: business.id,
       claimantUserId: user.uid,
@@ -254,6 +267,8 @@ export function PublicBusinessProfileView({ business: initialBusiness }: { busin
       claimantEmail: claimEmail.trim(),
       claimantPhone: claimPhone.trim(),
       claimantRole: claimRole,
+      targetCommunityId: shouldMoveCommunity ? loggedInCommunityId : undefined,
+      targetCommunityName: shouldMoveCommunity ? loggedInCommunityName || undefined : undefined,
     });
     setIsClaiming(false);
 
@@ -261,11 +276,11 @@ export function PublicBusinessProfileView({ business: initialBusiness }: { busin
       setIsClaimModalOpen(false);
       toast({
         title: 'Business Claimed Successfully!',
-        description: `Congratulations! You now manage ${business.businessName}. Your 14-day free live trial is active.`,
+        description: result.upgradedAccount
+          ? `Your account has been upgraded to a Free Business Account and you now manage ${business.businessName}.`
+          : `Congratulations! You now manage ${business.businessName}. Your 14-day free live trial is active.`,
       });
-      if (typeof window !== 'undefined') {
-        window.location.reload();
-      }
+      router.push(`/business/businesses/edit/${business.id}`);
     } else {
       toast({
         title: 'Claim Failed',
@@ -1057,12 +1072,12 @@ export function PublicBusinessProfileView({ business: initialBusiness }: { busin
               </div>
               <div className="flex flex-col gap-2 pt-2">
                 <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
-                  <Link href={`/?redirect=/public-directory/${business.id}`}>
+                  <Link href={`/?redirect=/public-directory/${business.id}?openClaim=1`}>
                     Sign In to Claim Listing
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full font-semibold">
-                  <Link href={`/signup/business?redirect=/public-directory/${business.id}`}>
+                  <Link href={`/signup/business?claim=${business.id}`}>
                     Register Free Business Account
                   </Link>
                 </Button>
@@ -1122,6 +1137,48 @@ export function PublicBusinessProfileView({ business: initialBusiness }: { busin
                   <option value="Authorized Representative">Authorized Marketing / PR Representative</option>
                 </select>
               </div>
+
+              {(!userProfile?.accountType || userProfile?.accountType === 'personal') && !userProfile?.permissions?.isBusinessOwner && (
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/25 text-[11px] text-blue-900 dark:text-blue-200 space-y-1">
+                  <div className="font-semibold">Free Business Account Upgrade</div>
+                  <p className="text-[10px] leading-normal">
+                    Claiming this listing will automatically upgrade your Personal account to a <strong>Free Business Account</strong> so you can edit your listing and select up to 4 additional communities.
+                  </p>
+                </div>
+              )}
+
+              {loggedInCommunityId && loggedInCommunityId !== business.primaryCommunityId && (
+                <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                  <Label className="text-xs font-semibold block">Primary Community Placement</Label>
+                  <label className="flex items-start gap-2 text-xs cursor-pointer">
+                    <input
+                      type="radio"
+                      name="claimCommunityMode"
+                      checked={claimCommunityMode === 'keep'}
+                      onChange={() => setClaimCommunityMode('keep')}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Keep in <strong>{business.primaryCommunityName || business.city || 'Original Community'}</strong>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs cursor-pointer">
+                    <input
+                      type="radio"
+                      name="claimCommunityMode"
+                      checked={claimCommunityMode === 'move'}
+                      onChange={() => setClaimCommunityMode('move')}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Move to my community (<strong>{loggedInCommunityName || 'My Community'}</strong>) — removes it from {business.primaryCommunityName || 'the original community'}.
+                    </span>
+                  </label>
+                  <p className="text-[10px] text-muted-foreground">
+                    In the full listing editor, you can also select up to 4 additional communities.
+                  </p>
+                </div>
+              )}
 
               <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
                 <div className="font-semibold flex items-center gap-1.5">

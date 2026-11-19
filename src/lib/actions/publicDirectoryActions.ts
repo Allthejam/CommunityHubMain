@@ -655,8 +655,19 @@ export async function claimBusinessAction(params: {
   claimantEmail: string;
   claimantPhone?: string;
   claimantRole: string;
-}): Promise<{ success: boolean; error?: string }> {
-  const { businessId, claimantUserId, claimantName, claimantEmail, claimantPhone, claimantRole } = params;
+  targetCommunityId?: string;
+  targetCommunityName?: string;
+}): Promise<{ success: boolean; movedCommunity?: boolean; upgradedAccount?: boolean; error?: string }> {
+  const {
+    businessId,
+    claimantUserId,
+    claimantName,
+    claimantEmail,
+    claimantPhone,
+    claimantRole,
+    targetCommunityId,
+    targetCommunityName,
+  } = params;
 
   if (!businessId || !claimantUserId || !claimantName || !claimantEmail) {
     return { success: false, error: 'Missing required claim details.' };
@@ -679,8 +690,9 @@ export async function claimBusinessAction(params: {
 
     // 14-day trial timestamp
     const trialExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const origCommunityId = bData.primaryCommunityId || bData.communityId || '';
 
-    await businessRef.update({
+    const updatePayload: Record<string, any> = {
       ownerId: claimantUserId,
       claimedByUserId: claimantUserId,
       isUnclaimed: false,
@@ -697,33 +709,76 @@ export async function claimBusinessAction(params: {
         claimedAt: new Date().toISOString(),
       },
       updatedAt: new Date().toISOString(),
-    });
+    };
 
-    // Also link to claimant's user document
+    let movedCommunity = false;
+    const cleanTargetCommId = targetCommunityId?.trim();
+    if (cleanTargetCommId && cleanTargetCommId !== 'new' && cleanTargetCommId !== origCommunityId) {
+      let resolvedName = targetCommunityName?.trim() || '';
+      if (!resolvedName) {
+        const commSnap = await firestore.collection('communities').doc(cleanTargetCommId).get();
+        resolvedName = commSnap.data()?.name || '';
+      }
+      if (resolvedName) {
+        updatePayload.communityId = cleanTargetCommId;
+        updatePayload.primaryCommunityId = cleanTargetCommId;
+        updatePayload.communityName = resolvedName;
+        updatePayload.primaryCommunityName = resolvedName;
+        updatePayload.city = resolvedName;
+        if (Array.isArray(bData.additionalCommunities)) {
+          updatePayload.additionalCommunities = bData.additionalCommunities.filter(
+            (id: string) => id !== origCommunityId && id !== cleanTargetCommId
+          );
+        }
+        movedCommunity = true;
+      }
+    }
+
+    await businessRef.update(updatePayload);
+
+    // Link business to claimant's user document and upgrade personal accounts to business
+    let upgradedAccount = false;
     try {
       const userRef = firestore.collection('users').doc(claimantUserId);
       const userDoc = await userRef.get();
       if (userDoc.exists) {
+        const uData = userDoc.data() || {};
         const FieldValue = require('firebase-admin/firestore').FieldValue;
-        await userRef.set(
-          {
-            businesses: FieldValue.arrayUnion(businessId),
-          },
-          { merge: true }
-        );
+        const userUpdates: Record<string, any> = {
+          businesses: FieldValue.arrayUnion(businessId),
+        };
+
+        const currentAccountType = String(uData.accountType || '').toLowerCase();
+        const currentRole = String(uData.role || '').toLowerCase();
+        if (!currentAccountType || currentAccountType === 'personal') {
+          userUpdates.accountType = 'business';
+          upgradedAccount = true;
+        }
+        if (!currentRole || currentRole === 'personal') {
+          userUpdates.role = 'business';
+          userUpdates.title = 'Business';
+        }
+        if (uData.permissions?.isBusinessOwner !== true) {
+          userUpdates['permissions.isBusinessOwner'] = true;
+          userUpdates['permissions.business'] = true;
+          upgradedAccount = true;
+        }
+
+        await userRef.set(userUpdates, { merge: true });
       }
     } catch (e) {
-      console.warn('Could not update user businesses array:', e);
+      console.warn('Could not update user businesses array / upgrade account:', e);
     }
 
     try {
       revalidatePath('/public-directory');
       revalidatePath(`/public-directory/${businessId}`);
+      revalidatePath('/directory');
     } catch (e) {
       // Ignore
     }
 
-    return { success: true };
+    return { success: true, movedCommunity, upgradedAccount };
   } catch (error: any) {
     console.error('Error claiming business listing:', error);
     return { success: false, error: error.message || 'Failed to claim business listing.' };
