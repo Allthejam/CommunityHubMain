@@ -21,15 +21,23 @@ async function verifyLeaderAccess(
   const accountType = String(u.accountType || '').toLowerCase();
   const role = String(u.role || '').toLowerCase();
   const commRole = String(u.communityRoles?.[communityId]?.role || '').toLowerCase();
+  const siteAdminRoles = ['admin', 'administrator', 'superadmin', 'owner'];
   const allowedRoles = ['president', 'leader', 'vice-president', 'admin', 'administrator', 'owner', 'moderator'];
 
-  if (
-    allowedRoles.includes(accountType) ||
-    allowedRoles.includes(role) ||
+  const isSiteAdmin =
+    siteAdminRoles.includes(accountType) ||
+    siteAdminRoles.includes(role) ||
+    u.isAdmin === true ||
+    u.isStaff === true;
+  const isThisCommunityLeader =
     allowedRoles.includes(commRole) ||
-    u.permissions?.hasBackOfficeAccess === true ||
-    u.communityRoles?.[communityId]?.permissions?.hasBackOfficeAccess === true
-  ) {
+    u.communityRoles?.[communityId]?.permissions?.hasBackOfficeAccess === true;
+  const isLegacyPrimaryLeader =
+    !u.communityRoles &&
+    (u.primaryCommunityId === communityId || u.communityId === communityId) &&
+    (allowedRoles.includes(accountType) || allowedRoles.includes(role) || u.permissions?.hasBackOfficeAccess === true);
+
+  if (isSiteAdmin || isThisCommunityLeader || isLegacyPrimaryLeader) {
     return { allowed: true, authorName };
   }
 

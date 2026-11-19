@@ -76,18 +76,26 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
   const { data: userProfile } = useDoc<any>(userProfileRef);
 
   const isLeader = React.useMemo(() => {
-    if (!userProfile) return false;
+    if (!userProfile || !communityId) return false;
     const role = String(userProfile.role || '').toLowerCase();
     const acc = String(userProfile.accountType || '').toLowerCase();
     const commRole = String(userProfile.communityRoles?.[communityId]?.role || '').toLowerCase();
-    const leaderRoles = ['president', 'leader', 'vice-president', 'admin', 'administrator', 'owner', 'moderator'];
-    return (
-      leaderRoles.includes(role) ||
-      leaderRoles.includes(acc) ||
-      leaderRoles.includes(commRole) ||
-      userProfile.permissions?.hasBackOfficeAccess === true ||
-      userProfile.communityRoles?.[communityId]?.permissions?.hasBackOfficeAccess === true
-    );
+    const siteAdminRoles = ['admin', 'administrator', 'superadmin', 'owner'];
+    const commLeaderRoles = ['president', 'leader', 'vice-president', 'admin', 'administrator', 'owner', 'moderator'];
+    const isSiteAdmin =
+      siteAdminRoles.includes(role) ||
+      siteAdminRoles.includes(acc) ||
+      userProfile.isAdmin === true ||
+      userProfile.isStaff === true;
+    const isThisCommunityLeader =
+      commLeaderRoles.includes(commRole) ||
+      userProfile.communityRoles?.[communityId]?.permissions?.hasBackOfficeAccess === true;
+    const isLegacyPrimaryLeader =
+      !userProfile.communityRoles &&
+      (userProfile.primaryCommunityId === communityId || userProfile.communityId === communityId) &&
+      (commLeaderRoles.includes(role) || commLeaderRoles.includes(acc) || userProfile.permissions?.hasBackOfficeAccess === true);
+
+    return isSiteAdmin || isThisCommunityLeader || isLegacyPrimaryLeader;
   }, [userProfile, communityId]);
 
   const [loading, setLoading] = useState(true);
@@ -111,12 +119,13 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
   const [holidayEnd, setHolidayEnd] = useState('');
   const [holidayNotes, setHolidayNotes] = useState('');
 
-  const loadData = async () => {
+  const loadData = React.useCallback(async (signal?: AbortSignal) => {
     if (!communityId) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/school-closures?communityId=${encodeURIComponent(communityId)}`, {
         cache: 'no-store',
+        signal,
       });
       if (res.ok) {
         const data = await res.json();
@@ -126,16 +135,21 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
         setHolidays(data.holidays || []);
         setBankHolidays(data.upcomingBankHolidays || []);
       }
-    } catch (err) {
-      console.error('Failed to load school closures:', err);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      console.warn('Could not load school closures:', err?.message || err);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
-  };
+  }, [communityId]);
 
   useEffect(() => {
-    loadData();
-  }, [communityId]);
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => controller.abort();
+  }, [loadData]);
 
   const handlePostAlert = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,7 +216,7 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={loadData} disabled={loading} className="h-8 px-2.5 text-xs">
+            <Button variant="ghost" size="sm" onClick={() => loadData()} disabled={loading} className="h-8 px-2.5 text-xs">
               <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
