@@ -138,9 +138,9 @@ export default function CommunitiesDiscoveryPage() {
             setLoading(true);
             try {
                 if (db) {
-                    const [commSnap, regSnap] = await Promise.all([
+                    const [commSnap, regRes] = await Promise.all([
                         getDocs(query(collection(db, 'communities'), where('visibility', '==', 'public'))),
-                        getDocs(query(collection(db, 'users'), where('accountType', '==', 'regional'))).catch(() => null),
+                        runGetAllRegionalNetworks(),
                     ]);
 
                     const clientCommunities: PublicCommunityData[] = commSnap.docs.map(docSnap => {
@@ -162,21 +162,8 @@ export default function CommunitiesDiscoveryPage() {
                     setCommunities(clientCommunities);
                     geocodeUnmappedCommunities(clientCommunities);
 
-                    if (regSnap) {
-                        const clientNetworks: PublicRegionalNetworkData[] = regSnap.docs
-                            .map(docSnap => {
-                                const data = docSnap.data();
-                                return {
-                                    id: docSnap.id,
-                                    name: data.organizationName || data.businessName || data.displayName || 'Regional Authority Network',
-                                    region: data.region || data.state || '',
-                                    state: data.state || '',
-                                    country: data.country || '',
-                                    regionalBoundary: data.regionalBoundary || data.boundary || undefined,
-                                };
-                            })
-                            .filter(n => !!n.regionalBoundary);
-                        setRegionalNetworks(clientNetworks);
+                    if (regRes.success && regRes.networks) {
+                        setRegionalNetworks(regRes.networks);
                     }
                     setLoading(false);
                     return;
