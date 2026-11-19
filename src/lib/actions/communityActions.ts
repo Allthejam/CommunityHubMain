@@ -678,16 +678,20 @@ export interface PublicRegionalNetworkData {
 export async function runGetAllRegionalNetworks(): Promise<{ success: boolean; networks?: PublicRegionalNetworkData[]; error?: string }> {
     try {
         const { firestore } = initializeAdminApp();
-        const snapshot = await firestore.collection('users')
-            .where('accountType', '==', 'regional')
-            .get();
+        const [byAccountType, byPermission] = await Promise.all([
+            firestore.collection('users').where('accountType', '==', 'regional').get(),
+            firestore.collection('users').where('permissions.isRegionalNetwork', '==', true).get(),
+        ]);
 
-        const networks: PublicRegionalNetworkData[] = snapshot.docs
+        const docMap = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+        [...byAccountType.docs, ...byPermission.docs].forEach((doc) => docMap.set(doc.id, doc));
+
+        const networks: PublicRegionalNetworkData[] = Array.from(docMap.values())
             .map(doc => {
                 const data = doc.data();
                 return {
                     id: doc.id,
-                    name: data.organizationName || data.businessName || data.displayName || 'Regional Authority Network',
+                    name: data.organizationName || data.businessName || data.displayName || data.name || 'Regional Authority Network',
                     region: data.region || data.state || '',
                     state: data.state || '',
                     country: data.country || '',
