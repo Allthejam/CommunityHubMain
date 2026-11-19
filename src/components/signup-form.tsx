@@ -45,7 +45,15 @@ const ageRanges = ["Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+
 const genders = ["Male", "Female", "Other", "Prefer not to say"];
 
 
-export default function SignUpForm({ accountType }: SignUpFormProps) {
+export default function SignUpForm(props: SignUpFormProps) {
+  return (
+    <React.Suspense fallback={<div className="space-y-4 py-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>}>
+      <SignUpFormInner {...props} />
+    </React.Suspense>
+  );
+}
+
+function SignUpFormInner({ accountType }: SignUpFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
