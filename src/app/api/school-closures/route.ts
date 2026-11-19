@@ -137,12 +137,47 @@ export async function GET(request: Request) {
       ]);
 
       commData = commDoc.data() || {};
-      alerts = alertsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const nowMs = Date.now();
+      const nowIso = new Date(nowMs).toISOString();
+      const todayIso = nowIso.slice(0, 10);
+      const cleanupBatch = firestore.batch();
+      let hasCleanupWrites = false;
 
-      const todayIso = new Date().toISOString().slice(0, 10);
-      holidays = holidaysSnap.docs
-        .map((d) => ({ id: d.id, ...(d.data() as any) }))
-        .filter((h) => !h.endDate || h.endDate >= todayIso);
+      alerts = [];
+      for (const d of alertsSnap.docs) {
+        const data = d.data() as any;
+        const createdMs = data.createdAt ? new Date(data.createdAt).getTime() : 0;
+        const isExpired =
+          (typeof data.expiresAtMs === 'number' && data.expiresAtMs <= nowMs) ||
+          (typeof data.expiresAt === 'string' && data.expiresAt <= nowIso) ||
+          (!data.expiresAt && !data.expiresAtMs && createdMs > 0 && createdMs + 48 * 60 * 60 * 1000 <= nowMs);
+
+        if (isExpired) {
+          cleanupBatch.update(d.ref, {
+            active: false,
+            autoExpiredAt: nowIso,
+          });
+          hasCleanupWrites = true;
+        } else {
+          alerts.push({ id: d.id, ...data });
+        }
+      }
+
+      holidays = [];
+      for (const d of holidaysSnap.docs) {
+        const data = d.data() as any;
+        const effectiveEnd = data.endDate || data.startDate;
+        if (effectiveEnd && effectiveEnd < todayIso) {
+          cleanupBatch.delete(d.ref);
+          hasCleanupWrites = true;
+        } else {
+          holidays.push({ id: d.id, ...data });
+        }
+      }
+
+      if (hasCleanupWrites) {
+        await cleanupBatch.commit().catch((err) => console.warn('School cleanup batch skipped:', err));
+      }
     }
 
     const portal = resolveCouncilPortal(commData);

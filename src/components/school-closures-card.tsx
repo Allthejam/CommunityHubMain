@@ -12,6 +12,7 @@ import {
   Loader2,
   Trash2,
   RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -41,6 +42,8 @@ import {
   clearSchoolAlertAction,
   createSchoolHolidayAction,
   deleteSchoolHolidayAction,
+  listCommunityMembersForSchoolPermsAction,
+  setSchoolClosurePosterPermissionAction,
 } from '@/lib/actions/schoolActions';
 
 type SchoolAlertItem = {
@@ -98,6 +101,15 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
     return isSiteAdmin || isThisCommunityLeader || isLegacyPrimaryLeader;
   }, [userProfile, communityId]);
 
+  const canPost = React.useMemo(() => {
+    if (isLeader) return true;
+    if (!userProfile || !communityId) return false;
+    return (
+      userProfile.communityRoles?.[communityId]?.permissions?.canPostSchoolClosures === true ||
+      (Array.isArray(userProfile.schoolClosureCommunities) && userProfile.schoolClosureCommunities.includes(communityId))
+    );
+  }, [isLeader, userProfile, communityId]);
+
   const [loading, setLoading] = useState(true);
   const [councilName, setCouncilName] = useState('Local Council');
   const [councilUrl, setCouncilUrl] = useState('https://www.gov.uk/check-school-closure');
@@ -105,14 +117,20 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
   const [holidays, setHolidays] = useState<SchoolHolidayItem[]>([]);
   const [bankHolidays, setBankHolidays] = useState<Array<{ title: string; date: string }>>([]);
 
-  // Quick Leader Modal state
-  const [modalMode, setModalMode] = useState<'alert' | 'holiday' | null>(null);
+  // Quick Leader / Authorized Poster Modal state
+  const [modalMode, setModalMode] = useState<'alert' | 'holiday' | 'posters' | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [schoolName, setSchoolName] = useState('');
   const [alertStatus, setAlertStatus] = useState<'Closed' | 'Partial Closure' | 'Delayed Opening'>('Closed');
   const [alertReason, setAlertReason] = useState('');
   const [expectedReopen, setExpectedReopen] = useState('');
+  const [durationHours, setDurationHours] = useState<'24' | '48' | '168'>('24');
+
+  const [posterMembers, setPosterMembers] = useState<Array<{ id: string; name: string; email: string; canPostSchoolClosures: boolean }>>([]);
+  const [loadingPosters, setLoadingPosters] = useState(false);
+  const [posterSearch, setPosterSearch] = useState('');
+  const [togglingUid, setTogglingUid] = useState<string | null>(null);
 
   const [holidayTitle, setHolidayTitle] = useState('');
   const [holidayStart, setHolidayStart] = useState('');
@@ -151,6 +169,41 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
     return () => controller.abort();
   }, [loadData]);
 
+  const handleOpenManagePosters = async () => {
+    setModalMode('posters');
+    if (!user?.uid || !communityId) return;
+    setLoadingPosters(true);
+    const res = await listCommunityMembersForSchoolPermsAction({ communityId, uid: user.uid });
+    setLoadingPosters(false);
+    if (res.success) {
+      setPosterMembers(res.members || []);
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: res.error });
+    }
+  };
+
+  const handleTogglePosterPerm = async (targetUid: string, allowed: boolean) => {
+    if (!user?.uid || !communityId) return;
+    setTogglingUid(targetUid);
+    const res = await setSchoolClosurePosterPermissionAction({
+      communityId,
+      uid: user.uid,
+      targetUid,
+      allowed,
+    });
+    setTogglingUid(null);
+    if (res.success) {
+      setPosterMembers((prev) =>
+        prev.map((m) => (m.id === targetUid ? { ...m, canPostSchoolClosures: allowed } : m))
+      );
+      toast({
+        title: allowed ? 'School poster permission granted' : 'School poster permission removed',
+      });
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: res.error });
+    }
+  };
+
   const handlePostAlert = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.uid || !communityId) return;
@@ -162,13 +215,15 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
       status: alertStatus,
       reason: alertReason,
       expectedReopen,
+      durationHours: Number(durationHours),
     });
     setSaving(false);
     if (res.success) {
-      toast({ title: 'School alert posted' });
+      toast({ title: 'School alert posted & sent to members' });
       setSchoolName('');
       setAlertReason('');
       setExpectedReopen('');
+      setDurationHours('24');
       setModalMode(null);
       loadData();
     } else {
@@ -220,7 +275,7 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
               <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            {isLeader && (
+            {canPost && (
               <>
                 <Button size="sm" variant="outline" onClick={() => setModalMode('alert')} className="h-8 text-xs">
                   <Plus className="h-3.5 w-3.5 mr-1" /> Post Closure
@@ -229,6 +284,11 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
                   <Calendar className="h-3.5 w-3.5 mr-1" /> Add Holiday
                 </Button>
               </>
+            )}
+            {isLeader && (
+              <Button size="sm" variant="outline" onClick={handleOpenManagePosters} className="h-8 text-xs">
+                <ShieldCheck className="h-3.5 w-3.5 mr-1" /> School Posters
+              </Button>
             )}
             <Button asChild size="sm" variant="secondary" className="h-8 text-xs font-semibold">
               <a href={councilUrl} target="_blank" rel="noopener noreferrer">
@@ -272,7 +332,7 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
                         </p>
                       )}
                     </div>
-                    {isLeader && user?.uid && (
+                    {canPost && user?.uid && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -318,7 +378,7 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
                         </p>
                         {h.notes && <p className="text-[11px] text-muted-foreground italic mt-0.5">{h.notes}</p>}
                       </div>
-                      {isLeader && user?.uid && (
+                      {canPost && user?.uid && (
                         <Button
                           size="icon"
                           variant="ghost"
@@ -397,6 +457,22 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
                 onChange={(e) => setExpectedReopen(e.target.value)}
               />
             </div>
+            <div>
+              <Label>Auto-Clear Notice After</Label>
+              <Select value={durationHours} onValueChange={(v: any) => setDurationHours(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24">24 Hours (Single-day / Snow closure)</SelectItem>
+                  <SelectItem value="48">48 Hours (2 Days)</SelectItem>
+                  <SelectItem value="168">7 Days (Extended closure)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Immediately sends an in-app &amp; push alert to community members and auto-cleans once expired.
+              </p>
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setModalMode(null)}>
                 Cancel
@@ -466,6 +542,76 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Authorized School Posters Modal (Leader Only) */}
+      <Dialog open={modalMode === 'posters'} onOpenChange={(o) => !o && setModalMode(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-indigo-600" />
+              Authorized School Closure Posters
+            </DialogTitle>
+            <DialogDescription>
+              Grant trusted members (such as teachers or headteachers) permission to post urgent school closures and holidays without giving them Leader Dashboard access.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Search community members by name or email..."
+              value={posterSearch}
+              onChange={(e) => setPosterSearch(e.target.value)}
+            />
+            {loadingPosters ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+              </div>
+            ) : (
+              <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                {posterMembers
+                  .filter((m) => {
+                    const q = posterSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
+                  })
+                  .slice(0, 30)
+                  .map((m) => (
+                    <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border text-xs">
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{m.name}</p>
+                        {m.email && <p className="text-[11px] text-muted-foreground truncate">{m.email}</p>}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={m.canPostSchoolClosures ? 'destructive' : 'secondary'}
+                        disabled={togglingUid === m.id}
+                        className="h-7 text-xs shrink-0"
+                        onClick={() => handleTogglePosterPerm(m.id, !m.canPostSchoolClosures)}
+                      >
+                        {togglingUid === m.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : m.canPostSchoolClosures ? (
+                          'Revoke'
+                        ) : (
+                          'Allow'
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                {posterMembers.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    No members found for this community.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setModalMode(null)}>
+              Done
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>
