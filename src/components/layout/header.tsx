@@ -422,7 +422,7 @@ export default function AppHeader() {
     }
 
     const isLeaderRole = ['president', 'leader', 'vice-president'].includes(role) ||
-                         ['president', 'leader'].includes(accountType) ||
+                         (role !== 'personal' && ['president', 'leader'].includes(accountType)) ||
                          (userProfile.communityRoles && Object.values(userProfile.communityRoles).some((r: any) => ['president', 'leader', 'vice-president'].includes(r.role)));
 
     // Leaders only get leader dashboard (NOT business, regional, or advertiser)
