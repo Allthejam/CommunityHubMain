@@ -870,11 +870,11 @@ export function RoadworksNoticeboard({
             <div className="flex items-center gap-1">
               {closureCount > 0 ? (
                 <Badge className="bg-red-600 text-white text-[10px] font-black">
-                  {closureCount} Closure{closureCount > 1 ? 's' : ''}
+                  {closureCount} Closure{closureCount > 1 ? 's' : ''} within 30 miles of {communityName}
                 </Badge>
               ) : activeWorksCount > 0 ? (
                 <Badge className="bg-amber-500 text-slate-950 text-[10px] font-black">
-                  {activeWorksCount} Active Works
+                  {activeWorksCount} Active Works within 30 miles of {communityName}
                 </Badge>
               ) : (
                 <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
@@ -1042,7 +1042,7 @@ export function RoadworksNoticeboard({
                 </Badge>
                 {closureCount > 0 && (
                   <Badge className="bg-red-600 text-white text-[10px] font-black animate-pulse">
-                    🔴 {closureCount} Active Closure{closureCount > 1 ? 's' : ''}
+                    🔴 {closureCount} Closure{closureCount > 1 ? 's' : ''} within 30 miles of {communityName}
                   </Badge>
                 )}
               </div>
