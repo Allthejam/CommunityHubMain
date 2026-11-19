@@ -30,7 +30,7 @@ export default function RegionalLayout({
       return;
     }
 
-    const isRegionalUser = userProfile?.accountType === 'regional' || userProfile?.role === 'regional' || userProfile?.permissions?.isRegionalNetwork;
+    const isRegionalUser = userProfile?.accountType === 'regional' || userProfile?.role === 'regional' || userProfile?.role === 'regional_authority' || userProfile?.permissions?.isRegionalNetwork;
 
     // Public site page is accessible to everyone, but back-office management routes require an authorized regional account
     if (!isPublicSite) {

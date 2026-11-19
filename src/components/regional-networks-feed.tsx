@@ -84,8 +84,8 @@ export function RegionalNetworksFeed({ communityId }: RegionalNetworksFeedProps)
     if (!db) return null;
     return query(
       collection(db, 'users'),
-      where('accountType', '==', 'regional'),
-      limit(3)
+      where('permissions.isRegionalNetwork', '==', true),
+      limit(10)
     );
   }, [db]);
 

@@ -63,7 +63,7 @@ function RegionalNetworksDirectoryContent() {
     if (!db) return null;
     return query(
       collection(db, 'users'),
-      where('accountType', '==', 'regional')
+      where('permissions.isRegionalNetwork', '==', true)
     );
   }, [db]);
 
