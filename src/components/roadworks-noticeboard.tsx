@@ -861,19 +861,19 @@ export function RoadworksNoticeboard({
 
     return (
       <>
-        <div className="p-3 rounded-xl border-2 border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/20 space-y-2.5 text-xs">
+        <div className="p-3 rounded-xl border-2 border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/20 space-y-2.5 text-xs min-w-0 overflow-hidden">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-1.5 font-extrabold text-amber-950 dark:text-amber-200">
               <Construction className="h-4 w-4 text-amber-600 shrink-0" />
               <span>Roadworks, Closures & Diversions</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 max-w-full">
               {closureCount > 0 ? (
-                <Badge className="bg-red-600 text-white text-[10px] font-black">
+                <Badge className="bg-red-600 text-white text-[10px] font-black whitespace-normal text-left">
                   {closureCount} Closure{closureCount > 1 ? 's' : ''} within 30 miles of {communityName}
                 </Badge>
               ) : activeWorksCount > 0 ? (
-                <Badge className="bg-amber-500 text-slate-950 text-[10px] font-black">
+                <Badge className="bg-amber-500 text-slate-950 text-[10px] font-black whitespace-normal text-left">
                   {activeWorksCount} Active Works within 30 miles of {communityName}
                 </Badge>
               ) : (
@@ -920,13 +920,13 @@ export function RoadworksNoticeboard({
             </p>
           )}
 
-          <div className="flex items-center gap-2 pt-0.5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-0.5">
             <Button
               type="button"
               size="sm"
               variant="outline"
               onClick={() => setIsBoardModalOpen(true)}
-              className="h-7 text-xs font-bold flex-1 border-amber-500/50 hover:bg-amber-100/60 dark:hover:bg-amber-950/50"
+              className="h-8 sm:h-7 text-xs font-bold w-full sm:flex-1 border-amber-500/50 hover:bg-amber-100/60 dark:hover:bg-amber-950/50"
             >
               View Noticeboard ({combinedItems.length})
             </Button>
@@ -934,7 +934,7 @@ export function RoadworksNoticeboard({
               type="button"
               size="sm"
               onClick={() => setIsReportModalOpen(true)}
-              className="h-7 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 gap-1"
+              className="h-8 sm:h-7 text-xs font-bold w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-slate-950 gap-1"
             >
               <Plus className="h-3 w-3" /> Report Popup Works
             </Button>
