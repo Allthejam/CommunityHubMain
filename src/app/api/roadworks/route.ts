@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import zlib from 'node:zlib';
 
 export interface RoadworkItem {
   id: string;
@@ -76,8 +77,218 @@ function parseDescription(rawHtml: string): {
 }
 
 function extractRoadCode(title: string): string {
-  const match = title.match(/\b([AM]\d{1,4}|B\d{3,4})\b/i);
+  const match = title.match(/\b([AM]\d{1,4}|B\d{3,4})t?\b/i);
   return match ? match[1].toUpperCase() : 'Local Route';
+}
+
+interface SrwrCompactRow {
+  ref: string;
+  status: string;
+  cat: string;
+  impact: string;
+  tm: string;
+  street: string;
+  town: string;
+  auth: string;
+  desc: string;
+  start: string;
+  end: string;
+  lat: number;
+  lng: number;
+}
+
+const SRWR_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours (feed updates daily)
+const globalForSrwr = globalThis as unknown as {
+  __srwrCache?: { fetchedAt: number; rows: SrwrCompactRow[] };
+  __srwrPromise?: Promise<SrwrCompactRow[]>;
+};
+
+function parseCsvRow(line: string): string[] {
+  const cols: string[] = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQ = !inQ;
+      }
+    } else if (ch === ',' && !inQ) {
+      cols.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  cols.push(cur);
+  return cols;
+}
+
+async function loadSrwrDataset(): Promise<SrwrCompactRow[]> {
+  const now = Date.now();
+  if (globalForSrwr.__srwrCache && now - globalForSrwr.__srwrCache.fetchedAt < SRWR_CACHE_TTL_MS) {
+    return globalForSrwr.__srwrCache.rows;
+  }
+  if (globalForSrwr.__srwrPromise) {
+    return globalForSrwr.__srwrPromise;
+  }
+
+  globalForSrwr.__srwrPromise = (async () => {
+    try {
+      const listRes = await fetch('https://downloads.srwr.scot/disruptions-export/api/v1/files', {
+        headers: { 'User-Agent': 'CommunityHubUK/1.0' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!listRes.ok) return globalForSrwr.__srwrCache?.rows || [];
+      const listJson = await listRes.json();
+      const latestFile = listJson?.files?.[0]?.name;
+      if (!latestFile) return globalForSrwr.__srwrCache?.rows || [];
+
+      const linkRes = await fetch(
+        `https://downloads.srwr.scot/disruptions-export/api/v1/file/${encodeURIComponent(latestFile)}`,
+        {
+          headers: { 'User-Agent': 'CommunityHubUK/1.0' },
+          signal: AbortSignal.timeout(8000),
+        }
+      );
+      if (!linkRes.ok) return globalForSrwr.__srwrCache?.rows || [];
+      const linkJson = await linkRes.json();
+      if (!linkJson?.url) return globalForSrwr.__srwrCache?.rows || [];
+
+      const zipRes = await fetch(linkJson.url, { signal: AbortSignal.timeout(20000) });
+      if (!zipRes.ok) return globalForSrwr.__srwrCache?.rows || [];
+      const buf = Buffer.from(await zipRes.arrayBuffer());
+
+      const eocd = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+      if (eocd < 0) return globalForSrwr.__srwrCache?.rows || [];
+      const totalEntries = buf.readUInt16LE(eocd + 10);
+      let pos = buf.readUInt32LE(eocd + 16);
+      let csvText = '';
+
+      for (let i = 0; i < totalEntries; i++) {
+        const compSize = buf.readUInt32LE(pos + 20);
+        const fnLen = buf.readUInt16LE(pos + 28);
+        const exLen = buf.readUInt16LE(pos + 30);
+        const cmLen = buf.readUInt16LE(pos + 32);
+        const lfhOff = buf.readUInt32LE(pos + 42);
+        const name = buf.slice(pos + 46, pos + 46 + fnLen).toString('utf8');
+        if (name === 'CurrentActivities.csv') {
+          const lFnLen = buf.readUInt16LE(lfhOff + 26);
+          const lExLen = buf.readUInt16LE(lfhOff + 28);
+          const dStart = lfhOff + 30 + lFnLen + lExLen;
+          csvText = zlib.inflateRawSync(buf.slice(dStart, dStart + compSize)).toString('utf8');
+          break;
+        }
+        pos += 46 + fnLen + exLen + cmLen;
+      }
+
+      if (!csvText) return globalForSrwr.__srwrCache?.rows || [];
+      const lines = csvText.split(/\r?\n/);
+      if (lines.length < 2) return [];
+
+      const hdr = parseCsvRow(lines[0]);
+      const idx = Object.fromEntries(hdr.map((h, k) => [h, k]));
+      const cutoffIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const rows: SrwrCompactRow[] = [];
+
+      for (let r = 1; r < lines.length; r++) {
+        const line = lines[r];
+        if (!line) continue;
+        const c = parseCsvRow(line);
+        const status = c[idx.ActivityStatus] || '';
+        if (status !== 'In Progress' && status !== 'Proposed' && status !== 'Advance Planning') continue;
+        const end = c[idx.EndDateTimeUTC] || '';
+        if (end && end < cutoffIso) continue;
+        const lat = parseFloat(c[idx.Latitude]);
+        const lng = parseFloat(c[idx.Longitude]);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+        rows.push({
+          ref: c[idx.ActivityReference] || String(r),
+          status,
+          cat: c[idx.Category] || '',
+          impact: c[idx.TrafficImpact] || '',
+          tm: c[idx.TrafficManagement] || '',
+          street: (c[idx.Street] || c[idx.Location] || '').trim(),
+          town: (c[idx.Town] || c[idx.Locality] || '').trim(),
+          auth: (c[idx.RoadAuthorityName] || '').trim(),
+          desc: (c[idx.Description] || '').trim(),
+          start: c[idx.StartDateTimeUTC] || '',
+          end,
+          lat,
+          lng,
+        });
+      }
+
+      globalForSrwr.__srwrCache = { fetchedAt: Date.now(), rows };
+      return rows;
+    } catch (err) {
+      console.error('SRWR dataset load failed:', err);
+      return globalForSrwr.__srwrCache?.rows || [];
+    } finally {
+      globalForSrwr.__srwrPromise = undefined;
+    }
+  })();
+
+  return globalForSrwr.__srwrPromise;
+}
+
+async function fetchScottishSrwrRoadworks(
+  centerLat: number,
+  centerLng: number,
+  radiusMiles: number
+): Promise<RoadworkItem[]> {
+  const rows = await loadSrwrDataset();
+  const items: RoadworkItem[] = [];
+
+  for (const row of rows) {
+    const milesAway = haversineMiles(centerLat, centerLng, row.lat, row.lng);
+    if (milesAway > radiusMiles) continue;
+
+    const cleanStreet = row.street.replace(/\b([AM]\d{1,4})t\b/gi, '$1') || row.town || 'Scottish Road';
+    const roadCode = extractRoadCode(`${row.street} ${row.desc}`);
+    const isInProgress = row.status === 'In Progress';
+    const isClosure = /closure/i.test(row.impact) || /road closure/i.test(row.tm);
+    const isTrunk = /transport scotland/i.test(row.auth) || /\bA\d{1,3}t\b/i.test(row.street);
+
+    const category: RoadworkItem['category'] = isInProgress ? 'current_works' : 'planned_works';
+    const severity: RoadworkItem['severity'] = isClosure
+      ? 'closure'
+      : isInProgress
+        ? 'active_works'
+        : 'planned';
+
+    const locationLabel = row.town ? `${cleanStreet} (${row.town})` : cleanStreet;
+    const actionLabel = row.tm || row.cat || (isInProgress ? 'Roadworks in Progress' : 'Planned Roadworks');
+
+    items.push({
+      id: `srwr-${row.ref}-${row.lat.toFixed(4)}`,
+      title: `${locationLabel} — ${actionLabel}`,
+      road: roadCode !== 'Local Route' ? roadCode : isTrunk ? 'Trunk' : row.town || 'Local Route',
+      category,
+      severity,
+      summary: [
+        row.desc || 'Scheduled roadworks registered on the Scottish Road Works Register.',
+        row.tm ? `Traffic management: ${row.tm}` : '',
+        row.auth ? `Authority: ${row.auth}` : '',
+      ]
+        .filter(Boolean)
+        .join(' • '),
+      startDate: row.start ? row.start.slice(0, 10) : undefined,
+      endDate: row.end ? row.end.slice(0, 10) : undefined,
+      delayInfo: row.impact ? `${row.impact} Impact` : undefined,
+      link: 'https://www.roadworks.scot/',
+      lat: row.lat,
+      lng: row.lng,
+      milesAway,
+      pubDate: row.start,
+    });
+  }
+
+  return items;
 }
 
 async function fetchTrafficScotlandFeed(
@@ -87,7 +298,7 @@ async function fetchTrafficScotlandFeed(
   centerLng: number
 ): Promise<RoadworkItem[]> {
   try {
-    const res = await fetch(url, { next: { revalidate: 600 } });
+    const res = await fetch(url, { signal: AbortSignal.timeout(4500), next: { revalidate: 600 } });
     if (!res.ok) return [];
     const xml = await res.text();
     const items: RoadworkItem[] = [];
@@ -173,8 +384,13 @@ async function fetchLocalOverpassRoadworks(centerLat: number, centerLng: number)
     const query = `[out:json][timeout:8];(way["highway"="construction"](around:18000,${centerLat},${centerLng});way["highway"~"^(trunk|primary|secondary|tertiary|residential)$"]["access"="no"](around:12000,${centerLat},${centerLng}););out center tags 20;`;
     const res = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+        'User-Agent': 'CommunityHubUK/1.0',
+      },
       body: `data=${encodeURIComponent(query)}`,
+      signal: AbortSignal.timeout(6000),
       next: { revalidate: 900 },
     });
     if (!res.ok) return [];
@@ -248,7 +464,7 @@ export async function GET(request: Request) {
 
     const isScotland = lat >= 54.6;
 
-    const [incidents, currentWorks, plannedWorks, localOverpass] = await Promise.all([
+    const [incidents, currentWorks, plannedWorks, srwrWorks, localOverpass] = await Promise.all([
       isScotland
         ? fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/currentincidents.aspx', 'incident', lat, lng)
         : Promise.resolve([]),
@@ -258,15 +474,16 @@ export async function GET(request: Request) {
       isScotland
         ? fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/plannedroadworks.aspx', 'planned_works', lat, lng)
         : Promise.resolve([]),
+      isScotland ? fetchScottishSrwrRoadworks(lat, lng, radiusMiles) : Promise.resolve([]),
       fetchLocalOverpassRoadworks(lat, lng),
     ]);
 
     const allTrunkItems = [...incidents, ...currentWorks, ...plannedWorks];
 
     // Filter trunk road items to within radiusMiles (30 miles default, including planned trunk roadworks)
-    let nearbyTrunk = allTrunkItems.filter((item) => item.milesAway !== null && item.milesAway <= radiusMiles);
+    const nearbyTrunk = allTrunkItems.filter((item) => item.milesAway !== null && item.milesAway <= radiusMiles);
 
-    const allItems = [...nearbyTrunk, ...localOverpass];
+    const allItems = [...nearbyTrunk, ...srwrWorks, ...localOverpass];
 
     // Deduplicate by title + category
     const seen = new Set<string>();
@@ -277,7 +494,8 @@ export async function GET(request: Request) {
       return true;
     });
 
-    // Sort: Incidents/Closures first, then Current Works, then Planned Works, then by distance
+    // Sort: Closures/Incidents first, then Active Works, then Planned Works;
+    // within each group, prioritize High impact & A/M trunk routes, then closest distance
     const categoryOrder: Record<string, number> = {
       incident: 0,
       current_works: 1,
@@ -285,10 +503,24 @@ export async function GET(request: Request) {
     };
 
     deduped.sort((a, b) => {
-      if (a.severity === 'closure' && b.severity !== 'closure') return -1;
-      if (b.severity === 'closure' && a.severity !== 'closure') return 1;
+      const aActiveClosure = a.category !== 'planned_works' && a.severity === 'closure';
+      const bActiveClosure = b.category !== 'planned_works' && b.severity === 'closure';
+      if (aActiveClosure !== bActiveClosure) return aActiveClosure ? -1 : 1;
+
       const catDiff = (categoryOrder[a.category] ?? 9) - (categoryOrder[b.category] ?? 9);
       if (catDiff !== 0) return catDiff;
+
+      if (a.severity === 'closure' && b.severity !== 'closure') return -1;
+      if (b.severity === 'closure' && a.severity !== 'closure') return 1;
+
+      const aHigh = /high/i.test(a.delayInfo || '') ? 0 : 1;
+      const bHigh = /high/i.test(b.delayInfo || '') ? 0 : 1;
+      if (aHigh !== bHigh) return aHigh - bHigh;
+
+      const aTrunk = /^[AM]\d+$/i.test(a.road) ? 0 : 1;
+      const bTrunk = /^[AM]\d+$/i.test(b.road) ? 0 : 1;
+      if (aTrunk !== bTrunk) return aTrunk - bTrunk;
+
       return (a.milesAway ?? 999) - (b.milesAway ?? 999);
     });
 
