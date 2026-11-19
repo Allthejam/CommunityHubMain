@@ -13,6 +13,7 @@ import {
 } from '@/firebase';
 import { collection, doc, updateDoc, arrayUnion, increment, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useActiveCommunityId } from '@/hooks/use-active-community-id';
 
 // ─── Analytics sidebar widget (Calculates 100% Dynamic Real Data) ───────────
 function CampaignAnalyticsWidget({ campaigns }: { campaigns: Campaign[] }) {
@@ -177,11 +178,8 @@ export default function CampaignsPage() {
   const [catFilter, setCatFilter] = React.useState<CampaignCategory | 'all'>('all');
   const [statusFilter, setStatusFilter] = React.useState<CampaignStatus | 'all'>('all');
 
-  // Read user's communityId
-  const userDocRef = useMemoFirebase(() => ((user && db) ? doc(db, 'users', user.uid) : null), [user, db]);
-  const { data: userProfile } = useDoc(userDocRef);
-
-  const communityId: string | null = (typeof window !== 'undefined' ? sessionStorage.getItem('visitedCommunityId') : null) || userProfile?.primaryHomeCommunityId || userProfile?.homeCommunityId || userProfile?.communityId || null;
+  // Read active/visited communityId reactively
+  const { communityId, userProfile } = useActiveCommunityId();
 
   // Subscribe to the community's petitions collection in Firestore
   const campaignsQuery = useMemoFirebase(
@@ -192,7 +190,9 @@ export default function CampaignsPage() {
 
   const campaigns: Campaign[] = React.useMemo(() => {
     if (!rawCampaigns) return [];
-    return rawCampaigns.map((c: any) => ({
+    return rawCampaigns
+      .filter((c: any) => !c.communityId || c.communityId === communityId)
+      .map((c: any) => ({
       id: c.id,
       communityId: c.communityId || communityId,
       title: c.title || c.name || c.question || c.headline || c.topic || 'Untitled Petition',

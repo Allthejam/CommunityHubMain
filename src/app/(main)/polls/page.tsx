@@ -153,13 +153,21 @@ export default function PollsPage() {
   );
   const { data: rawPolls, isLoading: pollsLoading } = useCollection<Poll>(pollsQuery);
 
+  // Reset fallbackPolls whenever communityId changes so another community's polls never bleed through
+  React.useEffect(() => {
+    setFallbackPolls(null);
+  }, [communityId]);
+
   // If client useCollection yields empty or fails, load via Server Action fallback
   React.useEffect(() => {
     let isMounted = true;
     if (communityId && (!rawPolls || rawPolls.length === 0)) {
       getCommunityPollsAction(communityId).then((res) => {
-        if (isMounted && res.success && res.polls && res.polls.length > 0) {
+        if (!isMounted) return;
+        if (res.success && Array.isArray(res.polls)) {
           setFallbackPolls(res.polls);
+        } else {
+          setFallbackPolls([]);
         }
       });
     }
@@ -168,8 +176,9 @@ export default function PollsPage() {
     };
   }, [communityId, rawPolls]);
 
-  const isLoading = profileLoading || (pollsLoading && !fallbackPolls);
-  const itemsToProcess = (rawPolls && rawPolls.length > 0) ? rawPolls : (fallbackPolls ?? []);
+  const isLoading = profileLoading || (pollsLoading && fallbackPolls === null);
+  const rawItems = (rawPolls && rawPolls.length > 0) ? rawPolls : (fallbackPolls ?? []);
+  const itemsToProcess = rawItems.filter((p: any) => !p.communityId || p.communityId === communityId);
 
   const polls: Poll[] = itemsToProcess
     .map((p: any) => {
