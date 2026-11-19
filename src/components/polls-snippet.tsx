@@ -126,9 +126,6 @@ export function PollsSnippet({ communityId }: PollsSnippetProps) {
   const active = (activePolls ?? []).map(sanitizePoll) as Poll[];
   const closed = (closedPolls ?? []).map(sanitizePoll) as Poll[];
 
-  // Don't render the card at all if there's nothing to show
-  if (!isLoading && active.length === 0 && closed.length === 0) return null;
-
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06)] overflow-hidden">
 
@@ -155,6 +152,21 @@ export function PollsSnippet({ communityId }: PollsSnippetProps) {
         {isLoading && (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
+          </div>
+        )}
+
+        {!isLoading && active.length === 0 && closed.length === 0 && (
+          <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-4 text-center space-y-2.5">
+            <p className="text-xs font-bold text-slate-800">No active polls or consultations right now.</p>
+            <p className="text-[11px] text-slate-600 max-w-md mx-auto leading-relaxed">
+              Have a local topic or decision you&apos;d like residents to vote on? Contact your Community Leader via the Reports page to request a poll.
+            </p>
+            <Link
+              href="/reports"
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 rounded-full transition-all shadow-2xs"
+            >
+              Contact Leader via Reports <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
         )}
 

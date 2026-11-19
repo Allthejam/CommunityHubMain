@@ -103,9 +103,17 @@ export function CampaignsSnippet({ communityId }: CampaignsSnippetProps) {
             <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
           </div>
         ) : visibleCampaigns.length === 0 ? (
-          <div className="py-4 text-center space-y-1">
+          <div className="py-4 text-center space-y-2">
             <p className="text-xs font-semibold text-foreground">No active community petitions at present.</p>
-            <p className="text-[11px] text-muted-foreground">Community leaders set out local petitions here when council plans or service changes affect your ward.</p>
+            <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
+              Need to raise a local issue or run a petition? Contact your Community Leader via the Reports page to propose one.
+            </p>
+            <Button asChild size="sm" variant="outline" className="h-7 text-[11px] font-bold border-amber-400 text-amber-800 hover:bg-amber-100/60">
+              <Link href="/reports" className="inline-flex items-center gap-1">
+                <span>Contact Leader via Reports</span>
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
