@@ -239,6 +239,7 @@ export function RoadworksNoticeboard({
         params.set('name', communityName || 'Local Community');
         params.set('lat', String(center.lat));
         params.set('lng', String(center.lng));
+        params.set('radiusMiles', '30');
         const res = await fetch(`/api/roadworks?${params.toString()}`);
         if (res.ok) {
           const data = await res.json();
@@ -964,7 +965,7 @@ export function RoadworksNoticeboard({
                 Roadworks, Closures & Diversions — {communityName}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Combined live feed from Traffic Scotland (trunk roads within 35 miles) and local community popup road reports.
+                Combined live feed from Traffic Scotland (trunk road incidents, active works &amp; planned roadworks within 30 miles) and local community popup road reports.
               </DialogDescription>
             </DialogHeader>
 

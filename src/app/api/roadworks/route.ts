@@ -233,7 +233,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const lat = parseFloat(searchParams.get('lat') || '');
     const lng = parseFloat(searchParams.get('lng') || '');
-    const radiusMiles = parseFloat(searchParams.get('radiusMiles') || '15');
+    const radiusMiles = parseFloat(searchParams.get('radiusMiles') || '30');
     const communityName = (searchParams.get('name') || 'Local Community').trim();
 
     if (isNaN(lat) || isNaN(lng)) {
@@ -263,11 +263,8 @@ export async function GET(request: Request) {
 
     const allTrunkItems = [...incidents, ...currentWorks, ...plannedWorks];
 
-    // Filter trunk road items strictly to within radiusMiles (15 miles default, expanding to 22 miles if < 2 found)
+    // Filter trunk road items to within radiusMiles (30 miles default, including planned trunk roadworks)
     let nearbyTrunk = allTrunkItems.filter((item) => item.milesAway !== null && item.milesAway <= radiusMiles);
-    if (nearbyTrunk.length < 2) {
-      nearbyTrunk = allTrunkItems.filter((item) => item.milesAway !== null && item.milesAway <= 22);
-    }
 
     const allItems = [...nearbyTrunk, ...localOverpass];
 
@@ -300,7 +297,7 @@ export async function GET(request: Request) {
       communityName,
       coordinates: { lat, lng },
       totalFound: deduped.length,
-      items: deduped.slice(0, 25),
+      items: deduped.slice(0, 35),
       updatedAt: new Date().toISOString(),
     });
   } catch (error: any) {

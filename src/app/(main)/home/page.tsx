@@ -19,6 +19,7 @@ import { LocalCharitiesFeed } from '@/components/local-charities-feed';
 import { LostAndFoundFeed } from '@/components/lost-and-found-feed';
 import { NewsFeed } from '@/components/news-feed';
 import { PollsSnippet } from '@/components/polls-snippet';
+import { SchoolClosuresCard } from '@/components/school-closures-card';
 import { CampaignsSnippet } from '@/components/campaigns-snippet';
 import { Loader2 } from 'lucide-react';
 import { NoLeaderAlert } from '@/components/no-leader-alert';
@@ -382,6 +383,7 @@ function HomePageContent() {
           <AnnouncementBanners allAnnouncements={standardAnnouncements} />
           <EventsFeed communityId={activeCommunityId} />
           <TravelCard communityId={activeCommunityId} />
+          <SchoolClosuresCard communityId={activeCommunityId} />
           <div id="section-whatson" className="scroll-mt-20">
             <WhatsonFeed communityId={activeCommunityId} mode="in" communityName={activeCommunity?.name} />
           </div>
