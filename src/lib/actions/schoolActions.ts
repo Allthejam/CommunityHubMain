@@ -226,6 +226,7 @@ export async function createSchoolHolidayAction(params: {
   startDate: string;
   endDate?: string;
   notes?: string;
+  replacesBankHolidayKey?: string;
 }) {
   try {
     const isDemo = params.communityId === '9ayHMyZf4SRw2gof1AM9' || params.communityId === 'c_showhome';
@@ -246,6 +247,7 @@ export async function createSchoolHolidayAction(params: {
         startDate: params.startDate.trim(),
         endDate: params.endDate?.trim() || params.startDate.trim(),
         notes: params.notes?.trim() || '',
+        replacesBankHolidayKey: params.replacesBankHolidayKey?.trim() || '',
         postedByUid: params.uid,
         createdAt: new Date().toISOString(),
       });
@@ -253,6 +255,45 @@ export async function createSchoolHolidayAction(params: {
     return { success: true, holidayId: docRef.id };
   } catch (error: any) {
     return { success: false, error: error?.message || 'Failed to add school holiday.' };
+  }
+}
+
+export async function updateSchoolHolidayAction(params: {
+  communityId: string;
+  uid: string;
+  holidayId: string;
+  title: string;
+  startDate: string;
+  endDate?: string;
+  notes?: string;
+}) {
+  try {
+    const isDemo = params.communityId === '9ayHMyZf4SRw2gof1AM9' || params.communityId === 'c_showhome';
+    const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
+    const auth = await verifyLeaderAccess(firestore, params.uid, params.communityId, true);
+    if (!auth.allowed) return { success: false, error: auth.error };
+
+    if (!params.holidayId || !params.title?.trim() || !params.startDate?.trim()) {
+      return { success: false, error: 'Holiday ID, title, and start date are required.' };
+    }
+
+    await firestore
+      .collection('communities')
+      .doc(params.communityId)
+      .collection('schoolHolidays')
+      .doc(params.holidayId)
+      .update({
+        title: params.title.trim(),
+        startDate: params.startDate.trim(),
+        endDate: params.endDate?.trim() || params.startDate.trim(),
+        notes: params.notes?.trim() || '',
+        updatedByUid: params.uid,
+        updatedAt: new Date().toISOString(),
+      });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'Failed to update school holiday.' };
   }
 }
 

@@ -11,6 +11,7 @@ import {
   Plus,
   Loader2,
   Trash2,
+  Pencil,
   RefreshCw,
   ShieldCheck,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ import {
   createSchoolAlertAction,
   clearSchoolAlertAction,
   createSchoolHolidayAction,
+  updateSchoolHolidayAction,
   deleteSchoolHolidayAction,
   listCommunityMembersForSchoolPermsAction,
   setSchoolClosurePosterPermissionAction,
@@ -136,6 +138,8 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
   const [holidayStart, setHolidayStart] = useState('');
   const [holidayEnd, setHolidayEnd] = useState('');
   const [holidayNotes, setHolidayNotes] = useState('');
+  const [editingHolidayId, setEditingHolidayId] = useState<string | null>(null);
+  const [replacesBankHolidayKey, setReplacesBankHolidayKey] = useState<string | null>(null);
 
   const loadData = React.useCallback(async (signal?: AbortSignal) => {
     if (!communityId) return;
@@ -231,21 +235,70 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
     }
   };
 
-  const handleAddHoliday = async (e: React.FormEvent) => {
+  const openNewHolidayModal = () => {
+    setEditingHolidayId(null);
+    setReplacesBankHolidayKey(null);
+    setHolidayTitle('');
+    setHolidayStart('');
+    setHolidayEnd('');
+    setHolidayNotes('');
+    setModalMode('holiday');
+  };
+
+  const openEditHolidayModal = (h: SchoolHolidayItem) => {
+    setEditingHolidayId(h.id);
+    setReplacesBankHolidayKey(null);
+    setHolidayTitle(h.title || '');
+    setHolidayStart(h.startDate || '');
+    setHolidayEnd(h.endDate || h.startDate || '');
+    setHolidayNotes(h.notes || '');
+    setModalMode('holiday');
+  };
+
+  const openEditBankHolidayModal = (bh: { title: string; date: string }) => {
+    setEditingHolidayId(null);
+    setReplacesBankHolidayKey(`${bh.date}__${bh.title}`);
+    setHolidayTitle(bh.title || '');
+    setHolidayStart(bh.date || '');
+    setHolidayEnd(bh.date || '');
+    setHolidayNotes('');
+    setModalMode('holiday');
+  };
+
+  const handleSaveHoliday = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.uid || !communityId) return;
     setSaving(true);
-    const res = await createSchoolHolidayAction({
-      communityId,
-      uid: user.uid,
-      title: holidayTitle,
-      startDate: holidayStart,
-      endDate: holidayEnd,
-      notes: holidayNotes,
-    });
+    const res = editingHolidayId
+      ? await updateSchoolHolidayAction({
+          communityId,
+          uid: user.uid,
+          holidayId: editingHolidayId,
+          title: holidayTitle,
+          startDate: holidayStart,
+          endDate: holidayEnd,
+          notes: holidayNotes,
+        })
+      : await createSchoolHolidayAction({
+          communityId,
+          uid: user.uid,
+          title: holidayTitle,
+          startDate: holidayStart,
+          endDate: holidayEnd,
+          notes: holidayNotes,
+          replacesBankHolidayKey: replacesBankHolidayKey || undefined,
+        });
     setSaving(false);
     if (res.success) {
-      toast({ title: 'School holiday / term date added' });
+      toast({
+        title: editingHolidayId
+          ? 'School holiday updated'
+          : replacesBankHolidayKey
+            ? 'Holiday dates amended & saved'
+            : 'School holiday / term date added',
+      });
+      setEditingHolidayId(null);
+      setReplacesBankHolidayKey(null);
       setHolidayTitle('');
       setHolidayStart('');
       setHolidayEnd('');
@@ -280,7 +333,7 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
                 <Button size="sm" variant="outline" onClick={() => setModalMode('alert')} className="h-8 text-xs">
                   <Plus className="h-3.5 w-3.5 mr-1" /> Post Closure
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setModalMode('holiday')} className="h-8 text-xs">
+                <Button size="sm" variant="outline" onClick={openNewHolidayModal} className="h-8 text-xs">
                   <Calendar className="h-3.5 w-3.5 mr-1" /> Add Holiday
                 </Button>
               </>
@@ -379,26 +432,51 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
                         {h.notes && <p className="text-[11px] text-muted-foreground italic mt-0.5">{h.notes}</p>}
                       </div>
                       {canPost && user?.uid && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6 text-destructive shrink-0"
-                          onClick={async () => {
-                            await deleteSchoolHolidayAction({ communityId, uid: user.uid, holidayId: h.id });
-                            loadData();
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Edit holiday dates"
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                            onClick={() => openEditHolidayModal(h)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Delete holiday"
+                            className="h-6 w-6 text-destructive"
+                            onClick={async () => {
+                              await deleteSchoolHolidayAction({ communityId, uid: user.uid, holidayId: h.id });
+                              loadData();
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   ))}
                   {bankHolidays.map((bh, i) => (
-                    <div key={`${bh.date}-${i}`} className="rounded-lg border bg-indigo-50/40 dark:bg-indigo-950/20 p-2.5 text-xs">
-                      <p className="font-semibold text-foreground">{bh.title}</p>
-                      <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
-                        {formatDateSafe(bh.date)} &bull; Public / Bank Holiday
-                      </p>
+                    <div key={`${bh.date}-${i}`} className="rounded-lg border bg-indigo-50/40 dark:bg-indigo-950/20 p-2.5 text-xs flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-foreground">{bh.title}</p>
+                        <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                          {formatDateSafe(bh.date)} &bull; Public / Bank Holiday
+                        </p>
+                      </div>
+                      {canPost && user?.uid && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="Edit or expand to full school holiday dates"
+                          className="h-6 w-6 text-indigo-700 dark:text-indigo-300 shrink-0"
+                          onClick={() => openEditBankHolidayModal(bh)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -486,16 +564,24 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* Add School Holiday Modal */}
+      {/* Add / Edit School Holiday Modal */}
       <Dialog open={modalMode === 'holiday'} onOpenChange={(o) => !o && setModalMode(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add School Holiday / Term Date</DialogTitle>
+            <DialogTitle>
+              {editingHolidayId
+                ? 'Edit School Holiday / Term Date'
+                : replacesBankHolidayKey
+                  ? 'Amend Holiday Dates'
+                  : 'Add School Holiday / Term Date'}
+            </DialogTitle>
             <DialogDescription>
-              Add local school holidays, half-term breaks, or in-service days.
+              {replacesBankHolidayKey
+                ? 'Update the title and full start/end dates (for example, the full 2-week Christmas school break). Saving will replace the auto-pulled public holiday entry.'
+                : 'Add or update local school holidays, half-term breaks, or in-service days.'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAddHoliday} className="space-y-3">
+          <form onSubmit={handleSaveHoliday} className="space-y-3">
             <div>
               <Label>Holiday / Term Event</Label>
               <Input

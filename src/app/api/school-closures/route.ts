@@ -192,7 +192,22 @@ export async function GET(request: Request) {
         const govJson = await govRes.json();
         const events: Array<{ title: string; date: string }> = govJson?.[portal.division]?.events || [];
         const todayIso = new Date().toISOString().slice(0, 10);
-        upcomingBankHolidays = events.filter((e) => e.date >= todayIso).slice(0, 4);
+        const overriddenKeys = new Set(
+          holidays.map((h) => h.replacesBankHolidayKey).filter(Boolean)
+        );
+        const overrideRanges = holidays
+          .filter((h) => Boolean(h.replacesBankHolidayKey) && h.startDate)
+          .map((h) => ({ start: h.startDate, end: h.endDate || h.startDate }));
+
+        upcomingBankHolidays = events
+          .filter((e) => {
+            if (e.date < todayIso) return false;
+            const key = `${e.date}__${e.title}`;
+            if (overriddenKeys.has(key)) return false;
+            if (overrideRanges.some((r) => e.date >= r.start && e.date <= r.end)) return false;
+            return true;
+          })
+          .slice(0, 4);
       }
     } catch {
       upcomingBankHolidays = [];
