@@ -15,8 +15,79 @@ type ActionResponse = {
   message?: string;
 };
 
-export async function deleteUserAccountAction(params: { userId: string }): Promise<ActionResponse> {
-    const { userId } = params;
+function isBusinessSubscribed(data: FirebaseFirestore.DocumentData): boolean {
+    const subStatus = String(data?.subscriptionStatus || '').toLowerCase();
+    const plan = String(data?.plan || data?.tier || '').toLowerCase();
+    return Boolean(
+        data?.stripeSubscriptionId ||
+        data?.stripeAccountId ||
+        data?.isSubscribed === true ||
+        subStatus === 'active' ||
+        subStatus === 'trialing' ||
+        subStatus === 'past_due' ||
+        (plan && plan !== 'free' && plan !== 'seeded' && plan !== 'none')
+    );
+}
+
+export async function checkUserBusinessClosureStatusAction(userId: string): Promise<{
+    success: boolean;
+    hasOwnedBusinesses: boolean;
+    hasSubscribedBusinesses: boolean;
+    businessNames: string[];
+    subscribedBusinessNames: string[];
+    error?: string;
+}> {
+    if (!userId) {
+        return {
+            success: false,
+            hasOwnedBusinesses: false,
+            hasSubscribedBusinesses: false,
+            businessNames: [],
+            subscribedBusinessNames: [],
+            error: 'User ID is required.',
+        };
+    }
+
+    try {
+        const { firestore } = initializeAdminApp();
+        const snap = await firestore.collection('businesses').where('ownerId', '==', userId).get();
+        const businessNames: string[] = [];
+        const subscribedBusinessNames: string[] = [];
+
+        snap.forEach((docSnap) => {
+            const data = docSnap.data() || {};
+            const name = data.name || data.businessName || 'Unnamed Business';
+            businessNames.push(name);
+            if (isBusinessSubscribed(data)) {
+                subscribedBusinessNames.push(name);
+            }
+        });
+
+        return {
+            success: true,
+            hasOwnedBusinesses: snap.size > 0,
+            hasSubscribedBusinesses: subscribedBusinessNames.length > 0,
+            businessNames,
+            subscribedBusinessNames,
+        };
+    } catch (error: any) {
+        console.error('Error checking business closure status:', error);
+        return {
+            success: false,
+            hasOwnedBusinesses: false,
+            hasSubscribedBusinesses: false,
+            businessNames: [],
+            subscribedBusinessNames: [],
+            error: error.message || 'Failed to check owned businesses.',
+        };
+    }
+}
+
+export async function deleteUserAccountAction(params: {
+    userId: string;
+    confirmedStripeCancellation?: boolean;
+}): Promise<ActionResponse & { blockedBySubscription?: boolean }> {
+    const { userId, confirmedStripeCancellation } = params;
     if (!userId) {
         return { success: false, error: 'User ID is required.' };
     }
@@ -25,6 +96,28 @@ export async function deleteUserAccountAction(params: { userId: string }): Promi
         const { firestore, adminApp } = initializeAdminApp();
         const auth = getAuth(adminApp);
         const userRef = firestore.collection('users').doc(userId);
+        const ownedBusinessesSnap = await firestore
+            .collection('businesses')
+            .where('ownerId', '==', userId)
+            .get();
+
+        const hasSubscribed = ownedBusinessesSnap.docs.some((docSnap) =>
+            isBusinessSubscribed(docSnap.data() || {})
+        );
+
+        if (hasSubscribed && !confirmedStripeCancellation) {
+            return {
+                success: false,
+                blockedBySubscription: true,
+                error: 'You must close your business and confirm all Stripe Connect subscriptions have been cancelled before closing your account.',
+            };
+        }
+
+        const batch = firestore.batch();
+        // Remove all owned businesses from the app & public directory
+        ownedBusinessesSnap.forEach((docSnap) => {
+            batch.delete(docSnap.ref);
+        });
 
         const userDoc = await userRef.get();
 
@@ -32,22 +125,26 @@ export async function deleteUserAccountAction(params: { userId: string }): Promi
             const userData = userDoc.data()!;
             // Log the user's data before deletion
             const deletedUsersLogRef = firestore.collection('deleted_users').doc(userId);
-            await deletedUsersLogRef.set({
+            batch.set(deletedUsersLogRef, {
                 userId: userId,
                 name: userData.name,
                 email: userData.email,
                 accountType: userData.accountType || 'personal',
+                removedBusinessCount: ownedBusinessesSnap.size,
+                confirmedStripeCancellation: Boolean(confirmedStripeCancellation),
                 deletedAt: Timestamp.now(),
             });
 
             // Delete the main user document
-            await userRef.delete();
+            batch.delete(userRef);
         }
+
+        await batch.commit();
 
         // Delete the user from Firebase Authentication
         await auth.deleteUser(userId);
 
-        console.log(`[DELETE] Successfully logged and deleted user ${userId}.`);
+        console.log(`[DELETE] Successfully logged and deleted user ${userId} (removed ${ownedBusinessesSnap.size} businesses).`);
 
         return { success: true, message: 'User account has been deleted.' };
 
@@ -362,8 +459,11 @@ export async function changeAccountTypeAction(params: {
   }
 }
 
-export async function downgradeAccountAction(params: { userId: string }): Promise<ActionResponse> {
-  const { userId } = params;
+export async function downgradeAccountAction(params: {
+  userId: string;
+  confirmedStripeCancellation?: boolean;
+}): Promise<ActionResponse & { blockedBySubscription?: boolean }> {
+  const { userId, confirmedStripeCancellation } = params;
   if (!userId) {
     return { success: false, error: 'User ID is required.' };
   }
@@ -375,16 +475,28 @@ export async function downgradeAccountAction(params: { userId: string }): Promis
     const ownedBusinessesQuery = businessesRef.where('ownerId', '==', userId);
 
     const snapshot = await ownedBusinessesQuery.get();
+    const hasSubscribed = snapshot.docs.some((docSnap) =>
+      isBusinessSubscribed(docSnap.data() || {})
+    );
+
+    if (hasSubscribed && !confirmedStripeCancellation) {
+      return {
+        success: false,
+        blockedBySubscription: true,
+        error: 'Please confirm you have closed your business and cancelled your Stripe Connect subscriptions first.',
+      };
+    }
+
     const batch = firestore.batch();
 
-    // Delete all owned business listings
+    // Delete all owned business listings from the app & directory
     if (!snapshot.empty) {
       snapshot.forEach(doc => {
         batch.delete(doc.ref);
       });
     }
 
-    // Update user profile to 'personal'
+    // Update user profile to a simple 'personal' account
     batch.update(userRef, {
       accountType: 'personal',
       role: 'personal',
@@ -394,6 +506,8 @@ export async function downgradeAccountAction(params: { userId: string }): Promis
       'permissions.dashboards.business': FieldValue.delete(),
       'permissions.dashboards.enterprise': FieldValue.delete(),
       ownedBusinessIds: FieldValue.delete(),
+      businessId: FieldValue.delete(),
+      primaryBusinessId: FieldValue.delete(),
     });
 
     await batch.commit();

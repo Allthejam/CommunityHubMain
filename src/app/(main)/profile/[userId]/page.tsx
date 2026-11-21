@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { changeAccountTypeAction, resignAsPresidentAction, deleteUserAccountAction, updateUserCommunityAction, updateUserFavouriteCommunitiesAction, downgradeAccountAction, changeHomeCommunityAction, migrateBusinessAndChangeCommunityAction, updateOwnerPublicDisplayAction } from "@/lib/actions/userActions";
+import { changeAccountTypeAction, resignAsPresidentAction, deleteUserAccountAction, checkUserBusinessClosureStatusAction, updateUserCommunityAction, updateUserFavouriteCommunitiesAction, downgradeAccountAction, changeHomeCommunityAction, migrateBusinessAndChangeCommunityAction, updateOwnerPublicDisplayAction } from "@/lib/actions/userActions";
 import { saveLeaderProfile } from "@/lib/actions/leaderActions";
 import { performGlobalLogout } from "@/lib/auth-logout";
 import { Label } from "@/components/ui/label";
@@ -161,6 +161,15 @@ export default function UserProfilePage() {
     const [isSwitching, setIsSwitching] = React.useState(false);
     
     const [isClosureDialogOpen, setIsClosureDialogOpen] = React.useState(false);
+    const [isBusinessClosureWarningOpen, setIsBusinessClosureWarningOpen] = React.useState(false);
+    const [isCheckingBusinessClosure, setIsCheckingBusinessClosure] = React.useState(false);
+    const [businessClosureInfo, setBusinessClosureInfo] = React.useState<{
+        hasOwnedBusinesses: boolean;
+        hasSubscribedBusinesses: boolean;
+        businessNames: string[];
+        subscribedBusinessNames: string[];
+    } | null>(null);
+    const [confirmedStripeCancellation, setConfirmedStripeCancellation] = React.useState(false);
     const [closurePassword, setClosurePassword] = React.useState('');
     const [isClosingAccount, setIsClosingAccount] = React.useState(false);
     const [agreedToDeletionTerms, setAgreedToDeletionTerms] = React.useState(false);
@@ -469,7 +478,10 @@ export default function UserProfilePage() {
             const credential = EmailAuthProvider.credential(user.email, downgradePassword);
             await reauthenticateWithCredential(user, credential);
             
-            const result = await downgradeAccountAction({ userId: user.uid });
+            const result = await downgradeAccountAction({
+                userId: user.uid,
+                confirmedStripeCancellation,
+            });
             if (result.success) {
                 toast({ title: "Account Downgraded", description: "Your account is now a Personal account. All business data has been removed." });
                 setIsDowngradeDialogOpen(false);
@@ -584,6 +596,31 @@ export default function UserProfilePage() {
         router.push(`/home?community=${communityId}`);
     }
 
+    const handleInitiateAccountClosure = async () => {
+        if (!user) return;
+        setIsCheckingBusinessClosure(true);
+        try {
+            const status = await checkUserBusinessClosureStatusAction(user.uid);
+            setConfirmedStripeCancellation(false);
+            if (status.success && status.hasOwnedBusinesses) {
+                setBusinessClosureInfo({
+                    hasOwnedBusinesses: status.hasOwnedBusinesses,
+                    hasSubscribedBusinesses: status.hasSubscribedBusinesses,
+                    businessNames: status.businessNames,
+                    subscribedBusinessNames: status.subscribedBusinessNames,
+                });
+                setIsBusinessClosureWarningOpen(true);
+            } else {
+                setBusinessClosureInfo(null);
+                setIsClosureDialogOpen(true);
+            }
+        } catch {
+            setIsClosureDialogOpen(true);
+        } finally {
+            setIsCheckingBusinessClosure(false);
+        }
+    };
+
     const handleAccountClosure = async () => {
         if (!user || !user.email) return;
 
@@ -596,7 +633,10 @@ export default function UserProfilePage() {
             const credential = EmailAuthProvider.credential(user.email, closurePassword);
             await reauthenticateWithCredential(user, credential);
             
-            const result = await deleteUserAccountAction({ userId: user.uid });
+            const result = await deleteUserAccountAction({
+                userId: user.uid,
+                confirmedStripeCancellation,
+            });
 
             if (result.success) {
                 toast({ title: "Account Deleted", description: "Your account has been permanently removed." });
@@ -1210,34 +1250,132 @@ export default function UserProfilePage() {
                                         </DialogContent>
                                     </Dialog>
                                 ) : (
-                                    <AlertDialog open={isClosureDialogOpen} onOpenChange={setIsClosureDialogOpen}>
-                                      <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" disabled={!agreedToDeletionTerms}>
-                                          Close My Account
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            This action cannot be undone. To confirm, please enter your password.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <div className="py-2">
-                                          <Label htmlFor="closure-password">Password</Label>
-                                          <Input id="closure-password" type="password" value={closurePassword} onChange={e => setClosurePassword(e.target.value)} required />
-                                        </div>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction asChild>
-                                            <Button onClick={handleAccountClosure} variant="destructive" disabled={isClosingAccount || !closurePassword}>
-                                              {isClosingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                              Confirm & Delete Account
+                                    <>
+                                      <Button
+                                        variant="destructive"
+                                        disabled={!agreedToDeletionTerms || isCheckingBusinessClosure}
+                                        onClick={handleInitiateAccountClosure}
+                                      >
+                                        {isCheckingBusinessClosure && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Close My Account
+                                      </Button>
+
+                                      {/* Step 1: Business & Stripe Subscription Closure / Downgrade Option */}
+                                      <Dialog open={isBusinessClosureWarningOpen} onOpenChange={setIsBusinessClosureWarningOpen}>
+                                        <DialogContent className="max-w-lg">
+                                          <DialogHeader>
+                                            <DialogTitle className="flex items-center gap-2 text-destructive">
+                                              <ShieldAlert className="h-5 w-5 shrink-0" />
+                                              {businessClosureInfo?.hasSubscribedBusinesses
+                                                ? 'Active Business Subscriptions Found'
+                                                : 'Owned Business Listing Will Be Removed'}
+                                            </DialogTitle>
+                                            <DialogDescription>
+                                              {businessClosureInfo?.hasSubscribedBusinesses
+                                                ? `Your account owns subscribed business listing(s): ${businessClosureInfo.subscribedBusinessNames.join(', ')}.`
+                                                : `Your account owns business listing(s): ${businessClosureInfo?.businessNames.join(', ')}.`}
+                                            </DialogDescription>
+                                          </DialogHeader>
+
+                                          <div className="space-y-3 text-sm">
+                                            {businessClosureInfo?.hasSubscribedBusinesses && (
+                                              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-1.5 text-destructive dark:text-red-300">
+                                                <p className="font-semibold">
+                                                  Stop — Please cancel your Stripe Connect subscriptions first
+                                                </p>
+                                                <p className="text-xs leading-relaxed">
+                                                  You must close your business and go to your <strong>Stripe Connect account</strong> to make sure all subscriptions are cancelled. We cannot cancel these subscriptions for you — if you close your account without cancelling them first, you would have to stop recurring payments <strong>manually through your bank</strong>.
+                                                </p>
+                                              </div>
+                                            )}
+
+                                            <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+                                              <p className="font-semibold text-foreground">What happens to your business?</p>
+                                              <p>
+                                                Closing your business permanently removes it from the app and public directory (in case it has closed or moved). If a community leader needs it listed again later, they can re-seed it in the public directory.
+                                              </p>
+                                            </div>
+
+                                            <div className="rounded-lg border bg-indigo-50/50 dark:bg-indigo-950/20 p-3 text-xs space-y-1">
+                                              <p className="font-semibold text-foreground">Want to keep a personal account instead?</p>
+                                              <p className="text-muted-foreground">
+                                                You can <strong>downgrade to a simple Personal Account</strong> (which removes your business and keeps your personal profile) instead of deleting your entire account.
+                                              </p>
+                                            </div>
+
+                                            {businessClosureInfo?.hasSubscribedBusinesses && (
+                                              <div className="flex items-start space-x-2 pt-1">
+                                                <Checkbox
+                                                  id="confirm-stripe-cancel"
+                                                  checked={confirmedStripeCancellation}
+                                                  onCheckedChange={(checked) => setConfirmedStripeCancellation(checked as boolean)}
+                                                />
+                                                <Label htmlFor="confirm-stripe-cancel" className="text-xs font-normal leading-relaxed cursor-pointer">
+                                                  I confirm that I have closed my business and cancelled all subscriptions in my Stripe Connect account, and I understand that any uncancelled payments would need to be cancelled manually via my bank.
+                                                </Label>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              onClick={() => setIsBusinessClosureWarningOpen(false)}
+                                            >
+                                              Cancel
                                             </Button>
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
+                                            <Button
+                                              type="button"
+                                              variant="secondary"
+                                              disabled={businessClosureInfo?.hasSubscribedBusinesses && !confirmedStripeCancellation}
+                                              onClick={() => {
+                                                setIsBusinessClosureWarningOpen(false);
+                                                setIsDowngradeDialogOpen(true);
+                                              }}
+                                            >
+                                              Downgrade to Personal Account
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              variant="destructive"
+                                              disabled={businessClosureInfo?.hasSubscribedBusinesses && !confirmedStripeCancellation}
+                                              onClick={() => {
+                                                setIsBusinessClosureWarningOpen(false);
+                                                setIsClosureDialogOpen(true);
+                                              }}
+                                            >
+                                              Continue to Full Closure
+                                            </Button>
+                                          </DialogFooter>
+                                        </DialogContent>
+                                      </Dialog>
+
+                                      {/* Step 2: Final Password Confirmation for Full Account Closure */}
+                                      <AlertDialog open={isClosureDialogOpen} onOpenChange={setIsClosureDialogOpen}>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              This action cannot be undone. Your account{businessClosureInfo?.hasOwnedBusinesses ? ' and owned business listing(s)' : ''} will be permanently removed. To confirm, please enter your password.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <div className="py-2">
+                                            <Label htmlFor="closure-password">Password</Label>
+                                            <Input id="closure-password" type="password" value={closurePassword} onChange={e => setClosurePassword(e.target.value)} required />
+                                          </div>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction asChild>
+                                              <Button onClick={handleAccountClosure} variant="destructive" disabled={isClosingAccount || !closurePassword}>
+                                                {isClosingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                Confirm & Delete Account
+                                              </Button>
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </>
                                 )}
                             </CardFooter>
                         </Card>
@@ -1258,7 +1396,27 @@ export default function UserProfilePage() {
                             </>
                         )}
                         {(userProfile?.accountType === 'business' || userProfile?.accountType === 'enterprise') && (
-                             <Button variant="destructive" className="w-full justify-start" onClick={() => setIsDowngradeDialogOpen(true)}>
+                             <Button
+                               variant="destructive"
+                               className="w-full justify-start"
+                               onClick={async () => {
+                                 if (!user) return;
+                                 const status = await checkUserBusinessClosureStatusAction(user.uid);
+                                 setConfirmedStripeCancellation(false);
+                                 if (status.success && status.hasSubscribedBusinesses) {
+                                   setBusinessClosureInfo({
+                                     hasOwnedBusinesses: status.hasOwnedBusinesses,
+                                     hasSubscribedBusinesses: status.hasSubscribedBusinesses,
+                                     businessNames: status.businessNames,
+                                     subscribedBusinessNames: status.subscribedBusinessNames,
+                                   });
+                                   setIsAccountTypeDialogOpen(false);
+                                   setIsBusinessClosureWarningOpen(true);
+                                 } else {
+                                   setIsDowngradeDialogOpen(true);
+                                 }
+                               }}
+                             >
                                 <UserIcon className="mr-2 h-4 w-4" /> Downgrade to Personal Account
                             </Button>
                         )}
