@@ -210,7 +210,7 @@ export async function GET(request: Request) {
             if (overrideRanges.some((r) => e.date >= r.start && e.date <= r.end)) return false;
             return true;
           })
-          .slice(0, 4);
+          .slice(0, 12);
       }
     } catch {
       upcomingBankHolidays = [];
