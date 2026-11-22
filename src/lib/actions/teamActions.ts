@@ -803,7 +803,7 @@ export async function runHandoverLeadership(params: {
                     date: Timestamp.now(),
                     status: 'new',
                     relatedId: communityId,
-                    actionUrl: `/admin/communities/${communityId}`,
+                    actionUrl: `/admin/communities?view=${communityId}`,
                     targetApp: 'admin',
                     details: {
                         message: `Leadership of '${communityName}' has been transferred from ${currentLeaderId} to ${newLeaderId}. The community status has been set to 'Pending' for review.`

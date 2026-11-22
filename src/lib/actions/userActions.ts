@@ -658,7 +658,7 @@ export async function resignAsPresidentAction(params: {
             date: Timestamp.now(),
             status: 'new',
             relatedId: communityId,
-            actionUrl: `/admin/communities/${communityId}`,
+            actionUrl: `/admin/communities?view=${communityId}`,
             targetApp: 'admin',
             details: {
               message: `The community '${communityNameForNotification}' has become leaderless after a leader resigned. Please review the community's settings, especially the connected Stripe account, to prevent incorrect payouts.`
