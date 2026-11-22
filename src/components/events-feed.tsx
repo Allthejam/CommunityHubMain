@@ -36,7 +36,7 @@ import { cn } from '@/lib/utils';
 import { downloadIcsFile, openGoogleCalendarUrl } from '@/lib/utils/calendar-export';
 import { addEventToUserCalendar } from '@/lib/actions/calendarActions';
 import { mockEvents } from '@/lib/mock-data';
-import { isEventLiveNow, isEventUpcoming, getAdvancedRepeatingEvent, parseEventDate } from '@/lib/utils/event-utils';
+import { isEventLiveNow, isEventUpcoming, getAdvancedRepeatingEvent, parseEventDate, formatEventStartTime } from '@/lib/utils/event-utils';
 import { updateEventAction } from '@/lib/actions/eventActions';
 
 // ---------------------------------------------------------------------------
@@ -49,6 +49,7 @@ type CommunityEvent = {
   category: string;
   startDate: { toDate: () => Date } | Date | string;
   endDate?: { toDate: () => Date } | Date | string | null;
+  startTime?: string | null;
   repeat?: string | null;
   repeatUntil?: { toDate: () => Date } | Date | string | null;
   pastOccurrences?: Array<any>;
@@ -166,7 +167,7 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                <span>Starts at 8:00 PM</span>
+                <span>{formatEventStartTime(event.startTime, startDateObj)}</span>
               </div>
             </div>
 

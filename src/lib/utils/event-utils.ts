@@ -9,6 +9,38 @@ export interface EventLike {
   pastOccurrences?: Array<{ startDate: any; endDate: any; archivedAt: any }>;
 }
 
+export function formatEventStartTime(
+  startTime?: string | null,
+  startDateObj?: Date | null
+): string {
+  const raw = typeof startTime === 'string' ? startTime.trim() : '';
+  if (raw) {
+    const match = raw.match(/^(\d{1,2}):?(\d{2})$/);
+    if (match) {
+      const hour = Number(match[1]);
+      const minute = Number(match[2]);
+      if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+        return `Starts at ${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
+      }
+    }
+    return `Starts at ${raw}`;
+  }
+
+  if (startDateObj && !isNaN(startDateObj.getTime())) {
+    const h = startDateObj.getHours();
+    const m = startDateObj.getMinutes();
+    if (h !== 0 || m !== 0) {
+      const period = h >= 12 ? 'PM' : 'AM';
+      const displayHour = h % 12 === 0 ? 12 : h % 12;
+      return `Starts at ${displayHour}:${String(m).padStart(2, '0')} ${period}`;
+    }
+  }
+
+  return 'All Day';
+}
+
 export function parseEventDate(d: any): Date | null {
   if (!d) return null;
   if (typeof d?.toDate === 'function') {

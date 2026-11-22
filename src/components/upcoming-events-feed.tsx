@@ -22,7 +22,7 @@ import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@
 import { collection, query, where, doc, orderBy } from 'firebase/firestore';
 import { ScrollArea } from './ui/scroll-area';
 
-import { parseEventDate } from '@/lib/utils/event-utils';
+import { parseEventDate, formatEventStartTime } from '@/lib/utils/event-utils';
 
 type CommunityEvent = {
   id: string;
@@ -30,6 +30,7 @@ type CommunityEvent = {
   category: string;
   startDate: { toDate: () => Date } | Date | string | any;
   endDate?: { toDate: () => Date } | Date | string | any | null;
+  startTime?: string | null;
   image?: string;
   dataAiHint?: string;
   description: string;
@@ -75,7 +76,7 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
                         </div>
                         <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4" />
-                            <span>Starts at 8:00 PM</span>
+                            <span>{formatEventStartTime(event.startTime, startDate)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <User className="h-4 w-4" />
