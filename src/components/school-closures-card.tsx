@@ -414,93 +414,127 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
               </div>
             )}
 
-            {/* Upcoming School Holidays & UK Public Holidays */}
-            {(holidays.length > 0 || bankHolidays.length > 0) && (
-              <div className="pt-2 border-t space-y-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-indigo-600" />
-                  Upcoming School Holidays &amp; Public Holidays
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {holidays.map((h) => (
-                    <div key={h.id} className="rounded-lg border bg-muted/30 p-2.5 text-xs flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-foreground">{h.title}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {formatDateSafe(h.startDate)}
-                          {h.endDate && h.endDate !== h.startDate ? ` – ${formatDateSafe(h.endDate)}` : ''}
-                        </p>
-                        {h.notes && <p className="text-[11px] text-muted-foreground italic mt-0.5">{h.notes}</p>}
-                      </div>
-                      {canPost && user?.uid && (
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            title="Edit holiday dates"
-                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                            onClick={() => openEditHolidayModal(h)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            title="Delete holiday"
-                            className="h-6 w-6 text-destructive"
-                            onClick={async () => {
-                              await deleteSchoolHolidayAction({ communityId, uid: user.uid, holidayId: h.id });
-                              loadData();
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+            {/* Upcoming School Holidays & UK Public Holidays (First 6 in date order) */}
+            {(holidays.length > 0 || bankHolidays.length > 0) && (() => {
+              const combinedHolidays = [
+                ...holidays.map((h) => ({
+                  kind: 'custom' as const,
+                  sortDate: h.startDate || '9999-12-31',
+                  key: `custom-${h.id}`,
+                  holiday: h,
+                })),
+                ...bankHolidays.map((bh, i) => ({
+                  kind: 'bank' as const,
+                  sortDate: bh.date || '9999-12-31',
+                  key: `bank-${bh.date}-${i}`,
+                  bankHoliday: bh,
+                })),
+              ]
+                .sort((a, b) => a.sortDate.localeCompare(b.sortDate))
+                .slice(0, 6);
+
+              return (
+                <div className="pt-2 border-t space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-indigo-600" />
+                    Upcoming School Holidays &amp; Public Holidays
+                  </p>
+                  <div className="flex flex-row gap-2 overflow-x-auto pb-1.5 snap-x snap-mandatory sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-x-visible sm:max-h-[168px] sm:overflow-y-auto sm:pr-1">
+                    {combinedHolidays.map((entry) =>
+                      entry.kind === 'custom' ? (
+                        <div
+                          key={entry.key}
+                          className="min-w-[225px] max-w-[260px] shrink-0 snap-start sm:min-w-0 sm:max-w-none rounded-lg border bg-muted/30 p-2.5 text-xs flex items-start justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-semibold text-foreground">{entry.holiday.title}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {formatDateSafe(entry.holiday.startDate)}
+                              {entry.holiday.endDate && entry.holiday.endDate !== entry.holiday.startDate
+                                ? ` – ${formatDateSafe(entry.holiday.endDate)}`
+                                : ''}
+                            </p>
+                            {entry.holiday.notes && (
+                              <p className="text-[11px] text-muted-foreground italic mt-0.5">{entry.holiday.notes}</p>
+                            )}
+                          </div>
+                          {canPost && user?.uid && (
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Edit holiday dates"
+                                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                onClick={() => openEditHolidayModal(entry.holiday)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Delete holiday"
+                                className="h-6 w-6 text-destructive"
+                                onClick={async () => {
+                                  await deleteSchoolHolidayAction({
+                                    communityId,
+                                    uid: user.uid,
+                                    holidayId: entry.holiday.id,
+                                  });
+                                  loadData();
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
-                  {bankHolidays.map((bh, i) => (
-                    <div key={`${bh.date}-${i}`} className="rounded-lg border bg-indigo-50/40 dark:bg-indigo-950/20 p-2.5 text-xs flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-foreground">{bh.title}</p>
-                        <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
-                          {formatDateSafe(bh.date)} &bull; Public / Bank Holiday
-                        </p>
-                      </div>
-                      {canPost && user?.uid && (
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            title="Edit or expand to full school holiday dates"
-                            className="h-6 w-6 text-indigo-700 dark:text-indigo-300"
-                            onClick={() => openEditBankHolidayModal(bh)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            title="Remove auto-seeded holiday"
-                            className="h-6 w-6 text-destructive"
-                            onClick={async () => {
-                              await dismissBankHolidayAction({
-                                communityId,
-                                uid: user.uid,
-                                bankHolidayKey: `${bh.date}__${bh.title}`,
-                              });
-                              loadData();
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                      ) : (
+                        <div
+                          key={entry.key}
+                          className="min-w-[225px] max-w-[260px] shrink-0 snap-start sm:min-w-0 sm:max-w-none rounded-lg border bg-indigo-50/40 dark:bg-indigo-950/20 p-2.5 text-xs flex items-start justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-semibold text-foreground">{entry.bankHoliday.title}</p>
+                            <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                              {formatDateSafe(entry.bankHoliday.date)} &bull; Public / Bank Holiday
+                            </p>
+                          </div>
+                          {canPost && user?.uid && (
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Edit or expand to full school holiday dates"
+                                className="h-6 w-6 text-indigo-700 dark:text-indigo-300"
+                                onClick={() => openEditBankHolidayModal(entry.bankHoliday)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Remove auto-seeded holiday"
+                                className="h-6 w-6 text-destructive"
+                                onClick={async () => {
+                                  await dismissBankHolidayAction({
+                                    communityId,
+                                    uid: user.uid,
+                                    bankHolidayKey: `${entry.bankHoliday.date}__${entry.bankHoliday.title}`,
+                                  });
+                                  loadData();
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      )
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </>
         )}
       </CardContent>
