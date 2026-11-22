@@ -132,7 +132,7 @@ export async function GET(request: Request) {
           .doc(communityId)
           .collection('schoolHolidays')
           .orderBy('startDate', 'asc')
-          .limit(10)
+          .limit(50)
           .get(),
       ]);
 
@@ -192,6 +192,9 @@ export async function GET(request: Request) {
         const govJson = await govRes.json();
         const events: Array<{ title: string; date: string }> = govJson?.[portal.division]?.events || [];
         const todayIso = new Date().toISOString().slice(0, 10);
+        const dismissedKeys = new Set<string>(
+          Array.isArray(commData?.dismissedBankHolidays) ? commData.dismissedBankHolidays : []
+        );
         const overriddenKeys = new Set(
           holidays.map((h) => h.replacesBankHolidayKey).filter(Boolean)
         );
@@ -203,7 +206,7 @@ export async function GET(request: Request) {
           .filter((e) => {
             if (e.date < todayIso) return false;
             const key = `${e.date}__${e.title}`;
-            if (overriddenKeys.has(key)) return false;
+            if (dismissedKeys.has(key) || overriddenKeys.has(key)) return false;
             if (overrideRanges.some((r) => e.date >= r.start && e.date <= r.end)) return false;
             return true;
           })

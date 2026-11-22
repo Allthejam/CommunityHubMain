@@ -44,6 +44,7 @@ import {
   createSchoolHolidayAction,
   updateSchoolHolidayAction,
   deleteSchoolHolidayAction,
+  dismissBankHolidayAction,
   listCommunityMembersForSchoolPermsAction,
   setSchoolClosurePosterPermissionAction,
 } from '@/lib/actions/schoolActions';
@@ -467,15 +468,33 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
                         </p>
                       </div>
                       {canPost && user?.uid && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          title="Edit or expand to full school holiday dates"
-                          className="h-6 w-6 text-indigo-700 dark:text-indigo-300 shrink-0"
-                          onClick={() => openEditBankHolidayModal(bh)}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Edit or expand to full school holiday dates"
+                            className="h-6 w-6 text-indigo-700 dark:text-indigo-300"
+                            onClick={() => openEditBankHolidayModal(bh)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Remove auto-seeded holiday"
+                            className="h-6 w-6 text-destructive"
+                            onClick={async () => {
+                              await dismissBankHolidayAction({
+                                communityId,
+                                uid: user.uid,
+                                bankHolidayKey: `${bh.date}__${bh.title}`,
+                              });
+                              loadData();
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   ))}

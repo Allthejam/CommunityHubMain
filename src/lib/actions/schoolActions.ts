@@ -238,21 +238,54 @@ export async function createSchoolHolidayAction(params: {
       return { success: false, error: 'Holiday title and start date are required.' };
     }
 
-    const docRef = await firestore
+    const cleanKey = params.replacesBankHolidayKey?.trim() || '';
+    const payload = {
+      title: params.title.trim(),
+      startDate: params.startDate.trim(),
+      endDate: params.endDate?.trim() || params.startDate.trim(),
+      notes: params.notes?.trim() || '',
+      replacesBankHolidayKey: cleanKey,
+      postedByUid: params.uid,
+    };
+
+    const holidaysCol = firestore
       .collection('communities')
       .doc(params.communityId)
-      .collection('schoolHolidays')
-      .add({
-        title: params.title.trim(),
-        startDate: params.startDate.trim(),
-        endDate: params.endDate?.trim() || params.startDate.trim(),
-        notes: params.notes?.trim() || '',
-        replacesBankHolidayKey: params.replacesBankHolidayKey?.trim() || '',
-        postedByUid: params.uid,
+      .collection('schoolHolidays');
+
+    let holidayId = '';
+    if (cleanKey) {
+      const existingSnap = await holidaysCol.where('replacesBankHolidayKey', '==', cleanKey).limit(1).get();
+      if (!existingSnap.empty) {
+        const existingDoc = existingSnap.docs[0];
+        await existingDoc.ref.update({
+          ...payload,
+          updatedByUid: params.uid,
+          updatedAt: new Date().toISOString(),
+        });
+        holidayId = existingDoc.id;
+      }
+    }
+
+    if (!holidayId) {
+      const docRef = await holidaysCol.add({
+        ...payload,
         createdAt: new Date().toISOString(),
       });
+      holidayId = docRef.id;
+    }
 
-    return { success: true, holidayId: docRef.id };
+    if (cleanKey) {
+      await firestore
+        .collection('communities')
+        .doc(params.communityId)
+        .set(
+          { dismissedBankHolidays: FieldValue.arrayUnion(cleanKey) },
+          { merge: true }
+        );
+    }
+
+    return { success: true, holidayId };
   } catch (error: any) {
     return { success: false, error: error?.message || 'Failed to add school holiday.' };
   }
@@ -318,6 +351,36 @@ export async function deleteSchoolHolidayAction(params: {
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error?.message || 'Failed to delete school holiday.' };
+  }
+}
+
+export async function dismissBankHolidayAction(params: {
+  communityId: string;
+  uid: string;
+  bankHolidayKey: string;
+}) {
+  try {
+    const isDemo = params.communityId === '9ayHMyZf4SRw2gof1AM9' || params.communityId === 'c_showhome';
+    const { firestore } = initializeAdminApp(isDemo ? 'comfeed' : undefined);
+    const auth = await verifyLeaderAccess(firestore, params.uid, params.communityId, true);
+    if (!auth.allowed) return { success: false, error: auth.error };
+
+    const cleanKey = params.bankHolidayKey?.trim();
+    if (!cleanKey) {
+      return { success: false, error: 'Missing holiday key.' };
+    }
+
+    await firestore
+      .collection('communities')
+      .doc(params.communityId)
+      .set(
+        { dismissedBankHolidays: FieldValue.arrayUnion(cleanKey) },
+        { merge: true }
+      );
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'Failed to remove auto-seeded holiday.' };
   }
 }
 
