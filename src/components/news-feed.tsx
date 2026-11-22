@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/card';
 import { mockNews } from '@/lib/mock-data';
 import Image from 'next/image';
+import { FittedCardImage } from '@/components/ui/fitted-card-image';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { Newspaper, ArrowRight, Loader2 } from 'lucide-react';
@@ -40,17 +41,17 @@ type MappedNewsStory = {
 const NewsStoryCard = ({ story }: { story: MappedNewsStory }) => (
     <Card className="flex flex-col overflow-hidden h-full">
         <CardHeader className="p-0">
-            <div className="relative w-full aspect-[4/3] bg-muted">
-                {story.image && (
-                    <Image
-                        src={story.image.imageUrl}
-                        alt={story.title}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                        data-ai-hint={story.image.imageHint}
-                    />
-                )}
-            </div>
+            {story.image ? (
+                <FittedCardImage
+                    src={story.image.imageUrl}
+                    alt={story.title}
+                    className="w-full aspect-[4/3]"
+                    imgClassName="transition-transform duration-300 group-hover:scale-105"
+                    dataAiHint={story.image.imageHint}
+                />
+            ) : (
+                <div className="relative w-full aspect-[4/3] bg-muted" />
+            )}
         </CardHeader>
         <CardContent className="p-4 flex-grow">
             <Badge variant="secondary" className="mb-2">{story.category}</Badge>

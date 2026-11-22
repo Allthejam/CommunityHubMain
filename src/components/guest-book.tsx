@@ -8,6 +8,7 @@ import {
     collection, query, where, orderBy, getDocs, addDoc, serverTimestamp, doc,
 } from 'firebase/firestore';
 import { uploadImageAction } from '@/lib/actions/storageActions';
+import { FittedCardImage } from '@/components/ui/fitted-card-image';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -97,10 +98,12 @@ const ReviewCard = ({ entry, className }: { entry: any; className?: string }) =>
     return (
         <div className={cn("flex flex-col rounded-2xl border bg-card shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden w-full h-full", className)}>
             {entry.imageUrl && (
-                <div className="relative w-full aspect-[16/10] overflow-hidden bg-muted">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={entry.imageUrl} alt="Guest review photo" className="w-full h-full object-cover" />
-                </div>
+                <FittedCardImage
+                    src={entry.imageUrl}
+                    alt="Guest review photo"
+                    className="w-full aspect-[16/10]"
+                    useNativeImg
+                />
             )}
             <div className="flex flex-col gap-2 p-5 flex-1 justify-between">
                 <div className="space-y-3">

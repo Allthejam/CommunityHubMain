@@ -26,6 +26,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import Image from 'next/image';
+import { FittedCardImage } from '@/components/ui/fitted-card-image';
 import { ArrowRight, Calendar, Clock, Loader2, CircleDot, CalendarPlus, Download, Globe, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -134,9 +135,12 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
     <>
       <DialogHeader className="p-6 pb-2">
         {event.image && (
-          <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted/40 p-1 mb-4">
-            <Image src={event.image} alt={event.title} fill className="object-contain" priority />
-          </div>
+          <FittedCardImage
+            src={event.image}
+            alt={event.title}
+            className="w-full aspect-video rounded-md mb-4"
+            priority
+          />
         )}
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           <Badge variant="secondary" className="w-fit">{event.category}</Badge>
@@ -378,15 +382,12 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
                   <DialogTrigger asChild>
                     <Card className="flex flex-col overflow-hidden bg-background cursor-pointer hover:shadow-lg transition-shadow duration-300">
                       <CardHeader className="p-0">
-                        <div className="relative w-full h-48 bg-muted/40 overflow-hidden p-1">
-                          <Image
-                            src={event.image || 'https://picsum.photos/seed/event-live/600/400'}
-                            alt={event.title}
-                            fill
-                            className="object-contain"
-                            data-ai-hint={event.dataAiHint || 'community event'}
-                          />
-                        </div>
+                        <FittedCardImage
+                          src={event.image || 'https://picsum.photos/seed/event-live/600/400'}
+                          alt={event.title}
+                          className="w-full h-48"
+                          dataAiHint={event.dataAiHint || 'community event'}
+                        />
                       </CardHeader>
                       <CardContent className="p-4 flex-grow">
                         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
@@ -459,17 +460,16 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
                       <DialogTrigger asChild>
                         <Card className="flex flex-col overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-300">
                           <CardHeader className="p-0">
-                            <div className="relative w-full aspect-[4/3] bg-muted/40 overflow-hidden p-1">
-                              {event.image && (
-                                <Image
-                                  src={event.image}
-                                  alt={event.title}
-                                  fill
-                                  className="object-contain"
-                                  data-ai-hint={event.dataAiHint || 'local event'}
-                                />
-                              )}
-                            </div>
+                            {event.image ? (
+                              <FittedCardImage
+                                src={event.image}
+                                alt={event.title}
+                                className="w-full aspect-[4/3]"
+                                dataAiHint={event.dataAiHint || 'local event'}
+                              />
+                            ) : (
+                              <div className="relative w-full aspect-[4/3] bg-muted/40" />
+                            )}
                           </CardHeader>
                           <CardContent className="p-4 flex-grow">
                             <div className="flex items-center gap-1.5 mb-2 flex-wrap">

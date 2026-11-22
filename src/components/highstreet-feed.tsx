@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/card';
 import Image from 'next/image';
+import { FittedCardImage } from '@/components/ui/fitted-card-image';
 import Link from 'next/link';
 import { ShoppingBag, Loader2, ArrowRight } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -113,17 +114,17 @@ export function HighstreetFeed({ communityId }: { communityId: string | null }) 
               <CarouselItem key={`${business.id}-${index}`} className="pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
                 <Link href={`/shopping/store/${business.id}`} className="block group">
                     <Card className="overflow-hidden h-full hover:shadow-md transition-shadow">
-                        <div className="relative aspect-square w-full p-2">
-                        {business.logoImage && (
-                            <Image
+                        {business.logoImage ? (
+                            <FittedCardImage
                                 src={business.logoImage}
                                 alt={business.businessName}
-                                fill
-                                className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
-                                data-ai-hint="company logo"
+                                className="aspect-square w-full"
+                                imgClassName="p-2 transition-transform duration-300 group-hover:scale-105"
+                                dataAiHint="company logo"
                             />
+                        ) : (
+                            <div className="relative aspect-square w-full p-2" />
                         )}
-                        </div>
                         <div className="p-2 bg-muted/50">
                             <h4 className="font-semibold text-xs truncate text-center">{business.businessName}</h4>
                         </div>

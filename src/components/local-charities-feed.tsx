@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/card';
 import { mockCharities } from '@/lib/mock-data';
 import Image from 'next/image';
+import { FittedCardImage } from '@/components/ui/fitted-card-image';
 import { HeartHandshake, Loader2, ArrowRight } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 import { Button } from './ui/button';
@@ -59,9 +60,11 @@ const CharityDialogContent = ({ charity }: { charity: Charity }) => (
           <ScrollArea className="max-h-[60vh] px-6">
               <div className="space-y-4 pr-1 pb-4">
                   {charity.image && (
-                      <div className="relative w-full aspect-video rounded-md overflow-hidden">
-                          <Image src={charity.image} alt={charity.title} fill className="object-cover" />
-                      </div>
+                      <FittedCardImage
+                          src={charity.image}
+                          alt={charity.title}
+                          className="w-full aspect-video rounded-md"
+                      />
                   )}
                   <div 
                     className="text-sm text-muted-foreground prose dark:prose-invert max-w-none"
@@ -89,17 +92,17 @@ const CharityCard = ({ charity }: { charity: Charity }) => (
         <DialogTrigger asChild>
             <Card className="flex flex-col overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow h-full">
                 <CardHeader className="p-0">
-                    <div className="relative w-full aspect-square bg-muted">
-                        {charity.image && (
-                            <Image
-                                src={charity.image}
-                                alt={charity.title}
-                                fill
-                                className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                data-ai-hint={charity.dataAiHint || 'charity'}
-                            />
-                        )}
-                    </div>
+                    {charity.image ? (
+                        <FittedCardImage
+                            src={charity.image}
+                            alt={charity.title}
+                            className="w-full aspect-square"
+                            imgClassName="transition-transform duration-300 group-hover:scale-105"
+                            dataAiHint={charity.dataAiHint || 'charity'}
+                        />
+                    ) : (
+                        <div className="relative w-full aspect-square bg-muted" />
+                    )}
                 </CardHeader>
                 <CardContent className="p-4 flex-grow">
                     <h3 className="font-semibold text-lg line-clamp-2 h-14">{charity.title}</h3>
