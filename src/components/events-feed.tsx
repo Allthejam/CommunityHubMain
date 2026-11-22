@@ -134,8 +134,8 @@ const EventDialogContent = ({ event }: { event: CommunityEvent }) => {
     <>
       <DialogHeader className="p-6 pb-2">
         {event.image && (
-          <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted mb-4">
-            <Image src={event.image} alt={event.title} fill className="object-cover" priority />
+          <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted/40 p-1 mb-4">
+            <Image src={event.image} alt={event.title} fill className="object-contain" priority />
           </div>
         )}
         <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -378,12 +378,12 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
                   <DialogTrigger asChild>
                     <Card className="flex flex-col overflow-hidden bg-background cursor-pointer hover:shadow-lg transition-shadow duration-300">
                       <CardHeader className="p-0">
-                        <div className="relative w-full h-48">
+                        <div className="relative w-full h-48 bg-muted/40 overflow-hidden p-1">
                           <Image
                             src={event.image || 'https://picsum.photos/seed/event-live/600/400'}
                             alt={event.title}
                             fill
-                            className="object-cover"
+                            className="object-contain"
                             data-ai-hint={event.dataAiHint || 'community event'}
                           />
                         </div>
@@ -459,13 +459,13 @@ export function EventsFeed({ communityId }: EventsFeedProps) {
                       <DialogTrigger asChild>
                         <Card className="flex flex-col overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-300">
                           <CardHeader className="p-0">
-                            <div className="relative w-full aspect-[4/3]">
+                            <div className="relative w-full aspect-[4/3] bg-muted/40 overflow-hidden p-1">
                               {event.image && (
                                 <Image
                                   src={event.image}
                                   alt={event.title}
                                   fill
-                                  className="object-cover"
+                                  className="object-contain"
                                   data-ai-hint={event.dataAiHint || 'local event'}
                                 />
                               )}

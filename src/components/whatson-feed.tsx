@@ -89,8 +89,8 @@ const WhatsonDialogContent = ({ item }: { item: WhatsonItem }) => {
             <ScrollArea className="max-h-[60vh] px-6">
                 <div className="space-y-4 pr-1 pb-4">
                     {item.image && (
-                        <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted">
-                            <Image src={item.image} alt={item.title} fill className="object-cover" />
+                        <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted/40 p-1">
+                            <Image src={item.image} alt={item.title} fill className="object-contain" />
                         </div>
                     )}
                     <div
@@ -159,12 +159,12 @@ const WhatsonCard = ({ item }: { item: WhatsonItem }) => (
         <DialogTrigger asChild>
             <Card className="flex flex-col overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
                 <CardHeader className="p-0">
-                    <div className="relative w-full aspect-square bg-muted">
+                    <div className="relative w-full aspect-square bg-muted/40 overflow-hidden p-1">
                         <Image
                             src={item.image || 'https://picsum.photos/seed/whatson/600/400'}
                             alt={item.title}
                             fill
-                            className="object-cover"
+                            className="object-contain"
                             data-ai-hint={item.dataAiHint || "local attraction"}
                         />
                         <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
