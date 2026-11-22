@@ -64,10 +64,30 @@ export function PollsSnippet({ communityId }: PollsSnippetProps) {
 
   const { data: allPolls, isLoading: loadingPolls } = useCollection<Poll>(allPollsQuery);
 
+  const parsePollDate = (val: any): Date | null => {
+    if (!val) return null;
+    try {
+      if (typeof val.toDate === 'function') {
+        const d = val.toDate();
+        return isNaN(d.getTime()) ? null : d;
+      }
+      if (typeof val === 'object' && ('seconds' in val || '_seconds' in val)) {
+        const secs = val.seconds ?? val._seconds;
+        const d = new Date(Number(secs) * 1000);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  };
+
   const isExpired = (p: any) => {
-    if (!p.endDate) return false;
-    const targetDate = p.endDate.toDate ? p.endDate.toDate() : new Date(p.endDate);
-    return Date.now() > targetDate.getTime();
+    const rawEnd = p.endDate || p.expiresAt || p.closeDate;
+    if (!rawEnd) return false;
+    const targetDate = parsePollDate(rawEnd);
+    return targetDate ? Date.now() > targetDate.getTime() : false;
   };
 
   const activePolls = React.useMemo(() => {
@@ -75,7 +95,7 @@ export function PollsSnippet({ communityId }: PollsSnippetProps) {
   }, [allPolls]);
 
   const closedPolls = React.useMemo(() => {
-    return (allPolls || []).filter((p) => p.status === 'closed' || p.status === 'archived' || isExpired(p)).slice(0, 2);
+    return (allPolls || []).filter((p) => p.status === 'closed' || (p.status as string) === 'archived' || isExpired(p)).slice(0, 2);
   }, [allPolls]);
 
   const loadingActive = loadingPolls;
@@ -125,19 +145,35 @@ export function PollsSnippet({ communityId }: PollsSnippetProps) {
   const isLoading = loadingActive || loadingClosed;
   const active = (activePolls ?? []).map(sanitizePoll) as Poll[];
   const closed = (closedPolls ?? []).map(sanitizePoll) as Poll[];
+  const hasActive = active.length > 0;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06)] overflow-hidden">
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-5 py-4 flex items-center justify-between">
+      <div
+        className={`px-5 py-4 flex items-center justify-between transition-colors ${
+          hasActive
+            ? 'bg-gradient-to-r from-emerald-600 to-teal-700'
+            : 'bg-gradient-to-r from-slate-600 to-slate-700'
+        }`}
+      >
         <div className="flex items-center gap-2.5">
           <div className="bg-white/20 rounded-xl p-2">
             <BarChart3 className="h-4 w-4 text-white" />
           </div>
           <div>
-            <h2 className="text-white font-extrabold text-sm tracking-tight">Have Your Say!</h2>
-            <p className="text-emerald-100 text-[11px]">Community consultations &amp; results</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-white font-extrabold text-sm tracking-tight">Have Your Say!</h2>
+              {!isLoading && !hasActive && (
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded-full">
+                  No Active Polls
+                </span>
+              )}
+            </div>
+            <p className={`text-[11px] ${hasActive ? 'text-emerald-100' : 'text-slate-200'}`}>
+              {hasActive ? 'Community consultations & results' : 'No open consultations right now'}
+            </p>
           </div>
         </div>
         <Link
@@ -225,10 +261,14 @@ export function PollsSnippet({ communityId }: PollsSnippetProps) {
         <div className="pt-1">
           <Link
             href="/polls"
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-sm"
+            className={`flex items-center justify-center gap-2 w-full py-2.5 text-white rounded-xl text-xs font-extrabold transition-all shadow-sm ${
+              hasActive
+                ? 'bg-emerald-600 hover:bg-emerald-700'
+                : 'bg-slate-600 hover:bg-slate-700'
+            }`}
           >
             <BarChart3 className="h-3.5 w-3.5" />
-            Go to Community Polls &amp; Have Your Say
+            {hasActive ? 'Go to Community Polls & Have Your Say' : 'View Polls Archive & Past Results'}
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
