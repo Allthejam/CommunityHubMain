@@ -450,14 +450,21 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
                     key={entry.key}
                     className={
                       inModal
-                        ? 'rounded-lg border bg-muted/30 p-2.5 text-xs flex items-start justify-between gap-2'
-                        : 'min-w-[225px] max-w-[260px] shrink-0 snap-start sm:min-w-0 sm:max-w-none rounded-lg border bg-muted/30 p-2.5 text-xs flex items-start justify-between gap-2'
+                        ? 'rounded-xl border border-amber-300/70 dark:border-amber-700/50 border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/90 via-orange-50/40 to-sky-50/50 dark:from-amber-950/35 dark:via-orange-950/20 dark:to-sky-950/20 p-3 text-xs flex items-start justify-between gap-2 shadow-xs'
+                        : 'min-w-[225px] max-w-[260px] shrink-0 snap-start sm:min-w-0 sm:max-w-none rounded-lg border border-amber-300/60 dark:border-amber-800/50 border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20 p-2.5 text-xs flex items-start justify-between gap-2'
                     }
                   >
-                    <div className="min-w-0">
-                      <p className="font-semibold text-foreground">{entry.holiday.title}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {formatDateSafe(entry.holiday.startDate)}
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-bold text-foreground">{entry.holiday.title}</p>
+                        {inModal && (
+                          <Badge className="bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-400/50 text-[10px] px-1.5 py-0 font-bold">
+                            🏫 School Holiday
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] font-medium text-amber-900/80 dark:text-amber-300">
+                        📅 {formatDateSafe(entry.holiday.startDate)}
                         {entry.holiday.endDate && entry.holiday.endDate !== entry.holiday.startDate
                           ? ` – ${formatDateSafe(entry.holiday.endDate)}`
                           : ''}
@@ -501,14 +508,21 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
                     key={entry.key}
                     className={
                       inModal
-                        ? 'rounded-lg border bg-indigo-50/40 dark:bg-indigo-950/20 p-2.5 text-xs flex items-start justify-between gap-2'
-                        : 'min-w-[225px] max-w-[260px] shrink-0 snap-start sm:min-w-0 sm:max-w-none rounded-lg border bg-indigo-50/40 dark:bg-indigo-950/20 p-2.5 text-xs flex items-start justify-between gap-2'
+                        ? 'rounded-xl border border-indigo-300/70 dark:border-indigo-700/50 border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-50/90 via-sky-50/50 to-purple-50/60 dark:from-indigo-950/35 dark:via-sky-950/20 dark:to-purple-950/20 p-3 text-xs flex items-start justify-between gap-2 shadow-xs'
+                        : 'min-w-[225px] max-w-[260px] shrink-0 snap-start sm:min-w-0 sm:max-w-none rounded-lg border border-indigo-300/60 dark:border-indigo-800/50 border-l-4 border-l-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 p-2.5 text-xs flex items-start justify-between gap-2'
                     }
                   >
-                    <div className="min-w-0">
-                      <p className="font-semibold text-foreground">{entry.bankHoliday.title}</p>
-                      <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
-                        {formatDateSafe(entry.bankHoliday.date)} &bull; Public / Bank Holiday
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-bold text-foreground">{entry.bankHoliday.title}</p>
+                        {inModal && (
+                          <Badge className="bg-indigo-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-400/50 text-[10px] px-1.5 py-0 font-bold">
+                            ✨ Public Holiday
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] font-medium text-indigo-700 dark:text-indigo-300">
+                        🗓️ {formatDateSafe(entry.bankHoliday.date)} &bull; Public / Bank Holiday
                       </p>
                     </div>
                     {canPost && user?.uid && (
@@ -568,24 +582,56 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
 
                   {/* See All Holidays Scrollable Popup */}
                   <Dialog open={modalMode === 'allHolidays'} onOpenChange={(o) => !o && setModalMode(null)}>
-                    <DialogContent className="max-w-xl">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                          <Calendar className="h-5 w-5 text-indigo-600" />
-                          All Upcoming School &amp; Public Holidays ({allCombinedHolidays.length})
-                        </DialogTitle>
-                        <DialogDescription>
-                          Sorted chronologically. Scroll through all upcoming term dates and holidays.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1">
-                        {allCombinedHolidays.map((entry) => renderHolidayTile(entry, true))}
+                    <DialogContent className="max-w-xl p-0 overflow-hidden border-2 border-indigo-300/70 dark:border-indigo-800/60">
+                      <div className="bg-gradient-to-r from-indigo-600 via-sky-600 to-teal-500 text-white px-6 py-4">
+                        <DialogHeader className="text-left space-y-1">
+                          <DialogTitle className="flex items-center gap-2 text-white text-lg font-black">
+                            <GraduationCap className="h-5 w-5 text-amber-300 shrink-0" />
+                            School Closures, Term Dates &amp; Holidays ({allCombinedHolidays.length})
+                          </DialogTitle>
+                          <DialogDescription className="text-sky-100 text-xs">
+                            Live local school closure status alongside all upcoming school breaks and public holidays in date order.
+                          </DialogDescription>
+                        </DialogHeader>
                       </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setModalMode(null)}>
-                          Close
-                        </Button>
-                      </DialogFooter>
+
+                      <div className="p-5 pt-4 space-y-3">
+                        {alerts.length > 0 ? (
+                          <div className="rounded-xl border border-red-300 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/40 dark:to-orange-950/30 p-3 space-y-1.5">
+                            <p className="text-xs font-black text-red-700 dark:text-red-300 flex items-center gap-1.5">
+                              <AlertTriangle className="h-4 w-4 shrink-0" />
+                              {alerts.length} Active School Closure{alerts.length > 1 ? 's' : ''} Right Now
+                            </p>
+                            {alerts.map((a) => (
+                              <p key={a.id} className="text-xs text-red-900 dark:text-red-200">
+                                <strong>{a.schoolName}</strong> ({a.status}): {a.reason}
+                              </p>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-emerald-300/70 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 px-3.5 py-2.5 flex items-center gap-2 text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                            All local schools currently open — no active closures reported.
+                          </div>
+                        )}
+
+                        <div className="max-h-[55vh] overflow-y-auto space-y-2.5 pr-1">
+                          {allCombinedHolidays.map((entry) => renderHolidayTile(entry, true))}
+                        </div>
+
+                        <DialogFooter className="pt-2 border-t flex-row justify-between sm:justify-between items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground">
+                            🏫 Amber = School Holiday &bull; ✨ Indigo = Public Holiday
+                          </span>
+                          <Button
+                            type="button"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            onClick={() => setModalMode(null)}
+                          >
+                            Close
+                          </Button>
+                        </DialogFooter>
+                      </div>
                     </DialogContent>
                   </Dialog>
                 </div>
