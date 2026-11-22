@@ -543,6 +543,8 @@ export async function createPlatformUnclaimedBusinessAction(params: {
   metaTitle?: string;
   metaDescription?: string;
   imageAlt?: string;
+  seedSource?: 'admin' | 'community';
+  seededByUserId?: string;
   seoHeadings?: {
     h1?: string;
     h2?: string;
@@ -552,7 +554,7 @@ export async function createPlatformUnclaimedBusinessAction(params: {
     h6?: string;
   };
 }): Promise<{ success: boolean; businessId?: string; error?: string }> {
-  const { businessName, businessCategory, communityId, communityName, postcode, coverImage, shortDescription, metaTitle, metaDescription, imageAlt, seoHeadings } = params;
+  const { businessName, businessCategory, communityId, communityName, postcode, coverImage, shortDescription, metaTitle, metaDescription, imageAlt, seedSource, seededByUserId, seoHeadings } = params;
 
   if (!businessName?.trim()) {
     return { success: false, error: 'Business name is required.' };
@@ -621,6 +623,8 @@ export async function createPlatformUnclaimedBusinessAction(params: {
       claimed: false,
       ownerId: 'platform',
       createdBy: 'platform',
+      seedSource: seedSource === 'community' ? 'community' : 'admin',
+      ...(seededByUserId ? { seededByUserId } : {}),
       accountType: 'business',
       listingType: 'business',
       isAccommodation,

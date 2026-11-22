@@ -225,10 +225,20 @@ export function PublicDirectoryView({
   const isPlatformOwner = Boolean(
     userProfile?.accountType === 'owner' ||
     userProfile?.role === 'owner' ||
+    userProfile?.accountType === 'admin' ||
+    userProfile?.role === 'admin' ||
     userEmail === 'allan_jamieson@outlook.com' ||
     userEmail.includes('allan_jamieson') ||
     userEmail.includes('allan.jamieson')
   );
+  const isCommunityLeader = Boolean(
+    userProfile?.accountType === 'leader' ||
+    userProfile?.role === 'leader' ||
+    userProfile?.role === 'president' ||
+    userProfile?.permissions?.viewBusinesses ||
+    (loggedInCommunityId && userProfile?.communityRoles?.[loggedInCommunityId]?.permissions?.viewBusinesses)
+  );
+  const canSeedBusinesses = isPlatformOwner || isCommunityLeader;
 
   // 5-Field Quick-Add Modal State
   const [isQuickAddOpen, setIsQuickAddOpen] = React.useState(false);
@@ -532,6 +542,8 @@ export function PublicDirectoryView({
         metaDescription: activeMetaDescription,
         shortDescription: activeMetaDescription,
         imageAlt: activeImageAlt,
+        seedSource: isPlatformOwner ? 'admin' : 'community',
+        seededByUserId: user?.uid,
         seoHeadings: {
           h1: activeH1,
           h2: activeH2,
@@ -789,7 +801,7 @@ export function PublicDirectoryView({
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
-            {isPlatformOwner && (
+            {canSeedBusinesses && (
               <Button
                 size="sm"
                 onClick={() => openQuickAddModal()}
@@ -975,7 +987,7 @@ export function PublicDirectoryView({
 
           {/* Controls: Subscription Status Filter, Table/Grid Toggle & Page Size */}
           <div className="flex items-center flex-wrap gap-2.5">
-            {isPlatformOwner && (
+            {canSeedBusinesses && (
               <Button
                 size="sm"
                 onClick={() => openQuickAddModal()}

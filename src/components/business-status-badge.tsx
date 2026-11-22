@@ -78,7 +78,7 @@ export const BusinessStatusBadge = ({
       return (
           <Badge variant="outline" className="gap-1.5 bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 whitespace-nowrap">
               <Sparkles className="h-3 w-3" />
-              Unclaimed
+              Unclaimed • No Expiry
           </Badge>
       );
   }
@@ -102,7 +102,7 @@ export const BusinessStatusBadge = ({
       configKey = 'None';
       displayText = 'None';
   } else if (isFreeListing) {
-    let daysLeftText = '';
+    let daysLeftText = '(No Expiry)';
     const expiryDate = toDate(freeListingExpiresAt);
     if (expiryDate) {
         const daysLeft = differenceInDays(expiryDate, now);
@@ -110,7 +110,7 @@ export const BusinessStatusBadge = ({
     }
     return (
         <div className="flex flex-col items-start gap-1">
-            <Badge variant="outline" className="gap-1.5 bg-teal-100 text-teal-800 border-teal-200">
+            <Badge variant="outline" className="gap-1.5 bg-teal-100 text-teal-800 border-teal-200 whitespace-nowrap">
                 <Gift className="h-3 w-3" />
                 Free {daysLeftText}
             </Badge>

@@ -49,6 +49,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
@@ -71,7 +72,9 @@ const TABS: { value: string; label: string }[] = [
     { value: "all", label: "All" },
     { value: "Pending Approval", label: "Pending" },
     { value: "Approved", label: "Trial" },
-    { value: "Unclaimed", label: "Unclaimed" },
+    { value: "Admin Seeded", label: "Admin Seeded" },
+    { value: "Community Seeded", label: "Community Seeded" },
+    { value: "Unclaimed", label: "All Unclaimed" },
     { value: "Subscribed", label: "Live / Subscribed" },
     { value: "Subscription Expired", label: "Expired" },
     { value: "Pending Cancellation", label: "Cancelled" },
@@ -91,8 +94,35 @@ type BusinessListing = Omit<ServerBusinessListing, 'subscriptionExpiresAt'> & {
     storefrontSubscriptionStatus?: 'pending_cancellation';
     storefrontSubscriptionExpiresAt?: { toDate: () => Date };
     primaryCommunityId: string;
+    isUnclaimed?: boolean;
+    isPlatformCreated?: boolean;
+    claimed?: boolean;
+    ownerId?: string;
+    createdBy?: string;
+    seedSource?: 'admin' | 'community';
 };
 
+
+function isSeededOrUnclaimed(business: any): boolean {
+    if (!business) return false;
+    if (business.claimed === true) return false;
+    return Boolean(
+        business.isUnclaimed === true ||
+        business.status === 'Unclaimed' ||
+        business.isPlatformCreated === true ||
+        business.ownerId === 'platform' ||
+        business.createdBy === 'platform' ||
+        business.seedSource === 'admin' ||
+        business.seedSource === 'community' ||
+        business.claimed === false
+    );
+}
+
+function getSeedSource(business: any): 'admin' | 'community' | 'registered' {
+    if (!isSeededOrUnclaimed(business)) return 'registered';
+    if (business.seedSource === 'community') return 'community';
+    return 'admin';
+}
 
 function safeToDate(value: any): Date | null {
     if (!value) return null;
@@ -193,7 +223,7 @@ function LeaderBusinessesContent() {
     
     const handleUpdateStatus = async (businessId: string, status: BusinessListing['status'], reason?: string) => {
         const targetBiz = businesses.find((b) => b.id === businessId);
-        if (targetBiz && (Boolean((targetBiz as any).isUnclaimed) || (targetBiz.status as any) === 'Unclaimed') && status === 'Approved') {
+        if (targetBiz && isSeededOrUnclaimed(targetBiz) && status === 'Approved') {
             toast({ title: 'Claim Required', description: 'Unclaimed listings must be claimed by a business account before they can be approved.', variant: 'destructive' });
             return;
         }
@@ -297,14 +327,32 @@ function LeaderBusinessesContent() {
     const sortedAndFilteredBusinesses = React.useMemo(() => {
         let filtered = businesses;
         if (activeTab !== "all") {
-            if (activeTab === "Unclaimed") {
-                filtered = businesses.filter(b => Boolean((b as any).isUnclaimed) || (b.status as any) === "Unclaimed");
+            if (activeTab === "Admin Seeded") {
+                filtered = businesses.filter(b => isSeededOrUnclaimed(b) && getSeedSource(b) === 'admin');
+            } else if (activeTab === "Community Seeded") {
+                filtered = businesses.filter(b => isSeededOrUnclaimed(b) && getSeedSource(b) === 'community');
+            } else if (activeTab === "Unclaimed") {
+                filtered = businesses.filter(b => isSeededOrUnclaimed(b));
             } else if (activeTab === "Approved") {
-                filtered = businesses.filter(b => b.status === "Approved" && !(b as any).isUnclaimed);
+                filtered = businesses.filter(b => b.status === "Approved" && !isSeededOrUnclaimed(b) && !b.isFreeListing);
             } else if (activeTab === "Subscription Expired") {
-                filtered = businesses.filter(b => b.status === "Subscription Expired" || b.status === "Trial Expired");
+                const now = new Date();
+                filtered = businesses.filter(b => {
+                    if (isSeededOrUnclaimed(b)) return false;
+                    if (b.isFreeListing) {
+                        const freeExp = safeToDate(b.freeListingExpiresAt);
+                        return Boolean(freeExp && now > freeExp);
+                    }
+                    const statusStr = b.status as string;
+                    if (statusStr === "Subscription Expired" || statusStr === "Trial Expired") return true;
+                    if (statusStr === "Approved") {
+                        const created = safeToDate(b.createdAt);
+                        return Boolean(created && differenceInDays(now, created) >= 14);
+                    }
+                    return false;
+                });
             } else if (activeTab === "Pending Cancellation") {
-                filtered = businesses.filter(b => b.status === "Pending Cancellation" || (b.status as any) === "Cancelled" || b.listingSubscriptionStatus === "pending_cancellation");
+                filtered = businesses.filter(b => (b.status as string) === "Pending Cancellation" || (b.status as string) === "Cancelled" || b.listingSubscriptionStatus === "pending_cancellation");
             } else {
                 filtered = businesses.filter(b => b.status === activeTab);
             }
@@ -317,6 +365,14 @@ function LeaderBusinessesContent() {
             let valA = a[key] as any;
             let valB = b[key] as any;
             
+            if (key === 'seedSource') {
+                const rank = (item: BusinessListing) => {
+                    const src = getSeedSource(item);
+                    return src === 'admin' ? 0 : src === 'community' ? 1 : 2;
+                };
+                return (rank(a) - rank(b)) * order;
+            }
+
             if (key === 'createdAt') {
                 valA = safeToDate(valA)?.getTime() ?? 0;
                 valB = safeToDate(valB)?.getTime() ?? 0;
@@ -407,7 +463,7 @@ function LeaderBusinessesContent() {
                 <CardHeader>
                     <CardTitle>Business & Enterprise Applications</CardTitle>
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-                        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 h-auto">
+                        <TabsList className="flex flex-wrap gap-1 w-full h-auto justify-start">
                             {TABS.map(tab => (
                                 <TabsTrigger key={tab.value} value={tab.value} className="text-xs sm:text-sm">
                                     {tab.label}
@@ -424,6 +480,7 @@ function LeaderBusinessesContent() {
                                     <TableHead><Button variant="ghost" onClick={() => handleSort('businessName')}>Business Name <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => handleSort('accountType')}>Type <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => handleSort('businessCategory')}>Category <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                    <TableHead><Button variant="ghost" onClick={() => handleSort('seedSource')}>Source <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => handleSort('createdAt')}>Created On <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                     <TableHead><Button variant="ghost" onClick={() => handleSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
@@ -431,13 +488,37 @@ function LeaderBusinessesContent() {
                             </TableHeader>
                             <TableBody>
                                 {loading ? (
-                                    <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
                                 ) : paginatedBusinesses.length > 0 ? (
                                     paginatedBusinesses.map(business => (
                                         <TableRow key={business.id}>
                                             <TableCell className="font-medium">{business.businessName}</TableCell>
                                             <TableCell className="capitalize">{business.accountType || 'Business'}</TableCell>
                                             <TableCell className="capitalize">{business.businessCategory?.replace('-', ' & ')}</TableCell>
+                                            <TableCell>
+                                                {(() => {
+                                                    const source = getSeedSource(business);
+                                                    if (source === 'admin') {
+                                                        return (
+                                                            <Badge variant="outline" className="bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 whitespace-nowrap">
+                                                                Admin Seeded
+                                                            </Badge>
+                                                        );
+                                                    }
+                                                    if (source === 'community') {
+                                                        return (
+                                                            <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 whitespace-nowrap">
+                                                                Community Seeded
+                                                            </Badge>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <Badge variant="outline" className="bg-muted/60 text-muted-foreground whitespace-nowrap">
+                                                            Registered
+                                                        </Badge>
+                                                    );
+                                                })()}
+                                            </TableCell>
                                             <TableCell>{(() => {
                                                 const createdDate = safeToDate(business.createdAt);
                                                 return createdDate ? format(createdDate, 'PPP') : 'N/A';
@@ -450,7 +531,7 @@ function LeaderBusinessesContent() {
                                                     freeListingExpiresAt={business.freeListingExpiresAt}
                                                     listingSubscriptionStatus={business.listingSubscriptionStatus}
                                                     listingSubscriptionExpiresAt={business.listingSubscriptionExpiresAt}
-                                                    isUnclaimed={Boolean((business as any).isUnclaimed)}
+                                                    isUnclaimed={isSeededOrUnclaimed(business)}
                                                     now={new Date()}
                                                 />
                                             </TableCell>
@@ -463,7 +544,7 @@ function LeaderBusinessesContent() {
                                                         <DropdownMenuItem onClick={() => router.push(`/businesses/${business.id}`)}><Eye className="mr-2 h-4 w-4" />View Listing</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => router.push(`/business/businesses/edit/${business.id}`)}><FileEdit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        {!(business as any).isUnclaimed && (business.status as any) !== 'Unclaimed' && (business.status === 'Pending Approval' || business.status === 'Approved') && (
+                                                        {!isSeededOrUnclaimed(business) && (business.status === 'Pending Approval' || business.status === 'Approved') && (
                                                             <>
                                                                 <DropdownMenuItem disabled={!isStripeConnected} onSelect={(e) => { e.preventDefault(); handleUpdateStatus(business.id, 'Approved'); }}><CheckCircle className="mr-2 h-4 w-4" /> Approve</DropdownMenuItem>
                                                                 <DropdownMenuItem disabled={!isFreeListingAvailable} onSelect={(e) => { e.preventDefault(); setBusinessToChampion(business); setIsFreeListingDialogOpen(true); }}><Gift className="mr-2 h-4 w-4 text-green-500" />Approve as Free Listing</DropdownMenuItem>
@@ -480,7 +561,7 @@ function LeaderBusinessesContent() {
                                         </TableRow>
                                     ))
                                 ) : (
-                                    <TableRow><TableCell colSpan={6} className="h-24 text-center">No businesses in this category.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={7} className="h-24 text-center">No businesses in this category.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>
