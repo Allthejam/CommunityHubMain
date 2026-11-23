@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth, useCollection } from "@/firebase";
-import { collection, onSnapshot, query, where, getDocs, limit, type Query, documentId, getDoc, writeBatch, doc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDocs, limit, type Query, documentId, getDoc, writeBatch, doc, updateDoc, deleteField } from "firebase/firestore";
 import { runSavePoliceLiaison, getCommunitiesWithLiaisonStatus, runRemovePoliceLiaison } from "@/lib/actions/communityActions";
 import { resetChats, debugAdmin } from "@/lib/actions/chatActions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -306,6 +306,8 @@ function PlatformSettingsContent() {
   const [selectedCourierId, setSelectedCourierId] = React.useState<string>("");
   const [isUpdatingCourier, setIsUpdatingCourier] = React.useState(false);
   const [selectedLiaisonId, setSelectedLiaisonId] = React.useState<string>("");
+  const [centralAddressInput, setCentralAddressInput] = React.useState<string>("");
+  const [isSavingCentralAddress, setIsSavingCentralAddress] = React.useState(false);
   
   React.useEffect(() => {
     setIsClient(true);
@@ -328,6 +330,79 @@ function PlatformSettingsContent() {
     return doc(db, 'community_profiles', communityId);
   }, [communityId, db]);
   const { data: communityProfileData, isLoading: communityProfileDocLoading } = useDoc(communityProfileDocRef);
+
+  const communityDocRef = useMemoFirebase(() => {
+    if (!communityId || !db) return null;
+    return doc(db, 'communities', communityId);
+  }, [communityId, db]);
+  const { data: communityDocData } = useDoc<any>(communityDocRef);
+
+  React.useEffect(() => {
+    if (communityDocData?.centralAddress) {
+      setCentralAddressInput(communityDocData.centralAddress);
+    }
+  }, [communityDocData?.centralAddress]);
+
+  const handleSaveCentralAddress = async () => {
+    if (!communityId || !db || !centralAddressInput.trim()) return;
+    setIsSavingCentralAddress(true);
+    try {
+      const q = encodeURIComponent(centralAddressInput.trim());
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`);
+      if (!res.ok) throw new Error('Could not look up that address.');
+      const results = await res.json();
+      if (!Array.isArray(results) || results.length === 0) {
+        toast({
+          title: 'Address not found',
+          description: 'Please include your town or postcode (e.g. "High Street, Grantown-on-Spey, PH26").',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const lat = parseFloat(results[0].lat);
+      const lng = parseFloat(results[0].lon);
+      await updateDoc(doc(db, 'communities', communityId), {
+        centralAddress: centralAddressInput.trim(),
+        centralCoordinates: { lat, lng },
+      });
+      toast({
+        title: 'Town Centre Pin Saved',
+        description: `Weather & 30-mile Roadworks are now centred on ${centralAddressInput.trim()}.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err?.message || 'Failed to save central address.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingCentralAddress(false);
+    }
+  };
+
+  const handleClearCentralAddress = async () => {
+    if (!communityId || !db) return;
+    setIsSavingCentralAddress(true);
+    try {
+      await updateDoc(doc(db, 'communities', communityId), {
+        centralAddress: deleteField(),
+        centralCoordinates: deleteField(),
+      });
+      setCentralAddressInput('');
+      toast({
+        title: 'Town Centre Pin Cleared',
+        description: 'Weather & Roadworks will fall back to the boundary midpoint.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err?.message || 'Failed to clear central address.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingCentralAddress(false);
+    }
+  };
   
   const approvedLiaisonAppsQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -1246,7 +1321,51 @@ function PlatformSettingsContent() {
                 <CardTitle className="flex items-center gap-2"><MapPinned className="h-5 w-5" />Community Boundary</CardTitle>
                 <CardDescription>Define the geographical area your community hub covers. This affects local discovery and targeted announcements.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+                <div className="p-3.5 rounded-xl border bg-muted/30 space-y-2">
+                  <Label htmlFor="central-address-input" className="text-xs font-bold">
+                    Central Town / High Street Address (Optional)
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Set a town-centre address or postcode so Local Weather &amp; 30-mile Roadworks centre directly on your town instead of the outer boundary midpoint.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      id="central-address-input"
+                      placeholder="e.g. High Street, Grantown-on-Spey, PH26"
+                      value={centralAddressInput}
+                      onChange={(e) => setCentralAddressInput(e.target.value)}
+                      className="text-xs"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleSaveCentralAddress}
+                      disabled={!canSetCommunityBoundary || isSavingCentralAddress || !centralAddressInput.trim()}
+                      className="shrink-0"
+                    >
+                      {isSavingCentralAddress && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                      Set Town Centre Pin
+                    </Button>
+                    {communityDocData?.centralCoordinates && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleClearCentralAddress}
+                        disabled={!canSetCommunityBoundary || isSavingCentralAddress}
+                        className="shrink-0"
+                      >
+                        Clear Pin
+                      </Button>
+                    )}
+                  </div>
+                  {communityDocData?.centralCoordinates && (
+                    <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                      Active pin: {communityDocData.centralAddress || `${communityDocData.centralCoordinates.lat.toFixed(4)}, ${communityDocData.centralCoordinates.lng.toFixed(4)}`}
+                    </p>
+                  )}
+                </div>
                 <CommunityBoundaryMap disabled={!canSetCommunityBoundary} />
             </CardContent>
         </Card>

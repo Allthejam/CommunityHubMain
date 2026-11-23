@@ -102,11 +102,13 @@ export function CommunityWeatherAlertStrip({
   communityId,
   communityName,
   boundary,
+  centralCoordinates,
   demoPrefix = '',
 }: {
   communityId?: string | null;
   communityName: string;
   boundary?: any;
+  centralCoordinates?: { lat: number; lng: number } | null;
   demoPrefix?: string;
 }) {
   const [weather, setWeather] = React.useState<WeatherAlertData | null>(null);
@@ -118,10 +120,10 @@ export function CommunityWeatherAlertStrip({
     let cancelled = false;
 
     const loadWeather = async () => {
-      const center = getCenterFromBoundary(boundary);
+      const boundaryCenter = getCenterFromBoundary(boundary);
 
       // If no leader polygon boundary exists for this community, show the leadership standby notice
-      if (!center) {
+      if (!boundaryCenter) {
         if (!cancelled) {
           setWeather(null);
           setNoBoundary(true);
@@ -129,6 +131,13 @@ export function CommunityWeatherAlertStrip({
         }
         return;
       }
+
+      const center =
+        centralCoordinates &&
+        typeof centralCoordinates.lat === 'number' &&
+        typeof centralCoordinates.lng === 'number'
+          ? centralCoordinates
+          : boundaryCenter;
 
       setNoBoundary(false);
       setLoading(true);
@@ -217,7 +226,7 @@ export function CommunityWeatherAlertStrip({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [communityId, communityName, boundary]);
+  }, [communityId, communityName, boundary, centralCoordinates]);
 
   if (loading) {
     return (

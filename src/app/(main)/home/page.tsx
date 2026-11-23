@@ -383,7 +383,10 @@ function HomePageContent() {
           <AnnouncementBanners allAnnouncements={standardAnnouncements} />
           <EventsFeed communityId={activeCommunityId} />
           <TravelCard communityId={activeCommunityId} />
-          <SchoolClosuresCard communityId={activeCommunityId} />
+          <SchoolClosuresCard
+            communityId={activeCommunityId}
+            hasBoundary={communityLoading ? undefined : Boolean(activeCommunity?.boundary)}
+          />
           <div id="section-whatson" className="scroll-mt-20">
             <WhatsonFeed communityId={activeCommunityId} mode="in" communityName={activeCommunity?.name} />
           </div>

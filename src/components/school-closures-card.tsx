@@ -73,7 +73,13 @@ function formatDateSafe(dateStr?: string) {
   return format(d, 'dd MMM yyyy');
 }
 
-export function SchoolClosuresCard({ communityId }: { communityId: string }) {
+export function SchoolClosuresCard({
+  communityId,
+  hasBoundary = true,
+}: {
+  communityId: string;
+  hasBoundary?: boolean;
+}) {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
@@ -144,6 +150,18 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
 
   const loadData = React.useCallback(async (signal?: AbortSignal) => {
     if (!communityId) return;
+    if (hasBoundary === false) {
+      setAlerts([]);
+      setHolidays([]);
+      setBankHolidays([]);
+      setCouncilName('Local Council');
+      setCouncilUrl('https://www.gov.uk/check-school-closure');
+      setLoading(false);
+      return;
+    }
+    setAlerts([]);
+    setHolidays([]);
+    setBankHolidays([]);
     setLoading(true);
     try {
       const res = await fetch(`/api/school-closures?communityId=${encodeURIComponent(communityId)}`, {
@@ -166,7 +184,7 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
         setLoading(false);
       }
     }
-  }, [communityId]);
+  }, [communityId, hasBoundary]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -363,7 +381,12 @@ export function SchoolClosuresCard({ communityId }: { communityId: string }) {
       </CardHeader>
 
       <CardContent className="pt-4 space-y-4">
-        {loading ? (
+        {hasBoundary === false ? (
+          <div className="p-3 rounded-xl bg-slate-500/10 border border-slate-500/20 text-xs text-muted-foreground">
+            <strong className="text-foreground">Local School Closures &amp; Term Dates:</strong>{' '}
+            School closure alerts, term dates, and local council links will be available when this community has active leadership and a mapped boundary.
+          </div>
+        ) : loading ? (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
           </div>

@@ -403,6 +403,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                 communityId={effectiveCommunityId}
                 communityName={effectiveCommunityName}
                 boundary={activeCommunity?.boundary}
+                centralCoordinates={activeCommunity?.centralCoordinates}
                 demoPrefix={demoPrefix}
               />
 
@@ -538,6 +539,7 @@ export function WelcomeCards({ activeCommunityId, activeCommunity }: WelcomeCard
                   communityId={effectiveCommunityId || userProfile?.communityId}
                   communityName={effectiveCommunityName}
                   boundary={activeCommunity?.boundary}
+                  centralCoordinates={activeCommunity?.centralCoordinates}
                   demoPrefix={demoPrefix}
                 />
 

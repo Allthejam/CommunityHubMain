@@ -89,8 +89,15 @@ export function TravelCard({ communityId }: { communityId?: string | null }) {
           communityId={effectiveId}
           communityName={communityName}
           boundary={communityData?.boundary}
+          centralCoordinates={communityData?.centralCoordinates}
           compact={true}
         />
+
+        {!communityData?.boundary && travelServices.length === 0 && (
+          <div className="p-2.5 rounded-lg bg-slate-500/10 border border-slate-500/20 text-[11px] text-muted-foreground">
+            Local bus, rail &amp; taxi links will be available when this community has active leadership and a mapped boundary.
+          </div>
+        )}
         
         {/* Top Bus Routes */}
         {topBuses.length > 0 && (

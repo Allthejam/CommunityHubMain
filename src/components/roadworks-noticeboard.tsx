@@ -95,11 +95,13 @@ export function RoadworksNoticeboard({
   communityId,
   communityName,
   boundary,
+  centralCoordinates,
   compact = false,
 }: {
   communityId?: string | null;
   communityName: string;
   boundary?: any;
+  centralCoordinates?: { lat: number; lng: number } | null;
   compact?: boolean;
 }) {
   const { user } = useUser();
@@ -113,7 +115,18 @@ export function RoadworksNoticeboard({
   const [isReportModalOpen, setIsReportModalOpen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('all');
 
-  const boundaryCenter = React.useMemo(() => getCenterFromBoundary(boundary), [boundary]);
+  const boundaryCenter = React.useMemo(() => {
+    const bc = getCenterFromBoundary(boundary);
+    if (!bc) return null;
+    if (
+      centralCoordinates &&
+      typeof centralCoordinates.lat === 'number' &&
+      typeof centralCoordinates.lng === 'number'
+    ) {
+      return centralCoordinates;
+    }
+    return bc;
+  }, [boundary, centralCoordinates]);
   const oneNetworkUrl = boundaryCenter
     ? `https://www.one.network/?tm=GB#13/${boundaryCenter.lat}/${boundaryCenter.lng}`
     : 'https://www.one.network/';
@@ -222,8 +235,8 @@ export function RoadworksNoticeboard({
   React.useEffect(() => {
     let cancelled = false;
     const loadRoadworks = async () => {
-      const center = getCenterFromBoundary(boundary);
-      if (!center) {
+      const bc = getCenterFromBoundary(boundary);
+      if (!bc) {
         if (!cancelled) {
           setOfficialItems([]);
           setNoBoundary(true);
@@ -231,6 +244,13 @@ export function RoadworksNoticeboard({
         }
         return;
       }
+
+      const center =
+        centralCoordinates &&
+        typeof centralCoordinates.lat === 'number' &&
+        typeof centralCoordinates.lng === 'number'
+          ? centralCoordinates
+          : bc;
 
       setNoBoundary(false);
       setLoading(true);
@@ -274,7 +294,7 @@ export function RoadworksNoticeboard({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [effectiveCommId, communityName, boundary]);
+  }, [effectiveCommId, communityName, boundary, centralCoordinates]);
 
   const combinedItems = React.useMemo(() => {
     const localMapped: (RoadworkItem & {
