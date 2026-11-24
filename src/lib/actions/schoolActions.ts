@@ -85,7 +85,8 @@ async function dispatchSchoolAlertNotifications(
       }
 
       if (!userCommunities.has(params.communityId) && uid !== params.creatorUid) return;
-      if (u.mailingLists?.standard !== false || uid === params.creatorUid) {
+      const schoolEnabled = u.mailingLists?.standard !== false && u.mailingLists?.schoolClosures !== false;
+      if (schoolEnabled || uid === params.creatorUid) {
         targetIds.push(uid);
       }
     });

@@ -665,8 +665,8 @@ export async function dispatchRoadAlertNotificationAction(params: {
       const isMatched = userCommunities.has(communityId) || uid === creatorUid;
       if (!isMatched) return;
 
-      const standardEnabled = u.mailingLists?.standard !== false;
-      if (standardEnabled || uid === creatorUid) {
+      const roadworksEnabled = u.mailingLists?.standard !== false && u.mailingLists?.roadworksAlerts !== false;
+      if (roadworksEnabled || uid === creatorUid) {
         targetIds.push(uid);
       }
     });
@@ -808,7 +808,11 @@ export async function syncOfficialRoadClosureNotificationsAction(params: {
           });
         }
 
-        if (userCommunities.has(communityId) && u.mailingLists?.standard !== false) {
+        if (
+          userCommunities.has(communityId) &&
+          u.mailingLists?.standard !== false &&
+          u.mailingLists?.roadworksAlerts !== false
+        ) {
           targetIds.push(uid);
         }
       });
