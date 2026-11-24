@@ -567,82 +567,6 @@ export default function SettingsPage() {
                           />
                       </div>
 
-                      <div className="rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-3.5 space-y-2.5">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <Label htmlFor="daily-briefing" className="font-semibold text-indigo-950 dark:text-indigo-200">
-                              Daily Morning Briefing (8:00 AM)
-                            </Label>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              One daily 8:00 AM summary of today&apos;s weather, 30-mile roadworks, active school closures, and a 5-day countdown before school holidays &amp; back-to-school.
-                            </p>
-                          </div>
-                          <Switch
-                            id="daily-briefing"
-                            checked={settings.dailyBriefing}
-                            onCheckedChange={(checked) => setSettings(s => ({ ...s, dailyBriefing: checked }))}
-                          />
-                        </div>
-                        {settings.dailyBriefing && (settings.weatherAlerts || settings.roadworksAlerts || settings.schoolClosures) && (
-                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-indigo-200/70 dark:border-indigo-800/40 text-xs">
-                            <span className="text-muted-foreground">
-                              Want only the 8:00 AM briefing without separate instant alerts?
-                            </span>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-xs"
-                              onClick={() =>
-                                setSettings(s => ({
-                                  ...s,
-                                  weatherAlerts: false,
-                                  roadworksAlerts: false,
-                                  schoolClosures: false,
-                                }))
-                              }
-                            >
-                              Turn off the 3 instant alerts
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="weather-alerts" className="font-medium">Weather &amp; Storm Alerts</Label>
-                          <p className="text-sm text-muted-foreground">Live local weather warnings and severe conditions.</p>
-                        </div>
-                        <Switch
-                          id="weather-alerts"
-                          checked={settings.weatherAlerts}
-                          onCheckedChange={(checked) => setSettings(s => ({ ...s, weatherAlerts: checked }))}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="roadworks-alerts" className="font-medium">Roadworks &amp; Closure Alerts</Label>
-                          <p className="text-sm text-muted-foreground">Road closures and popup works within 30 miles.</p>
-                        </div>
-                        <Switch
-                          id="roadworks-alerts"
-                          checked={settings.roadworksAlerts}
-                          onCheckedChange={(checked) => setSettings(s => ({ ...s, roadworksAlerts: checked }))}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="school-closures-alerts" className="font-medium">School Closures &amp; Term Alerts</Label>
-                          <p className="text-sm text-muted-foreground">Instant notifications when local schools close or delay opening.</p>
-                        </div>
-                        <Switch
-                          id="school-closures-alerts"
-                          checked={settings.schoolClosures}
-                          onCheckedChange={(checked) => setSettings(s => ({ ...s, schoolClosures: checked }))}
-                        />
-                      </div>
                        <div className="flex items-start justify-between">
                           <div className="flex-1 pr-4">
                               <Label htmlFor="emergency-notifications" className="font-medium text-destructive">Emergency Alert Notifications</Label>
@@ -687,6 +611,76 @@ export default function SettingsPage() {
                           <p>Emergency notifications are temporarily disabled and will automatically resume on {format(settings.emergencyNotificationsSnoozedUntil, 'PPP')}.</p>
                         </div>
                       )}
+
+                      <Separator className="my-2" />
+
+                      <div className="space-y-4">
+                        <div className="rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-3.5 space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <Label htmlFor="daily-briefing" className="font-semibold text-indigo-950 dark:text-indigo-200">
+                                Daily Morning Briefing (8:00 AM)
+                              </Label>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                One daily 8:00 AM summary of today&apos;s weather, 30-mile roadworks, active school closures, and a 5-day countdown before school holidays &amp; back-to-school. Turning this on automatically pauses the 3 instant alerts below (you can still re-enable any of them individually).
+                              </p>
+                            </div>
+                            <Switch
+                              id="daily-briefing"
+                              checked={settings.dailyBriefing}
+                              onCheckedChange={(checked) =>
+                                setSettings(s =>
+                                  checked
+                                    ? {
+                                        ...s,
+                                        dailyBriefing: true,
+                                        weatherAlerts: false,
+                                        roadworksAlerts: false,
+                                        schoolClosures: false,
+                                      }
+                                    : { ...s, dailyBriefing: false }
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label htmlFor="weather-alerts" className="font-medium">Weather &amp; Storm Alerts</Label>
+                            <p className="text-sm text-muted-foreground">Instant local weather warnings and severe conditions.</p>
+                          </div>
+                          <Switch
+                            id="weather-alerts"
+                            checked={settings.weatherAlerts}
+                            onCheckedChange={(checked) => setSettings(s => ({ ...s, weatherAlerts: checked }))}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label htmlFor="roadworks-alerts" className="font-medium">Roadworks &amp; Closure Alerts</Label>
+                            <p className="text-sm text-muted-foreground">Instant road closures and popup works within 30 miles.</p>
+                          </div>
+                          <Switch
+                            id="roadworks-alerts"
+                            checked={settings.roadworksAlerts}
+                            onCheckedChange={(checked) => setSettings(s => ({ ...s, roadworksAlerts: checked }))}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label htmlFor="school-closures-alerts" className="font-medium">School Closures &amp; Term Alerts</Label>
+                            <p className="text-sm text-muted-foreground">Instant notifications when local schools close or delay opening.</p>
+                          </div>
+                          <Switch
+                            id="school-closures-alerts"
+                            checked={settings.schoolClosures}
+                            onCheckedChange={(checked) => setSettings(s => ({ ...s, schoolClosures: checked }))}
+                          />
+                        </div>
+                      </div>
                     </div>
               </div>
           </CardContent>
