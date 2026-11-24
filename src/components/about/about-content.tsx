@@ -33,7 +33,14 @@ import {
     Sparkles,
     Globe,
     ArrowUpDown,
-    ArrowRight
+    ArrowRight,
+    CloudSun,
+    Construction,
+    GraduationCap,
+    BarChart3,
+    Bed,
+    BookOpen,
+    ShoppingBag
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -100,24 +107,74 @@ const mainFeatures = [
 ];
 
 const keyFeaturesList = [
-    { icon: <Radio className="h-5 w-5 text-indigo-500" />, title: "Regional Broadcast System", description: "Regional authorities can broadcast announcements and alerts across every local hub within their jurisdiction." },
+    { icon: <CloudSun className="h-5 w-5 text-sky-500" />, title: "Live Weather & Storm Warnings", description: "Boundary and town-centre-pinned forecasts with Met Office & storm alerts tailored to your community." },
+    { icon: <Construction className="h-5 w-5 text-amber-500" />, title: "30-Mile Roadworks & Travel Hub", description: "Live trunk and local roadworks within 30 miles (via Scottish Road Works Register & local popup hazard reports), plus bus, rail, and taxi links." },
+    { icon: <GraduationCap className="h-5 w-5 text-indigo-500" />, title: "School Closures & Term Dates", description: "Instant push & bell alerts from leaders or authorised school staff, auto-cleaning single-day closures, and editable local & public holiday calendars." },
+    { icon: <Radio className="h-5 w-5 text-indigo-500" />, title: "Regional Broadcast System", description: "Regional authorities and National Parks can broadcast announcements and alerts across every local hub within their jurisdiction." },
     { icon: <ShieldAlert className="h-5 w-5 text-red-500" />, title: "Community Emergency Action Plan (CEAP)", description: "Event-driven disaster protocols across Wildfire, Flood, Grid Outages, Water Shortages, and Civil Defence with failover refuges and verified situation bulletins." },
-    { icon: <Compass className="h-5 w-5 text-emerald-500" />, title: "Geofence Entry Detection", description: "Get notified when entering mapped community boundaries and switch views seamlessly." },
+    { icon: <Compass className="h-5 w-5 text-emerald-500" />, title: "Geofence & Town Centre Pin", description: "Leaders draw custom GeoJSON community boundaries and can set a High Street centre pin for pinpoint weather and 30-mile travel alerts." },
     { icon: <MapPin className="h-5 w-5 text-blue-500" />, title: "Live GPS & Wi-Fi Triangulation", description: "Locate hubs instantly with mobile GPS or address/postcode lookup." },
-    { icon: <FileText className="h-5 w-5 text-primary" />, title: "What's On Guide", description: "Real-time guide to local news, attractions, events, and community activities." },
-    { icon: <Calendar className="h-5 w-5 text-primary" />, title: "Local Events Calendar", description: "Discover upcoming events and sync them directly to your device calendar." },
-    { icon: <Building2 className="h-5 w-5 text-primary" />, title: "Local Business Directory", description: "Explore verified local shops, services, and annual business showcases." },
+    { icon: <FileText className="h-5 w-5 text-primary" />, title: "Local News & What's On Guides", description: "Dedicated In Town and Around & Surrounding Area guides alongside local news stories, opening hours, and Google Maps links." },
+    { icon: <Calendar className="h-5 w-5 text-primary" />, title: "Local Events Calendar", description: "Discover live and upcoming events with start times, recurring schedules, and one-click .ics / Google Calendar export." },
+    { icon: <BarChart3 className="h-5 w-5 text-emerald-600" />, title: "Community Polls & Petitions", description: "Community-scoped consultations and local campaigns with live voting, expiry tracking, and transparent results." },
+    { icon: <Building2 className="h-5 w-5 text-primary" />, title: "Local Business Directory", description: "Explore verified local shops, trades, and annual business showcases." },
     { icon: <Globe className="h-5 w-5 text-emerald-500" />, title: "Public Directory & Google SEO", description: "Open-access public business directory with Schema.org JSON-LD indexing, 10-line table pagination, custom sorting, and verified partner badges." },
-    { icon: <HeartHandshake className="h-5 w-5 text-emerald-500" />, title: "Resilience Volunteer & Asset Registry", description: "Register local 4x4 vehicles, diesel generators, chainsaws, and licensed radio operators ready to deploy during extreme weather." },
-    { icon: <Briefcase className="h-5 w-5 text-primary" />, title: "Local Jobs Board", description: "Connect local employers with nearby jobseekers." },
+    { icon: <Bed className="h-5 w-5 text-teal-500" />, title: "Accommodation & Guestbook", description: "Showcase local hotels, B&Bs, and holiday stays alongside a resident & visitor guestbook with star ratings and photos." },
+    { icon: <HeartHandshake className="h-5 w-5 text-emerald-500" />, title: "Local Charities & Resilience Assets", description: "Spotlight local charities alongside a resilience volunteer roster of 4x4s, generators, and licensed radio operators." },
+    { icon: <ShoppingBag className="h-5 w-5 text-amber-600" />, title: "Virtual High Street & Buy/Swap/Sell", description: "Shop local storefronts with courier delivery, plus neighbour-to-neighbour Buy, Swap & Sell and Lost & Found boards." },
+    { icon: <Briefcase className="h-5 w-5 text-primary" />, title: "Local Jobs Board", description: "Connect local employers with nearby jobseekers across full-time, part-time, and seasonal roles." },
     { icon: <Truck className="h-5 w-5 text-primary" />, title: "Community Courier Network", description: "Dedicated local delivery from high street shops to resident doorsteps." },
     { icon: <Shield className="h-5 w-5 text-primary" />, title: "Police Liaison Channel", description: "Direct line between designated community liaisons and local law enforcement." },
-    { icon: <MessagesSquare className="h-5 w-5 text-primary" />, title: "Community Chat", description: "Private and group messaging kept local, secure, and relevant." },
-    { icon: <Users className="h-5 w-5 text-primary" />, title: "Community Reporter System", description: "Local residents volunteer to report on sports, culture, and neighborhood news." },
-    { icon: <Search className="h-5 w-5 text-primary" />, title: "Lost & Found Board", description: "Reunite neighbors with lost pets and items quickly." },
-    { icon: <Telescope className="h-5 w-5 text-primary" />, title: "Digital Tourist Guide", description: "A comprehensive digital guide for visitors discovering local landmarks." },
+    { icon: <MessagesSquare className="h-5 w-5 text-primary" />, title: "Community Chat & Reporters", description: "Secure local messaging and volunteer Community Reporters covering sports, culture, and neighbourhood news." },
     { icon: <Crown className="h-5 w-5 text-amber-500" />, title: "40%+ Community Revenue Share", description: "40% to 60%+ of advertising revenue returns directly to community leaders." },
     { icon: <Activity className="h-5 w-5 text-primary" />, title: "AI Moderation & Assistance", description: "Context-aware AI moderation keeps hub interactions safe and clean." },
+];
+
+const homeShowcasePillars = [
+    {
+        badge: "Daily Essentials",
+        title: "Weather, Travel & School Alerts",
+        color: "border-t-4 border-t-sky-500",
+        items: [
+            { name: "Welcome & Live Weather Strip", page: "/communities & /emergency", desc: "Real-time local weather, storm warnings, and visitor shortcuts anchored to your community boundary or Town Centre Pin." },
+            { name: "Local Travel & 30-Mile Roadworks", page: "/travel", desc: "Live trunk & local road closures within 30 miles, resident-reported popup hazards, plus bus timetables, rail departures, and taxis." },
+            { name: "Local School Closures & Term Dates", page: "Home Noticeboard & Council Links", desc: "Instant closure alerts from leaders or authorised school staff, auto-clearing 1-day snow/power notices, and editable holiday calendars." },
+            { name: "Emergency & Announcement Banners", page: "/emergency", desc: "High-priority verified alerts and emergency resilience bulletins delivered straight to residents." },
+        ],
+    },
+    {
+        badge: "Civic Voice & Regional",
+        title: "News, Polls, Petitions & Oversight",
+        color: "border-t-4 border-t-emerald-500",
+        items: [
+            { name: "Local News", page: "/news", desc: "Trusted hyper-local stories, council updates, and community reporting with full article views." },
+            { name: "Have Your Say! (Polls)", page: "/polls", desc: "Community-specific consultations with live voting, automatic expiry handling, and results archives." },
+            { name: "Petitions & Campaigns", page: "/petitions", desc: "Rally local support for town improvements and track signatures on the full Petitions page." },
+            { name: "Regional Networks", page: "/regional & /communities", desc: "Connects local hubs with Councils and National Parks for targeted regional broadcasts and map visibility." },
+        ],
+    },
+    {
+        badge: "Things To Do & Stays",
+        title: "Events, What's On & Visitor Life",
+        color: "border-t-4 border-t-amber-500",
+        items: [
+            { name: "Live & Upcoming Events", page: "/events", desc: "Today’s happenings and upcoming calendar events with start times, recurring schedules, and .ics / Google Calendar export." },
+            { name: "What's On (In Town & Around)", page: "/whatson", desc: "Dedicated local and surrounding-area guides with opening hours, contact details, and Google Maps links." },
+            { name: "Accommodation", page: "/accommodation", desc: "Local hotels, B&Bs, cabins, and holiday stays for visitors exploring your area." },
+            { name: "Community Guestbook", page: "/guestbook", desc: "Digital visitor book where locals and travellers share reviews, star ratings, and photos." },
+        ],
+    },
+    {
+        badge: "Local Economy & Neighbours",
+        title: "High Street, Jobs, Charities & Boards",
+        color: "border-t-4 border-t-indigo-500",
+        items: [
+            { name: "From Your Highstreet & Businesses", page: "/businesses & /shopping", desc: "Local business showcases, community adverts, and Virtual High Street storefronts." },
+            { name: "Local Shopping & Jobs", page: "/shopping & /jobs", desc: "Browse products from independent shops and explore local full-time, part-time, and seasonal vacancies." },
+            { name: "Support Local Charities", page: "/charities", desc: "Highlights local charities and voluntary groups with direct links to donate or volunteer." },
+            { name: "Lost & Found / Buy, Swap & Sell", page: "/marketplace", desc: "Practical neighbour-to-neighbour boards for reuniting lost items and trading locally without spam." },
+        ],
+    },
 ];
 
 export function AboutContent({ initialSeoData }: { initialSeoData?: AboutSeoData }) {
@@ -605,6 +662,50 @@ export function AboutContent({ initialSeoData }: { initialSeoData?: AboutSeoData
                             Browse All <ArrowRight className="h-3 w-3" />
                         </Link>
                     </div>
+                </div>
+            </section>
+
+            <Separator />
+
+            {/* Inside Your Town's Home Page & Full Pages Showcase */}
+            <section className="space-y-8">
+                <div className="text-center space-y-3">
+                    <Badge variant="outline" className="px-3 py-1 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800 text-xs font-semibold gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-sky-600" />
+                        Your Town’s Digital Front Page
+                    </Badge>
+                    <h2 className="text-3xl font-bold font-headline">
+                        Every Home Page Card &amp; Dedicated Page Explained
+                    </h2>
+                    <p className="max-w-3xl mx-auto text-muted-foreground text-sm">
+                        Each community hub combines live daily essentials, civic engagement, local events, and high-street commerce on one home feed — with dedicated pages for deeper exploration.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {homeShowcasePillars.map((pillar) => (
+                        <Card key={pillar.title} className={`${pillar.color} shadow-sm bg-card/70`}>
+                            <CardHeader className="pb-3">
+                                <Badge variant="secondary" className="w-fit text-[10px] uppercase tracking-wider font-bold mb-1">
+                                    {pillar.badge}
+                                </Badge>
+                                <CardTitle className="text-xl font-bold">{pillar.title}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {pillar.items.map((item) => (
+                                    <div key={item.name} className="rounded-lg border bg-background/70 p-3 space-y-1">
+                                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                                            <span className="font-semibold text-sm text-foreground">{item.name}</span>
+                                            <Badge variant="outline" className="text-[10px] font-mono">
+                                                {item.page}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
             </section>
 
