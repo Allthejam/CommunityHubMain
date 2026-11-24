@@ -38,6 +38,7 @@ export type AboutSectionKey =
   | 'geofencing'
   | 'highStreet'
   | 'resilience'
+  | 'localTravel'
   | 'publicDirectory'
   | 'features'
   | 'security'
@@ -145,6 +146,16 @@ export const DEFAULT_ABOUT_SEO_DATA: AboutSeoData = {
       imageUrl: '/images/about/emergency.jpg',
       imageAlt: 'Community Emergency Resilience operations center with failover maps and volunteer coordination',
       imageTitle: 'Community Emergency Resilience Operations & Failover Planning',
+    },
+    localTravel: {
+      badge: 'Local Transport & Mobility',
+      heading: 'Local Travel, Buses, Trains, Taxis & 30-Mile Roadworks',
+      headingTag: 'h2',
+      description:
+        'In small towns and rural communities, reliable local transport is essential. Community Hub brings bus routes, live rail departures, local taxi numbers, EV charging points, and 30-mile roadworks & closure alerts together in one easy-to-check hub.',
+      imageUrl: '/images/about/travel.svg',
+      imageAlt: 'Small town transport hub with local bus, train platform, taxi, and digital travel board',
+      imageTitle: 'Local Travel Hub: Buses, Trains, Taxis & Roadworks',
     },
     publicDirectory: {
       badge: 'Open Public Access • Google SEO Indexed',

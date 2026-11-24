@@ -127,7 +127,7 @@ export default function SettingsPage() {
     weatherAlerts: true,
     roadworksAlerts: true,
     schoolClosures: true,
-    dailyBriefing: false,
+    dailyBriefing: true,
     emergencyNotifications: true,
     emergencyNotificationsSnoozedUntil: null as Date | null,
     publicProfile: true,
@@ -200,7 +200,7 @@ export default function SettingsPage() {
         weatherAlerts: mailingLists.weatherAlerts !== false,
         roadworksAlerts: mailingLists.roadworksAlerts !== false,
         schoolClosures: mailingLists.schoolClosures !== false,
-        dailyBriefing: mailingLists.dailyBriefing === true,
+        dailyBriefing: mailingLists.dailyBriefing !== false,
         emergencyNotifications,
         emergencyNotificationsSnoozedUntil: snoozedUntil,
         theme: {

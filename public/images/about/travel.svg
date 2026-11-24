@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#e0f2fe" />
+    </linearGradient>
+    <linearGradient id="hills" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#115e59" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="520" fill="url(#sky)" />
+  <circle cx="670" cy="95" r="46" fill="#fde047" opacity="0.9" />
+  <path d="M0 320 Q160 220 340 290 T700 260 L800 280 L800 520 L0 520 Z" fill="url(#hills)" opacity="0.85" />
+  <rect x="0" y="340" width="800" height="180" fill="#334155" />
+  <rect x="0" y="340" width="800" height="12" fill="#94a3b8" />
+  <line x1="20" y1="430" x2="780" y2="430" stroke="#facc15" stroke-width="6" stroke-dasharray="36 28" />
+
+  <!-- Train on elevated viaduct -->
+  <rect x="0" y="255" width="800" height="18" fill="#475569" />
+  <rect x="460" y="210" width="290" height="45" rx="10" fill="#1e3a8a" />
+  <rect x="475" y="220" width="50" height="22" rx="4" fill="#bae6fd" />
+  <rect x="535" y="220" width="50" height="22" rx="4" fill="#bae6fd" />
+  <rect x="595" y="220" width="50" height="22" rx="4" fill="#bae6fd" />
+  <rect x="655" y="220" width="50" height="22" rx="4" fill="#bae6fd" />
+  <rect x="715" y="220" width="25" height="22" rx="4" fill="#e0f2fe" />
+  <rect x="460" y="242" width="290" height="6" fill="#38bdf8" />
+
+  <!-- Town Bus -->
+  <rect x="70" y="265" width="290" height="115" rx="18" fill="#0284c7" />
+  <rect x="85" y="282" width="60" height="44" rx="6" fill="#e0f2fe" />
+  <rect x="155" y="282" width="60" height="44" rx="6" fill="#e0f2fe" />
+  <rect x="225" y="282" width="60" height="44" rx="6" fill="#e0f2fe" />
+  <rect x="295" y="282" width="52" height="58" rx="6" fill="#bae6fd" />
+  <rect x="70" y="340" width="290" height="10" fill="#facc15" />
+  <circle cx="135" cy="382" r="22" fill="#0f172a" />
+  <circle cx="135" cy="382" r="10" fill="#cbd5e1" />
+  <circle cx="295" cy="382" r="22" fill="#0f172a" />
+  <circle cx="295" cy="382" r="10" fill="#cbd5e1" />
+
+  <!-- Local Taxi -->
+  <path d="M470 375 L495 335 L585 335 L615 375 Z" fill="#f59e0b" />
+  <rect x="455" y="370" width="185" height="44" rx="12" fill="#fbbf24" />
+  <rect x="522" y="321" width="38" height="14" rx="4" fill="#fef08a" stroke="#0f172a" stroke-width="2" />
+  <rect x="500" y="342" width="36" height="24" rx="4" fill="#e0f2fe" />
+  <rect x="544" y="342" width="36" height="24" rx="4" fill="#e0f2fe" />
+  <circle cx="500" cy="414" r="18" fill="#0f172a" />
+  <circle cx="500" cy="414" r="8" fill="#cbd5e1" />
+  <circle cx="595" cy="414" r="18" fill="#0f172a" />
+  <circle cx="595" cy="414" r="8" fill="#cbd5e1" />
+
+  <!-- Live Travel Info Pill -->
+  <rect x="44" y="42" width="320" height="74" rx="16" fill="#0f172a" opacity="0.88" />
+  <circle cx="76" cy="79" r="10" fill="#22c55e" />
+  <text x="100" y="72" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="#ffffff">Local Travel &amp; Roadworks</text>
+  <text x="100" y="96" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#bae6fd">Buses • Rail • Taxis • 30-Mile Alerts</text>
+</svg>

@@ -117,19 +117,17 @@ async function handleDailyBriefing(request: Request) {
     const todayIso = getLondonTodayIso();
     const origin = new URL(request.url).origin;
 
-    const usersSnap = await firestore
-      .collection('users')
-      .where('mailingLists.dailyBriefing', '==', true)
-      .get();
+    const usersSnap = await firestore.collection('users').get();
 
     if (usersSnap.empty) {
       return NextResponse.json({ success: true, sentUsers: 0, communitiesProcessed: 0 });
     }
 
-    // Group opted-in users by home community
+    // Group opted-in (default-on) users by home community
     const usersByCommunity = new Map<string, string[]>();
     usersSnap.forEach((docSnap) => {
       const u = docSnap.data() || {};
+      if (u.mailingLists?.standard === false || u.mailingLists?.dailyBriefing === false) return;
       if (u.dailyBriefingLastSentDate === todayIso) return;
       const commId = u.primaryHomeCommunityId || u.homeCommunityId || u.communityId;
       if (!commId) return;
