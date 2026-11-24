@@ -535,57 +535,62 @@ export function AboutContent({ initialSeoData }: { initialSeoData?: AboutSeoData
             <Separator />
 
             {/* Section 4b: Local Travel, Buses, Trains, Taxis & 30-Mile Roadworks */}
-            <section className={`grid lg:grid-cols-2 gap-12 items-center ${sectionBoxClass}`}>
-                {canEdit && (
-                    <div className="lg:col-span-2 flex justify-end -mb-8">
-                        <SeoEditPencil
-                            label="Local Travel"
-                            tagHint={sections.localTravel.headingTag}
-                            onClick={() => setEditingSection({ key: 'localTravel', label: 'Local Travel & Transport Section' })}
+            {(() => {
+                const localTravel = sections.localTravel || DEFAULT_ABOUT_SEO_DATA.sections.localTravel;
+                return (
+                <section className={`grid lg:grid-cols-2 gap-12 items-center ${sectionBoxClass}`}>
+                    {canEdit && (
+                        <div className="lg:col-span-2 flex justify-end -mb-8">
+                            <SeoEditPencil
+                                label="Local Travel"
+                                tagHint={localTravel.headingTag}
+                                onClick={() => setEditingSection({ key: 'localTravel', label: 'Local Travel & Transport Section' })}
+                            />
+                        </div>
+                    )}
+                    <div className="space-y-5">
+                        <Badge variant="outline" className="px-3 py-1 bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800 text-xs font-semibold gap-1.5">
+                            <Bus className="h-3.5 w-3.5 text-sky-600" />
+                            {localTravel.badge}
+                        </Badge>
+                        <SeoHeading tag={localTravel.headingTag} className="text-3xl font-bold font-headline leading-tight">
+                            {localTravel.heading}
+                        </SeoHeading>
+                        <p className="text-muted-foreground leading-relaxed">
+                            {localTravel.description}
+                        </p>
+                        <div className="space-y-2.5 text-sm">
+                            <div className="flex items-start gap-3">
+                                <CheckCircle2 className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
+                                <span><strong>Buses, Trains &amp; Live Trackers:</strong> View primary local bus routes, timetable links, and nearest rail station departures without hunting across operator websites.</span>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <CheckCircle2 className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
+                                <span><strong>Local Taxis, Community Transport &amp; EV Charging:</strong> Instant tap-to-call local taxi firms, accessible community transport, and nearby EV charging points.</span>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <CheckCircle2 className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
+                                <span><strong>30-Mile Roadworks &amp; Popup Hazard Alerts:</strong> Official trunk and council roadworks within 30 miles combined with resident-reported closures like fallen trees or temporary lights.</span>
+                            </div>
+                        </div>
+                        <div className="pt-2 flex items-center gap-3 flex-wrap">
+                            <Button asChild size="lg" className="bg-sky-600 hover:bg-sky-700 text-white font-semibold shadow-md">
+                                <Link href="/travel">Open Local Travel Guide</Link>
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border">
+                        <Image
+                            src={localTravel.imageUrl || "/images/about/travel.svg"}
+                            alt={localTravel.imageAlt || "Small town transport hub with local bus, train platform, taxi, and digital travel board"}
+                            title={localTravel.imageTitle}
+                            fill
+                            className="object-cover"
                         />
                     </div>
-                )}
-                <div className="space-y-5">
-                    <Badge variant="outline" className="px-3 py-1 bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800 text-xs font-semibold gap-1.5">
-                        <Bus className="h-3.5 w-3.5 text-sky-600" />
-                        {sections.localTravel.badge}
-                    </Badge>
-                    <SeoHeading tag={sections.localTravel.headingTag} className="text-3xl font-bold font-headline leading-tight">
-                        {sections.localTravel.heading}
-                    </SeoHeading>
-                    <p className="text-muted-foreground leading-relaxed">
-                        {sections.localTravel.description}
-                    </p>
-                    <div className="space-y-2.5 text-sm">
-                        <div className="flex items-start gap-3">
-                            <CheckCircle2 className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
-                            <span><strong>Buses, Trains &amp; Live Trackers:</strong> View primary local bus routes, timetable links, and nearest rail station departures without hunting across operator websites.</span>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <CheckCircle2 className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
-                            <span><strong>Local Taxis, Community Transport &amp; EV Charging:</strong> Instant tap-to-call local taxi firms, accessible community transport, and nearby EV charging points.</span>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <CheckCircle2 className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
-                            <span><strong>30-Mile Roadworks &amp; Popup Hazard Alerts:</strong> Official trunk and council roadworks within 30 miles combined with resident-reported closures like fallen trees or temporary lights.</span>
-                        </div>
-                    </div>
-                    <div className="pt-2 flex items-center gap-3 flex-wrap">
-                        <Button asChild size="lg" className="bg-sky-600 hover:bg-sky-700 text-white font-semibold shadow-md">
-                            <Link href="/travel">Open Local Travel Guide</Link>
-                        </Button>
-                    </div>
-                </div>
-                <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border">
-                    <Image
-                        src={sections.localTravel.imageUrl || "/images/about/travel.svg"}
-                        alt={sections.localTravel.imageAlt || "Small town transport hub with local bus, train platform, taxi, and digital travel board"}
-                        title={sections.localTravel.imageTitle}
-                        fill
-                        className="object-cover"
-                    />
-                </div>
-            </section>
+                </section>
+                );
+            })()}
 
             <Separator />
 

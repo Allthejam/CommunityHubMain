@@ -14,6 +14,7 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { saveAllUserSettingsAction } from "@/lib/actions/userSettingsActions";
 import { saveSubscriptionAction, deleteSubscriptionAction, sendPushNotificationAction } from "@/lib/actions/pushActions";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { doc } from 'firebase/firestore';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { addDays, format, isBefore } from "date-fns";
