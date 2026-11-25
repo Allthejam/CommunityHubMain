@@ -476,7 +476,23 @@ export default function NotificationsPage() {
                 return 0;
             });
 
-            setNotifications(notificationsData);
+            const nowMs = Date.now();
+            const activeNotifications = notificationsData.filter((n: any) => {
+                if (n.type === 'Daily Morning Briefing') {
+                    const expMs = typeof n.expiresAtMs === 'number'
+                        ? n.expiresAtMs
+                        : n.date?.toMillis
+                            ? n.date.toMillis() + 20 * 60 * 60 * 1000
+                            : 0;
+                    if (expMs > 0 && expMs <= nowMs) {
+                        if (db) deleteDoc(doc(db, 'notifications', n.id)).catch(() => {});
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            setNotifications(activeNotifications);
             setLoading(false);
         }, (error) => {
             console.error("Error fetching notifications:", error);

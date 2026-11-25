@@ -14,6 +14,15 @@ function getLondonTodayIso(): string {
   }).format(new Date());
 }
 
+function getLondonHour(): number {
+  const hr = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: '2-digit',
+    hour12: false,
+  }).format(new Date());
+  return Number(hr);
+}
+
 function diffDaysIso(fromIso: string, toIso: string): number {
   const fromMs = Date.parse(`${fromIso}T00:00:00Z`);
   const toMs = Date.parse(`${toIso}T00:00:00Z`);
@@ -67,16 +76,16 @@ async function fetchWeatherLine(lat: number, lng: number): Promise<string> {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,wind_gusts_10m&daily=temperature_2m_max,precipitation_sum,wind_gusts_10m_max&wind_speed_unit=mph&timezone=Europe%2FLondon&forecast_days=1`;
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return 'Weather check available in hub';
+    if (!res.ok) return 'Weather check available in your hub';
     const d = await res.json();
     const temp = Math.round(d.current?.temperature_2m ?? 8);
     const maxTemp = Math.round(d.daily?.temperature_2m_max?.[0] ?? temp);
     const gusts = Math.round(d.daily?.wind_gusts_10m_max?.[0] ?? d.current?.wind_gusts_10m ?? 0);
     const rain = Number(d.daily?.precipitation_sum?.[0] ?? 0).toFixed(1);
     const warning = gusts >= 45 ? ' ⚠️ High winds' : Number(rain) >= 15 ? ' ⚠️ Heavy rain' : '';
-    return `Weather: ${temp}°C (high ${maxTemp}°C), gusts ${gusts} mph, rain ${rain} mm${warning}`;
+    return `${temp}°C (high ${maxTemp}°C), gusts ${gusts} mph, rain ${rain} mm${warning}`;
   } catch {
-    return 'Weather check available in hub';
+    return 'Weather check available in your hub';
   }
 }
 
@@ -84,150 +93,250 @@ async function fetchRoadworksLine(origin: string, name: string, lat: number, lng
   try {
     const url = `${origin}/api/roadworks?name=${encodeURIComponent(name)}&lat=${lat}&lng=${lng}&radiusMiles=30`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return 'Roads: Check Travel Noticeboard';
+    if (!res.ok) return 'Check Travel Noticeboard for live updates';
     const data = await res.json();
     const items: any[] = Array.isArray(data.items) ? data.items : [];
     const closures = items.filter((i) => i.severity === 'closure').length;
     const active = items.filter((i) => i.category === 'current_works').length;
     if (closures > 0) {
-      return `Roads: ${closures} closure${closures > 1 ? 's' : ''} & ${active} active works within 30 mi`;
+      return `${closures} closure${closures > 1 ? 's' : ''} & ${active} active works within 30 miles`;
     }
     if (active > 0) {
-      return `Roads: ${active} active roadworks within 30 mi`;
+      return `${active} active roadworks within 30 miles`;
     }
-    return 'Roads: Clear within 30 mi';
+    return 'Roads clear within 30 miles';
   } catch {
-    return 'Roads: Check Travel Noticeboard';
+    return 'Check Travel Noticeboard for live updates';
+  }
+}
+
+async function buildCommunityBulletin(
+  firestore: FirebaseFirestore.Firestore,
+  origin: string,
+  communityId: string,
+  todayIso: string
+) {
+  const [commDoc, schoolAlertsSnap, schoolHolidaysSnap] = await Promise.all([
+    firestore.collection('communities').doc(communityId).get(),
+    firestore.collection('communities').doc(communityId).collection('schoolAlerts').where('active', '==', true).get(),
+    firestore.collection('communities').doc(communityId).collection('schoolHolidays').get(),
+  ]);
+
+  const commData = commDoc.data() || {};
+  const communityName = commData.name || 'Your Community';
+  const center =
+    commData.centralCoordinates &&
+    typeof commData.centralCoordinates.lat === 'number' &&
+    typeof commData.centralCoordinates.lng === 'number'
+      ? commData.centralCoordinates
+      : getCenterFromBoundary(commData.boundary);
+
+  const [weatherLine, roadsLine] = center
+    ? await Promise.all([
+        fetchWeatherLine(center.lat, center.lng),
+        fetchRoadworksLine(origin, communityName, center.lat, center.lng),
+      ])
+    : ['No boundary mapped yet', 'No boundary mapped yet'];
+
+  const activeClosures = schoolAlertsSnap.docs.map((d) => d.data() as any);
+  const schoolLines: string[] = [];
+
+  if (activeClosures.length > 0) {
+    const names = activeClosures.slice(0, 3).map((a) => `${a.schoolName} (${a.status})`).join(', ');
+    schoolLines.push(`School Alerts: ${names}`);
+  } else {
+    schoolLines.push('All local schools currently open');
+  }
+
+  const holidays = schoolHolidaysSnap.docs.map((d) => d.data() as any);
+  for (const h of holidays) {
+    if (!h.startDate) continue;
+    const daysToStart = diffDaysIso(todayIso, h.startDate);
+    if (daysToStart === 0) {
+      schoolLines.push(`🎉 ${h.title} starts today!`);
+    } else if (daysToStart >= 1 && daysToStart <= 5) {
+      schoolLines.push(`⏳ ${daysToStart} day${daysToStart > 1 ? 's' : ''} until ${h.title}`);
+    }
+
+    const endDate = h.endDate || h.startDate;
+    const backToSchoolIso = addDaysIso(endDate, 1);
+    const daysToReturn = diffDaysIso(todayIso, backToSchoolIso);
+    if (daysToReturn >= 1 && daysToReturn <= 5 && todayIso >= h.startDate && todayIso <= endDate) {
+      schoolLines.push(
+        `🎒 ${daysToReturn} day${daysToReturn > 1 ? 's' : ''} until back to school (after ${h.title})`
+      );
+    }
+  }
+
+  return { communityName, weatherLine, roadsLine, schoolLines };
+}
+
+async function cleanupExpiredDailyBriefings(firestore: FirebaseFirestore.Firestore, nowMs: number) {
+  try {
+    const oldSnap = await firestore
+      .collection('notifications')
+      .where('type', '==', 'Daily Morning Briefing')
+      .limit(200)
+      .get();
+
+    if (oldSnap.empty) return 0;
+    const batch = firestore.batch();
+    let count = 0;
+
+    oldSnap.forEach((docSnap) => {
+      const data = docSnap.data() || {};
+      const expMs =
+        typeof data.expiresAtMs === 'number'
+          ? data.expiresAtMs
+          : data.date?.toMillis
+            ? data.date.toMillis() + 20 * 60 * 60 * 1000
+            : 0;
+      if (expMs > 0 && expMs <= nowMs) {
+        batch.delete(docSnap.ref);
+        count += 1;
+      }
+    });
+
+    if (count > 0) {
+      await batch.commit();
+    }
+    return count;
+  } catch {
+    return 0;
   }
 }
 
 async function handleDailyBriefing(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const previewUserId = searchParams.get('userId');
+  const cronCheck = searchParams.get('cronCheck') === '1';
+
+  // Single-user live bulletin fetch for the in-app Morning Bulletin popup
+  if (previewUserId) {
+    try {
+      const { firestore } = initializeAdminApp();
+      const todayIso = getLondonTodayIso();
+      const origin = new URL(request.url).origin;
+      const userDoc = await firestore.collection('users').doc(previewUserId).get();
+      if (!userDoc.exists) {
+        return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+      }
+      const u = userDoc.data() || {};
+      const commId = u.primaryHomeCommunityId || u.homeCommunityId || u.communityId;
+      if (!commId) {
+        return NextResponse.json({ success: false, error: 'No home community set' });
+      }
+      const firstName = String(u.firstName || u.name || 'Neighbour').trim().split(/\s+/)[0];
+      const bulletin = await buildCommunityBulletin(firestore, origin, commId, todayIso);
+      const greeting = `Good morning ${firstName}, this is your morning bulletin from your community ${bulletin.communityName}.`;
+
+      return NextResponse.json({
+        success: true,
+        date: todayIso,
+        greeting,
+        ...bulletin,
+      });
+    } catch (error: any) {
+      return NextResponse.json({ success: false, error: error?.message || 'Failed' }, { status: 500 });
+    }
+  }
+
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const authHeader = request.headers.get('authorization') || '';
-    const { searchParams } = new URL(request.url);
     const querySecret = searchParams.get('secret') || '';
     if (authHeader !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
   }
 
+  // When called by the 07:00/08:00 UTC GitHub cron, only send during 08:xx Europe/London
+  if (cronCheck && getLondonHour() !== 8) {
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      reason: `Current Europe/London hour is ${getLondonHour()}, waiting for 8am.`,
+    });
+  }
+
   try {
     const { firestore } = initializeAdminApp();
+    const nowMs = Date.now();
+    const expiresAtMs = nowMs + 20 * 60 * 60 * 1000; // Auto-delete after 20 hours
     const todayIso = getLondonTodayIso();
     const origin = new URL(request.url).origin;
 
-    const usersSnap = await firestore.collection('users').get();
+    const cleanedExpired = await cleanupExpiredDailyBriefings(firestore, nowMs);
 
+    const usersSnap = await firestore.collection('users').get();
     if (usersSnap.empty) {
-      return NextResponse.json({ success: true, sentUsers: 0, communitiesProcessed: 0 });
+      return NextResponse.json({ success: true, sentUsers: 0, communitiesProcessed: 0, cleanedExpired });
     }
 
-    // Group opted-in (default-on) users by home community
-    const usersByCommunity = new Map<string, string[]>();
+    const usersByCommunity = new Map<string, Array<{ uid: string; firstName: string }>>();
     usersSnap.forEach((docSnap) => {
       const u = docSnap.data() || {};
       if (u.mailingLists?.standard === false || u.mailingLists?.dailyBriefing === false) return;
       if (u.dailyBriefingLastSentDate === todayIso) return;
       const commId = u.primaryHomeCommunityId || u.homeCommunityId || u.communityId;
       if (!commId) return;
+      const firstName = String(u.firstName || u.name || 'Neighbour').trim().split(/\s+/)[0];
       const list = usersByCommunity.get(commId) || [];
-      list.push(docSnap.id);
+      list.push({ uid: docSnap.id, firstName });
       usersByCommunity.set(commId, list);
     });
 
     let sentUsers = 0;
     let communitiesProcessed = 0;
 
-    for (const [communityId, targetIds] of usersByCommunity.entries()) {
-      if (targetIds.length === 0) continue;
+    for (const [communityId, recipients] of usersByCommunity.entries()) {
+      if (recipients.length === 0) continue;
 
-      const [commDoc, schoolAlertsSnap, schoolHolidaysSnap] = await Promise.all([
-        firestore.collection('communities').doc(communityId).get(),
-        firestore.collection('communities').doc(communityId).collection('schoolAlerts').where('active', '==', true).get(),
-        firestore.collection('communities').doc(communityId).collection('schoolHolidays').get(),
-      ]);
-
-      const commData = commDoc.data() || {};
-      const communityName = commData.name || 'Your Community';
-      const center =
-        commData.centralCoordinates &&
-        typeof commData.centralCoordinates.lat === 'number' &&
-        typeof commData.centralCoordinates.lng === 'number'
-          ? commData.centralCoordinates
-          : getCenterFromBoundary(commData.boundary);
-
-      const [weatherLine, roadsLine] = center
-        ? await Promise.all([
-            fetchWeatherLine(center.lat, center.lng),
-            fetchRoadworksLine(origin, communityName, center.lat, center.lng),
-          ])
-        : ['Weather: No boundary mapped yet', 'Roads: No boundary mapped yet'];
-
-      // School closures & 5-day holiday / back-to-school countdowns
-      const activeClosures = schoolAlertsSnap.docs.map((d) => d.data() as any);
-      const schoolLines: string[] = [];
-
-      if (activeClosures.length > 0) {
-        const names = activeClosures.slice(0, 2).map((a) => `${a.schoolName} (${a.status})`).join(', ');
-        schoolLines.push(`🏫 School Alerts: ${names}`);
-      } else {
-        schoolLines.push('🏫 Schools: All clear');
-      }
-
-      const holidays = schoolHolidaysSnap.docs.map((d) => d.data() as any);
-      for (const h of holidays) {
-        if (!h.startDate) continue;
-        const daysToStart = diffDaysIso(todayIso, h.startDate);
-        if (daysToStart === 0) {
-          schoolLines.push(`🎉 ${h.title} starts today!`);
-        } else if (daysToStart >= 1 && daysToStart <= 5) {
-          schoolLines.push(`⏳ ${daysToStart} day${daysToStart > 1 ? 's' : ''} until ${h.title}`);
-        }
-
-        const endDate = h.endDate || h.startDate;
-        const backToSchoolIso = addDaysIso(endDate, 1);
-        const daysToReturn = diffDaysIso(todayIso, backToSchoolIso);
-        if (daysToReturn >= 1 && daysToReturn <= 5 && todayIso >= h.startDate && todayIso <= endDate) {
-          schoolLines.push(
-            `🎒 ${daysToReturn} day${daysToReturn > 1 ? 's' : ''} until back to school (after ${h.title})`
-          );
-        }
-      }
-
-      const subject = `☀️ 8am Briefing — ${communityName}`;
-      const body = [weatherLine, roadsLine, ...schoolLines].join(' • ');
+      const bulletin = await buildCommunityBulletin(firestore, origin, communityId, todayIso);
+      const summaryBody = [
+        `Weather: ${bulletin.weatherLine}`,
+        `Roads: ${bulletin.roadsLine}`,
+        ...bulletin.schoolLines,
+      ].join(' • ');
 
       await sendPushNotificationAction({
-        audience: { type: 'users', value: targetIds },
+        audience: { type: 'users', value: recipients.map((r) => r.uid) },
         notification: {
-          title: subject,
-          body: body.length > 180 ? `${body.slice(0, 177)}...` : body,
+          title: `☀️ Morning Bulletin — ${bulletin.communityName}`,
+          body: summaryBody.length > 180 ? `${summaryBody.slice(0, 177)}...` : summaryBody,
           tag: `daily-briefing-${communityId}-${todayIso}`,
-          url: '/home',
+          url: '/home?briefing=1',
         },
       });
 
-      const CHUNK_SIZE = 350;
-      for (let i = 0; i < targetIds.length; i += CHUNK_SIZE) {
-        const chunk = targetIds.slice(i, i + CHUNK_SIZE);
+      const CHUNK_SIZE = 200;
+      for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
+        const chunk = recipients.slice(i, i + CHUNK_SIZE);
         const batch = firestore.batch();
-        const ts = Timestamp.now();
+        const ts = Timestamp.fromMillis(nowMs);
 
-        chunk.forEach((uid) => {
+        chunk.forEach(({ uid, firstName }) => {
+          const greeting = `Good morning ${firstName}, this is your morning bulletin from your community ${bulletin.communityName}.`;
           const notifRef = firestore.collection('notifications').doc();
           batch.set(notifRef, {
             type: 'Daily Morning Briefing',
-            subject,
-            from: `${communityName} Morning Briefing`,
+            subject: greeting,
+            from: `${bulletin.communityName} Morning Bulletin`,
             date: ts,
+            expiresAt: Timestamp.fromMillis(expiresAtMs),
+            expiresAtMs,
             status: 'new',
             recipientId: uid,
             relatedId: `briefing-${todayIso}`,
-            actionUrl: '/home',
+            actionUrl: '/home?briefing=1',
             details: {
               communityId,
-              message: body,
+              communityName: bulletin.communityName,
+              greeting,
+              weatherLine: bulletin.weatherLine,
+              roadsLine: bulletin.roadsLine,
+              schoolLines: bulletin.schoolLines,
+              message: `${greeting} ${summaryBody}`,
             },
           });
           batch.update(firestore.collection('users').doc(uid), {
@@ -238,7 +347,7 @@ async function handleDailyBriefing(request: Request) {
         await batch.commit();
       }
 
-      sentUsers += targetIds.length;
+      sentUsers += recipients.length;
       communitiesProcessed += 1;
     }
 
@@ -247,6 +356,7 @@ async function handleDailyBriefing(request: Request) {
       date: todayIso,
       communitiesProcessed,
       sentUsers,
+      cleanedExpired,
     });
   } catch (error: any) {
     console.error('Daily briefing cron error:', error);
