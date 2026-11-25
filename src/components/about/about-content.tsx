@@ -41,7 +41,8 @@ import {
     Bed,
     BookOpen,
     ShoppingBag,
-    Bus
+    Bus,
+    Sun
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +109,7 @@ const mainFeatures = [
 ];
 
 const keyFeaturesList = [
+    { icon: <Sun className="h-5 w-5 text-amber-500" />, title: "8:00 AM Daily Morning Briefing", description: "One daily morning bulletin combining weather, 30-mile roadworks, school closures, 5-day holiday countdowns, and leader notices (auto-clears after 20 hours)." },
     { icon: <CloudSun className="h-5 w-5 text-sky-500" />, title: "Live Weather & Storm Warnings", description: "Boundary and town-centre-pinned forecasts with Met Office & storm alerts tailored to your community." },
     { icon: <Construction className="h-5 w-5 text-amber-500" />, title: "30-Mile Roadworks & Travel Hub", description: "Live trunk and local roadworks within 30 miles (via Scottish Road Works Register & local popup hazard reports), plus bus, rail, and taxi links." },
     { icon: <GraduationCap className="h-5 w-5 text-indigo-500" />, title: "School Closures & Term Dates", description: "Instant push & bell alerts from leaders or authorised school staff, auto-cleaning single-day closures, and editable local & public holiday calendars." },
@@ -587,6 +589,66 @@ export function AboutContent({ initialSeoData }: { initialSeoData?: AboutSeoData
                             fill
                             className="object-cover"
                         />
+                    </div>
+                </section>
+                );
+            })()}
+
+            <Separator />
+
+            {/* Section 4c: 8:00 AM Daily Morning Briefing & Leader Notices */}
+            {(() => {
+                const dailyBriefing = sections.dailyBriefing || DEFAULT_ABOUT_SEO_DATA.sections.dailyBriefing;
+                return (
+                <section className={`grid lg:grid-cols-2 gap-12 items-center ${sectionBoxClass}`}>
+                    {canEdit && (
+                        <div className="lg:col-span-2 flex justify-end -mb-8">
+                            <SeoEditPencil
+                                label="Daily Briefing"
+                                tagHint={dailyBriefing.headingTag}
+                                onClick={() => setEditingSection({ key: 'dailyBriefing', label: 'Daily Morning Briefing Section' })}
+                            />
+                        </div>
+                    )}
+                    <div className="relative w-full h-80 sm:h-96 rounded-2xl overflow-hidden shadow-xl border order-2 lg:order-1">
+                        <Image
+                            src={dailyBriefing.imageUrl || "/images/about/daily-briefing.svg"}
+                            alt={dailyBriefing.imageAlt || "Morning Bulletin card showing leader notices, weather, 30-mile roadworks, and school countdowns"}
+                            title={dailyBriefing.imageTitle}
+                            fill
+                            className="object-cover"
+                        />
+                    </div>
+                    <div className="space-y-5 order-1 lg:order-2">
+                        <Badge variant="outline" className="px-3 py-1 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-xs font-semibold gap-1.5">
+                            <Sun className="h-3.5 w-3.5 text-amber-500" />
+                            {dailyBriefing.badge}
+                        </Badge>
+                        <SeoHeading tag={dailyBriefing.headingTag} className="text-3xl font-bold font-headline leading-tight">
+                            {dailyBriefing.heading}
+                        </SeoHeading>
+                        <p className="text-muted-foreground leading-relaxed">
+                            {dailyBriefing.description}
+                        </p>
+                        <div className="space-y-2.5 text-sm">
+                            <div className="flex items-start gap-3">
+                                <CheckCircle2 className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                                <span><strong>Personalised Morning Bulletin Popup:</strong> Opens with a greeting for each resident and links straight to Weather, 30-Mile Roadworks, and School Closures.</span>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <CheckCircle2 className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                                <span><strong>Leader Daily Briefing Notices:</strong> Leaders can schedule everyday reminders (like a 7pm council meeting or hall event) from the Back Office without firing an urgent broadcast.</span>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <CheckCircle2 className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                                <span><strong>20-Hour Auto-Cleanup &amp; Full User Control:</strong> Daily briefings auto-delete after 20 hours, and residents can toggle Weather, Roadworks, School Alerts, or the 8:00 AM Briefing anytime in Settings.</span>
+                            </div>
+                        </div>
+                        <div className="pt-2 flex items-center gap-3 flex-wrap">
+                            <Button asChild size="lg" className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold shadow-md">
+                                <Link href="/settings">Manage Notification Settings</Link>
+                            </Button>
+                        </div>
                     </div>
                 </section>
                 );
