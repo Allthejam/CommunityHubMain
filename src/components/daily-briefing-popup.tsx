@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Sun, CloudSun, Construction, GraduationCap, Clock } from 'lucide-react';
+import Link from 'next/link';
+import { Sun, CloudSun, Construction, GraduationCap, Clock, ArrowRight } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -127,9 +128,16 @@ export function DailyBriefingPopup() {
 
           <div className="rounded-xl border border-amber-200 bg-amber-50/70 dark:bg-amber-950/30 p-3 flex items-start gap-2.5">
             <Construction className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-            <div>
+            <div className="flex-1 space-y-1">
               <p className="font-bold text-foreground">Local Travel &amp; 30-Mile Roadworks</p>
-              <p className="text-muted-foreground mt-0.5">{bulletin.roadsLine}</p>
+              <p className="text-muted-foreground">{bulletin.roadsLine}</p>
+              <Link
+                href="/travel"
+                onClick={handleClose}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline pt-0.5"
+              >
+                View Travel &amp; Roadworks Noticeboard <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           </div>
 

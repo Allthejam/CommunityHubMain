@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { Timestamp } from 'firebase-admin/firestore';
 import { initializeAdminApp } from '@/firebase/admin-app';
 import { sendPushNotificationAction } from '@/lib/actions/notificationActions';
+import { getRoadworksForLocation } from '@/lib/roadworks';
 
 function getLondonTodayIso(): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -89,24 +90,53 @@ async function fetchWeatherLine(lat: number, lng: number): Promise<string> {
   }
 }
 
-async function fetchRoadworksLine(origin: string, name: string, lat: number, lng: number): Promise<string> {
+async function fetchRoadworksLine(
+  firestore: FirebaseFirestore.Firestore,
+  communityId: string,
+  name: string,
+  lat: number,
+  lng: number
+): Promise<string> {
   try {
-    const url = `${origin}/api/roadworks?name=${encodeURIComponent(name)}&lat=${lat}&lng=${lng}&radiusMiles=30`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return 'Check Travel Noticeboard for live updates';
-    const data = await res.json();
-    const items: any[] = Array.isArray(data.items) ? data.items : [];
-    const closures = items.filter((i) => i.severity === 'closure').length;
-    const active = items.filter((i) => i.category === 'current_works').length;
+    const nowMs = Date.now();
+    const [officialResult, localSnap] = await Promise.all([
+      getRoadworksForLocation({ communityName: name, lat, lng, radiusMiles: 30 }),
+      firestore.collection(`communities/${communityId}/road_alerts`).get().catch(() => null),
+    ]);
+
+    const items = officialResult.items || [];
+    let localClosures = 0;
+    let localActive = 0;
+    if (localSnap && !localSnap.empty) {
+      localSnap.forEach((docSnap) => {
+        const a = docSnap.data() || {};
+        const expMs = typeof a.expiresAtMs === 'number' ? a.expiresAtMs : 0;
+        if (expMs > 0 && expMs <= nowMs) return;
+        if (a.alertType === 'closure') localClosures += 1;
+        else localActive += 1;
+      });
+    }
+
+    const closures = items.filter((i) => i.severity === 'closure').length + localClosures;
+    const active = items.filter((i) => i.category === 'current_works').length + localActive;
+    const topRoads = Array.from(
+      new Set(
+        items
+          .map((i) => i.road)
+          .filter((r) => Boolean(r) && r !== 'Local Route' && r !== 'Trunk')
+      )
+    ).slice(0, 4);
+    const roadsSuffix = topRoads.length > 0 ? ` (incl. ${topRoads.join(', ')})` : '';
+
     if (closures > 0) {
-      return `${closures} closure${closures > 1 ? 's' : ''} & ${active} active works within 30 miles`;
+      return `${closures} closure${closures > 1 ? 's' : ''} & ${active} active works within 30 miles of ${name}${roadsSuffix}`;
     }
     if (active > 0) {
-      return `${active} active roadworks within 30 miles`;
+      return `${active} active roadworks within 30 miles of ${name}${roadsSuffix}`;
     }
-    return 'Roads clear within 30 miles';
+    return `Roads clear within 30 miles of ${name}`;
   } catch {
-    return 'Check Travel Noticeboard for live updates';
+    return `Check Travel Noticeboard for live updates around ${name}`;
   }
 }
 
@@ -134,7 +164,7 @@ async function buildCommunityBulletin(
   const [weatherLine, roadsLine] = center
     ? await Promise.all([
         fetchWeatherLine(center.lat, center.lng),
-        fetchRoadworksLine(origin, communityName, center.lat, center.lng),
+        fetchRoadworksLine(firestore, communityId, communityName, center.lat, center.lng),
       ])
     : ['No boundary mapped yet', 'No boundary mapped yet'];
 
