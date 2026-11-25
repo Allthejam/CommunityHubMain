@@ -38,6 +38,7 @@ import {
   ListTodo,
   Sparkles,
   HeartHandshake,
+  Sun,
   Target,
   Navigation,
   FileDown,
@@ -108,6 +109,7 @@ const businessSubItemsList = [
 
 const adminSubItems = [
     { href: '/leader/announcements', label: 'Announcements', icon: Megaphone, permission: 'viewAnnouncements' },
+    { href: '/leader/daily-briefings', label: 'Daily Briefings', icon: Sun, permission: 'viewAnnouncements' },
     { href: '/leader/marketing', label: 'Marketing', icon: Sparkles, permission: 'viewMarketing' },
     { href: '/leader/financials', label: 'Financials', icon: DollarSign, permission: 'viewFinancials' },
     { href: '/leader/event-till', label: 'Event Till & QR Pots', icon: QrCode, permission: 'operateEventTill' },

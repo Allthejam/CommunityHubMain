@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Sun, CloudSun, Construction, GraduationCap, Clock, ArrowRight } from 'lucide-react';
+import { Sun, CloudSun, Construction, GraduationCap, Clock, ArrowRight, Megaphone } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ type BulletinPayload = {
   weatherLine: string;
   roadsLine: string;
   schoolLines: string[];
+  leaderNotices?: Array<{ id: string; title: string; message: string; linkUrl?: string }>;
 };
 
 function getLondonTodayAndHour(): { todayIso: string; hour: number } {
@@ -125,6 +126,30 @@ function DailyBriefingPopupInner() {
         </div>
 
         <div className="p-5 space-y-3 text-xs">
+          {bulletin.leaderNotices && bulletin.leaderNotices.length > 0 && (
+            <div className="rounded-xl border border-emerald-300/80 bg-gradient-to-r from-emerald-50/90 to-teal-50/60 dark:from-emerald-950/35 dark:to-teal-950/25 p-3 flex items-start gap-2.5">
+              <Megaphone className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1.5">
+                <p className="font-bold text-foreground">Community Leader Notices</p>
+                {bulletin.leaderNotices.map((notice) => (
+                  <div key={notice.id} className="space-y-0.5 border-l-2 border-emerald-400 pl-2">
+                    <p className="font-semibold text-foreground">{notice.title}</p>
+                    <p className="text-muted-foreground">{notice.message}</p>
+                    {notice.linkUrl && (
+                      <Link
+                        href={notice.linkUrl}
+                        onClick={handleClose}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline pt-0.5"
+                      >
+                        Open Link <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-sky-200 bg-sky-50/70 dark:bg-sky-950/30 p-3 flex items-start gap-2.5">
             <CloudSun className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
             <div className="flex-1 space-y-1">

@@ -146,10 +146,11 @@ async function buildCommunityBulletin(
   communityId: string,
   todayIso: string
 ) {
-  const [commDoc, schoolAlertsSnap, schoolHolidaysSnap] = await Promise.all([
+  const [commDoc, schoolAlertsSnap, schoolHolidaysSnap, leaderNoticesSnap] = await Promise.all([
     firestore.collection('communities').doc(communityId).get(),
     firestore.collection('communities').doc(communityId).collection('schoolAlerts').where('active', '==', true).get(),
     firestore.collection('communities').doc(communityId).collection('schoolHolidays').get(),
+    firestore.collection('communities').doc(communityId).collection('dailyBriefingNotices').get(),
   ]);
 
   const commData = commDoc.data() || {};
@@ -198,7 +199,31 @@ async function buildCommunityBulletin(
     }
   }
 
-  return { communityName, weatherLine, roadsLine, schoolLines };
+  const nowMs = Date.now();
+  const leaderNotices: Array<{ id: string; title: string; message: string; linkUrl?: string }> = [];
+  const cleanupNoticeBatch = firestore.batch();
+  let hasNoticeCleanup = false;
+  leaderNoticesSnap.forEach((docSnap) => {
+    const n = docSnap.data() as any;
+    if (typeof n.expiresAtMs === 'number' && n.expiresAtMs <= nowMs) {
+      cleanupNoticeBatch.delete(docSnap.ref);
+      hasNoticeCleanup = true;
+      return;
+    }
+    if (n.targetDate === todayIso) {
+      leaderNotices.push({
+        id: docSnap.id,
+        title: n.title || '',
+        message: n.message || '',
+        linkUrl: n.linkUrl || '',
+      });
+    }
+  });
+  if (hasNoticeCleanup) {
+    cleanupNoticeBatch.commit().catch(() => {});
+  }
+
+  return { communityName, weatherLine, roadsLine, schoolLines, leaderNotices };
 }
 
 async function cleanupExpiredDailyBriefings(firestore: FirebaseFirestore.Firestore, nowMs: number) {
@@ -323,7 +348,12 @@ async function handleDailyBriefing(request: Request) {
       if (recipients.length === 0) continue;
 
       const bulletin = await buildCommunityBulletin(firestore, origin, communityId, todayIso);
+      const leaderSummary =
+        bulletin.leaderNotices.length > 0
+          ? bulletin.leaderNotices.map((n) => `📌 ${n.title}: ${n.message}`)
+          : [];
       const summaryBody = [
+        ...leaderSummary,
         `Weather: ${bulletin.weatherLine}`,
         `Roads: ${bulletin.roadsLine}`,
         ...bulletin.schoolLines,
@@ -366,6 +396,7 @@ async function handleDailyBriefing(request: Request) {
               weatherLine: bulletin.weatherLine,
               roadsLine: bulletin.roadsLine,
               schoolLines: bulletin.schoolLines,
+              leaderNotices: bulletin.leaderNotices,
               message: `${greeting} ${summaryBody}`,
             },
           });
