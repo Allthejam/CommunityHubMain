@@ -6,6 +6,10 @@ import { type Notification } from '@/lib/types/notifications';
  * Events, Announcements, Polls, Messages, Reports, and Business Orders.
  */
 export function getNotificationDestination(notification: Notification, isLeader = false): string {
+  if ((notification.type as string) === 'Daily Morning Briefing') {
+    return '/home?briefing=1';
+  }
+
   if (notification.actionUrl && notification.actionUrl.trim() !== '' && notification.actionUrl !== '#') {
     return notification.actionUrl;
   }

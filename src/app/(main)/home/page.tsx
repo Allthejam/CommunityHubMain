@@ -377,16 +377,20 @@ function HomePageContent() {
           <EmergencyAlert allBroadcasts={emergencyBroadcasts} />
           {userProfile?.accountType !== 'national' && <NoLeaderAlert communityId={activeCommunityId} userProfile={userProfile} />}
       </div>
-      <WelcomeCards activeCommunityId={activeCommunityId} activeCommunity={activeCommunity} />
+      <div id="section-weather" className="scroll-mt-20">
+        <WelcomeCards activeCommunityId={activeCommunityId} activeCommunity={activeCommunity} />
+      </div>
       
       <div className='px-4 md:px-0 space-y-6 md:space-y-8'>
           <AnnouncementBanners allAnnouncements={standardAnnouncements} />
           <EventsFeed communityId={activeCommunityId} />
           <TravelCard communityId={activeCommunityId} />
-          <SchoolClosuresCard
-            communityId={activeCommunityId}
-            hasBoundary={communityLoading ? undefined : Boolean(activeCommunity?.boundary)}
-          />
+          <div id="section-schools" className="scroll-mt-20">
+            <SchoolClosuresCard
+              communityId={activeCommunityId}
+              hasBoundary={communityLoading ? undefined : Boolean(activeCommunity?.boundary)}
+            />
+          </div>
           <div id="section-whatson" className="scroll-mt-20">
             <WhatsonFeed communityId={activeCommunityId} mode="in" communityName={activeCommunity?.name} />
           </div>

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Sun, CloudSun, Construction, GraduationCap, Clock, ArrowRight } from 'lucide-react';
 import {
   Dialog,
@@ -43,9 +44,12 @@ function getLondonTodayAndHour(): { todayIso: string; hour: number } {
   return { todayIso, hour };
 }
 
-export function DailyBriefingPopup() {
+function DailyBriefingPopupInner() {
   const { user } = useUser();
   const db = useFirestore();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const userProfileRef = useMemoFirebase(() => (user && db ? doc(db, 'users', user.uid) : null), [user, db]);
   const { data: userProfile } = useDoc<any>(userProfileRef);
 
@@ -53,17 +57,18 @@ export function DailyBriefingPopup() {
   const [bulletin, setBulletin] = React.useState<BulletinPayload | null>(null);
 
   const fetchAndOpen = React.useCallback(async (forceOpen = false) => {
-    if (!user?.uid || !userProfile) return;
-    if (userProfile.mailingLists?.standard === false || userProfile.mailingLists?.dailyBriefing === false) {
-      if (!forceOpen) return;
-    }
-
-    const { todayIso, hour } = getLondonTodayAndHour();
-    if (!forceOpen && hour < 8) return;
-
-    const storageKey = `dailyBriefingDismissed_${todayIso}_${user.uid}`;
-    if (!forceOpen && typeof window !== 'undefined' && localStorage.getItem(storageKey) === 'true') {
-      return;
+    if (!user?.uid) return;
+    if (!forceOpen) {
+      if (!userProfile) return;
+      if (userProfile.mailingLists?.standard === false || userProfile.mailingLists?.dailyBriefing === false) {
+        return;
+      }
+      const { todayIso, hour } = getLondonTodayAndHour();
+      if (hour < 8) return;
+      const storageKey = `dailyBriefingDismissed_${todayIso}_${user.uid}`;
+      if (typeof window !== 'undefined' && localStorage.getItem(storageKey) === 'true') {
+        return;
+      }
     }
 
     try {
@@ -81,22 +86,24 @@ export function DailyBriefingPopup() {
     }
   }, [user?.uid, userProfile]);
 
+  const forceBriefingParam = searchParams?.get('briefing') === '1';
+
   React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const forceBriefing = params.get('briefing') === '1';
-    fetchAndOpen(forceBriefing);
+    fetchAndOpen(forceBriefingParam);
 
     const onOpenEvent = () => fetchAndOpen(true);
     window.addEventListener('open-daily-briefing', onOpenEvent);
     return () => window.removeEventListener('open-daily-briefing', onOpenEvent);
-  }, [fetchAndOpen]);
+  }, [fetchAndOpen, forceBriefingParam]);
 
   const handleClose = () => {
     setOpen(false);
     if (user?.uid && typeof window !== 'undefined') {
       const { todayIso } = getLondonTodayAndHour();
       localStorage.setItem(`dailyBriefingDismissed_${todayIso}_${user.uid}`, 'true');
+    }
+    if (forceBriefingParam && pathname) {
+      router.replace(pathname, { scroll: false });
     }
   };
 
@@ -120,9 +127,16 @@ export function DailyBriefingPopup() {
         <div className="p-5 space-y-3 text-xs">
           <div className="rounded-xl border border-sky-200 bg-sky-50/70 dark:bg-sky-950/30 p-3 flex items-start gap-2.5">
             <CloudSun className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
-            <div>
+            <div className="flex-1 space-y-1">
               <p className="font-bold text-foreground">Weather &amp; Warnings</p>
-              <p className="text-muted-foreground mt-0.5">{bulletin.weatherLine}</p>
+              <p className="text-muted-foreground">{bulletin.weatherLine}</p>
+              <Link
+                href="/home#section-weather"
+                onClick={handleClose}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 hover:underline pt-0.5"
+              >
+                View Local Weather on Home <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           </div>
 
@@ -143,13 +157,22 @@ export function DailyBriefingPopup() {
 
           <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 dark:bg-indigo-950/30 p-3 flex items-start gap-2.5">
             <GraduationCap className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
+            <div className="flex-1 space-y-1">
               <p className="font-bold text-foreground">Schools &amp; Holiday Countdowns</p>
-              {bulletin.schoolLines.map((line, i) => (
-                <p key={i} className="text-muted-foreground">
-                  {line}
-                </p>
-              ))}
+              <div className="space-y-0.5">
+                {bulletin.schoolLines.map((line, i) => (
+                  <p key={i} className="text-muted-foreground">
+                    {line}
+                  </p>
+                ))}
+              </div>
+              <Link
+                href="/home#section-schools"
+                onClick={handleClose}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 hover:underline pt-0.5"
+              >
+                View School Closures &amp; Holidays on Home <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           </div>
 
@@ -164,5 +187,13 @@ export function DailyBriefingPopup() {
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function DailyBriefingPopup() {
+  return (
+    <React.Suspense fallback={null}>
+      <DailyBriefingPopupInner />
+    </React.Suspense>
   );
 }
