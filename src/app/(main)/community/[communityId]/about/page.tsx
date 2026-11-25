@@ -104,27 +104,16 @@ export default function CommunityAboutPage() {
             let loadedProfile: CommunityProfileData | null = null;
             let loadedCommunityName = isDemo ? "Oakridge & DemoVille" : "";
 
-            // 1. Check local / session storage first for demo mode or preview
-            if (typeof window !== 'undefined') {
-                const cached = sessionStorage.getItem('aboutPagePreview') || sessionStorage.getItem(`demo_about_${communityId}`) || localStorage.getItem(`demo_about_${communityId}`);
-                if (cached) {
-                    try {
-                        loadedProfile = JSON.parse(cached);
-                    } catch (e) {}
-                }
-            }
-
-            // 2. Fetch from server action (handles comfeed vs default database)
+            // 1. Fetch authoritative profile from server action (handles comfeed vs default database)
             const profileActionRes = await getCommunityProfileAction(communityId);
             if (profileActionRes.success && profileActionRes.data) {
-                // If local storage has edits, keep them; otherwise use comfeed data
-                loadedProfile = loadedProfile || profileActionRes.data;
+                loadedProfile = profileActionRes.data;
                 if (profileActionRes.communityName) {
                     loadedCommunityName = profileActionRes.communityName;
                 }
             }
 
-            // 3. If non-demo and not loaded yet, query client Firestore
+            // 2. If non-demo and not loaded yet, query client Firestore
             if (!loadedProfile && !isDemo && db) {
                 const communityRef = doc(db, 'communities', communityId as string);
                 const communitySnap = await getDoc(communityRef);
@@ -139,6 +128,25 @@ export default function CommunityAboutPage() {
                         if (profileSnap.exists()) {
                             loadedProfile = profileSnap.data() as CommunityProfileData;
                         }
+                    }
+                }
+            }
+
+            // 3. Only apply preview/demo cache on top of loadedProfile (never overwrite full Firestore profile with partial cache)
+            if (typeof window !== 'undefined') {
+                if (!isDemo) {
+                    // Purge any partial demo_about cache accidentally written by older builds for live communities
+                    sessionStorage.removeItem(`demo_about_${communityId}`);
+                    localStorage.removeItem(`demo_about_${communityId}`);
+                } else {
+                    const cached = sessionStorage.getItem('aboutPagePreview') || sessionStorage.getItem(`demo_about_${communityId}`) || localStorage.getItem(`demo_about_${communityId}`);
+                    if (cached) {
+                        try {
+                            const parsed = JSON.parse(cached);
+                            if (parsed && typeof parsed === 'object') {
+                                loadedProfile = { ...(loadedProfile || {}), ...parsed };
+                            }
+                        } catch (e) {}
                     }
                 }
             }

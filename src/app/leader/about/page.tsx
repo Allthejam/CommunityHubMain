@@ -1417,11 +1417,15 @@ export default function LeaderAboutPage() {
                   localStorage.setItem('community_defibrillators', JSON.stringify(updatedList));
 
                   const cached = sessionStorage.getItem(`demo_about_${communityId}`) || localStorage.getItem(`demo_about_${communityId}`);
-                  let parsed = cached ? JSON.parse(cached) : {};
-                  parsed.defibrillators = updatedList;
-                  sessionStorage.setItem(`demo_about_${communityId}`, JSON.stringify(parsed));
-                  localStorage.setItem(`demo_about_${communityId}`, JSON.stringify(parsed));
-                  window.dispatchEvent(new CustomEvent('demo_about_updated', { detail: parsed }));
+                  if (cached) {
+                    try {
+                      const parsed = JSON.parse(cached);
+                      parsed.defibrillators = updatedList;
+                      sessionStorage.setItem(`demo_about_${communityId}`, JSON.stringify(parsed));
+                      localStorage.setItem(`demo_about_${communityId}`, JSON.stringify(parsed));
+                      window.dispatchEvent(new CustomEvent('demo_about_updated', { detail: parsed }));
+                    } catch {}
+                  }
                 }
 
                 // Immediately save to Firestore in the background
