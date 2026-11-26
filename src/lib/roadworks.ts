@@ -185,17 +185,34 @@ async function loadSrwrDataset(): Promise<SrwrCompactRow[]> {
       }
 
       if (!csvText) return globalForSrwr.__srwrCache?.rows || [];
-      const lines = csvText.split(/\r?\n/);
-      if (lines.length < 2) return [];
+      const firstNl = csvText.indexOf('\n');
+      if (firstNl < 0) return [];
 
-      const hdr = parseCsvRow(lines[0]);
+      const headerLine = csvText.slice(0, firstNl).replace(/\r$/, '');
+      const hdr = parseCsvRow(headerLine);
       const idx = Object.fromEntries(hdr.map((h, k) => [h, k]));
       const cutoffIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const rows: SrwrCompactRow[] = [];
 
-      for (let r = 1; r < lines.length; r++) {
-        const line = lines[r];
+      let start = firstNl + 1;
+      let rowNum = 0;
+      while (start < csvText.length) {
+        let endIdx = csvText.indexOf('\n', start);
+        if (endIdx < 0) endIdx = csvText.length;
+        const line = csvText.slice(start, endIdx).replace(/\r$/, '');
+        start = endIdx + 1;
+        rowNum += 1;
+
         if (!line) continue;
+        // Fast pre-filter before allocating arrays for every column
+        if (
+          !line.includes('In Progress') &&
+          !line.includes('Proposed') &&
+          !line.includes('Advance Planning')
+        ) {
+          continue;
+        }
+
         const c = parseCsvRow(line);
         const status = c[idx.ActivityStatus] || '';
         if (status !== 'In Progress' && status !== 'Proposed' && status !== 'Advance Planning') continue;
@@ -205,8 +222,9 @@ async function loadSrwrDataset(): Promise<SrwrCompactRow[]> {
         const lng = parseFloat(c[idx.Longitude]);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
 
+        const rawDesc = (c[idx.Description] || '').trim();
         rows.push({
-          ref: c[idx.ActivityReference] || String(r),
+          ref: c[idx.ActivityReference] || String(rowNum),
           status,
           cat: c[idx.Category] || '',
           impact: c[idx.TrafficImpact] || '',
@@ -214,7 +232,7 @@ async function loadSrwrDataset(): Promise<SrwrCompactRow[]> {
           street: (c[idx.Street] || c[idx.Location] || '').trim(),
           town: (c[idx.Town] || c[idx.Locality] || '').trim(),
           auth: (c[idx.RoadAuthorityName] || '').trim(),
-          desc: (c[idx.Description] || '').trim(),
+          desc: rawDesc.length > 240 ? `${rawDesc.slice(0, 237)}...` : rawDesc,
           start: c[idx.StartDateTimeUTC] || '',
           end,
           lat,

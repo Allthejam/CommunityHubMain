@@ -394,7 +394,7 @@ async function handleDailyBriefing(request: Request) {
     let communitiesProcessed = 0;
 
     const communityEntries = Array.from(usersByCommunity.entries());
-    const CONCURRENCY = 8;
+    const CONCURRENCY = 4;
     for (let cIdx = 0; cIdx < communityEntries.length; cIdx += CONCURRENCY) {
       const batchEntries = communityEntries.slice(cIdx, cIdx + CONCURRENCY);
       await Promise.all(
@@ -421,6 +421,8 @@ async function handleDailyBriefing(request: Request) {
               tag: `daily-briefing-${communityId}-${todayIso}`,
               url: '/home?briefing=1',
             },
+          }).catch((err) => {
+            console.error(`Daily briefing push failed for ${communityId}:`, err);
           });
 
           const CHUNK_SIZE = 200;
