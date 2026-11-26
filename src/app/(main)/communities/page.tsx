@@ -264,13 +264,27 @@ export default function CommunitiesDiscoveryPage() {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-                setLocationLabel('Your Live GPS / Wi-Fi Location');
+                const isCoarseEstimate = typeof pos.coords.accuracy === 'number' && pos.coords.accuracy > 5000;
+                const accuracyMiles = typeof pos.coords.accuracy === 'number' ? Math.max(1, Math.round(pos.coords.accuracy / 1609.34)) : null;
+                setLocationLabel(isCoarseEstimate ? 'Approximate Wi-Fi / ISP Location' : 'Your Live GPS Location');
                 setIsLocating(false);
                 setLocationDenied(false);
-                toast({ title: "Live Location Found", description: "Map centered on your live device location." });
+                toast({
+                    title: isCoarseEstimate ? "Approximate Location Found" : "Live GPS Location Found",
+                    description: isCoarseEstimate && accuracyMiles
+                        ? `Centered using Wi-Fi/ISP estimate (~${accuracyMiles} mi accuracy). Use mobile GPS or town/postcode search for exact results.`
+                        : "Map centered on your live device location."
+                });
             },
             (err) => {
                 console.warn("Geolocation denied or unavailable:", err);
+                toast({
+                    title: "Location Unavailable",
+                    description: err.code === 1
+                        ? "Location permission was denied. Please allow location access or search your town/postcode."
+                        : "Could not get your GPS fix in time. Try again or search your town/postcode.",
+                    variant: "destructive"
+                });
                 setIsLocating(false);
                 setLocationDenied(true);
                 setRegisteredCommunityAsCenter(communities);

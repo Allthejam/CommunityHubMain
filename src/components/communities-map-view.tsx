@@ -312,6 +312,28 @@ export default function CommunitiesMapView({
             `}</style>
 
             <div ref={mapContainerRef} className="w-full h-full z-0" />
+
+            {/* Floating Locate Me Button on Map */}
+            {onRequestGpsLocation && (
+                <div className="absolute top-3 right-3 z-10">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={onRequestGpsLocation}
+                        disabled={isLocating}
+                        className="h-9 px-3 text-xs font-semibold gap-1.5 bg-background/95 backdrop-blur-md border shadow-md hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/60 rounded-xl"
+                        title="Center map on your device GPS (best on mobile) or Wi-Fi location"
+                    >
+                        {isLocating ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        ) : (
+                            <LocateFixed className="h-4 w-4 text-blue-600" />
+                        )}
+                        <span>{isLocating ? 'Locating...' : 'Locate Me'}</span>
+                    </Button>
+                </div>
+            )}
             
             {/* Map Legend Floating Card */}
             <div className="absolute bottom-4 left-4 z-10 bg-background/95 backdrop-blur-md p-3 rounded-xl border shadow-md text-xs space-y-1.5 hidden sm:block">
