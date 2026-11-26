@@ -462,7 +462,12 @@ export function SchoolClosuresCard({
                 })),
               ].sort((a, b) => a.sortDate.localeCompare(b.sortDate));
 
-              const visibleHolidays = allCombinedHolidays.slice(0, 6);
+              const customEntries = allCombinedHolidays.filter((e) => e.kind === 'custom');
+              const bankEntries = allCombinedHolidays.filter((e) => e.kind === 'bank');
+              const visibleHolidays =
+                customEntries.length > 0
+                  ? [...customEntries.slice(0, 6), ...bankEntries].slice(0, 6)
+                  : allCombinedHolidays.slice(0, 6);
 
               const renderHolidayTile = (
                 entry: (typeof allCombinedHolidays)[number],

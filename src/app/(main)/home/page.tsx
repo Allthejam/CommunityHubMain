@@ -388,7 +388,7 @@ function HomePageContent() {
           <div id="section-schools" className="scroll-mt-20">
             <SchoolClosuresCard
               communityId={activeCommunityId}
-              hasBoundary={communityLoading ? undefined : Boolean(activeCommunity?.boundary)}
+              hasBoundary={communityLoading ? undefined : Boolean(activeCommunity?.boundary || activeCommunity?.centralCoordinates)}
             />
           </div>
           <div id="section-whatson" className="scroll-mt-20">

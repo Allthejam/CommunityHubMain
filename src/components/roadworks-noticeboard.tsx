@@ -234,9 +234,18 @@ export function RoadworksNoticeboard({
 
   React.useEffect(() => {
     let cancelled = false;
-    const loadRoadworks = async () => {
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const loadRoadworks = async (attempt = 0) => {
       const bc = getCenterFromBoundary(boundary);
-      if (!bc) {
+      const center =
+        centralCoordinates &&
+        typeof centralCoordinates.lat === 'number' &&
+        typeof centralCoordinates.lng === 'number'
+          ? centralCoordinates
+          : bc;
+
+      if (!center) {
         if (!cancelled) {
           setOfficialItems([]);
           setNoBoundary(true);
@@ -244,13 +253,6 @@ export function RoadworksNoticeboard({
         }
         return;
       }
-
-      const center =
-        centralCoordinates &&
-        typeof centralCoordinates.lat === 'number' &&
-        typeof centralCoordinates.lng === 'number'
-          ? centralCoordinates
-          : bc;
 
       setNoBoundary(false);
       setLoading(true);
@@ -260,7 +262,7 @@ export function RoadworksNoticeboard({
         params.set('lat', String(center.lat));
         params.set('lng', String(center.lng));
         params.set('radiusMiles', '30');
-        const res = await fetch(`/api/roadworks?${params.toString()}`);
+        const res = await fetch(`/api/roadworks?${params.toString()}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (!cancelled && data.success && Array.isArray(data.items)) {
@@ -279,19 +281,27 @@ export function RoadworksNoticeboard({
                 })),
               }).catch(() => {});
             }
+            return;
           }
+        }
+        if (!cancelled && attempt < 1) {
+          retryTimer = setTimeout(() => loadRoadworks(attempt + 1), 2000);
         }
       } catch (err) {
         console.warn('Error loading roadworks feed:', err);
+        if (!cancelled && attempt < 1) {
+          retryTimer = setTimeout(() => loadRoadworks(attempt + 1), 2000);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
-    loadRoadworks();
-    const interval = setInterval(loadRoadworks, 10 * 60 * 1000);
+    loadRoadworks(0);
+    const interval = setInterval(() => loadRoadworks(0), 10 * 60 * 1000);
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
       clearInterval(interval);
     };
   }, [effectiveCommId, communityName, boundary, centralCoordinates]);
