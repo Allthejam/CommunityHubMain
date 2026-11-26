@@ -95,12 +95,13 @@ async function fetchRoadworksLine(
   communityId: string,
   name: string,
   lat: number,
-  lng: number
+  lng: number,
+  fastMode = false
 ): Promise<string> {
   try {
     const nowMs = Date.now();
     const [officialResult, localSnap] = await Promise.all([
-      getRoadworksForLocation({ communityName: name, lat, lng, radiusMiles: 30 }),
+      getRoadworksForLocation({ communityName: name, lat, lng, radiusMiles: 30, fastMode }),
       firestore.collection(`communities/${communityId}/road_alerts`).get().catch(() => null),
     ]);
 
@@ -142,9 +143,9 @@ async function fetchRoadworksLine(
 
 async function buildCommunityBulletin(
   firestore: FirebaseFirestore.Firestore,
-  origin: string,
   communityId: string,
-  todayIso: string
+  todayIso: string,
+  fastMode = false
 ) {
   const [commDoc, schoolAlertsSnap, schoolHolidaysSnap, leaderNoticesSnap] = await Promise.all([
     firestore.collection('communities').doc(communityId).get(),
@@ -165,7 +166,7 @@ async function buildCommunityBulletin(
   const [weatherLine, roadsLine] = center
     ? await Promise.all([
         fetchWeatherLine(center.lat, center.lng),
-        fetchRoadworksLine(firestore, communityId, communityName, center.lat, center.lng),
+        fetchRoadworksLine(firestore, communityId, communityName, center.lat, center.lng, fastMode),
       ])
     : ['No boundary mapped yet', 'No boundary mapped yet'];
 
@@ -282,7 +283,7 @@ async function handleDailyBriefing(request: Request) {
         return NextResponse.json({ success: false, error: 'No home community set' });
       }
       const firstName = String(u.firstName || u.name || 'Neighbour').trim().split(/\s+/)[0];
-      const bulletin = await buildCommunityBulletin(firestore, origin, commId, todayIso);
+      const bulletin = await buildCommunityBulletin(firestore, commId, todayIso, false);
       const greeting = `Good morning ${firstName}, this is your morning bulletin from your community ${bulletin.communityName}.`;
 
       return NextResponse.json({
@@ -305,8 +306,8 @@ async function handleDailyBriefing(request: Request) {
     }
   }
 
-  // When called by the 07:00/08:00 UTC GitHub cron, only send during 08:xx Europe/London
-  if (cronCheck && getLondonHour() !== 8) {
+  // When called by the 07:00/08:00 UTC GitHub cron, only send from 08:00 Europe/London onwards
+  if (cronCheck && getLondonHour() < 8) {
     return NextResponse.json({
       success: true,
       skipped: true,
@@ -319,7 +320,6 @@ async function handleDailyBriefing(request: Request) {
     const nowMs = Date.now();
     const expiresAtMs = nowMs + 20 * 60 * 60 * 1000; // Auto-delete after 20 hours
     const todayIso = getLondonTodayIso();
-    const origin = new URL(request.url).origin;
 
     const cleanedExpired = await cleanupExpiredDailyBriefings(firestore, nowMs);
 
@@ -344,72 +344,79 @@ async function handleDailyBriefing(request: Request) {
     let sentUsers = 0;
     let communitiesProcessed = 0;
 
-    for (const [communityId, recipients] of usersByCommunity.entries()) {
-      if (recipients.length === 0) continue;
+    const communityEntries = Array.from(usersByCommunity.entries());
+    const CONCURRENCY = 8;
+    for (let cIdx = 0; cIdx < communityEntries.length; cIdx += CONCURRENCY) {
+      const batchEntries = communityEntries.slice(cIdx, cIdx + CONCURRENCY);
+      await Promise.all(
+        batchEntries.map(async ([communityId, recipients]) => {
+          if (recipients.length === 0) return;
 
-      const bulletin = await buildCommunityBulletin(firestore, origin, communityId, todayIso);
-      const leaderSummary =
-        bulletin.leaderNotices.length > 0
-          ? bulletin.leaderNotices.map((n) => `📌 ${n.title}: ${n.message}`)
-          : [];
-      const summaryBody = [
-        ...leaderSummary,
-        `Weather: ${bulletin.weatherLine}`,
-        `Roads: ${bulletin.roadsLine}`,
-        ...bulletin.schoolLines,
-      ].join(' • ');
+          const bulletin = await buildCommunityBulletin(firestore, communityId, todayIso, true);
+          const leaderSummary =
+            bulletin.leaderNotices.length > 0
+              ? bulletin.leaderNotices.map((n) => `📌 ${n.title}: ${n.message}`)
+              : [];
+          const summaryBody = [
+            ...leaderSummary,
+            `Weather: ${bulletin.weatherLine}`,
+            `Roads: ${bulletin.roadsLine}`,
+            ...bulletin.schoolLines,
+          ].join(' • ');
 
-      await sendPushNotificationAction({
-        audience: { type: 'users', value: recipients.map((r) => r.uid) },
-        notification: {
-          title: `☀️ Morning Bulletin — ${bulletin.communityName}`,
-          body: summaryBody.length > 180 ? `${summaryBody.slice(0, 177)}...` : summaryBody,
-          tag: `daily-briefing-${communityId}-${todayIso}`,
-          url: '/home?briefing=1',
-        },
-      });
-
-      const CHUNK_SIZE = 200;
-      for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
-        const chunk = recipients.slice(i, i + CHUNK_SIZE);
-        const batch = firestore.batch();
-        const ts = Timestamp.fromMillis(nowMs);
-
-        chunk.forEach(({ uid, firstName }) => {
-          const greeting = `Good morning ${firstName}, this is your morning bulletin from your community ${bulletin.communityName}.`;
-          const notifRef = firestore.collection('notifications').doc();
-          batch.set(notifRef, {
-            type: 'Daily Morning Briefing',
-            subject: greeting,
-            from: `${bulletin.communityName} Morning Bulletin`,
-            date: ts,
-            expiresAt: Timestamp.fromMillis(expiresAtMs),
-            expiresAtMs,
-            status: 'new',
-            recipientId: uid,
-            relatedId: `briefing-${todayIso}`,
-            actionUrl: '/home?briefing=1',
-            details: {
-              communityId,
-              communityName: bulletin.communityName,
-              greeting,
-              weatherLine: bulletin.weatherLine,
-              roadsLine: bulletin.roadsLine,
-              schoolLines: bulletin.schoolLines,
-              leaderNotices: bulletin.leaderNotices,
-              message: `${greeting} ${summaryBody}`,
+          await sendPushNotificationAction({
+            audience: { type: 'users', value: recipients.map((r) => r.uid) },
+            notification: {
+              title: `☀️ Morning Bulletin — ${bulletin.communityName}`,
+              body: summaryBody.length > 180 ? `${summaryBody.slice(0, 177)}...` : summaryBody,
+              tag: `daily-briefing-${communityId}-${todayIso}`,
+              url: '/home?briefing=1',
             },
           });
-          batch.update(firestore.collection('users').doc(uid), {
-            dailyBriefingLastSentDate: todayIso,
-          });
-        });
 
-        await batch.commit();
-      }
+          const CHUNK_SIZE = 200;
+          for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
+            const chunk = recipients.slice(i, i + CHUNK_SIZE);
+            const batch = firestore.batch();
+            const ts = Timestamp.fromMillis(nowMs);
 
-      sentUsers += recipients.length;
-      communitiesProcessed += 1;
+            chunk.forEach(({ uid, firstName }) => {
+              const greeting = `Good morning ${firstName}, this is your morning bulletin from your community ${bulletin.communityName}.`;
+              const notifRef = firestore.collection('notifications').doc();
+              batch.set(notifRef, {
+                type: 'Daily Morning Briefing',
+                subject: greeting,
+                from: `${bulletin.communityName} Morning Bulletin`,
+                date: ts,
+                expiresAt: Timestamp.fromMillis(expiresAtMs),
+                expiresAtMs,
+                status: 'new',
+                recipientId: uid,
+                relatedId: `briefing-${todayIso}`,
+                actionUrl: '/home?briefing=1',
+                details: {
+                  communityId,
+                  communityName: bulletin.communityName,
+                  greeting,
+                  weatherLine: bulletin.weatherLine,
+                  roadsLine: bulletin.roadsLine,
+                  schoolLines: bulletin.schoolLines,
+                  leaderNotices: bulletin.leaderNotices,
+                  message: `${greeting} ${summaryBody}`,
+                },
+              });
+              batch.update(firestore.collection('users').doc(uid), {
+                dailyBriefingLastSentDate: todayIso,
+              });
+            });
+
+            await batch.commit();
+          }
+
+          sentUsers += recipients.length;
+          communitiesProcessed += 1;
+        })
+      );
     }
 
     return NextResponse.json({

@@ -446,22 +446,23 @@ export async function getRoadworksForLocation(params: {
   lat: number;
   lng: number;
   radiusMiles?: number;
+  fastMode?: boolean;
 }) {
-  const { communityName, lat, lng, radiusMiles = 30 } = params;
+  const { communityName, lat, lng, radiusMiles = 30, fastMode = false } = params;
   const isScotland = lat >= 54.6;
 
   const [incidents, currentWorks, plannedWorks, srwrWorks, localOverpass] = await Promise.all([
-    isScotland
+    isScotland && !fastMode
       ? fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/currentincidents.aspx', 'incident', lat, lng)
       : Promise.resolve([]),
-    isScotland
+    isScotland && !fastMode
       ? fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/roadworks.aspx', 'current_works', lat, lng)
       : Promise.resolve([]),
-    isScotland
+    isScotland && !fastMode
       ? fetchTrafficScotlandFeed('https://trafficscotland.org/rss/feeds/plannedroadworks.aspx', 'planned_works', lat, lng)
       : Promise.resolve([]),
     isScotland ? fetchScottishSrwrRoadworks(lat, lng, radiusMiles) : Promise.resolve([]),
-    fetchLocalOverpassRoadworks(lat, lng),
+    fastMode ? Promise.resolve([]) : fetchLocalOverpassRoadworks(lat, lng),
   ]);
 
   const allTrunkItems = [...incidents, ...currentWorks, ...plannedWorks];

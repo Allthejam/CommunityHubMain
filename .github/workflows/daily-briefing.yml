@@ -2,8 +2,9 @@ name: Daily 8AM Community Briefing
 
 on:
   schedule:
-    # Runs at 07:00 and 08:00 UTC so Europe/London 08:00 is covered year-round (GMT & BST)
+    # Runs at 07:00, 08:00, and 08:30 UTC so Europe/London 08:00 is covered year-round even with cron jitter
     - cron: '0 7,8 * * *'
+    - cron: '30 8 * * *'
   workflow_dispatch:
 
 jobs:
@@ -12,4 +13,4 @@ jobs:
     steps:
       - name: Trigger 8AM Daily Briefing Endpoint
         run: |
-          curl -fsSL -X GET "https://www.my-community-hub.co.uk/api/cron/daily-briefing?cronCheck=1"
+          curl -fsSL --max-time 60 -X GET "https://www.my-community-hub.co.uk/api/cron/daily-briefing?cronCheck=1"
