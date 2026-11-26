@@ -34,7 +34,8 @@ import {
     ExternalLink,
     Search,
     Filter,
-    Sparkles
+    Sparkles,
+    Sun
 } from "lucide-react";
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
@@ -105,6 +106,16 @@ function getTypeMetadata(type: NotificationType | string, subject = '') {
       badgeClass: "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
       accentBorder: "border-l-rose-500",
       glowBg: "bg-rose-50/40 dark:bg-rose-950/20"
+    };
+  }
+
+  if (type === "Daily Morning Briefing" || s.includes("morning bulletin")) {
+    return {
+      icon: <Sun className="h-4 w-4 text-amber-500" />,
+      label: "Daily Briefing",
+      badgeClass: "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+      accentBorder: "border-l-amber-500",
+      glowBg: "bg-amber-50/40 dark:bg-amber-950/20"
     };
   }
 
@@ -597,6 +608,9 @@ export default function NotificationsPage() {
         if (categoryFilter !== 'all') {
             filtered = filtered.filter(n => {
                 const s = (n.subject || '').toLowerCase();
+                if (categoryFilter === 'daily_briefing') {
+                    return (n.type as string) === 'Daily Morning Briefing' || s.includes('morning bulletin');
+                }
                 if (categoryFilter === 'emergency') {
                     return n.type === 'Emergency Plan Update' || n.type === 'Situation Bulletin' || n.type === 'Public Emergency Alert' || s.includes('emergency') || s.includes('resilience') || s.includes('wildfire') || s.includes('flood');
                 }
@@ -823,6 +837,7 @@ export default function NotificationsPage() {
                         </span>
                         {[
                             { id: 'all', label: 'All Categories' },
+                            { id: 'daily_briefing', label: '☀️ Daily Briefing' },
                             { id: 'emergency', label: '🚨 Emergency & Safety' },
                             { id: 'announcement', label: '📢 Announcements' },
                             { id: 'events', label: '📅 Events' },

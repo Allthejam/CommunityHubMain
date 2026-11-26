@@ -286,6 +286,55 @@ async function handleDailyBriefing(request: Request) {
       const bulletin = await buildCommunityBulletin(firestore, commId, todayIso, false);
       const greeting = `Good morning ${firstName}, this is your morning bulletin from your community ${bulletin.communityName}.`;
 
+      // Ensure today's Daily Morning Briefing is also recorded in the user's Notification Center if not sent yet today
+      if (
+        getLondonHour() >= 8 &&
+        u.dailyBriefingLastSentDate !== todayIso &&
+        u.mailingLists?.standard !== false &&
+        u.mailingLists?.dailyBriefing !== false
+      ) {
+        const nowMs = Date.now();
+        const expiresAtMs = nowMs + 20 * 60 * 60 * 1000;
+        const leaderSummary =
+          bulletin.leaderNotices.length > 0
+            ? bulletin.leaderNotices.map((n) => `📌 ${n.title}: ${n.message}`)
+            : [];
+        const summaryBody = [
+          ...leaderSummary,
+          `Weather: ${bulletin.weatherLine}`,
+          `Roads: ${bulletin.roadsLine}`,
+          ...bulletin.schoolLines,
+        ].join(' • ');
+
+        await Promise.all([
+          firestore.collection('notifications').add({
+            type: 'Daily Morning Briefing',
+            subject: greeting,
+            from: `${bulletin.communityName} Morning Bulletin`,
+            date: Timestamp.fromMillis(nowMs),
+            expiresAt: Timestamp.fromMillis(expiresAtMs),
+            expiresAtMs,
+            status: 'new',
+            recipientId: previewUserId,
+            relatedId: `briefing-${todayIso}`,
+            actionUrl: '/home?briefing=1',
+            details: {
+              communityId: commId,
+              communityName: bulletin.communityName,
+              greeting,
+              weatherLine: bulletin.weatherLine,
+              roadsLine: bulletin.roadsLine,
+              schoolLines: bulletin.schoolLines,
+              leaderNotices: bulletin.leaderNotices,
+              message: `${greeting} ${summaryBody}`,
+            },
+          }),
+          firestore.collection('users').doc(previewUserId).update({
+            dailyBriefingLastSentDate: todayIso,
+          }),
+        ]).catch(() => {});
+      }
+
       return NextResponse.json({
         success: true,
         date: todayIso,
