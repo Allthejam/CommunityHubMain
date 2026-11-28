@@ -109,7 +109,7 @@ const mainFeatures = [
 ];
 
 const keyFeaturesList = [
-    { icon: <Sun className="h-5 w-5 text-amber-500" />, title: "8:00 AM Daily Morning Briefing", description: "One daily morning bulletin combining weather, 30-mile roadworks, school closures, 5-day holiday countdowns, and leader notices (auto-clears after 20 hours)." },
+    { icon: <Sun className="h-5 w-5 text-amber-500" />, title: "7:30 AM Daily Morning Briefing", description: "One daily morning bulletin combining weather, 30-mile roadworks, school closures, 5-day holiday countdowns, and leader notices (auto-clears after 20 hours)." },
     { icon: <CloudSun className="h-5 w-5 text-sky-500" />, title: "Live Weather & Storm Warnings", description: "Boundary and town-centre-pinned forecasts with Met Office & storm alerts tailored to your community." },
     { icon: <Construction className="h-5 w-5 text-amber-500" />, title: "30-Mile Roadworks & Travel Hub", description: "Live trunk and local roadworks within 30 miles (via Scottish Road Works Register & local popup hazard reports), plus bus, rail, and taxi links." },
     { icon: <GraduationCap className="h-5 w-5 text-indigo-500" />, title: "School Closures & Term Dates", description: "Instant push & bell alerts from leaders or authorised school staff, auto-cleaning single-day closures, and editable local & public holiday calendars." },
@@ -596,7 +596,7 @@ export function AboutContent({ initialSeoData }: { initialSeoData?: AboutSeoData
 
             <Separator />
 
-            {/* Section 4c: 8:00 AM Daily Morning Briefing & Leader Notices */}
+            {/* Section 4c: 7:30 AM Daily Morning Briefing & Leader Notices */}
             {(() => {
                 const dailyBriefing = sections.dailyBriefing || DEFAULT_ABOUT_SEO_DATA.sections.dailyBriefing;
                 return (
@@ -641,7 +641,7 @@ export function AboutContent({ initialSeoData }: { initialSeoData?: AboutSeoData
                             </div>
                             <div className="flex items-start gap-3">
                                 <CheckCircle2 className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                                <span><strong>20-Hour Auto-Cleanup &amp; Full User Control:</strong> Daily briefings auto-delete after 20 hours, and residents can toggle Weather, Roadworks, School Alerts, or the 8:00 AM Briefing anytime in Settings.</span>
+                                <span><strong>20-Hour Auto-Cleanup &amp; Full User Control:</strong> Daily briefings auto-delete after 20 hours, and residents can toggle Weather, Roadworks, School Alerts, or the 7:30 AM Briefing anytime in Settings.</span>
                             </div>
                         </div>
                         <div className="pt-2 flex items-center gap-3 flex-wrap">

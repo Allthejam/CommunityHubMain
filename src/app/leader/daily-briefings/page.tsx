@@ -115,7 +115,7 @@ export default function LeaderDailyBriefingsPage() {
     if (res.success) {
       toast({
         title: 'Morning Briefing Notice Scheduled',
-        description: `Included in the 8:00 AM briefing for ${formatDateNice(targetDate)} and auto-deletes after 20 hours.`,
+        description: `Included in the 7:30 AM briefing for ${formatDateNice(targetDate)} and auto-deletes after 20 hours.`,
       });
       setTitle('');
       setMessage('');
@@ -144,21 +144,21 @@ export default function LeaderDailyBriefingsPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1.5 max-w-2xl">
             <Badge className="bg-white/20 text-white border-white/30 text-[10px] font-bold uppercase tracking-wider">
-              <Sparkles className="h-3 w-3 mr-1" /> 8:00 AM Morning Bulletin
+              <Sparkles className="h-3 w-3 mr-1" /> 7:30 AM Morning Bulletin
             </Badge>
             <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2.5">
               <Sun className="h-7 w-7 text-yellow-200 shrink-0" />
               Daily Briefings
             </h1>
             <p className="text-sm text-amber-50 leading-relaxed">
-              Add everyday community reminders (like tonight&apos;s council meeting, hall events, or bin collection changes) directly into your town&apos;s 8:00 AM Morning Bulletin — without sending a separate urgent broadcast. Every notice automatically clears after 20 hours.
+              Add everyday community reminders (like tonight&apos;s council meeting, hall events, or bin collection changes) directly into your town&apos;s 7:30 AM Morning Bulletin — without sending a separate urgent broadcast. Every notice automatically clears after 20 hours.
             </p>
           </div>
           <div className="rounded-xl bg-black/20 backdrop-blur-xs px-4 py-3 text-xs space-y-1 border border-white/15">
             <p className="font-bold flex items-center gap-1.5 text-yellow-100">
               <Clock className="h-3.5 w-3.5" /> Delivery &amp; Auto-Clean
             </p>
-            <p className="text-amber-50">Sent daily at <strong>08:00 UK</strong></p>
+            <p className="text-amber-50">Sent daily at <strong>07:30 UK</strong></p>
             <p className="text-amber-50">Auto-deletes after <strong>20 hours</strong></p>
           </div>
         </div>
@@ -173,13 +173,13 @@ export default function LeaderDailyBriefingsPage() {
               Add Briefing Notice
             </CardTitle>
             <CardDescription className="text-xs">
-              Queue a short note for an upcoming 8:00 AM Morning Bulletin.
+              Queue a short note for an upcoming 7:30 AM Morning Bulletin.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
               <div className="space-y-1">
-                <Label htmlFor="briefing-date" className="font-bold">Morning Date (8:00 AM)</Label>
+                <Label htmlFor="briefing-date" className="font-bold">Morning Date (7:30 AM)</Label>
                 <Input
                   id="briefing-date"
                   type="date"
@@ -250,7 +250,7 @@ export default function LeaderDailyBriefingsPage() {
                 className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-bold"
               >
                 {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-                Schedule for 8:00 AM Briefing
+                Schedule for 7:30 AM Briefing
               </Button>
             </form>
           </CardContent>
@@ -264,7 +264,7 @@ export default function LeaderDailyBriefingsPage() {
               Queued &amp; Active Notices ({notices.length})
             </CardTitle>
             <CardDescription className="text-xs">
-              Notices automatically clear 20 hours after their 8:00 AM broadcast.
+              Notices automatically clear 20 hours after their 7:30 AM broadcast.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -277,7 +277,7 @@ export default function LeaderDailyBriefingsPage() {
                 <CheckCircle2 className="h-6 w-6 text-sky-600 mx-auto" />
                 <p className="text-sm font-bold text-foreground">No leader briefing notices queued yet</p>
                 <p className="text-xs text-muted-foreground">
-                  Add a notice on the left and it will automatically appear in your community&apos;s next 8:00 AM Morning Bulletin.
+                  Add a notice on the left and it will automatically appear in your community&apos;s next 7:30 AM Morning Bulletin.
                 </p>
               </div>
             ) : (
@@ -302,7 +302,7 @@ export default function LeaderDailyBriefingsPage() {
                                 : 'bg-amber-500 text-slate-950 text-[10px] font-bold'
                             }
                           >
-                            {isToday ? "Today's 8am Briefing" : formatDateNice(n.targetDate)}
+                            {isToday ? "Today's 7:30am Briefing" : formatDateNice(n.targetDate)}
                           </Badge>
                           <span className="text-[11px] text-muted-foreground">
                             by {n.authorName}

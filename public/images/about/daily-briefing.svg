@@ -17,7 +17,7 @@
   <rect x="90" y="36" width="620" height="448" rx="22" fill="#ffffff" stroke="#fcd34d" stroke-width="3" />
   <path d="M90 58 Q90 36 112 36 L688 36 Q710 36 710 58 L710 124 L90 124 Z" fill="url(#hdr)" />
   <circle cx="132" cy="70" r="16" fill="#fef08a" />
-  <text x="160" y="76" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" fill="#ffffff">8:00 AM Morning Bulletin</text>
+  <text x="160" y="76" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" fill="#ffffff">7:30 AM Morning Bulletin</text>
   <text x="116" y="106" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#fffbeb">Good morning! This is your morning bulletin from your community.</text>
 
   <!-- Leader Notice Card -->

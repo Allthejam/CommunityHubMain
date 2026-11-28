@@ -127,8 +127,8 @@ export async function createLeaderBriefingNoticeAction(params: {
       return { success: false, error: 'Title, message, and target date are required.' };
     }
 
-    // Auto-delete 20 hours after the 8:00 AM briefing on targetDate
-    const briefingStartMs = Date.parse(`${targetDate}T08:00:00Z`);
+    // Auto-delete 20 hours after the 7:30 AM briefing on targetDate
+    const briefingStartMs = Date.parse(`${targetDate}T07:30:00Z`);
     const expiresAtMs = (Number.isNaN(briefingStartMs) ? Date.now() : briefingStartMs) + 20 * 60 * 60 * 1000;
 
     const docRef = await firestore

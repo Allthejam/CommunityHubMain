@@ -15,13 +15,18 @@ function getLondonTodayIso(): string {
   }).format(new Date());
 }
 
-function getLondonHour(): number {
-  const hr = new Intl.DateTimeFormat('en-GB', {
+function getLondonTime(): { hour: number; minute: number; isAfter730: boolean; label: string } {
+  const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/London',
     hour: '2-digit',
+    minute: '2-digit',
     hour12: false,
-  }).format(new Date());
-  return Number(hr);
+  }).formatToParts(new Date());
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+  const isAfter730 = hour > 7 || (hour === 7 && minute >= 30);
+  const label = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  return { hour, minute, isAfter730, label };
 }
 
 function diffDaysIso(fromIso: string, toIso: string): number {
@@ -288,7 +293,7 @@ async function handleDailyBriefing(request: Request) {
 
       // Ensure today's Daily Morning Briefing is also recorded in the user's Notification Center if not sent yet today
       if (
-        getLondonHour() >= 8 &&
+        getLondonTime().isAfter730 &&
         u.dailyBriefingLastSentDate !== todayIso &&
         u.mailingLists?.standard !== false &&
         u.mailingLists?.dailyBriefing !== false
@@ -355,12 +360,12 @@ async function handleDailyBriefing(request: Request) {
     }
   }
 
-  // When called by the 07:00/08:00 UTC GitHub cron, only send from 08:00 Europe/London onwards
-  if (cronCheck && getLondonHour() < 8) {
+  // When called by the 06:30/07:30/08:00 UTC GitHub cron, only send from 07:30 Europe/London onwards
+  if (cronCheck && !getLondonTime().isAfter730) {
     return NextResponse.json({
       success: true,
       skipped: true,
-      reason: `Current Europe/London hour is ${getLondonHour()}, waiting for 8am.`,
+      reason: `Current Europe/London time is ${getLondonTime().label}, waiting for 07:30.`,
     });
   }
 

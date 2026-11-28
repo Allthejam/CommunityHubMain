@@ -159,14 +159,14 @@ export const DEFAULT_ABOUT_SEO_DATA: AboutSeoData = {
       imageTitle: 'Local Travel Hub: Buses, Trains, Taxis & Roadworks',
     },
     dailyBriefing: {
-      badge: '8:00 AM Morning Bulletin',
+      badge: '7:30 AM Morning Bulletin',
       heading: 'Daily Morning Briefings & Community Leader Notices',
       headingTag: 'h2',
       description:
-        'Every morning at 8:00 AM, opted-in residents receive a personalised Morning Bulletin combining local weather, 30-mile roadworks, school closures, 5-day holiday countdowns, and everyday reminders posted by Community Leaders — all automatically clearing after 20 hours.',
+        'Every morning at 7:30 AM, opted-in residents receive a personalised Morning Bulletin combining local weather, 30-mile roadworks, school closures, 5-day holiday countdowns, and everyday reminders posted by Community Leaders — all automatically clearing after 20 hours.',
       imageUrl: '/images/about/daily-briefing.svg',
       imageAlt: 'Morning Bulletin card showing leader notices, weather, 30-mile roadworks, and school countdowns',
-      imageTitle: '8:00 AM Daily Morning Briefing & Leader Notices',
+      imageTitle: '7:30 AM Daily Morning Briefing & Leader Notices',
     },
     publicDirectory: {
       badge: 'Open Public Access • Google SEO Indexed',

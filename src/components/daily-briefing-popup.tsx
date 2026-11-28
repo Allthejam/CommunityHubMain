@@ -27,7 +27,7 @@ type BulletinPayload = {
   leaderNotices?: Array<{ id: string; title: string; message: string; linkUrl?: string }>;
 };
 
-function getLondonTodayAndHour(): { todayIso: string; hour: number } {
+function getLondonTodayAndTime(): { todayIso: string; isAfter730: boolean } {
   const now = new Date();
   const todayIso = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/London',
@@ -35,14 +35,16 @@ function getLondonTodayAndHour(): { todayIso: string; hour: number } {
     month: '2-digit',
     day: '2-digit',
   }).format(now);
-  const hour = Number(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/London',
-      hour: '2-digit',
-      hour12: false,
-    }).format(now)
-  );
-  return { todayIso, hour };
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+  const isAfter730 = hour > 7 || (hour === 7 && minute >= 30);
+  return { todayIso, isAfter730 };
 }
 
 function DailyBriefingPopupInner() {
@@ -64,8 +66,8 @@ function DailyBriefingPopupInner() {
       if (userProfile.mailingLists?.standard === false || userProfile.mailingLists?.dailyBriefing === false) {
         return;
       }
-      const { todayIso, hour } = getLondonTodayAndHour();
-      if (hour < 8) return;
+      const { todayIso, isAfter730 } = getLondonTodayAndTime();
+      if (!isAfter730) return;
       const storageKey = `dailyBriefingDismissed_${todayIso}_${user.uid}`;
       if (typeof window !== 'undefined' && localStorage.getItem(storageKey) === 'true') {
         return;
@@ -100,7 +102,7 @@ function DailyBriefingPopupInner() {
   const handleClose = () => {
     setOpen(false);
     if (user?.uid && typeof window !== 'undefined') {
-      const { todayIso } = getLondonTodayAndHour();
+      const { todayIso } = getLondonTodayAndTime();
       localStorage.setItem(`dailyBriefingDismissed_${todayIso}_${user.uid}`, 'true');
     }
     if (forceBriefingParam && pathname) {
